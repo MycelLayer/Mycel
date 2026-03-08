@@ -14,6 +14,7 @@
 
 - Mycel 本身必須保持完全中立且純技術化。
 - 與宗教相關的專案意圖或 framing 只能出現在這份文件中，不得出現在 protocol、wire、schema 或 design documents 內。
+- repo 內其他文件都必須把 Mycel 視為中立的技術系統，不得重述、延伸或暗示這裡描述的宗教目的。
 - 協議與設計文件必須使用領域中立的語言，包括 examples、role names 與 app descriptions。
 - 協議與設計決策不得嵌入特定世界觀的立場、背書或內容領域術語。
 
