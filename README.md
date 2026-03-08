@@ -30,6 +30,8 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 - [WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md): Wire protocol draft in Traditional Chinese
 - [IMPLEMENTATION-CHECKLIST.en.md](./IMPLEMENTATION-CHECKLIST.en.md): Implementation checklist for a minimal v0.1 client
 - [IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md): Traditional Chinese implementation checklist
+- [DESIGN-NOTES.client-non-discretionary-multi-view.en.md](./DESIGN-NOTES.client-non-discretionary-multi-view.en.md): Design draft for a protocol-governed multi-view reader model
+- [DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md](./DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md): Traditional Chinese design draft for the same model
 - [AGENTS.md](./AGENTS.md): Repository collaboration rules
 
 ## Near-Term Priorities
