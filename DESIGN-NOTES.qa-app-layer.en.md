@@ -236,9 +236,71 @@ Recommended rules:
 
 This keeps client behavior constrained while preserving multi-answer history.
 
-## 5. Suggested Flows
+## 5. Answer Traceability
 
-### 5.1 Human-Curated Flow
+A Q&A app should let a client trace any received answer back through both content history and acceptance history.
+
+Recommended trace chain:
+
+1. identify the displayed `answer_id`
+2. map it to the parent `question_id`
+3. locate the answer revision history and signed authorship trail
+4. inspect its citations and referenced source texts
+5. inspect the `resolution` document that names it as accepted or alternative
+6. inspect the fixed profile and decision trace that caused the client to display it as the active accepted answer
+7. if runtime assistance exists, inspect related effect requests and effect receipts
+
+This means an answer should be traceable through at least five linked dimensions:
+
+- content history
+- authorship and signatures
+- citations and source basis
+- resolution state
+- governance and selector output
+
+### 5.1 Minimum Client Trace View
+
+A conforming Q&A client should be able to show at least the following fields for a displayed answer:
+
+- `answer_id`
+- `question_id`
+- current `revision_id`
+- `answered_by`
+- `source_mode`
+- citation references
+- `resolution_id`
+- whether it is the active `accepted_answer` or an `alternative_answer`
+- `accepted_under_profile`
+- decision-trace reference or summary
+
+### 5.2 Why-Am-I-Seeing-This View
+
+I recommend that reader clients expose a dedicated inspection view such as `Why this answer`.
+
+That view should explain:
+
+- which answer is currently active
+- which resolution document selected it
+- which fixed profile governed the result
+- which signed governance signals contributed to that result
+- which alternatives remain available
+
+### 5.3 Runtime Contribution Trace
+
+If an answer was runtime-assisted, the trace should also expose:
+
+- related `effect_request_id`
+- related `effect_receipt_id`
+- executor identity
+- retrieval or generation mode
+- whether the accepted answer was later revised by a human editor-maintainer
+
+Runtime contribution must remain subordinate to normal answer governance.
+Tracing should make that boundary visible to the user.
+
+## 6. Suggested Flows
+
+### 6.1 Human-Curated Flow
 
 1. a user submits a question
 2. editor-maintainers publish one or more candidate answers
@@ -247,7 +309,7 @@ This keeps client behavior constrained while preserving multi-answer history.
 5. the active profile derives one accepted answer
 6. the client displays that answer as default and keeps alternatives inspectable
 
-### 5.2 Runtime-Assisted Flow
+### 6.2 Runtime-Assisted Flow
 
 1. a user submits a question
 2. the runtime retrieves relevant materials or prepares a draft
@@ -257,7 +319,7 @@ This keeps client behavior constrained while preserving multi-answer history.
 
 This keeps machine assistance subordinate to normal governance.
 
-## 6. Guardrails
+## 7. Guardrails
 
 The Q&A app should adopt conservative guardrails.
 
@@ -268,7 +330,7 @@ The Q&A app should adopt conservative guardrails.
 - Private counseling or confidential guidance should not be stored in broadly replicated public documents unless the deployment explicitly intends that.
 - Moderation or safety filtering may exist, but in a conforming reader client it should not silently rewrite the fixed-profile accepted answer.
 
-## 7. Minimal v0.1 Q&A Profile
+## 8. Minimal v0.1 Q&A Profile
 
 For a first implementation, I recommend a narrow profile.
 
@@ -285,7 +347,7 @@ Tradeoff:
 - higher governance clarity
 - easier interoperability
 
-## 8. Open Questions
+## 9. Open Questions
 
 - Should `resolution` be a dedicated document family or just a normal state document inside the app?
 - Should citation policy vary by answer kind?

@@ -236,9 +236,71 @@ Q&A app 應沿用 Mycel 其他部分相同的 accepted-head 原則。
 
 這樣可以在保留多答案歷史的同時，限制 client 的自由裁量。
 
-## 5. 建議流程
+## 5. Answer Traceability
 
-### 5.1 Human-Curated Flow
+Q&A app 應讓 client 能把任何收到的答案，同時沿著內容歷史與採信歷史一路追回去。
+
+建議的追溯鏈：
+
+1. 識別目前顯示的 `answer_id`
+2. 把它對應到上層的 `question_id`
+3. 找到該答案的 revision 歷史與 signed authorship trail
+4. 檢查它的 citations 與被引用的 source texts
+5. 檢查把它標成 accepted 或 alternative 的 `resolution` document
+6. 檢查讓 client 把它顯示為 active accepted answer 的 fixed profile 與 decision trace
+7. 若有 runtime assistance，則檢查相關 effect requests 與 effect receipts
+
+這表示一個答案至少應能沿五個維度被追溯：
+
+- content history
+- authorship 與 signatures
+- citations 與 source basis
+- resolution state
+- governance 與 selector output
+
+### 5.1 Minimum Client Trace View
+
+合規的 Q&A client 對目前顯示的答案，至少應能顯示下列欄位：
+
+- `answer_id`
+- `question_id`
+- 目前的 `revision_id`
+- `answered_by`
+- `source_mode`
+- citation references
+- `resolution_id`
+- 它是 active `accepted_answer` 還是 `alternative_answer`
+- `accepted_under_profile`
+- decision-trace reference 或 summary
+
+### 5.2 Why-Am-I-Seeing-This View
+
+我建議 reader clients 暴露一個專門的檢查檢視，例如 `Why this answer`。
+
+這個檢視應解釋：
+
+- 目前哪個答案是 active
+- 是哪個 resolution document 選中了它
+- 是哪個 fixed profile 治理了這個結果
+- 哪些 signed governance signals 參與了這個結果
+- 還有哪些 alternatives 仍然可用
+
+### 5.3 Runtime Contribution Trace
+
+若一個答案帶有 runtime assistance，追溯資訊也應暴露：
+
+- 相關的 `effect_request_id`
+- 相關的 `effect_receipt_id`
+- executor 身分
+- retrieval 或 generation mode
+- accepted answer 之後是否又被 human editor-maintainer 修訂
+
+runtime contribution 必須從屬於正常的 answer governance。
+traceability 應把這條邊界清楚呈現給使用者。
+
+## 6. 建議流程
+
+### 6.1 Human-Curated Flow
 
 1. 使用者提交一個問題
 2. editor-maintainers 發布一個或多個 candidate answers
@@ -247,7 +309,7 @@ Q&A app 應沿用 Mycel 其他部分相同的 accepted-head 原則。
 5. active profile 導出一個 accepted answer
 6. client 以該答案為預設顯示，並保留可檢查的 alternatives
 
-### 5.2 Runtime-Assisted Flow
+### 6.2 Runtime-Assisted Flow
 
 1. 使用者提交一個問題
 2. runtime 檢索相關資料或準備草稿
@@ -257,7 +319,7 @@ Q&A app 應沿用 Mycel 其他部分相同的 accepted-head 原則。
 
 這樣可以讓 machine assistance 從屬於正常治理。
 
-## 6. Guardrails
+## 7. Guardrails
 
 Q&A app 應採保守的 guardrails。
 
@@ -268,7 +330,7 @@ Q&A app 應採保守的 guardrails。
 - private counseling 或 confidential guidance，除非部署本來就打算如此，否則不應存進大範圍複製的公開 documents。
 - moderation 或 safety filtering 可以存在，但在合規 reader client 中，不應靜默改寫 fixed-profile accepted answer。
 
-## 7. 最小 v0.1 Q&A Profile
+## 8. 最小 v0.1 Q&A Profile
 
 對第一版實作，我建議先採較窄的 profile。
 
@@ -285,7 +347,7 @@ Q&A app 應採保守的 guardrails。
 - governance clarity 較高
 - interoperability 較容易
 
-## 8. Open Questions
+## 9. Open Questions
 
 - `resolution` 應是 dedicated document family，還是 app 內的一般 state document？
 - citation policy 是否應依 `answer_kind` 改變？
