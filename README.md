@@ -53,6 +53,8 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 - [DESIGN-NOTES.donation-app-layer.zh-TW.md](./DESIGN-NOTES.donation-app-layer.zh-TW.md): Traditional Chinese design draft for the same donation app model
 - [DESIGN-NOTES.canonical-text-profile.en.md](./DESIGN-NOTES.canonical-text-profile.en.md): Design draft for a neutral canonical-text profile with witnesses, anchors, commentary, and accepted readings
 - [DESIGN-NOTES.canonical-text-profile.zh-TW.md](./DESIGN-NOTES.canonical-text-profile.zh-TW.md): Traditional Chinese design draft for the same canonical-text profile
+- [DESIGN-NOTES.interpretation-dispute-model.en.md](./DESIGN-NOTES.interpretation-dispute-model.en.md): Design draft for preserving and governing rival interpretations without overwriting root text
+- [DESIGN-NOTES.interpretation-dispute-model.zh-TW.md](./DESIGN-NOTES.interpretation-dispute-model.zh-TW.md): Traditional Chinese design draft for the same interpretation-dispute model
 - [DESIGN-NOTES.auto-signer-consent-model.en.md](./DESIGN-NOTES.auto-signer-consent-model.en.md): Design draft for enrollment and consent boundaries in automatic signer systems
 - [DESIGN-NOTES.auto-signer-consent-model.zh-TW.md](./DESIGN-NOTES.auto-signer-consent-model.zh-TW.md): Traditional Chinese design draft for the same consent model
 - [DESIGN-NOTES.policy-driven-threshold-custody.en.md](./DESIGN-NOTES.policy-driven-threshold-custody.en.md): Design draft for policy-authorized automatic threshold custody
