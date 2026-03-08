@@ -74,6 +74,7 @@ object_id = <type-prefix>:<object_hash>
 ### 3.2 簽章必須存在
 
 所有作者產生的 Patch、Revision、View 都必須有數位簽章。
+所有 v0.1 物件型別的簽章要求，以第 6.4 節為規範性定義。
 
 ### 3.3 多個 head 合法
 
@@ -384,6 +385,38 @@ Mycel 支援 3 種：
 - **Persistent pseudonym**：長期筆名
 - **Rotating pseudonym**：定期換 key
 - **One-time signer**：一次性作者
+
+### 6.4 Object Signature Matrix（規範）
+
+v0.1 的物件簽章要求如下：
+
+| 物件型別 | 簽章狀態 | 簽署者欄位 | 簽章 payload |
+| --- | --- | --- | --- |
+| `document` | forbidden | 無 | 無 |
+| `block` | forbidden | 無 | 無 |
+| `patch` | required | `author` | 省略 `signature` 後的 canonical Patch |
+| `revision` | required | `author` | 省略 `signature` 後的 canonical Revision |
+| `view` | required | `maintainer` | 省略 `signature` 後的 canonical View |
+| `snapshot` | required | `created_by` | 省略 `signature` 後的 canonical Snapshot |
+
+規則：
+
+1. 接收端 MUST 拒絕任何缺少 `signature` 的 v0.1 `patch`、`revision`、`view`、`snapshot` 物件。
+2. 接收端 MUST 拒絕任何帶有頂層 `signature` 欄位的 `document` 或 `block` 物件。
+3. 簽署者欄位所指向的金鑰 MUST 能驗證對應 canonical payload 的簽章。
+4. 對內容定址物件型別，內嵌的導出 ID MUST 先與重算出的 canonical object ID 一致，簽章驗證才可成立。
+5. `signature` 欄位本身 MUST NOT 納入簽章 payload。
+
+### 6.5 Object Signature Inputs（規範）
+
+每一種需簽章的 v0.1 物件，其簽章 payload 都是「只省略 `signature` 欄位後」的 canonical serialization。
+
+這表示：
+
+- `patch` 的簽章覆蓋 `patch_id`、`doc_id`、`base_revision`、`author`、`timestamp`、`ops`
+- `revision` 的簽章覆蓋 `revision_id`、`doc_id`、`parents`、`patches`、`state_hash`、`author`、`timestamp`，以及任何宣告的 merge 欄位
+- `view` 的簽章覆蓋 `view_id`、`maintainer`、`documents`、`policy`、`timestamp`
+- `snapshot` 的簽章覆蓋 `snapshot_id`、`documents`、`included_objects`、`root_hash`、`created_by`、`timestamp`
 
 ## 7. 節點模型
 

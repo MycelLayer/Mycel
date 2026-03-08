@@ -74,6 +74,7 @@ This split avoids recursive self-hashing and keeps transport references unambigu
 ### 3.2 Signature is Mandatory
 
 All author-generated Patch, Revision, and View objects must include a digital signature.
+Signature requirements for all v0.1 object types are defined normatively in Section 6.4.
 
 ### 3.3 Multiple Heads are Valid
 
@@ -384,6 +385,38 @@ Mycel supports three modes:
 - **Persistent pseudonym**: long-term pen-name key
 - **Rotating pseudonym**: periodically rotated key
 - **One-time signer**: one-time author key
+
+### 6.4 Object Signature Matrix (Normative)
+
+Object signature requirements in v0.1:
+
+| Object type | Signature status | Signer field | Signed payload |
+| --- | --- | --- | --- |
+| `document` | forbidden | none | none |
+| `block` | forbidden | none | none |
+| `patch` | required | `author` | canonical Patch with `signature` omitted |
+| `revision` | required | `author` | canonical Revision with `signature` omitted |
+| `view` | required | `maintainer` | canonical View with `signature` omitted |
+| `snapshot` | required | `created_by` | canonical Snapshot with `signature` omitted |
+
+Rules:
+
+1. A receiver MUST reject any v0.1 `patch`, `revision`, `view`, or `snapshot` object that is missing `signature`.
+2. A receiver MUST reject any `document` or `block` object that carries a top-level `signature` field.
+3. The signer key referenced by the signer field MUST verify the signature over the corresponding canonical payload.
+4. For content-addressed object types, the embedded derived ID MUST already match the recomputed canonical object ID before signature verification succeeds.
+5. The `signature` field itself MUST NOT be included in the signed payload.
+
+### 6.5 Object Signature Inputs (Normative)
+
+The signed payload for each signed v0.1 object type is the canonical serialization of the object with only `signature` omitted.
+
+This means:
+
+- `patch` signatures cover `patch_id`, `doc_id`, `base_revision`, `author`, `timestamp`, and `ops`
+- `revision` signatures cover `revision_id`, `doc_id`, `parents`, `patches`, `state_hash`, `author`, `timestamp`, and any declared merge fields
+- `view` signatures cover `view_id`, `maintainer`, `documents`, `policy`, and `timestamp`
+- `snapshot` signatures cover `snapshot_id`, `documents`, `included_objects`, `root_hash`, `created_by`, and `timestamp`
 
 ## 7. Node Model
 

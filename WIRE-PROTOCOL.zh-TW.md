@@ -46,6 +46,8 @@ v0.1 目標：
 - `payload`：訊息主體
 - `sig`：對不含 `sig` 的 canonical envelope 做簽章
 
+每一種訊息型別的 wire-message 簽章規則，以第 3.1 節為規範性定義。
+
 ## 3. 訊息類型
 
 v0.1 定義以下訊息種類：
@@ -59,6 +61,29 @@ v0.1 定義以下訊息種類：
 - `VIEW_ANNOUNCE`
 - `BYE`
 - `ERROR`
+
+## 3.1 Wire Message Signature Matrix（規範）
+
+所有 v0.1 wire 訊息都需要 envelope signature。
+
+| 訊息型別 | Envelope `sig` | 簽章 payload |
+| --- | --- | --- |
+| `HELLO` | required | 省略 `sig` 後的 canonical envelope |
+| `MANIFEST` | required | 省略 `sig` 後的 canonical envelope |
+| `HEADS` | required | 省略 `sig` 後的 canonical envelope |
+| `WANT` | required | 省略 `sig` 後的 canonical envelope |
+| `OBJECT` | required | 省略 `sig` 後的 canonical envelope |
+| `SNAPSHOT_OFFER` | required | 省略 `sig` 後的 canonical envelope |
+| `VIEW_ANNOUNCE` | required | 省略 `sig` 後的 canonical envelope |
+| `BYE` | required | 省略 `sig` 後的 canonical envelope |
+| `ERROR` | required | 省略 `sig` 後的 canonical envelope |
+
+規則：
+
+1. 接收端 MUST 拒絕任何缺少 `sig` 的 v0.1 wire 訊息。
+2. `from` 所對應的節點金鑰 MUST 能驗證對不含 `sig` 的 canonical envelope 所做的簽章。
+3. Envelope `sig` 只驗證 transport metadata；它不能取代 `OBJECT.body` 內部的 object-level signature。
+4. `sig` 欄位本身 MUST NOT 納入簽章 envelope payload。
 
 ## 4. HELLO
 
@@ -163,7 +188,7 @@ v0.1 定義以下訊息種類：
 1. 重算 `hash(body)` 並比對 `hash`
 2. 依 `object_type` 與 `hash` 重建預期的 `object_id`，並與 `object_id` 比對
 3. 若 `body` 含有該型別的導出 object-ID 欄位，必須驗證其與 `object_id` 一致
-4. 驗證物件層簽章（依各物件型別規則）
+4. 依 `PROTOCOL.zh-TW.md` 中的規範性 object signature rules 驗證物件層簽章
 5. 驗證通過才可入庫
 
 ## 7. 錯誤處理

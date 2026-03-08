@@ -46,6 +46,8 @@ Required fields:
 - `payload`: message-specific body
 - `sig`: signature over canonicalized envelope without `sig`
 
+The wire-message signature rules for every message kind are defined normatively in Section 3.1.
+
 ## 3. Message Types
 
 v0.1 defines the following message kinds:
@@ -59,6 +61,29 @@ v0.1 defines the following message kinds:
 - `VIEW_ANNOUNCE`
 - `BYE`
 - `ERROR`
+
+## 3.1 Wire Message Signature Matrix (Normative)
+
+All v0.1 wire messages require an envelope signature.
+
+| Message type | Envelope `sig` | Signed payload |
+| --- | --- | --- |
+| `HELLO` | required | canonical envelope with `sig` omitted |
+| `MANIFEST` | required | canonical envelope with `sig` omitted |
+| `HEADS` | required | canonical envelope with `sig` omitted |
+| `WANT` | required | canonical envelope with `sig` omitted |
+| `OBJECT` | required | canonical envelope with `sig` omitted |
+| `SNAPSHOT_OFFER` | required | canonical envelope with `sig` omitted |
+| `VIEW_ANNOUNCE` | required | canonical envelope with `sig` omitted |
+| `BYE` | required | canonical envelope with `sig` omitted |
+| `ERROR` | required | canonical envelope with `sig` omitted |
+
+Rules:
+
+1. A receiver MUST reject any v0.1 wire message that is missing `sig`.
+2. The `from` node key MUST verify the envelope signature over the canonical envelope with `sig` omitted.
+3. The envelope `sig` authenticates transport metadata only; it does not replace object-level signatures inside `OBJECT.body`.
+4. The `sig` field itself MUST NOT be included in the signed envelope payload.
 
 ## 4. HELLO
 
@@ -163,7 +188,7 @@ Receiver MUST:
 1. Recompute `hash(body)` and compare with `hash`
 2. Reconstruct the expected `object_id` from `object_type` and `hash`, and compare with `object_id`
 3. If `body` contains a derived object-ID field for its type, verify that it matches `object_id`
-4. Verify object-level signature (if present by object type rules)
+4. Verify object-level signature according to the normative object signature rules in `PROTOCOL.en.md`
 5. Store object only when verification passes
 
 ## 7. Error Handling
