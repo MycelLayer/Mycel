@@ -229,6 +229,41 @@ v0.1 建議只定義少量基本操作：
 }
 ```
 
+### 4.4.1 Trivial Change（規範）
+
+在 Mycel v0.1 中，`trivial change` 指的是只改動編輯表面形式，而不改變文件結構、參照目標、metadata 語義、或預期語義的變更。
+
+只有在以下條件全部成立時，某個 Patch 才 MAY 被分類為 trivial：
+
+1. 每個 operation 都作用在同一文件狀態譜系中的既有 block
+2. 每個 operation 只能是以下之一：
+   - 對既有 block 的 `replace_block`
+   - 不改變目標 block 自身內容的 `annotate_block`
+3. 沒有任何 operation 改變 block 順序、block parentage、block identity、或 block type
+4. 沒有任何 operation 插入、刪除、或移動 block
+5. 沒有任何 operation 改變 metadata keys 或 metadata values
+6. 沒有任何 operation 以可能改變解讀的方式修改 identifiers、revision references、URLs、numeric values、或 date/time literals
+7. 結果文本只打算用於修正或正規化表面形式
+
+典型的 trivial changes 包含：
+
+- 明顯 typo 修正
+- 空白正規化
+- 標點正規化
+- 在語義不變前提下的大小寫正規化
+- 不改變註解主張的 annotation formatting 清理
+
+以下不屬於 trivial changes：
+
+- 任何結構變更
+- 任何插入、刪除、或移動
+- 任何對 `block_id` 的修改
+- 任何對 metadata 語義的修改
+- 任何可能合理改變解讀的 wording change
+
+Trivial-change classification 只具 advisory 性質。
+它 MUST NOT 繞過一般 Patch 驗證、Revision 驗證、簽章檢查、merge 規則、或 `state_hash` 重算。
+
 ### 4.5 Revision
 
 Revision 表示某個狀態節點。

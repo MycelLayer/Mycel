@@ -229,6 +229,41 @@ Example: annotate
 }
 ```
 
+### 4.4.1 Trivial Change (Normative)
+
+In Mycel v0.1, a `trivial change` is an editorial surface-form change that does not alter document structure, reference targets, metadata meaning, or intended semantic meaning.
+
+A Patch MAY be classified as trivial only if all of the following are true:
+
+1. every operation targets an existing block in the same document state lineage
+2. every operation is either:
+   - `replace_block` on an existing block, or
+   - `annotate_block` that does not alter the target block's own content
+3. no operation changes block order, block parentage, block identity, or block type
+4. no operation inserts, deletes, or moves a block
+5. no operation changes metadata keys or metadata values
+6. no operation changes identifiers, revision references, URLs, numeric values, or date/time literals in a way that could change interpretation
+7. the resulting text is intended only to correct or normalize surface form
+
+Typical trivial changes include:
+
+- obvious typo correction
+- whitespace normalization
+- punctuation normalization
+- capitalization normalization when meaning is unchanged
+- annotation formatting cleanup that does not change the annotated claim
+
+The following are not trivial changes:
+
+- any structural change
+- any insertion, deletion, or move
+- any change to `block_id`
+- any change to metadata semantics
+- any wording change that can reasonably alter interpretation
+
+Trivial-change classification is advisory only.
+It MUST NOT bypass normal Patch validation, Revision validation, signature checks, merge rules, or `state_hash` recomputation.
+
 ### 4.5 Revision
 
 A Revision is a state node.
