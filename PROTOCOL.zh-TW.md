@@ -557,7 +557,85 @@ Mycel 不把衝突視為協議失敗。
 在 v0.1，任何以 Revision 發布的 merge 結果，都 MUST 已經被實體化成明確的 Patch 操作。
 接收端是靠重放這些 Patches 驗證結果狀態，而不是根據 parent ancestry 重新計算 semantic merge。
 
-### 9.3 多版本 block 範例
+### 9.3 Merge Generation Profile v0.1（規範）
+
+Mycel v0.1 定義一個保守版 semantic merge generation profile。
+這個 profile 只用來產生候選 merge Patch 操作。
+驗證仍然只依賴最終產生的 Patch、Revision 與 `state_hash`。
+
+#### 9.3.1 輸入
+
+一個 merge generator 的輸入為：
+
+- `base_revision`
+- `left_revision`
+- `right_revision`
+
+三者都 MUST：
+
+1. 屬於同一個 `doc_id`
+2. 是已完整驗證的 revision
+3. 在開始 merge generation 前先還原成 canonical document states
+
+`base_revision` 是比對用的共同祖先狀態。
+`left_revision` 與 `right_revision` 是兩個待整合的後代狀態。
+
+#### 9.3.2 逐 Block 分類
+
+對任何出現在三個狀態之一中的邏輯 `block_id`，都要將其分類為：
+
+- unchanged
+- inserted
+- deleted
+- replaced
+- moved
+- annotated
+- metadata-changed
+
+分類一律相對於 `base_revision` 進行。
+
+#### 9.3.3 Auto-Merge 規則
+
+只有當所有受影響 block 都能依以下規則解決時，merge generator MAY 產生 `Auto-merged`：
+
+1. 若只有一側修改某 block，而另一側保持不變，則採用有修改的一側。
+2. 若兩側對同一 block 做出 byte-identical 的修改，則採用該共同結果。
+3. 若兩側在不同位置插入不同的新 block，則兩個 insert 都保留，且以決定性順序排列：
+   1. 較小的 parent position index
+   2. 當 parent position 相同時，left-side insert 先於 right-side insert
+   3. 字典序較小的新增 `block_id`
+4. 若一側對 block 做 annotation，而另一側修改其內容但未刪除該 block，則同時保留內容修改與 annotation。
+5. 若兩側修改的是不同 metadata keys，則合併這些 key 更新。
+
+若任一受影響 block 不屬於以上規則，generator MUST NOT 輸出 `Auto-merged`。
+
+#### 9.3.4 強制非自動情況
+
+遇到以下任一情況，merge generator MUST 輸出 `Multi-variant` 或 `Manual-curation-required`：
+
+1. 兩側對同一 block 做不同內容的 replace
+2. 一側刪除某 block，而另一側對其做 replace、move、或 annotate
+3. 兩側把同一 block move 到不同目的地
+4. 兩側對同一 metadata key 設定不同值
+5. 任一側改變 block structure，而另一側對同一 subtree 做不相容修改
+
+#### 9.3.5 Multi-Variant 輸出規則
+
+若衝突僅限於同一邏輯 block 的替代性存活內容，generator SHOULD 優先輸出 `Multi-variant`。
+最終 merge Patch MUST 在合併後狀態中明確實體化這些並存 alternatives。
+
+#### 9.3.6 Manual Curation 規則
+
+若衝突影響到 structure、ordering、deletion semantics、或 metadata，且無法安全表達成平行並存 variant，generator MUST 輸出 `Manual-curation-required`。
+
+#### 9.3.7 輸出形式
+
+產生的結果 MUST 被實體化成一般 Patch 操作。
+Generator MUST NOT 依賴隱藏的 merge metadata 來讓結果狀態成立。
+
+若 generator 輸出 `Auto-merged`，其 Patch 操作 MUST 足以讓任一接收端從 `parents[0]` 決定性重放出同樣結果。
+
+### 9.4 多版本 block 範例
 
 ```json
 {

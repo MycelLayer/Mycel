@@ -557,7 +557,85 @@ All of the following are valid:
 In v0.1, any merge outcome that is published as a Revision MUST already be materialized as explicit Patch operations.
 Receivers verify the resulting state by replaying those Patches; they do not recompute a semantic merge from parent ancestry.
 
-### 9.3 Multi-Variant Block Example
+### 9.3 Merge Generation Profile v0.1 (Normative)
+
+Mycel v0.1 defines one conservative semantic merge generation profile.
+This profile is used only to generate candidate merge Patch operations.
+Verification still depends only on the resulting Patch, Revision, and `state_hash`.
+
+#### 9.3.1 Inputs
+
+A merge generator takes:
+
+- `base_revision`
+- `left_revision`
+- `right_revision`
+
+All three inputs MUST:
+
+1. belong to the same `doc_id`
+2. be fully verified revisions
+3. be reduced to canonical document states before merge generation starts
+
+`base_revision` is the common ancestor state used for comparison.
+`left_revision` and `right_revision` are the two candidate descendant states being reconciled.
+
+#### 9.3.2 Per-Block Classification
+
+For each logical `block_id` reachable from any of the three states, classify the block as one of:
+
+- unchanged
+- inserted
+- deleted
+- replaced
+- moved
+- annotated
+- metadata-changed
+
+Classification is always relative to `base_revision`.
+
+#### 9.3.3 Auto-Merge Rules
+
+A merge generator MAY produce `Auto-merged` only if every affected block is resolved by the following rules:
+
+1. If only one side changes a block and the other side leaves it unchanged, take the changed side.
+2. If both sides make byte-identical changes to the same block, take that shared result.
+3. If both sides insert different new blocks at different positions, keep both inserts in deterministic order:
+   1. lower parent position index
+   2. left-side insert before right-side insert when the parent position is the same
+   3. lexicographically smaller new `block_id`
+4. If one side annotates a block and the other side changes the block content without deleting it, keep both the content change and the annotation.
+5. If both sides change metadata on different metadata keys, merge the key updates.
+
+If any affected block is not covered by these rules, the generator MUST NOT emit `Auto-merged`.
+
+#### 9.3.4 Forced Non-Automatic Cases
+
+The merge generator MUST emit `Multi-variant` or `Manual-curation-required` for any of the following:
+
+1. both sides replace the same block with different content
+2. one side deletes a block that the other side replaces, moves, or annotates
+3. both sides move the same block to different destinations
+4. both sides set different values for the same metadata key
+5. either side changes block structure and the other side changes the same subtree incompatibly
+
+#### 9.3.5 Multi-Variant Output Rule
+
+If the conflict is limited to alternative surviving content for the same logical block, the generator SHOULD prefer `Multi-variant`.
+The resulting merge Patch MUST explicitly materialize the preserved alternatives in the merged state.
+
+#### 9.3.6 Manual Curation Rule
+
+If the conflict affects structure, ordering, deletion semantics, or metadata in a way that cannot be expressed safely as parallel surviving variants, the generator MUST emit `Manual-curation-required`.
+
+#### 9.3.7 Output Form
+
+The generated result MUST be materialized as ordinary Patch operations.
+The generator MUST NOT rely on hidden merge metadata to make the resulting state valid.
+
+If the generator emits `Auto-merged`, its Patch operations MUST be sufficient for any receiver to replay the result deterministically from `parents[0]`.
+
+### 9.4 Multi-Variant Block Example
 
 ```json
 {

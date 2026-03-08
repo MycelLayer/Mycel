@@ -97,7 +97,7 @@ Current outcome:
 ## Issue 3: `state_hash` is not reproducible from the current rules
 
 - Priority: P0
-- Current status: partially resolved
+- Current status: resolved
 - Resolution commits:
   - `4f133e9` (`Define deterministic state hash replay rules`)
   - `7990b2d` (`Add canonical serialization appendix`)
@@ -133,10 +133,7 @@ Current outcome:
 - Secondary parents are now ancestry-only unless their content is materialized by explicit Patch operations.
 - `state_hash` now has a normative replay-and-hash procedure, including a canonical state object shape and receiver rejection on mismatch.
 - Canonical state serialization is now anchored to a normative canonical JSON appendix.
-
-Remaining gap:
-
-- Merge behavior is now replay-safe, but semantic merge generation rules are still not defined.
+- Merge generation now has a conservative normative profile, while verification remains replay-based.
 
 ## Issue 4: Deterministic head selection is declared but not specified enough
 
@@ -241,6 +238,6 @@ Current outcome:
 
 ## Suggested Resolution Order
 
-1. Decide whether semantic merge generation belongs in v0.1 or should be explicitly deferred.
-2. Re-review the spec for any remaining derived assumptions that still rely on local policy rather than normative rules.
-3. Do a full consistency pass across README / PROTOCOL / WIRE-PROTOCOL examples and terminology.
+1. Re-review the spec for any remaining derived assumptions that still rely on local policy rather than normative rules.
+2. Do a full consistency pass across README / PROTOCOL / WIRE-PROTOCOL examples and terminology.
+3. Decide whether any of the v0.1 governance parameters should be reduced further before calling the spec stable.
