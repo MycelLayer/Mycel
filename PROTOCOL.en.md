@@ -348,13 +348,8 @@ It MUST be computed from the canonical Snapshot body with `snapshot_id` and `sig
 
 ### 5.1 Canonical Serialization
 
-Before hashing, all objects must be transformed into a fixed canonical form:
-
-- fixed key order
-- UTF-8
-- no unnecessary whitespace
-- fixed array order
-- fixed number format
+Before hashing or signing, all protocol objects MUST be transformed into the canonical JSON form defined in Appendix A.
+The same canonicalization rules also apply to state objects used for `state_hash` computation and to wire envelopes referenced by `WIRE-PROTOCOL.en.md`.
 
 ### 5.2 Hash
 
@@ -810,3 +805,129 @@ This version is a conceptual spec. The three most valuable next additions are:
 3. **Merge semantics**: explicit block-based auto-merge rules
 
 The next direct extension can be: **Mycel wire protocol v0.1**, defining packet formats and synchronization details.
+
+## Appendix A. Canonical Serialization (Normative)
+
+Mycel v0.1 uses canonical JSON bytes for:
+
+- content-addressed object IDs
+- object signatures
+- `state_hash` computation
+- wire-envelope signatures
+
+### A.1 Encoding
+
+1. Canonical bytes MUST be UTF-8 encoded JSON text.
+2. JSON text MUST NOT include a byte order mark.
+3. Insignificant whitespace is forbidden outside string values.
+
+### A.2 Data Types
+
+Allowed JSON value types in v0.1 canonical payloads:
+
+- object
+- array
+- string
+- integer number
+- `true`
+- `false`
+
+The following are invalid in canonical payloads:
+
+- `null`
+- floating-point numbers
+- exponent notation
+- duplicate object keys
+
+### A.3 Object Rules
+
+1. Object keys MUST be unique.
+2. Object keys MUST be serialized in ascending lexicographic order by raw Unicode code point.
+3. Object members MUST be serialized as `"key":value` with no extra spaces.
+
+Example key order:
+
+```json
+{"author":"pk:a","doc_id":"doc:x","type":"patch","version":"mycel/0.1"}
+```
+
+### A.4 Array Rules
+
+1. Arrays MUST preserve protocol-defined order.
+2. Arrays MUST be serialized with comma-separated values and no extra spaces.
+3. Arrays MUST NOT be re-sorted during canonicalization.
+
+This means:
+
+- `parents` stays in declared order
+- `patches` stays in declared order
+- `blocks` stays in structural document order
+- wire `objects` in `WANT` stays in sender request order
+
+### A.5 String Rules
+
+1. Strings MUST be serialized using JSON double-quoted string syntax.
+2. Strings MUST preserve code points exactly as authored; implementations MUST NOT apply Unicode normalization.
+3. The quotation mark (`"`) and reverse solidus (`\`) MUST be escaped.
+4. Control characters U+0000 through U+001F MUST be escaped using lowercase `\u00xx`.
+5. `/` MUST NOT be escaped unless required by a higher-layer transport outside canonicalization.
+6. Non-ASCII characters MAY appear directly in UTF-8 and MUST NOT be rewritten into `\u` escapes unless they are control characters.
+
+### A.6 Integer Rules
+
+1. Numbers in v0.1 canonical payloads MUST be base-10 integers.
+2. Zero MUST be serialized as `0`.
+3. Positive integers MUST NOT include a leading `+`.
+4. Integers MUST NOT contain leading zeros.
+5. Negative integers are allowed only if a field definition explicitly permits them.
+
+### A.7 Booleans
+
+Boolean values MUST be serialized as lowercase `true` or `false`.
+
+### A.8 Field Omission
+
+1. Optional fields that are not present MUST be omitted entirely.
+2. Implementations MUST NOT encode "missing" as `null`.
+3. Derived ID fields and `signature` are omitted only when a specific hashing or signing rule explicitly says so.
+
+### A.9 Canonicalization Procedure
+
+To canonicalize a payload:
+
+1. Validate that the payload uses only allowed JSON types.
+2. Reject duplicate keys.
+3. Reject forbidden numeric forms and `null`.
+4. Recursively sort object keys using the rule in A.3.
+5. Preserve all array orders.
+6. Serialize using UTF-8 JSON with no insignificant whitespace.
+
+### A.10 Canonical State Object
+
+When computing `state_hash`, the resulting state object MUST use this shape:
+
+```json
+{
+  "doc_id": "doc:origin-text",
+  "blocks": [
+    {
+      "block_id": "blk:001",
+      "block_type": "paragraph",
+      "content": "Example text",
+      "attrs": {},
+      "children": []
+    }
+  ]
+}
+```
+
+Additional rules:
+
+1. Every block object in state serialization MUST include `block_id`, `block_type`, `content`, `attrs`, and `children`.
+2. `attrs` MUST be an object; when empty it MUST serialize as `{}`.
+3. `children` MUST be an array; when empty it MUST serialize as `[]`.
+
+### A.11 Canonical Envelope Serialization
+
+Wire envelopes use the same canonical JSON rules.
+When computing the envelope signature, the `sig` field MUST be omitted before canonicalization.

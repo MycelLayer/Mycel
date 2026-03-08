@@ -348,13 +348,8 @@ Snapshot 用於快速同步。
 
 ### 5.1 Canonical Serialization
 
-所有 object 在 hash 前，必須先轉成固定 canonical form：
-
-- key 順序固定
-- UTF-8
-- 不保留不必要空白
-- 陣列順序固定
-- 數字格式固定
+在 hash 或簽章之前，所有協議物件都 MUST 先轉成 Appendix A 定義的 canonical JSON 形式。
+同一套 canonicalization 規則也適用於 `state_hash` 計算所用的 state object，以及 `WIRE-PROTOCOL.zh-TW.md` 所引用的 wire envelope。
 
 ### 5.2 Hash
 
@@ -810,3 +805,129 @@ Mycel 的核心不是唯一真理，而是：
 3. **Merge semantics**：block-based auto-merge 規則
 
 下一步可直接延伸成：**Mycel wire protocol v0.1**，定義節點封包格式與同步流程細節。
+
+## Appendix A. Canonical Serialization（規範）
+
+Mycel v0.1 以下情境都使用 canonical JSON bytes：
+
+- 內容定址 object ID
+- object signatures
+- `state_hash` 計算
+- wire-envelope signatures
+
+### A.1 編碼
+
+1. Canonical bytes MUST 是 UTF-8 編碼的 JSON text。
+2. JSON text MUST NOT 包含 byte order mark。
+3. 字串值以外的 insignificant whitespace 一律禁止。
+
+### A.2 資料型別
+
+v0.1 canonical payload 可使用的 JSON 值型別：
+
+- object
+- array
+- string
+- integer number
+- `true`
+- `false`
+
+以下在 canonical payload 中視為無效：
+
+- `null`
+- 浮點數
+- 指數記號
+- 重複的 object keys
+
+### A.3 Object 規則
+
+1. Object keys MUST 唯一。
+2. Object keys MUST 依原始 Unicode code point 的字典序遞增序列化。
+3. Object members MUST 以 `"key":value` 形式序列化，不得加入額外空白。
+
+Key 排序範例：
+
+```json
+{"author":"pk:a","doc_id":"doc:x","type":"patch","version":"mycel/0.1"}
+```
+
+### A.4 Array 規則
+
+1. Arrays MUST 保留協議定義的順序。
+2. Arrays MUST 以逗號分隔序列化，不得加入額外空白。
+3. Canonicalization 過程 MUST NOT 對 arrays 重新排序。
+
+這表示：
+
+- `parents` 保留宣告順序
+- `patches` 保留宣告順序
+- `blocks` 保留文件結構順序
+- wire `WANT` 的 `objects` 保留發送端請求順序
+
+### A.5 String 規則
+
+1. Strings MUST 使用 JSON 雙引號字串語法序列化。
+2. Strings MUST 精確保留原始 code points；實作 MUST NOT 自動做 Unicode normalization。
+3. 雙引號（`"`）與反斜線（`\`）MUST 轉義。
+4. U+0000 到 U+001F 的控制字元 MUST 使用小寫 `\u00xx` 轉義。
+5. `/` MUST NOT 被轉義，除非更高層 transport 在 canonicalization 之外另有要求。
+6. 非 ASCII 字元 MAY 直接以 UTF-8 出現，且除非它是控制字元，MUST NOT 被改寫成 `\u` escape。
+
+### A.6 Integer 規則
+
+1. v0.1 canonical payload 中的數字 MUST 是十進位整數。
+2. 零 MUST 序列化為 `0`。
+3. 正整數 MUST NOT 帶有前置 `+`。
+4. 整數 MUST NOT 含有前導零。
+5. 負整數只有在欄位定義明確允許時才可使用。
+
+### A.7 Boolean
+
+Boolean 值 MUST 序列化成小寫 `true` 或 `false`。
+
+### A.8 欄位省略
+
+1. 不存在的 optional fields MUST 直接省略。
+2. 實作 MUST NOT 用 `null` 表示「缺省」。
+3. 導出 ID 欄位與 `signature` 只有在特定 hashing 或 signing 規則明確要求時，才可省略。
+
+### A.9 Canonicalization Procedure
+
+Canonicalize 一個 payload 的步驟：
+
+1. 驗證 payload 只使用允許的 JSON 型別。
+2. 拒絕重複 keys。
+3. 拒絕禁止的數字格式與 `null`。
+4. 依 A.3 規則遞迴排序所有 object keys。
+5. 保留所有 array 順序。
+6. 以 UTF-8 JSON 並且不含 insignificant whitespace 的形式序列化。
+
+### A.10 Canonical State Object
+
+計算 `state_hash` 時，結果 state object MUST 使用以下形狀：
+
+```json
+{
+  "doc_id": "doc:origin-text",
+  "blocks": [
+    {
+      "block_id": "blk:001",
+      "block_type": "paragraph",
+      "content": "Example text",
+      "attrs": {},
+      "children": []
+    }
+  ]
+}
+```
+
+補充規則：
+
+1. State serialization 中的每個 block object 都 MUST 包含 `block_id`、`block_type`、`content`、`attrs`、`children`。
+2. `attrs` MUST 是 object；若為空，MUST 序列化成 `{}`。
+3. `children` MUST 是 array；若為空，MUST 序列化成 `[]`。
+
+### A.11 Canonical Envelope Serialization
+
+Wire envelopes 使用同一套 canonical JSON 規則。
+計算 envelope signature 時，必須在 canonicalization 之前先省略 `sig` 欄位。

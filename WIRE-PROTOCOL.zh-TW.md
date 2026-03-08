@@ -49,6 +49,7 @@ v0.1 目標：
 - `sig`：對不含 `sig` 的 canonical envelope 做簽章
 
 每一種訊息型別的 wire-message 簽章規則，以第 3.1 節為規範性定義。
+Envelope 的 canonicalization MUST 依 `PROTOCOL.zh-TW.md` Appendix A 執行。
 
 ## 3. 訊息類型
 

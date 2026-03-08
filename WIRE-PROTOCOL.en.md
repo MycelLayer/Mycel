@@ -49,6 +49,7 @@ Required fields:
 - `sig`: signature over canonicalized envelope without `sig`
 
 The wire-message signature rules for every message kind are defined normatively in Section 3.1.
+Canonicalization of the envelope MUST follow Appendix A of `PROTOCOL.en.md`.
 
 ## 3. Message Types
 
