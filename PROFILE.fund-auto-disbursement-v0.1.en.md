@@ -255,7 +255,78 @@ The minimal conforming flow is:
 6. execution layer reaches threshold and broadcasts
 7. implementation writes `execution_receipt`
 
-## 13. Non-goals
+## 13. Workflow
+
+This profile supports one common disbursement workflow with three allowed entry paths.
+
+### 13.1 Allocation-approved Path
+
+This path begins from a governance-approved allocation.
+
+1. an allocation decision becomes accepted
+2. the system creates an `allocation-approved` trigger record
+3. the implementation derives one `execution_intent`
+4. signer runtimes verify policy, balance, and signer state
+5. threshold signing completes
+6. the execution layer broadcasts the transaction
+7. the implementation writes an `execution_receipt`
+
+### 13.2 Sensor-qualified Path
+
+This path begins from one accepted qualifying sensor event.
+
+1. a qualifying session summary produces a `sensor-qualified` trigger record
+2. the system verifies the active policy bundle and limits
+3. the implementation derives one `execution_intent`
+4. signer runtimes verify the same intent and policy state
+5. threshold signing completes
+6. the execution layer broadcasts the transaction
+7. the implementation writes an `execution_receipt`
+
+This path must still obey:
+
+- consent-scope limits
+- amount caps
+- cooldown windows
+- destination allowlists
+
+### 13.3 Pledge-matured Path
+
+This path begins from one accepted pledge that has matured into executable state.
+
+1. a pledge reaches its execution condition
+2. the system creates a `pledge-matured` trigger record
+3. the implementation derives one `execution_intent`
+4. signer runtimes verify policy and signer state
+5. threshold signing completes
+6. the execution layer broadcasts the transaction
+7. the implementation writes an `execution_receipt`
+
+### 13.4 Common Validation Sequence
+
+Regardless of entry path, every execution must pass the same validation sequence:
+
+1. load the active accepted trigger record
+2. load the active accepted policy bundle
+3. load the active signer-set version
+4. verify balance, rate, cooldown, and destination constraints
+5. derive one stable `intent_hash`
+6. collect signer attestations for that exact intent
+7. broadcast only after the threshold is satisfied
+8. persist the final receipt and preserve any failed outcomes
+
+### 13.5 Common Failure Sequence
+
+If execution fails at any stage, the implementation should preserve the failure path explicitly:
+
+1. if trigger validation fails, record a blocked execution outcome
+2. if policy validation fails, preserve a policy-mismatch outcome
+3. if threshold is not reached, keep the collected signer attestations
+4. if settlement fails, write a failed or rejected receipt
+
+The implementation must not silently skip failed paths.
+
+## 14. Non-goals
 
 This profile does not define:
 
@@ -266,7 +337,7 @@ This profile does not define:
 - dynamic weighted signer math
 - committee derivation beyond one active signer set
 
-## 14. Minimal First-client Requirements
+## 15. Minimal First-client Requirements
 
 For a first interoperable client, I recommend:
 
@@ -277,7 +348,7 @@ For a first interoperable client, I recommend:
 - no parallel partial-intent merging
 - explicit blocked-intent and failed-receipt views
 
-## 15. Open Questions
+## 16. Open Questions
 
 - Should a later version allow multiple active policy bundles per fund?
 - Should a later version allow weighted rather than fixed-threshold signer math?

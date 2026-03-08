@@ -255,7 +255,78 @@ receipt 必須可回連到：
 6. execution layer 達到 threshold 並廣播
 7. 實作寫入 `execution_receipt`
 
-## 13. Non-goals
+## 13. Workflow
+
+這份 profile 支援一條共同的撥款 workflow，並允許三種入口路徑。
+
+### 13.1 Allocation-approved Path
+
+這條路徑從治理已批准的 allocation 開始。
+
+1. 一筆 allocation decision 變成 accepted
+2. 系統建立一筆 `allocation-approved` trigger record
+3. 實作導出一筆 `execution_intent`
+4. signer runtimes 驗證 policy、balance 與 signer state
+5. 完成 threshold signing
+6. execution layer 廣播交易
+7. 實作寫入 `execution_receipt`
+
+### 13.2 Sensor-qualified Path
+
+這條路徑從一筆 accepted 的 qualifying sensor event 開始。
+
+1. 一次合格的 session summary 產生一筆 `sensor-qualified` trigger record
+2. 系統驗證 active policy bundle 與限制條件
+3. 實作導出一筆 `execution_intent`
+4. signer runtimes 驗證相同的 intent 與 policy state
+5. 完成 threshold signing
+6. execution layer 廣播交易
+7. 實作寫入 `execution_receipt`
+
+這條路徑仍然必須遵守：
+
+- consent-scope limits
+- amount caps
+- cooldown windows
+- destination allowlists
+
+### 13.3 Pledge-matured Path
+
+這條路徑從一筆已成熟到可執行狀態的 accepted pledge 開始。
+
+1. 某筆 pledge 達到其 execution condition
+2. 系統建立一筆 `pledge-matured` trigger record
+3. 實作導出一筆 `execution_intent`
+4. signer runtimes 驗證 policy 與 signer state
+5. 完成 threshold signing
+6. execution layer 廣播交易
+7. 實作寫入 `execution_receipt`
+
+### 13.4 Common Validation Sequence
+
+不論入口路徑為何，每次執行都必須通過相同的驗證序列：
+
+1. 載入 active accepted trigger record
+2. 載入 active accepted policy bundle
+3. 載入 active signer-set version
+4. 驗證 balance、rate、cooldown 與 destination constraints
+5. 導出一個穩定的 `intent_hash`
+6. 針對該精確 intent 收集 signer attestations
+7. 只有在 threshold 滿足後才可廣播
+8. 持久化最終 receipt，並保留任何 failed outcomes
+
+### 13.5 Common Failure Sequence
+
+若執行在任何階段失敗，實作應明確保留失敗路徑：
+
+1. 若 trigger 驗證失敗，記錄 blocked execution outcome
+2. 若 policy 驗證失敗，保留一筆 policy-mismatch outcome
+3. 若 threshold 未達成，保留已收集的 signer attestations
+4. 若 settlement 失敗，寫入 failed 或 rejected receipt
+
+實作不可靜默略過失敗路徑。
+
+## 14. Non-goals
 
 這份 profile 不定義：
 
@@ -266,7 +337,7 @@ receipt 必須可回連到：
 - dynamic weighted signer math
 - 超出單一 active signer set 的 committee derivation
 
-## 14. Minimal First-client Requirements
+## 15. Minimal First-client Requirements
 
 對第一個可互通 client，我建議：
 
@@ -277,7 +348,7 @@ receipt 必須可回連到：
 - 不做 parallel partial-intent merging
 - 明確顯示 blocked-intent 與 failed-receipt 檢視
 
-## 15. Open Questions
+## 16. Open Questions
 
 - 後續版本是否應允許每個 fund 同時存在多個 active policy bundles？
 - 後續版本是否應允許 weighted signer math，而不是固定 threshold？
