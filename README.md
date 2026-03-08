@@ -53,6 +53,8 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 - [DESIGN-NOTES.auto-signer-consent-model.zh-TW.md](./DESIGN-NOTES.auto-signer-consent-model.zh-TW.md): Traditional Chinese design draft for the same consent model
 - [DESIGN-NOTES.policy-driven-threshold-custody.en.md](./DESIGN-NOTES.policy-driven-threshold-custody.en.md): Design draft for policy-authorized automatic threshold custody
 - [DESIGN-NOTES.policy-driven-threshold-custody.zh-TW.md](./DESIGN-NOTES.policy-driven-threshold-custody.zh-TW.md): Traditional Chinese design draft for the same custody model
+- [DESIGN-NOTES.mycel-anonymity-model.en.md](./DESIGN-NOTES.mycel-anonymity-model.en.md): Design draft for analyzing anonymity across transport, metadata, client, runtime, and replication layers
+- [DESIGN-NOTES.mycel-anonymity-model.zh-TW.md](./DESIGN-NOTES.mycel-anonymity-model.zh-TW.md): Traditional Chinese design draft for the same anonymity model
 - [DESIGN-NOTES.sensor-triggered-donation.en.md](./DESIGN-NOTES.sensor-triggered-donation.en.md): Design draft for a sensor-triggered donation flow
 - [DESIGN-NOTES.sensor-triggered-donation.zh-TW.md](./DESIGN-NOTES.sensor-triggered-donation.zh-TW.md): Traditional Chinese design draft for the same flow
 - [DESIGN-NOTES.governance-history-security.en.md](./DESIGN-NOTES.governance-history-security.en.md): Design draft for securing governance history
