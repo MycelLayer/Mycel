@@ -101,6 +101,7 @@ Current outcome:
 - Resolution commits:
   - `4f133e9` (`Define deterministic state hash replay rules`)
   - `7990b2d` (`Add canonical serialization appendix`)
+  - `4a4b944` (`Add conservative semantic merge profile`)
 - Affected docs:
   - `PROTOCOL.en.md:211`
   - `PROTOCOL.en.md:297`
@@ -139,6 +140,8 @@ Current outcome:
 
 - Priority: P1
 - Current status: resolved
+- Resolution commits:
+  - `c52118c` (`Specify deterministic head selection rules`)
 - Affected docs:
   - `PROTOCOL.en.md:483`
   - `PROTOCOL.en.md:496`
