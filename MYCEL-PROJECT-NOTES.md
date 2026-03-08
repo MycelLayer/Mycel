@@ -7,6 +7,7 @@
 ## Protocol Constraints
 
 - Mycel itself must remain completely neutral and fully technical.
+- Religion-related project intent or framing belongs only in this file, not in protocol, wire, schema, or design documents.
 - Protocol and design documents must use domain-neutral language, including examples, role names, and app descriptions.
 - Do not embed worldview-specific stance, endorsement, or domain terminology into protocol or design decisions.
 
