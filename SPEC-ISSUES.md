@@ -4,6 +4,12 @@ Status: draft
 
 This document tracks protocol-spec issues that are likely to cause interoperability problems, ambiguous validation behavior, or incompatible implementations.
 
+## Status Guide
+
+- `open`: not yet addressed in the normative spec
+- `partially resolved`: major ambiguity reduced, but important gaps remain
+- `resolved`: normative rules have been added for v0.1
+
 ## Priority Guide
 
 - P0: blocks interoperable implementations
@@ -13,6 +19,9 @@ This document tracks protocol-spec issues that are likely to cause interoperabil
 ## Issue 1: Object identity is underspecified
 
 - Priority: P0
+- Current status: partially resolved
+- Resolution commits:
+  - `8858aad` (`Clarify object identity and wire format`)
 - Affected docs:
   - `PROTOCOL.en.md:51`
   - `PROTOCOL.en.md:77`
@@ -44,9 +53,22 @@ Recommended decision:
 - State which fields are content-addressed and which are logical references.
 - Add a receiver rule that rejects any mismatch between declared ID and recomputed canonical hash.
 
+Current outcome:
+
+- The spec now distinguishes logical IDs (`doc_id`, `block_id`) from canonical object IDs (`patch_id`, `revision_id`, `view_id`, `snapshot_id`).
+- The wire `OBJECT` message now requires `object_id` to match the recomputed typed hash.
+- Receivers are now required to reject mismatches between embedded derived IDs and recomputed canonical IDs.
+
+Remaining gap:
+
+- Canonical serialization is still only defined at a high level, so hash compatibility still depends on a future serialization appendix.
+
 ## Issue 2: Core protocol and wire protocol define incompatible message shapes
 
 - Priority: P0
+- Current status: resolved
+- Resolution commits:
+  - `8858aad` (`Clarify object identity and wire format`)
 - Affected docs:
   - `PROTOCOL.en.md:397`
   - `WIRE-PROTOCOL.en.md:23`
@@ -69,9 +91,17 @@ Recommended decision:
 - Replace the message examples in `PROTOCOL.en.md` with a short reference to the wire spec.
 - Keep only conceptual sync flow in the core protocol document.
 
+Current outcome:
+
+- The core protocol no longer defines conflicting lowercase transport examples.
+- `WIRE-PROTOCOL.en.md` is now the normative source for transport message shape.
+
 ## Issue 3: `state_hash` is not reproducible from the current rules
 
 - Priority: P0
+- Current status: partially resolved
+- Resolution commits:
+  - `4f133e9` (`Define deterministic state hash replay rules`)
 - Affected docs:
   - `PROTOCOL.en.md:211`
   - `PROTOCOL.en.md:297`
@@ -98,9 +128,21 @@ Recommended decision:
 - Define ordered inputs, conflict behavior, and canonical state serialization.
 - If merge semantics are not ready, constrain v0.1 to single-parent non-merge revisions, or mark merge revisions as provisional.
 
+Current outcome:
+
+- The spec now defines ordered `parents`, ordered `patches`, and replay from `parents[0]` as the execution base state.
+- Secondary parents are now ancestry-only unless their content is materialized by explicit Patch operations.
+- `state_hash` now has a normative replay-and-hash procedure, including a canonical state object shape and receiver rejection on mismatch.
+
+Remaining gap:
+
+- Canonical state serialization is still dependent on the general canonical serialization rules, which remain underspecified.
+- Merge behavior is now replay-safe, but semantic merge generation rules are still not defined.
+
 ## Issue 4: Deterministic head selection is declared but not specified enough
 
 - Priority: P1
+- Current status: open
 - Affected docs:
   - `PROTOCOL.en.md:483`
   - `PROTOCOL.en.md:496`
@@ -124,6 +166,9 @@ Recommended decision:
 ## Issue 5: Signature requirements are incomplete across object types
 
 - Priority: P1
+- Current status: resolved
+- Resolution commits:
+  - `8a16a23` (`Add signature matrix to protocol specs`)
 - Affected docs:
   - `PROTOCOL.en.md:59`
   - `PROTOCOL.en.md:273`
@@ -151,9 +196,18 @@ Recommended decision:
   - forbidden
 - Define the exact signed payload for each signed type.
 
+Current outcome:
+
+- The core protocol now defines a normative object signature matrix.
+- The wire protocol now defines a normative wire-message signature matrix.
+- Signed payload coverage is now explicitly defined for the signed object types.
+
 ## Issue 6: Minimal sync flow depends on message types with no normative schema
 
 - Priority: P1
+- Current status: resolved
+- Resolution commits:
+  - `42dcf28` (`Define remaining wire message schemas`)
 - Affected docs:
   - `PROTOCOL.en.md:360`
   - `PROTOCOL.en.md:378`
@@ -174,11 +228,13 @@ Recommended decision:
 
 - Either add normative schemas for all message types used in the minimal sync flow, or reduce the v0.1 claim to the subset that is actually specified.
 
+Current outcome:
+
+- The wire protocol now includes normative schemas for `MANIFEST`, `HEADS`, `SNAPSHOT_OFFER`, `VIEW_ANNOUNCE`, `BYE`, and `ERROR`.
+- Conformance text now ties advertised capabilities to the corresponding optional wire messages.
+
 ## Suggested Resolution Order
 
-1. Lock object identity, hash, and canonical serialization rules.
-2. Unify transport definitions so only one document is normative for wire format.
-3. Define reproducible `state_hash` construction.
-4. Add a complete signature matrix.
-5. Either fully specify head selection or move it to a later version.
-6. Finish schemas for the remaining sync messages.
+1. Finish a canonical serialization appendix so hash, signature, and `state_hash` are fully cross-implementation safe.
+2. Either fully specify head selection or move it to a later version.
+3. Re-review the spec for any remaining derived assumptions that still rely on local policy rather than normative rules.
