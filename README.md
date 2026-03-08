@@ -2,16 +2,18 @@
 
 Language: English | [繁體中文](./README.zh-TW.md)
 
-Mycel is a neutral, technical protocol for verifiable text history and decentralized replication.
+Mycel is a neutral, technical protocol stack for verifiable text history, governed reading state, and decentralized replication.
 
 ## Overview
 
-Mycel is designed for text-first collaboration in distributed environments:
+Mycel is designed for text-first collaboration and reference-text systems in distributed environments:
 
 - Verifiable change history
 - P2P replication
 - Digital-signature validation
 - Multi-branch coexistence without requiring global single consensus
+- Profile-governed accepted reading and state selection
+- Extensible app-layer models built on a stable protocol core
 
 ## Neutrality
 
@@ -19,8 +21,8 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 
 ## Current Status
 
-- Protocol stage: `v0.1` conceptual specification
-- Current focus: spec consistency, implementation readiness, and governance simplification
+- Protocol stage: `v0.1` conceptual specification with a growing profile and design-note layer
+- Current focus: first-client scoping, implementation readiness, and narrowing the path from design notes to concrete profiles
 
 ## Documentation
 
@@ -82,9 +84,9 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 
 ## Near-Term Priorities
 
-1. Use the implementation checklist to scope a minimal reference client
-2. Decide whether v0.1 governance parameters should be reduced further before stabilization
-3. Turn the minimal checklist into a narrower reference profile if we want stricter first-client constraints
+1. Build a narrow first client around sync, verification, accepted-head selection, and reader-first text rendering
+2. Keep turning mature design areas into explicit profiles or schemas instead of expanding the protocol core too quickly
+3. Expand upward one layer at a time: canonical-text reading first, then selective app-layer support
 
 ## Project Scope
 
@@ -94,4 +96,4 @@ Mycel is not:
 - a plain file transfer system
 - a Git clone
 
-Mycel is a protocol for verifiable, evolvable, decentralized text history.
+Mycel is a protocol stack for verifiable, evolvable, decentralized text history and governed text-bearing systems.
