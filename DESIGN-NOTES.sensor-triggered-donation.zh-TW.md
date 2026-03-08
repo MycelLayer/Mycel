@@ -1,4 +1,4 @@
-# Neuro-triggered Donation App Layer
+# Sensor-triggered Donation App Layer
 
 狀態：design draft
 
@@ -13,7 +13,7 @@
 
 ## 0. 目標
 
-讓 Mycel 可以承載一個可追溯的 neuro-triggered donation workflow，同時不把核心協議變成 sensor processor 或 payment engine。
+讓 Mycel 可以承載一個可追溯的 sensor-triggered donation workflow，同時不把核心協議變成 sensor processor 或 payment engine。
 
 放在 Mycel 裡：
 
@@ -26,7 +26,7 @@
 
 留在 Mycel core 外：
 
-- raw brain-signal capture
+- raw sensor-signal capture
 - low-level sensor interpretation
 - payment execution
 - secret handling

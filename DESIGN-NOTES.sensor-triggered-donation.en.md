@@ -1,4 +1,4 @@
-# Neuro-triggered Donation App Layer
+# Sensor-triggered Donation App Layer
 
 Status: design draft
 
@@ -13,7 +13,7 @@ The main design principle is:
 
 ## 0. Goal
 
-Enable Mycel to carry a traceable neuro-triggered donation workflow without turning the core protocol into a sensor processor or payment engine.
+Enable Mycel to carry a traceable sensor-triggered donation workflow without turning the core protocol into a sensor processor or payment engine.
 
 Keep in Mycel:
 
@@ -26,7 +26,7 @@ Keep in Mycel:
 
 Keep outside Mycel core:
 
-- raw brain-signal capture
+- raw sensor-signal capture
 - low-level sensor interpretation
 - payment execution
 - secret handling
