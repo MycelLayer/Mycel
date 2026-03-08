@@ -6,9 +6,10 @@
 
 ## Git identity (User vs Agent)
 - User commits (VS Code): `ctf2090 <ctf2090@gmail.com>`
-- Agent commits (Codex): `codex <codex@local>`
+- Agent commits: `gpt-5:codex <codex@local>`
+- On each new chat, the agent should determine the current `<model_family>:<agent_identity>` string before making commits.
 - Preferred setup: keep repo `user.name/user.email` for the user; the agent overrides per commit:
-  - `git -c user.name=codex -c user.email=codex@local commit --no-gpg-sign -m "..."`
+  - `git -c user.name='gpt-5:codex' -c user.email=codex@local commit --no-gpg-sign -m "..."`
 
 ## Communication
 - The user is not a native English speaker. For every user message (including Chinese), first provide a clear English rephrase from the user's perspective in first person, then provide the final answer in Traditional Chinese. Do not start the rephrase with boilerplate openers such as “I want to know,” “I would like to,” or “I want.”
