@@ -1,4 +1,4 @@
-# Mycel Project Notes
+# Project Intent
 
 ## Goal
 
