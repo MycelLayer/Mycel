@@ -590,11 +590,11 @@ Mycel 不把衝突視為協議失敗。
 - **Manual-curation-required**：需要人工整理
 
 在 v0.1，任何以 Revision 發布的 merge 結果，都 MUST 已經被實體化成明確的 Patch 操作。
-接收端是靠重放這些 Patches 驗證結果狀態，而不是根據 parent ancestry 重新計算 semantic merge。
+接收端是靠重放這些 Patches 驗證結果狀態，而不是根據 parent ancestry 重新計算 semantic merge（語義合併）。
 
 ### 9.3 Merge Generation Profile v0.1（規範）
 
-Mycel v0.1 定義一個保守版 semantic merge generation profile。
+Mycel v0.1 定義一個保守版 semantic merge generation profile（語義合併生成設定檔）。
 這個 profile 只用來產生候選 merge Patch 操作。
 驗證仍然只依賴最終產生的 Patch、Revision 與 `state_hash`。
 
@@ -710,15 +710,15 @@ Mycel 不定義全域唯一採信視圖，只存在：
 
 為了降低 client 端分歧，head 選擇必須由協議規範驅動：
 
-1. client MUST 以 `view_id` 與 `doc_id` 發出請求，且 MAY 附帶 selection-time boundary。
+1. client MUST 以 `view_id` 與 `doc_id` 發出請求，且 MAY 附帶 selection-time boundary（選擇時間邊界）。
 2. client MUST NOT 強制指定 `head_id`。
 3. node MUST 依請求 view 的 policy，從 eligible heads 即時計算 `selected_head`。
-4. 對同一組已驗證物件集合、本地 selector policy state、以及有效 selection time，選擇器 MUST 產生決定性結果。
-5. 回應 MUST 包含 `selected_head` 與可機器解析的 decision trace。
+4. 對同一組已驗證物件集合、本地 selector policy state（選擇器策略狀態）、以及有效 selection time（選擇時間），選擇器 MUST 產生決定性結果。
+5. 回應 MUST 包含 `selected_head` 與可機器解析的 decision trace（決策軌跡）。
 
 #### 10.1.1 Selector Inputs
 
-Selector 的輸入 tuple 為：
+Selector 的輸入 tuple（輸入組）為：
 
 - `view_id`
 - `doc_id`
@@ -729,10 +729,10 @@ Selector 的輸入 tuple 為：
 - 若 client 有提供 boundary，則使用該值
 - 否則使用 node 處理請求時的本地時間
 
-若 client 省略 boundary，node MUST 在 decision trace 中輸出解析後的 `effective_selection_time`。
+若 client 省略 boundary，node MUST 在 decision trace（決策軌跡）中輸出解析後的 `effective_selection_time`。
 
 Node MUST 將 `view_id` 解析為一個完整驗證過的 View 物件 `V`。
-Selector policy hash 為：
+Selector policy hash（選擇器策略雜湊）為：
 
 ```text
 policy_hash = HASH(canonical_serialization(V.policy))
@@ -752,7 +752,7 @@ policy_hash = HASH(canonical_serialization(V.policy))
 
 #### 10.1.3 Maintainer Signals
 
-對每個已準入的 maintainer key `k`，selector 在 selector epoch 中最多導出一個 signal：
+對每個已準入的 maintainer key `k`，selector 在 selector epoch（選擇器 epoch）中最多導出一個 signal（訊號）：
 
 1. 依第 10.2 節規則決定 selector epoch
 2. 收集所有完整驗證過的 View 物件，且需符合：
@@ -794,7 +794,7 @@ Raw supporter count MAY 出現在 trace 中以利審計，但 MUST NOT 高於 `s
 
 #### 10.1.5 Decision Trace Schema
 
-Decision trace MUST 可機器解析，且至少包含：
+Decision trace（決策軌跡）MUST 可機器解析，且至少包含：
 
 ```json
 {
@@ -817,7 +817,7 @@ Decision trace MUST 可機器解析，且至少包含：
 }
 ```
 
-對同一組已驗證物件集合、selector policy state、以及 effective selection time，此 trace MUST 可重現。
+對同一組已驗證物件集合、selector policy state（選擇器策略狀態）、以及 effective selection time（選擇時間），此 trace MUST 可重現。
 
 ### 10.2 Maintainer Set + 權重準入（規範）
 
@@ -827,8 +827,8 @@ Mycel 採用假名、身份盲的維護者治理。
 準入與加權規則：
 
 1. 維護者候選資格 MUST 只依可驗證的協議行為評估，不依聲稱的真實身份。
-2. node MUST 保存並公布本地 selector policy parameters，以便審計。
-3. Selector policy parameters 至少 MUST 包含：
+2. node MUST 保存並公布本地 selector policy parameters（選擇器策略參數），以便審計。
+3. Selector policy parameters（選擇器策略參數）至少 MUST 包含：
    - `epoch_seconds`
    - `epoch_zero_timestamp`
    - `admission_window_epochs`
@@ -1051,9 +1051,9 @@ Mycel 的核心不是唯一真理，而是：
 
 下一步最有價值的是：
 
-1. **Implementation checklist**：把規格整理成可落地的實作 profile
-2. **Consistency audit**：把所有文件中的例子、術語、範圍對齊
-3. **Governance simplification review**：在視 v0.1 為穩定前，先收斂 selector / governance 的可選複雜度
+1. **Implementation checklist（實作檢查清單）**：把規格整理成可落地的實作 profile（設定檔）
+2. **Consistency audit（一致性稽核）**：把所有文件中的例子、術語、範圍對齊
+3. **Governance simplification review（治理簡化檢查）**：在視 v0.1 為穩定前，先收斂 selector / governance 的可選複雜度
 
 ## Appendix A. Canonical Serialization（規範）
 
