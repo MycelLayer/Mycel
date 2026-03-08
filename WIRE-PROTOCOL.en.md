@@ -90,7 +90,9 @@ Required `payload` fields:
 
 ## 5. WANT
 
-`WANT` requests missing objects by ID.
+`WANT` requests missing objects by canonical object ID.
+In v0.1, these IDs are typed content-addressed IDs such as `rev:<object_hash>` or `patch:<object_hash>`.
+Logical IDs such as `doc_id` and `block_id` are not valid `WANT` targets.
 
 ```json
 {
@@ -109,7 +111,7 @@ Required `payload` fields:
 
 Required `payload` fields:
 
-- `objects`: non-empty list of object IDs
+- `objects`: non-empty list of canonical object IDs
 
 ## 6. OBJECT
 
@@ -143,11 +145,26 @@ Required `payload` fields:
 - `hash`
 - `body`
 
+Field meaning:
+
+- `object_id`: canonical typed object ID, reconstructed as `<object_type-prefix>:<hash>`
+- `hash`: raw digest of the canonicalized `body`
+- `body`: canonical object body before any transport wrapping
+
+For content-addressed v0.1 object types:
+
+- `patch` uses `patch_id`
+- `revision` uses `revision_id`
+- `view` uses `view_id`
+- `snapshot` uses `snapshot_id`
+
 Receiver MUST:
 
 1. Recompute `hash(body)` and compare with `hash`
-2. Verify object-level signature (if present by object type rules)
-3. Store object only when verification passes
+2. Reconstruct the expected `object_id` from `object_type` and `hash`, and compare with `object_id`
+3. If `body` contains a derived object-ID field for its type, verify that it matches `object_id`
+4. Verify object-level signature (if present by object type rules)
+5. Store object only when verification passes
 
 ## 7. Error Handling
 

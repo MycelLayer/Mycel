@@ -48,13 +48,28 @@ Mycel 把資料拆成 6 種核心概念：
 
 ## 3. 基本原則
 
-### 3.1 內容定址
+### 3.1 邏輯 ID 與 canonical object ID
 
-所有 object 都由內容 hash 決定 ID：
+Mycel 使用兩種不同的識別子類別：
+
+- **邏輯 ID**：文件狀態內的穩定參照，例如 `doc_id` 與 `block_id`
+- **Canonical object ID**：可複製物件的內容定址 ID，例如 `patch_id`、`revision_id`、`view_id`、`snapshot_id`
+
+邏輯 ID 屬於應用層狀態，MUST NOT 被解讀為內容雜湊。
+Canonical object ID 由 canonical bytes 導出：
 
 ```text
-object_id = hash(canonical_serialization(object))
+object_hash = HASH(canonical_serialization(object_without_derived_ids_or_signatures))
+object_id = <type-prefix>:<object_hash>
 ```
+
+在 v0.1：
+
+- `doc_id` 與 `block_id` 是邏輯 ID
+- `patch_id`、`revision_id`、`view_id`、`snapshot_id` 是 canonical object ID
+- 導出 ID 欄位本身與 `signature` 欄位 MUST NOT 納入 hash 輸入
+
+這個拆分可避免自我遞迴雜湊，也讓 transport 參照保持明確。
 
 ### 3.2 簽章必須存在
 
@@ -94,7 +109,7 @@ Document 定義一份文本的身份與基礎設定。
 
 欄位：
 
-- `doc_id`：文件固定 ID
+- `doc_id`：文件固定邏輯 ID，不是內容雜湊
 - `title`：標題
 - `language`：語言
 - `content_model`：內容模型，v0.1 固定為 `block-tree`
@@ -125,6 +140,8 @@ Block 是最小文本結構單位。
 - `list`
 - `annotation`
 - `metadata`
+
+`block_id` 是文件狀態內的邏輯 block 參照，不是內容雜湊。
 
 ### 4.3 Patch
 
@@ -170,6 +187,9 @@ Patch 的簽章輸入至少要包含：
 - `timestamp`
 - `author`
 - `ops`
+
+`patch_id` 是導出的 canonical object ID，格式為 `patch:<object_hash>`。
+它 MUST 由省略 `patch_id` 與 `signature` 後的 canonical Patch 內容計算而得。
 
 ### 4.4 Patch Operations
 
@@ -244,6 +264,9 @@ merge revision 範例：
 }
 ```
 
+`revision_id` 是導出的 canonical object ID，格式為 `rev:<object_hash>`。
+它 MUST 由省略 `revision_id` 與 `signature` 後的 canonical Revision 內容計算而得。
+
 ### 4.6 View
 
 View 是「某社群／某節點目前採信哪些版本」。
@@ -270,6 +293,9 @@ View 是「某社群／某節點目前採信哪些版本」。
 
 View 很重要，因為 Mycel 沒有單一全域採信視圖。
 
+`view_id` 是導出的 canonical object ID，格式為 `view:<object_hash>`。
+它 MUST 由省略 `view_id` 與 `signature` 後的 canonical View 內容計算而得。
+
 ### 4.7 Snapshot
 
 Snapshot 用於快速同步。
@@ -294,6 +320,9 @@ Snapshot 用於快速同步。
 }
 ```
 
+`snapshot_id` 是導出的 canonical object ID，格式為 `snap:<object_hash>`。
+它 MUST 由省略 `snapshot_id` 與 `signature` 後的 canonical Snapshot 內容計算而得。
+
 ## 5. 序列化與雜湊
 
 ### 5.1 Canonical Serialization
@@ -308,13 +337,26 @@ Snapshot 用於快速同步。
 
 ### 5.2 Hash
 
-v0.1 可先定為：
+在 v0.1，同一個 network MUST 對 canonical object ID 與物件驗證使用同一個固定雜湊演算法。
+預設建議為：
 
 ```text
 hash = BLAKE3(canonical_bytes)
 ```
 
 如果想保守，也可換成 SHA-256；但協議要固定，不可同網混用。
+
+### 5.3 導出 ID 規則
+
+對 v0.1 中任何內容定址物件型別：
+
+1. 對物件內容做 canonicalize
+2. 省略導出 ID 欄位（`patch_id`、`revision_id`、`view_id`、`snapshot_id`）
+3. 省略 `signature`
+4. 以網路固定的雜湊演算法計算剩餘 canonical bytes
+5. 以 `<type-prefix>:<object_hash>` 重建導出 ID
+
+接收端 MUST 拒絕任何內嵌導出 ID 與重算 canonical object ID 不一致的內容定址物件。
 
 ## 6. 身分與簽章
 
@@ -389,7 +431,7 @@ Mycel 不要求全節點同步全部資料，支援 partial replication。
 
 1. 收到 head announcement
 2. 檢查本地是否缺物件
-3. 用 object hash 拉取缺失
+3. 以 canonical object ID 拉取缺失
 4. 驗 hash、驗簽章
 5. 存入本地 store
 6. 依 policy 決定是否納入 view
@@ -407,24 +449,8 @@ v0.1 最小訊息集：
 - `VIEW_ANNOUNCE`
 - `BYE`
 
-`WANT`：
-
-```json
-{
-  "type": "want",
-  "objects": ["rev:merge001", "patch:91ac"]
-}
-```
-
-`OBJECT`：
-
-```json
-{
-  "type": "object",
-  "object_id": "patch:91ac",
-  "payload": { "...": "..." }
-}
-```
+這些訊息的 transport 格式以 `WIRE-PROTOCOL.zh-TW.md` 為規範性定義。
+本核心協議文件只描述概念性的同步流程與被複製物件的語義。
 
 ## 9. 衝突與合併
 

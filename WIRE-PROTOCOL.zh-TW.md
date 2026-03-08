@@ -90,7 +90,9 @@ v0.1 定義以下訊息種類：
 
 ## 5. WANT
 
-`WANT` 依 object ID 請求缺少的物件。
+`WANT` 依 canonical object ID 請求缺少的物件。
+在 v0.1，這些 ID 是帶型別前綴的內容定址 ID，例如 `rev:<object_hash>` 或 `patch:<object_hash>`。
+像 `doc_id`、`block_id` 這類邏輯 ID 不是合法的 `WANT` 目標。
 
 ```json
 {
@@ -109,7 +111,7 @@ v0.1 定義以下訊息種類：
 
 必要 `payload` 欄位：
 
-- `objects`：非空的 object ID 列表
+- `objects`：非空的 canonical object ID 列表
 
 ## 6. OBJECT
 
@@ -143,11 +145,26 @@ v0.1 定義以下訊息種類：
 - `hash`
 - `body`
 
+欄位語義：
+
+- `object_id`：canonical 型別化 object ID，以 `<object_type-prefix>:<hash>` 重建
+- `hash`：canonicalized `body` 的原始摘要值
+- `body`：未經 transport 包裝前的 canonical 物件內容
+
+對 v0.1 的內容定址物件型別：
+
+- `patch` 使用 `patch_id`
+- `revision` 使用 `revision_id`
+- `view` 使用 `view_id`
+- `snapshot` 使用 `snapshot_id`
+
 接收端 MUST：
 
 1. 重算 `hash(body)` 並比對 `hash`
-2. 驗證物件層簽章（依各物件型別規則）
-3. 驗證通過才可入庫
+2. 依 `object_type` 與 `hash` 重建預期的 `object_id`，並與 `object_id` 比對
+3. 若 `body` 含有該型別的導出 object-ID 欄位，必須驗證其與 `object_id` 一致
+4. 驗證物件層簽章（依各物件型別規則）
+5. 驗證通過才可入庫
 
 ## 7. 錯誤處理
 

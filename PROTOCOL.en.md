@@ -48,13 +48,28 @@ Mycel splits data into six core concepts:
 
 ## 3. Core Principles
 
-### 3.1 Content Addressing
+### 3.1 Logical IDs vs. Canonical Object IDs
 
-All objects are identified by content hash:
+Mycel uses two different identifier classes:
+
+- **Logical IDs**: stable references inside document state, such as `doc_id` and `block_id`
+- **Canonical object IDs**: content-addressed IDs for replicated objects, such as `patch_id`, `revision_id`, `view_id`, and `snapshot_id`
+
+Logical IDs are part of application state and MUST NOT be interpreted as content hashes.
+Canonical object IDs are derived from canonical bytes:
 
 ```text
-object_id = hash(canonical_serialization(object))
+object_hash = HASH(canonical_serialization(object_without_derived_ids_or_signatures))
+object_id = <type-prefix>:<object_hash>
 ```
+
+For v0.1:
+
+- `doc_id` and `block_id` are logical IDs
+- `patch_id`, `revision_id`, `view_id`, and `snapshot_id` are canonical object IDs
+- the derived ID field itself and the `signature` field MUST NOT be included in the hash input
+
+This split avoids recursive self-hashing and keeps transport references unambiguous.
 
 ### 3.2 Signature is Mandatory
 
@@ -94,7 +109,7 @@ A Document defines the identity and baseline settings of a text.
 
 Fields:
 
-- `doc_id`: stable document ID
+- `doc_id`: stable logical document ID, not a content hash
 - `title`: title
 - `language`: language
 - `content_model`: content model, fixed as `block-tree` in v0.1
@@ -125,6 +140,8 @@ Allowed `block_type` values:
 - `list`
 - `annotation`
 - `metadata`
+
+`block_id` is a logical block reference within document state, not a content hash.
 
 ### 4.3 Patch
 
@@ -170,6 +187,9 @@ At minimum, the Patch signature input must include:
 - `timestamp`
 - `author`
 - `ops`
+
+`patch_id` is a derived canonical object ID with the form `patch:<object_hash>`.
+It MUST be computed from the canonical Patch body with `patch_id` and `signature` omitted.
 
 ### 4.4 Patch Operations
 
@@ -244,6 +264,9 @@ Example merge revision:
 }
 ```
 
+`revision_id` is a derived canonical object ID with the form `rev:<object_hash>`.
+It MUST be computed from the canonical Revision body with `revision_id` and `signature` omitted.
+
 ### 4.6 View
 
 A View means "which versions this community/node currently accepts".
@@ -270,6 +293,9 @@ A View means "which versions this community/node currently accepts".
 
 View is critical, because Mycel has no single global accepted view.
 
+`view_id` is a derived canonical object ID with the form `view:<object_hash>`.
+It MUST be computed from the canonical View body with `view_id` and `signature` omitted.
+
 ### 4.7 Snapshot
 
 A Snapshot is used for fast synchronization.
@@ -294,6 +320,9 @@ A Snapshot is used for fast synchronization.
 }
 ```
 
+`snapshot_id` is a derived canonical object ID with the form `snap:<object_hash>`.
+It MUST be computed from the canonical Snapshot body with `snapshot_id` and `signature` omitted.
+
 ## 5. Serialization and Hashing
 
 ### 5.1 Canonical Serialization
@@ -308,13 +337,26 @@ Before hashing, all objects must be transformed into a fixed canonical form:
 
 ### 5.2 Hash
 
-In v0.1, hash can be defined as:
+In v0.1, the network MUST use one fixed hash algorithm for canonical object IDs and object verification.
+The default recommendation is:
 
 ```text
 hash = BLAKE3(canonical_bytes)
 ```
 
 If a conservative choice is preferred, SHA-256 is also possible. But one network must fix one algorithm and not mix both.
+
+### 5.3 Derived ID Rules
+
+For any content-addressed object type in v0.1:
+
+1. Canonicalize the object body
+2. Omit the derived ID field (`patch_id`, `revision_id`, `view_id`, or `snapshot_id`)
+3. Omit `signature`
+4. Hash the remaining canonical bytes using the network hash algorithm
+5. Reconstruct the derived ID as `<type-prefix>:<object_hash>`
+
+A receiver MUST reject any content-addressed object whose embedded derived ID does not match the recomputed canonical object ID.
 
 ## 6. Identity and Signature
 
@@ -389,7 +431,7 @@ Routine updates:
 
 1. Receive head announcement
 2. Check which objects are missing locally
-3. Fetch missing objects by object hash
+3. Fetch missing objects by canonical object ID
 4. Verify hash and signature
 5. Store in local store
 6. Decide whether to include into view based on local policy
@@ -407,24 +449,8 @@ v0.1 minimal message set:
 - `VIEW_ANNOUNCE`
 - `BYE`
 
-`WANT`:
-
-```json
-{
-  "type": "want",
-  "objects": ["rev:merge001", "patch:91ac"]
-}
-```
-
-`OBJECT`:
-
-```json
-{
-  "type": "object",
-  "object_id": "patch:91ac",
-  "payload": { "...": "..." }
-}
-```
+The transport shape of these messages is defined normatively in `WIRE-PROTOCOL.en.md`.
+This core protocol document only defines the conceptual sync flow and the meaning of the replicated objects.
 
 ## 9. Conflict and Merge
 
