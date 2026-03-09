@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
@@ -15,6 +16,36 @@ pub fn repo_root() -> PathBuf {
 
 pub fn mycel_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_mycel"))
+}
+
+pub struct TempDir {
+    path: PathBuf,
+}
+
+impl TempDir {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+pub fn create_temp_dir(prefix: &str) -> TempDir {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time should be after unix epoch")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!(
+        "mycel-cli-{prefix}-{}-{unique}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&path).expect("temporary directory should be created");
+
+    TempDir { path }
 }
 
 pub fn run_mycel(args: &[&str]) -> Output {

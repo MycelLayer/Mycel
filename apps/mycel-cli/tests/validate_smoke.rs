@@ -4,8 +4,8 @@ mod common;
 
 use common::{
     assert_exit_code, assert_json_error_contains, assert_json_status, assert_json_warning_contains,
-    assert_stderr_contains, assert_stdout_contains, assert_success, parse_json_stdout,
-    run_validate, stdout_text,
+    assert_stderr_contains, assert_stdout_contains, assert_success, create_temp_dir,
+    parse_json_stdout, run_mycel_in_dir, run_validate, stdout_text,
 };
 
 #[test]
@@ -15,6 +15,24 @@ fn repo_validate_json_reports_ok_status() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["errors"], Value::Array(Vec::new()));
+}
+
+#[test]
+fn validate_outside_repo_reports_root_detection_failure_json() {
+    let temp_dir = create_temp_dir("validate-outside-repo");
+    let output = run_mycel_in_dir(temp_dir.path(), &["validate", "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["root"], Value::Null);
+    assert_eq!(json["errors"].as_array().map(Vec::len), Some(1));
+    assert!(
+        json["errors"][0]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("could not find repository root")),
+        "expected missing repository root error, stdout: {}",
+        stdout_text(&output)
+    );
 }
 
 #[test]

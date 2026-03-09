@@ -9,8 +9,8 @@ mod common;
 
 use common::{
     assert_empty_stderr, assert_exit_code, assert_stderr_contains, assert_stdout_contains,
-    load_report, parse_json_stdout, repo_root, run_mycel_in_dir, run_sim, stderr_text,
-    validate_generated_report,
+    create_temp_dir, load_report, parse_json_stdout, repo_root, run_mycel_in_dir, run_sim,
+    stderr_text, validate_generated_report,
 };
 
 fn sim_run_lock() -> MutexGuard<'static, ()> {
@@ -399,6 +399,20 @@ fn hash_mismatch_run_text_reports_fault_summary() {
     assert_stdout_contains(&output, "validation status: ok");
     assert_stdout_contains(&output, "result: fail");
     assert_stdout_contains(&output, "rejected objects: 1");
+}
+
+#[test]
+fn sim_run_outside_repo_reports_root_detection_failure() {
+    let _guard = sim_run_lock();
+    let temp_dir = create_temp_dir("sim-run-outside-repo");
+    let output = run_mycel_in_dir(
+        temp_dir.path(),
+        &["sim", "run", "sim/tests/hash-mismatch.example.json"],
+    );
+
+    assert_exit_code(&output, 1);
+    assert_stderr_contains(&output, "sim run failed:");
+    assert_stderr_contains(&output, "could not find repository root");
 }
 
 #[test]
