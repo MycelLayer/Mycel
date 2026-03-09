@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -103,9 +104,18 @@ impl HeadInspectSummary {
 }
 
 pub fn inspect_heads_from_path(input_path: &Path, doc_id: &str) -> HeadInspectSummary {
-    let mut summary = HeadInspectSummary::new(input_path, doc_id);
+    let resolved_input_path = match resolve_head_inspect_input_path(input_path) {
+        Ok(path) => path,
+        Err(message) => {
+            let mut summary = HeadInspectSummary::new(input_path, doc_id);
+            summary.push_error(message);
+            return summary;
+        }
+    };
 
-    let content = match fs::read_to_string(input_path) {
+    let mut summary = HeadInspectSummary::new(&resolved_input_path, doc_id);
+
+    let content = match fs::read_to_string(&resolved_input_path) {
         Ok(content) => content,
         Err(err) => {
             summary.push_error(format!("failed to read head-inspect input: {err}"));
@@ -208,6 +218,70 @@ pub fn inspect_heads_from_path(input_path: &Path, doc_id: &str) -> HeadInspectSu
     });
 
     summary
+}
+
+fn resolve_head_inspect_input_path(input_path: &Path) -> Result<PathBuf, String> {
+    if input_path.exists() {
+        return resolve_existing_head_inspect_input(input_path);
+    }
+
+    let repo_root = find_repo_root_from_current_dir()?;
+    let fixture_root = repo_root.join("fixtures/head-inspect");
+    let candidates = [
+        repo_root.join(input_path),
+        fixture_root.join(input_path),
+        fixture_root.join(format!("{}.json", input_path.display())),
+        fixture_root.join(format!("{}.example.json", input_path.display())),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return resolve_existing_head_inspect_input(&candidate);
+        }
+    }
+
+    Err(format!(
+        "could not resolve head-inspect input '{candidate}' from the current directory or fixtures/head-inspect/",
+        candidate = input_path.display()
+    ))
+}
+
+fn resolve_existing_head_inspect_input(input_path: &Path) -> Result<PathBuf, String> {
+    if input_path.is_file() {
+        return Ok(input_path.to_path_buf());
+    }
+
+    if input_path.is_dir() {
+        for candidate_name in ["bundle.json", "head-inspect.json", "input.json"] {
+            let candidate = input_path.join(candidate_name);
+            if candidate.is_file() {
+                return Ok(candidate);
+            }
+        }
+
+        return Err(format!(
+            "head-inspect input directory '{}' must contain one of: bundle.json, head-inspect.json, input.json",
+            input_path.display()
+        ));
+    }
+
+    Err(format!(
+        "head-inspect input '{}' is neither a file nor a directory",
+        input_path.display()
+    ))
+}
+
+fn find_repo_root_from_current_dir() -> Result<PathBuf, String> {
+    let current_dir =
+        env::current_dir().map_err(|err| format!("failed to read current directory: {err}"))?;
+
+    for candidate in current_dir.ancestors() {
+        if candidate.join("Cargo.toml").is_file() && candidate.join("fixtures").is_dir() {
+            return Ok(candidate.to_path_buf());
+        }
+    }
+
+    Err("could not find repository root containing Cargo.toml and fixtures/".to_string())
 }
 
 fn collect_verified_revisions(

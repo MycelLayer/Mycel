@@ -1,5 +1,5 @@
 {
-  "$schema": "./head-inspect.schema.json",
+  "$schema": "../head-inspect.schema.json",
   "bundle_id": "minimal-head-selection",
   "description": "Minimal local input bundle for head inspection smoke coverage",
   "expected": {

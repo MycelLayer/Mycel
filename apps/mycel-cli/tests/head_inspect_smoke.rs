@@ -134,7 +134,7 @@ fn hash_json(value: &Value) -> String {
 fn head_inspect_json_selects_highest_supported_head() {
     let doc_id = "doc:sample";
     let path = repo_root()
-        .join("fixtures/head-inspect/minimal-head-selection.example.json")
+        .join("fixtures/head-inspect/minimal-head-selection")
         .to_string_lossy()
         .into_owned();
     let output = run_mycel(&["head", "inspect", doc_id, "--input", &path, "--json"]);
@@ -171,6 +171,32 @@ fn head_inspect_json_selects_highest_supported_head() {
 }
 
 #[test]
+fn head_inspect_json_resolves_repo_native_fixture_name() {
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        "doc:sample",
+        "--input",
+        "minimal-head-selection",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(
+        json["input_path"],
+        repo_root()
+            .join("fixtures/head-inspect/minimal-head-selection/bundle.json")
+            .to_string_lossy()
+            .into_owned()
+    );
+    assert_eq!(
+        json["selected_head"],
+        "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
+    );
+}
+
+#[test]
 fn head_inspect_text_fails_when_no_eligible_head_exists() {
     let author_key = signing_key(11);
     let revision = signed_revision(&author_key, "doc:other", vec![], 1000, "hash:state-a");
@@ -197,12 +223,62 @@ fn head_inspect_text_fails_when_no_eligible_head_exists() {
 }
 
 #[test]
+fn head_inspect_directory_resolves_input_json() {
+    let author_key = signing_key(11);
+    let revision = signed_revision(&author_key, "doc:sample", vec![], 1000, "hash:state-a");
+    let policy = json!({
+        "accept_keys": [signer_id(&signing_key(12))],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let bundle = json!({
+        "profile": {
+            "policy_hash": hash_json(&policy),
+            "effective_selection_time": 1200
+        },
+        "revisions": [revision],
+        "views": []
+    });
+    let dir = create_temp_dir("head-inspect-directory");
+    let path = dir.path().join("input.json");
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&bundle).expect("bundle JSON should serialize"),
+    )
+    .expect("bundle JSON should be written");
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        "doc:sample",
+        "--input",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["input_path"], path.to_string_lossy().into_owned());
+}
+
+#[test]
 fn head_inspect_requires_input_path() {
     let output = run_mycel(&["head", "inspect", "doc:sample"]);
 
     assert_exit_code(&output, 2);
     assert_stderr_contains(&output, "missing --input for head inspect");
     assert_stdout_contains(&output, "Head options:");
+}
+
+#[test]
+fn head_inspect_reports_unknown_repo_native_fixture() {
+    let output = run_mycel(&["head", "inspect", "doc:sample", "--input", "does-not-exist"]);
+
+    assert_exit_code(&output, 1);
+    assert_stdout_contains(&output, "head inspection: failed");
+    assert_stderr_contains(
+        &output,
+        "could not resolve head-inspect input 'does-not-exist'",
+    );
 }
 
 #[test]

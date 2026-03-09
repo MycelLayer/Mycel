@@ -22,8 +22,10 @@ fn print_usage() {
     println!("  help       Show this message");
     println!();
     println!("Head options:");
-    println!("  inspect <doc_id> --input <path>  Inspect one document's accepted head");
-    println!("  --json                           Emit machine-readable head inspection output");
+    println!("  inspect <doc_id> --input <path|fixture>  Inspect one document's accepted head");
+    println!(
+        "  --json                                   Emit machine-readable head inspection output"
+    );
     println!();
     println!("Object options:");
     println!("  verify <path>  Verify one object file");

@@ -5,8 +5,9 @@ This directory holds local input bundles for the minimal `mycel head inspect` CL
 Recommended contents:
 
 - `head-inspect.schema.json`: formal schema for one local input bundle
-- `*.example.json`: version-controlled example bundles for smoke tests and manual inspection
+- `<fixture-name>/bundle.json`: repo-native fixture directory layout for smoke tests and manual inspection
+- optional flat `*.json` / `*.example.json` bundles for one-off inputs
 
 Current example bundles:
 
-- `minimal-head-selection.example.json`: selects one accepted head from two eligible revisions using three signed View objects
+- `minimal-head-selection/bundle.json`: selects one accepted head from two eligible revisions using three signed View objects
