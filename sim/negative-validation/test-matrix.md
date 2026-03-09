@@ -21,12 +21,13 @@
   Strict mode exit code: non-zero with `--strict`
   Expected failure: metadata omits `seed_source`
 
-## Planned Cases
-
 - `unknown-topology-reference`
-  Target type: test-case or report
+  Artifact: `sim/reports/invalid/unknown-topology-reference.example.json`
+  Target type: report
   Expected status: `failed`
-  Planned failure: `topology_id` or `source_topology` cannot be resolved
+  Expected failure: `topology_id` does not match any loaded topology
+
+## Planned Cases
 
 ## Usage
 
@@ -37,6 +38,7 @@ cargo run -p mycel-cli -- validate sim/reports/invalid/random-seed-prefix-mismat
 cargo run -p mycel-cli -- validate sim/reports/invalid/auto-seed-prefix-mismatch.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json --strict
+cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-topology-reference.example.json --json
 ```
 
 Run the whole repo and confirm the invalid artifacts are not part of normal validation:

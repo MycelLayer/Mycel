@@ -24,6 +24,9 @@ This directory is the index and matrix for those cases.
   Artifact: `sim/reports/invalid/missing-seed-source.example.json`
   Expected result: `mycel validate` returns `status: "warning"` because metadata omits `seed_source`
   Strict mode: `mycel validate --strict` returns a non-zero exit code for the same file
+- `unknown-topology-reference`
+  Artifact: `sim/reports/invalid/unknown-topology-reference.example.json`
+  Expected result: `mycel validate` fails because `topology_id` does not match any loaded topology
 
 ## Command
 
@@ -32,6 +35,7 @@ cargo run -p mycel-cli -- validate sim/reports/invalid/random-seed-prefix-mismat
 cargo run -p mycel-cli -- validate sim/reports/invalid/auto-seed-prefix-mismatch.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json --strict
+cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-topology-reference.example.json --json
 ```
 
 ## Smoke Script

@@ -178,7 +178,7 @@ fn validate_from_target(
     let mut scoped = scope_input(root, &input, target);
     if matches!(target, ValidationTarget::Report(_)) && scoped.reports.is_empty() {
         if let Some(value) = load_json::<Report>(target_path, &mut summary) {
-            scoped = scope_for_direct_report(&input, target_path, value);
+            scoped = scope_for_direct_report(root, &input, target_path, value);
         }
     }
 
@@ -240,7 +240,7 @@ fn scope_input(root: &Path, input: &ValidationInput, target: &ValidationTarget) 
         },
         ValidationTarget::Topology(path) => scope_for_topology(root, input, path),
         ValidationTarget::TestCase(path) => scope_for_test_case(root, input, path),
-        ValidationTarget::Report(path) => scope_for_report(input, path),
+        ValidationTarget::Report(path) => scope_for_report(root, input, path),
         ValidationTarget::FixturesDir(path) => scope_for_fixtures_dir(root, input, path),
         ValidationTarget::PeersDir(path) => ValidationInput {
             fixtures: Vec::new(),
@@ -433,20 +433,29 @@ fn scope_for_test_case(root: &Path, input: &ValidationInput, path: &Path) -> Val
     }
 }
 
-fn scope_for_report(input: &ValidationInput, path: &Path) -> ValidationInput {
+fn scope_for_report(root: &Path, input: &ValidationInput, path: &Path) -> ValidationInput {
     let reports = filter_by_path(&input.reports, path);
-    build_report_scope(input, reports)
+    build_report_scope(root, input, reports)
 }
 
-fn scope_for_direct_report(input: &ValidationInput, path: &Path, value: Report) -> ValidationInput {
+fn scope_for_direct_report(
+    root: &Path,
+    input: &ValidationInput,
+    path: &Path,
+    value: Report,
+) -> ValidationInput {
     let reports = vec![NamedReport {
         path: path.to_path_buf(),
         value,
     }];
-    build_report_scope(input, reports)
+    build_report_scope(root, input, reports)
 }
 
-fn build_report_scope(input: &ValidationInput, reports: Vec<NamedReport>) -> ValidationInput {
+fn build_report_scope(
+    root: &Path,
+    input: &ValidationInput,
+    reports: Vec<NamedReport>,
+) -> ValidationInput {
     let fixture_ids: HashSet<_> = reports
         .iter()
         .map(|report| report.value.fixture_id.as_str())
@@ -466,16 +475,31 @@ fn build_report_scope(input: &ValidationInput, reports: Vec<NamedReport>) -> Val
         .filter(|fixture| fixture_ids.contains(fixture.value.fixture_id.as_str()))
         .cloned()
         .collect();
-    let topologies: Vec<_> = input
-        .topologies
-        .iter()
-        .filter(|topology| topology_ids.contains(topology.value.topology_id.as_str()))
-        .cloned()
-        .collect();
     let test_cases: Vec<_> = input
         .test_cases
         .iter()
         .filter(|test_case| test_ids.contains(test_case.value.test_id.as_str()))
+        .cloned()
+        .collect();
+    let topology_refs: HashSet<_> = test_cases
+        .iter()
+        .map(|test_case| test_case.value.topology.as_str())
+        .collect();
+    let topology_paths: HashSet<_> = input
+        .topologies
+        .iter()
+        .filter_map(|topology| relative_display(root, &topology.path))
+        .collect();
+    let topologies: Vec<_> = input
+        .topologies
+        .iter()
+        .filter(|topology| {
+            topology_ids.contains(topology.value.topology_id.as_str())
+                || topology_refs.contains(topology.value.topology_id.as_str())
+                || relative_display(root, &topology.path)
+                    .is_some_and(|path| topology_refs.contains(path.as_str()))
+                || topology_paths.contains(topology.value.topology_id.as_str())
+        })
         .cloned()
         .collect();
 
