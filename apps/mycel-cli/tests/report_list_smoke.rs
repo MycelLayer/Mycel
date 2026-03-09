@@ -525,6 +525,34 @@ fn report_list_json_returns_empty_valid_results_when_no_report_matches_validatio
 }
 
 #[test]
+fn report_list_path_only_returns_empty_stdout_when_no_report_matches_filters() {
+    let temp_dir = create_temp_dir("report-list-path-only-miss");
+    let pass_report = temp_dir.path().join("pass.report.json");
+    write_report_with_result_and_validation_status(
+        &pass_report,
+        "run:pass",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "list",
+        &target,
+        "--result",
+        "fail",
+        "--validation-status",
+        "warning",
+        "--path-only",
+    ]);
+
+    assert_success(&output);
+    assert!(stdout_text(&output).trim().is_empty());
+}
+
+#[test]
 fn report_list_json_reports_missing_target_as_failed() {
     let output = run_report(&["report", "list", "sim/reports/missing-directory", "--json"]);
 
