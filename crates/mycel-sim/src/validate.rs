@@ -1479,6 +1479,17 @@ fn validate_quality_hints(
                     ),
                 );
             }
+
+            if !metadata.contains_key("fault_plan") {
+                push_warning(
+                    summary,
+                    &report.path,
+                    format!(
+                        "report '{}' metadata does not include fault_plan",
+                        report.value.run_id
+                    ),
+                );
+            }
         }
     }
 }

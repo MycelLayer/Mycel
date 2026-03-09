@@ -71,6 +71,7 @@
       "node:peer-reader-b",
       "node:peer-seed"
     ],
+    "fault_plan": [],
     "source_test_case": "sim/tests/three-peer-consistency.example.json",
     "source_topology": "sim/topologies/three-peer-consistency.example.json",
     "source_fixture": "fixtures/object-sets/minimal-valid/fixture.json"

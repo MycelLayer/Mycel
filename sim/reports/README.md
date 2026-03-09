@@ -24,3 +24,4 @@ Generated reports under `sim/reports/out/` can also be validated with `mycel val
 - Deterministic run metadata now includes `run_duration_ms` and `deterministic_seed`.
 - Runtime observation metadata now also includes `events_per_second` and `ms_per_event`.
 - Seeded scheduling metadata now also includes `scheduled_peer_order`.
+- Negative runs now also expose a deterministic `fault_plan` derived from the seed.

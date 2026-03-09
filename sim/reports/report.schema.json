@@ -235,6 +235,7 @@
         "events_per_second",
         "ms_per_event",
         "scheduled_peer_order",
+        "fault_plan",
         "source_test_case",
         "source_topology",
         "source_fixture"
@@ -292,6 +293,12 @@
           },
           "uniqueItems": true
         },
+        "fault_plan": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/faultPlanEntry"
+          }
+        },
         "source_test_case": {
           "type": "string",
           "minLength": 1
@@ -301,6 +308,38 @@
           "minLength": 1
         },
         "source_fixture": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "faultPlanEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "fault",
+        "phase",
+        "source_node_id"
+      ],
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fault": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_node_id": {
           "type": "string",
           "minLength": 1
         }

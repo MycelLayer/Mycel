@@ -51,3 +51,4 @@ Simulator run notes:
 - deterministic run metadata now includes `run_duration_ms` and `deterministic_seed`
 - runtime observation metadata now includes `events_per_second` and `ms_per_event`
 - deterministic scheduling now records `scheduled_peer_order`
+- deterministic fault ordering now records `fault_plan`

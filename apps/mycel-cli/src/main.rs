@@ -125,6 +125,28 @@ fn print_run_text(summary: &mycel_sim::run::SimulationRunSummary) -> i32 {
         "scheduled peer order: {}",
         summary.scheduled_peer_order.join(" -> ")
     );
+    if summary.fault_plan.is_empty() {
+        println!("fault plan: none");
+    } else {
+        println!(
+            "fault plan: {}",
+            summary
+                .fault_plan
+                .iter()
+                .map(|entry| format!(
+                    "#{}:{}:{}->{}",
+                    entry.order,
+                    entry.fault,
+                    entry.source_node_id,
+                    entry
+                        .target_node_id
+                        .as_deref()
+                        .unwrap_or("unspecified-target")
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
     println!("validation status: {}", summary.validation_status);
     println!("report path: {}", summary.report_path.display());
     println!("result: {}", summary.result);

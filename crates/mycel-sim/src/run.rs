@@ -24,6 +24,7 @@ pub struct SimulationRunSummary {
     pub events_per_second: f64,
     pub ms_per_event: f64,
     pub scheduled_peer_order: Vec<String>,
+    pub fault_plan: Vec<FaultPlanEntry>,
     pub validation_status: ValidationStatus,
     pub validation_warnings: Vec<String>,
     pub result: String,
@@ -32,6 +33,15 @@ pub struct SimulationRunSummary {
     pub verified_object_count: usize,
     pub rejected_object_count: usize,
     pub matched_expected_outcomes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FaultPlanEntry {
+    pub order: u64,
+    pub fault: String,
+    pub phase: String,
+    pub source_node_id: String,
+    pub target_node_id: Option<String>,
 }
 
 pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String> {
@@ -94,8 +104,15 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
     let fixture_path = root.join(&test_case.fixture_set).join("fixture.json");
     let fixture = load_json::<Fixture>(&fixture_path)?;
     let deterministic_seed = deterministic_seed(&test_case, &topology, &fixture);
+    let fault_plan = build_fault_plan(&topology, &fixture, &deterministic_seed);
 
-    let mut report = simulate_report(&test_case, &topology, &fixture, &deterministic_seed)?;
+    let mut report = simulate_report(
+        &test_case,
+        &topology,
+        &fixture,
+        &deterministic_seed,
+        &fault_plan,
+    )?;
     let scheduled_peer_order = scheduled_peer_order(&topology, &deterministic_seed);
     let finished_at = now_taipei_timestamp()?;
     let elapsed = started_clock.elapsed();
@@ -124,6 +141,7 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
         events_per_second,
         ms_per_event,
         &scheduled_peer_order,
+        &fault_plan,
     ));
     if let Some(parent) = report_path.parent() {
         fs::create_dir_all(parent).map_err(|err| {
@@ -150,6 +168,7 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
         events_per_second,
         ms_per_event,
         scheduled_peer_order,
+        fault_plan,
         validation_status: filtered_validation_status,
         validation_warnings: filtered_validation_warnings,
         result: report.result.clone(),
@@ -180,6 +199,7 @@ fn simulate_report(
     topology: &Topology,
     fixture: &Fixture,
     deterministic_seed: &str,
+    fault_plan: &[FaultPlanEntry],
 ) -> Result<Report, String> {
     let seed_node_id = resolve_peer_ref(topology, &fixture.seed_peer).ok_or_else(|| {
         format!(
@@ -238,6 +258,30 @@ fn simulate_report(
             scheduled_peer_order(topology, deterministic_seed).join(" -> ")
         )),
     );
+    if fault_plan.is_empty() {
+        push_event(
+            &mut events,
+            "init",
+            "build-fault-plan",
+            "ok",
+            None,
+            Vec::new(),
+            Some("No injected faults are scheduled for this run.".to_owned()),
+        );
+    } else {
+        push_event(
+            &mut events,
+            "init",
+            "build-fault-plan",
+            "ok",
+            None,
+            Vec::new(),
+            Some(format!(
+                "Prepared fault plan: {}.",
+                describe_fault_plan(fault_plan)
+            )),
+        );
+    }
 
     let mut peers = Vec::with_capacity(topology.peers.len());
     for peer in scheduled_peers(topology, deterministic_seed) {
@@ -252,6 +296,14 @@ fn simulate_report(
         let is_fault = fault_node_id.as_deref() == Some(peer.node_id.as_str());
         let is_reader = reader_node_ids.contains(peer.node_id.as_str()) || peer.role == "reader";
         let is_seed = peer.node_id == seed_node_id || peer.role == "seed";
+        let peer_faults: Vec<_> = fault_plan
+            .iter()
+            .filter(|entry| entry.source_node_id == peer.node_id)
+            .collect();
+        let peer_targets_faults: Vec<_> = fault_plan
+            .iter()
+            .filter(|entry| entry.target_node_id.as_deref() == Some(peer.node_id.as_str()))
+            .collect();
 
         push_event(
             &mut events,
@@ -269,31 +321,46 @@ fn simulate_report(
             report_peer
                 .notes
                 .push("Fixture declares this peer as the injected fault source.".to_owned());
-            push_event(
-                &mut events,
-                "sync",
-                "inject-fault",
-                "failed",
-                Some(peer.node_id.clone()),
-                rejected_object_ids.clone(),
-                Some("Fixture routed the invalid object set through this peer.".to_owned()),
-            );
+            for planned_fault in &peer_faults {
+                push_event(
+                    &mut events,
+                    &planned_fault.phase,
+                    "inject-fault",
+                    "failed",
+                    Some(peer.node_id.clone()),
+                    rejected_object_ids.clone(),
+                    Some(format!(
+                        "Planned fault #{} injected as '{}' toward {}.",
+                        planned_fault.order,
+                        planned_fault.fault,
+                        planned_fault
+                            .target_node_id
+                            .as_deref()
+                            .unwrap_or("unspecified-target")
+                    )),
+                );
+            }
         } else if has_hash_failure || has_signature_failure {
-            if is_reader {
+            if is_reader && (!fault_plan.is_empty() && !peer_targets_faults.is_empty()) {
                 report_peer.rejected_object_ids = rejected_object_ids.clone();
                 report_peer.notes.push(
                     "Reader rejected the advertised object set during deterministic validation."
                         .to_owned(),
                 );
-                push_event(
-                    &mut events,
-                    "verify",
-                    "reject-object-set",
-                    "ok",
-                    Some(peer.node_id.clone()),
-                    rejected_object_ids.clone(),
-                    Some("Reader rejected the injected invalid object set.".to_owned()),
-                );
+                for planned_fault in &peer_targets_faults {
+                    push_event(
+                        &mut events,
+                        "verify",
+                        "reject-object-set",
+                        "ok",
+                        Some(peer.node_id.clone()),
+                        rejected_object_ids.clone(),
+                        Some(format!(
+                            "Reader rejected planned fault #{} ('{}').",
+                            planned_fault.order, planned_fault.fault
+                        )),
+                    );
+                }
             } else if is_seed {
                 report_peer.verified_object_ids = verified_object_ids.clone();
                 push_event(
@@ -496,6 +563,7 @@ fn build_run_metadata(
     events_per_second: f64,
     ms_per_event: f64,
     scheduled_peer_order: &[String],
+    fault_plan: &[FaultPlanEntry],
 ) -> serde_json::Value {
     json!({
         "generator": "mycel-cli/sim-run-v0",
@@ -509,6 +577,7 @@ fn build_run_metadata(
         "events_per_second": events_per_second,
         "ms_per_event": ms_per_event,
         "scheduled_peer_order": scheduled_peer_order,
+        "fault_plan": fault_plan,
         "source_test_case": relative_path_string(root, test_case_path),
         "source_topology": relative_path_string(root, topology_path),
         "source_fixture": relative_path_string(root, fixture_path),
@@ -544,6 +613,98 @@ fn deterministic_seed(test_case: &TestCase, topology: &Topology, fixture: &Fixtu
         "{}|{}|{}|{}",
         test_case.test_id, topology.topology_id, fixture.fixture_id, test_case.execution_mode
     )
+}
+
+fn build_fault_plan(
+    topology: &Topology,
+    fixture: &Fixture,
+    deterministic_seed: &str,
+) -> Vec<FaultPlanEntry> {
+    let Some(source_node_id) = fixture
+        .fault_peer
+        .as_deref()
+        .and_then(|peer_ref| resolve_peer_ref(topology, peer_ref))
+    else {
+        return Vec::new();
+    };
+
+    let reader_targets: Vec<_> = fixture
+        .reader_peers
+        .iter()
+        .filter_map(|peer_ref| resolve_peer_ref(topology, peer_ref))
+        .collect();
+    let mut fault_modes = collect_fault_modes(fixture);
+    fault_modes.sort_by(|left, right| {
+        scheduler_rank(deterministic_seed, left)
+            .cmp(&scheduler_rank(deterministic_seed, right))
+            .then_with(|| left.cmp(right))
+    });
+
+    if fault_modes.is_empty() {
+        return Vec::new();
+    }
+
+    let mut plan = Vec::new();
+    for (index, fault_mode) in fault_modes.into_iter().enumerate() {
+        let target_node_id = if reader_targets.is_empty() {
+            None
+        } else {
+            let mut ranked_targets = reader_targets.clone();
+            ranked_targets.sort_by(|left, right| {
+                scheduler_rank(deterministic_seed, &format!("{fault_mode}|{left}"))
+                    .cmp(&scheduler_rank(
+                        deterministic_seed,
+                        &format!("{fault_mode}|{right}"),
+                    ))
+                    .then_with(|| left.cmp(right))
+            });
+            ranked_targets.get(index % ranked_targets.len()).cloned()
+        };
+
+        plan.push(FaultPlanEntry {
+            order: index as u64 + 1,
+            phase: "sync".to_owned(),
+            fault: fault_mode,
+            source_node_id: source_node_id.clone(),
+            target_node_id,
+        });
+    }
+
+    plan
+}
+
+fn collect_fault_modes(fixture: &Fixture) -> Vec<String> {
+    let mut modes = BTreeSet::new();
+
+    for outcome in &fixture.expected_outcomes {
+        if outcome.contains("hash-mismatch") {
+            modes.insert("hash-mismatch".to_owned());
+        }
+        if outcome.contains("signature") {
+            modes.insert("signature-mismatch".to_owned());
+        }
+    }
+
+    modes.into_iter().collect()
+}
+
+fn describe_fault_plan(fault_plan: &[FaultPlanEntry]) -> String {
+    fault_plan
+        .iter()
+        .map(|entry| {
+            format!(
+                "#{}:{}:{}->{}",
+                entry.order,
+                entry.fault,
+                entry.source_node_id,
+                entry
+                    .target_node_id
+                    .as_deref()
+                    .unwrap_or("unspecified-target")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn scheduled_peer_order(topology: &Topology, deterministic_seed: &str) -> Vec<String> {
@@ -605,7 +766,7 @@ fn push_event(
 
 #[cfg(test)]
 mod tests {
-    use super::{scheduled_peer_order, scheduler_rank, stable_hash64};
+    use super::{build_fault_plan, scheduled_peer_order, scheduler_rank, stable_hash64};
     use crate::model::{Peer, Topology};
 
     fn sample_topology() -> Topology {
@@ -683,5 +844,44 @@ mod tests {
         let second = scheduled_peer_order(&topology, "seed-a");
 
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn fault_plan_is_reproducible_for_same_seed() {
+        let topology = sample_topology();
+        let fixture = crate::model::Fixture {
+            schema: None,
+            fixture_id: "signature-mismatch".to_owned(),
+            description: "negative".to_owned(),
+            seed_peer: "peer-fault".to_owned(),
+            reader_peers: vec!["peer-reader-a".to_owned(), "peer-reader-b".to_owned()],
+            documents: Vec::new(),
+            expected_outcomes: vec![
+                "signature-verification-failure".to_owned(),
+                "object-rejected-hash-mismatch".to_owned(),
+            ],
+            fault_peer: Some("peer-seed".to_owned()),
+            notes: Vec::new(),
+            metadata: None,
+        };
+
+        let first = build_fault_plan(&topology, &fixture, "seed-a");
+        let second = build_fault_plan(&topology, &fixture, "seed-a");
+
+        assert_eq!(first.len(), 2);
+        assert_eq!(
+            first.iter().map(|entry| &entry.fault).collect::<Vec<_>>(),
+            second.iter().map(|entry| &entry.fault).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            first
+                .iter()
+                .map(|entry| entry.target_node_id.clone())
+                .collect::<Vec<_>>(),
+            second
+                .iter()
+                .map(|entry| entry.target_node_id.clone())
+                .collect::<Vec<_>>()
+        );
     }
 }

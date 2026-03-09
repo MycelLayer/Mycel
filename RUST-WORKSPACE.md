@@ -66,6 +66,7 @@ Current `sim run` behavior:
 - records `run_duration_ms` and a derived `deterministic_seed` for reproducible scheduling
 - records `events_per_second` and `ms_per_event` as runtime observation metrics
 - derives `scheduled_peer_order` from the deterministic seed and uses it for peer/event processing
+- derives `fault_plan` from the deterministic seed for negative fixture ordering
 - uses deterministic placeholder object IDs instead of real wire sync
 
 Recommended next:
