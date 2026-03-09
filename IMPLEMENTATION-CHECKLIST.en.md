@@ -156,6 +156,9 @@ Defer if needed:
 - [ ] Provide sync pull entry points.
 - [ ] Provide view inspection or head-inspection entry points.
 - [ ] Separate reader-facing accepted-head inspection from curator-facing View publication workflows.
+- [ ] Keep head-inspection `decision_trace` at a high-level summary layer only.
+- [ ] Put machine-consumable maintainer, weight, and violation details in typed arrays such as `effective_weights[]`, `maintainer_support[]`, and `critical_violations[]`, not in `decision_trace`.
+- [ ] Treat `decision_trace` as explanatory output for humans; treat typed arrays as the stable detail surface for tools and tests.
 - [ ] Separate editor-maintainer revision publication from view-maintainer governance publication workflows.
 - [ ] Provide store-rebuild or reindex entry points for recovery.
 
