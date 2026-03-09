@@ -234,6 +234,7 @@
         "deterministic_seed",
         "events_per_second",
         "ms_per_event",
+        "scheduled_peer_order",
         "source_test_case",
         "source_topology",
         "source_fixture"
@@ -281,6 +282,15 @@
         "ms_per_event": {
           "type": "number",
           "minimum": 0
+        },
+        "scheduled_peer_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
         },
         "source_test_case": {
           "type": "string",

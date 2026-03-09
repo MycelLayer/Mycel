@@ -66,6 +66,11 @@
     "deterministic_seed": "three-peer-consistency|three-peer-consistency|minimal-valid|single-process",
     "events_per_second": 3.0,
     "ms_per_event": 333.333,
+    "scheduled_peer_order": [
+      "node:peer-reader-a",
+      "node:peer-reader-b",
+      "node:peer-seed"
+    ],
     "source_test_case": "sim/tests/three-peer-consistency.example.json",
     "source_topology": "sim/topologies/three-peer-consistency.example.json",
     "source_fixture": "fixtures/object-sets/minimal-valid/fixture.json"

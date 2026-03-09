@@ -23,6 +23,7 @@ pub struct SimulationRunSummary {
     pub deterministic_seed: String,
     pub events_per_second: f64,
     pub ms_per_event: f64,
+    pub scheduled_peer_order: Vec<String>,
     pub validation_status: ValidationStatus,
     pub validation_warnings: Vec<String>,
     pub result: String,
@@ -94,7 +95,8 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
     let fixture = load_json::<Fixture>(&fixture_path)?;
     let deterministic_seed = deterministic_seed(&test_case, &topology, &fixture);
 
-    let mut report = simulate_report(&test_case, &topology, &fixture)?;
+    let mut report = simulate_report(&test_case, &topology, &fixture, &deterministic_seed)?;
+    let scheduled_peer_order = scheduled_peer_order(&topology, &deterministic_seed);
     let finished_at = now_taipei_timestamp()?;
     let elapsed = started_clock.elapsed();
     let run_duration_ms = elapsed.as_millis();
@@ -121,6 +123,7 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
         &deterministic_seed,
         events_per_second,
         ms_per_event,
+        &scheduled_peer_order,
     ));
     if let Some(parent) = report_path.parent() {
         fs::create_dir_all(parent).map_err(|err| {
@@ -146,6 +149,7 @@ pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String>
         deterministic_seed,
         events_per_second,
         ms_per_event,
+        scheduled_peer_order,
         validation_status: filtered_validation_status,
         validation_warnings: filtered_validation_warnings,
         result: report.result.clone(),
@@ -175,6 +179,7 @@ fn simulate_report(
     test_case: &TestCase,
     topology: &Topology,
     fixture: &Fixture,
+    deterministic_seed: &str,
 ) -> Result<Report, String> {
     let seed_node_id = resolve_peer_ref(topology, &fixture.seed_peer).ok_or_else(|| {
         format!(
@@ -227,14 +232,15 @@ fn simulate_report(
         None,
         Vec::new(),
         Some(format!(
-            "Prepared topology '{}' with {} peers.",
+            "Prepared topology '{}' with {} peers. Scheduler order: {}.",
             topology.topology_id,
-            topology.peers.len()
+            topology.peers.len(),
+            scheduled_peer_order(topology, deterministic_seed).join(" -> ")
         )),
     );
 
     let mut peers = Vec::with_capacity(topology.peers.len());
-    for peer in &topology.peers {
+    for peer in scheduled_peers(topology, deterministic_seed) {
         let mut report_peer = ReportPeer {
             node_id: peer.node_id.clone(),
             status: "ok".to_owned(),
@@ -489,6 +495,7 @@ fn build_run_metadata(
     deterministic_seed: &str,
     events_per_second: f64,
     ms_per_event: f64,
+    scheduled_peer_order: &[String],
 ) -> serde_json::Value {
     json!({
         "generator": "mycel-cli/sim-run-v0",
@@ -501,6 +508,7 @@ fn build_run_metadata(
         "deterministic_seed": deterministic_seed,
         "events_per_second": events_per_second,
         "ms_per_event": ms_per_event,
+        "scheduled_peer_order": scheduled_peer_order,
         "source_test_case": relative_path_string(root, test_case_path),
         "source_topology": relative_path_string(root, topology_path),
         "source_fixture": relative_path_string(root, fixture_path),
@@ -538,6 +546,43 @@ fn deterministic_seed(test_case: &TestCase, topology: &Topology, fixture: &Fixtu
     )
 }
 
+fn scheduled_peer_order(topology: &Topology, deterministic_seed: &str) -> Vec<String> {
+    scheduled_peers(topology, deterministic_seed)
+        .into_iter()
+        .map(|peer| peer.node_id.clone())
+        .collect()
+}
+
+fn scheduled_peers<'a>(
+    topology: &'a Topology,
+    deterministic_seed: &str,
+) -> Vec<&'a crate::model::Peer> {
+    let mut peers: Vec<_> = topology.peers.iter().collect();
+    peers.sort_by(|left, right| {
+        scheduler_rank(deterministic_seed, &left.node_id)
+            .cmp(&scheduler_rank(deterministic_seed, &right.node_id))
+            .then_with(|| left.node_id.cmp(&right.node_id))
+    });
+    peers
+}
+
+fn scheduler_rank(deterministic_seed: &str, node_id: &str) -> u64 {
+    stable_hash64([deterministic_seed.as_bytes(), b"|", node_id.as_bytes()])
+}
+
+fn stable_hash64<'a>(parts: impl IntoIterator<Item = &'a [u8]>) -> u64 {
+    let mut hash = 0xcbf29ce484222325u64;
+
+    for part in parts {
+        for byte in part {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+
+    hash
+}
+
 fn push_event(
     events: &mut Vec<ReportEvent>,
     phase: &str,
@@ -556,4 +601,87 @@ fn push_event(
         object_ids,
         detail,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{scheduled_peer_order, scheduler_rank, stable_hash64};
+    use crate::model::{Peer, Topology};
+
+    fn sample_topology() -> Topology {
+        Topology {
+            schema: None,
+            topology_id: "sample-topology".to_owned(),
+            description: "sample".to_owned(),
+            fixture_set: "fixtures/object-sets/minimal-valid".to_owned(),
+            execution_mode: Some("single-process".to_owned()),
+            peers: vec![
+                Peer {
+                    schema: None,
+                    node_id: "node:peer-seed".to_owned(),
+                    role: "seed".to_owned(),
+                    bootstrap_peers: Vec::new(),
+                    endpoint: Some("local:peer-seed".to_owned()),
+                    capabilities: Vec::new(),
+                    store_ref: None,
+                    fixture_policy: None,
+                    notes: Vec::new(),
+                    metadata: None,
+                },
+                Peer {
+                    schema: None,
+                    node_id: "node:peer-reader-a".to_owned(),
+                    role: "reader".to_owned(),
+                    bootstrap_peers: vec!["node:peer-seed".to_owned()],
+                    endpoint: Some("local:peer-reader-a".to_owned()),
+                    capabilities: Vec::new(),
+                    store_ref: None,
+                    fixture_policy: None,
+                    notes: Vec::new(),
+                    metadata: None,
+                },
+                Peer {
+                    schema: None,
+                    node_id: "node:peer-reader-b".to_owned(),
+                    role: "reader".to_owned(),
+                    bootstrap_peers: vec!["node:peer-seed".to_owned()],
+                    endpoint: Some("local:peer-reader-b".to_owned()),
+                    capabilities: Vec::new(),
+                    store_ref: None,
+                    fixture_policy: None,
+                    notes: Vec::new(),
+                    metadata: None,
+                },
+            ],
+            expected_outcomes: Vec::new(),
+            notes: Vec::new(),
+            metadata: None,
+        }
+    }
+
+    #[test]
+    fn stable_hash_is_deterministic() {
+        let first = stable_hash64([
+            b"seed".as_slice(),
+            b"|".as_slice(),
+            b"node:peer-seed".as_slice(),
+        ]);
+        let second = stable_hash64([
+            b"seed".as_slice(),
+            b"|".as_slice(),
+            b"node:peer-seed".as_slice(),
+        ]);
+
+        assert_eq!(first, second);
+        assert_eq!(first, scheduler_rank("seed", "node:peer-seed"));
+    }
+
+    #[test]
+    fn scheduled_order_is_reproducible_for_same_seed() {
+        let topology = sample_topology();
+        let first = scheduled_peer_order(&topology, "seed-a");
+        let second = scheduled_peer_order(&topology, "seed-a");
+
+        assert_eq!(first, second);
+    }
 }

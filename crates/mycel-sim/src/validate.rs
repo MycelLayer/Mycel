@@ -1468,6 +1468,17 @@ fn validate_quality_hints(
                     ),
                 );
             }
+
+            if !metadata.contains_key("scheduled_peer_order") {
+                push_warning(
+                    summary,
+                    &report.path,
+                    format!(
+                        "report '{}' metadata does not include scheduled_peer_order",
+                        report.value.run_id
+                    ),
+                );
+            }
         }
     }
 }

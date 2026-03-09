@@ -50,3 +50,4 @@ Simulator run notes:
 - generated reports now include `started_at`, `finished_at`, and deterministic run metadata
 - deterministic run metadata now includes `run_duration_ms` and `deterministic_seed`
 - runtime observation metadata now includes `events_per_second` and `ms_per_event`
+- deterministic scheduling now records `scheduled_peer_order`

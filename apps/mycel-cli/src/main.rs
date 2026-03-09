@@ -121,6 +121,10 @@ fn print_run_text(summary: &mycel_sim::run::SimulationRunSummary) -> i32 {
     println!("deterministic seed: {}", summary.deterministic_seed);
     println!("events per second: {:.3}", summary.events_per_second);
     println!("ms per event: {:.3}", summary.ms_per_event);
+    println!(
+        "scheduled peer order: {}",
+        summary.scheduled_peer_order.join(" -> ")
+    );
     println!("validation status: {}", summary.validation_status);
     println!("report path: {}", summary.report_path.display());
     println!("result: {}", summary.result);

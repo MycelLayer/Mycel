@@ -23,3 +23,4 @@ Generated reports under `sim/reports/out/` can also be validated with `mycel val
 - Reports now also carry `started_at`, `finished_at`, and deterministic run metadata using `Asia/Taipei (UTC+8)` timestamps by default.
 - Deterministic run metadata now includes `run_duration_ms` and `deterministic_seed`.
 - Runtime observation metadata now also includes `events_per_second` and `ms_per_event`.
+- Seeded scheduling metadata now also includes `scheduled_peer_order`.
