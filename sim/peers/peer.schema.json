@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mycel.local/schemas/peer.schema.json",
+  "title": "Mycel Peer Simulator Peer Reference",
+  "description": "Language-neutral peer configuration contract for simulator roles and topology membership.",
+  "$ref": "#/$defs/peerRef",
+  "$defs": {
+    "peerRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "role",
+        "bootstrap_peers"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bootstrap_peers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "store_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_policy": {
+          "type": "object"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

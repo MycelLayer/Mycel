@@ -23,3 +23,9 @@ Suggested future additions:
 - peer role schema
 - sample peer configs
 - fault-injection toggles
+
+## Schema
+
+- `peer.schema.json` is the formal contract for standalone peer config files in this directory.
+- `peer.example.json` should validate against this schema.
+- `topology.schema.json` reuses the same peer contract instead of redefining peer fields separately.
