@@ -498,7 +498,7 @@ fn simulate_report(
         started_at: None,
         finished_at: None,
         peers,
-        result: test_case.expected_result.clone(),
+        result: derive_report_result(&failures),
         events,
         failures,
         summary: Some(ReportSummary {
@@ -572,6 +572,23 @@ fn matched_expected_outcomes(
     }
 
     fixture.expected_outcomes.clone()
+}
+
+fn derive_report_result(failures: &[ReportFailure]) -> String {
+    let has_error = failures
+        .iter()
+        .any(|failure| failure.severity.as_deref() != Some("warning"));
+    let has_warning = failures
+        .iter()
+        .any(|failure| failure.severity.as_deref() == Some("warning"));
+
+    if has_error {
+        "fail".to_owned()
+    } else if has_warning {
+        "partial".to_owned()
+    } else {
+        "pass".to_owned()
+    }
 }
 
 fn resolve_peer_ref(topology: &Topology, peer_ref: &str) -> Option<String> {
@@ -850,8 +867,10 @@ fn push_event(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_fault_plan, scheduled_peer_order, scheduler_rank, stable_hash64};
-    use crate::model::{Fixture, Peer, Topology};
+    use super::{
+        build_fault_plan, derive_report_result, scheduled_peer_order, scheduler_rank, stable_hash64,
+    };
+    use crate::model::{Fixture, Peer, ReportFailure, Topology};
 
     fn sample_topology() -> Topology {
         Topology {
@@ -1066,5 +1085,46 @@ mod tests {
         assert_ne!(seed, "auto");
         assert!(seed.starts_with("auto:"));
         assert_eq!(source, "auto");
+    }
+
+    #[test]
+    fn derive_report_result_returns_pass_without_failures() {
+        assert_eq!(derive_report_result(&[]), "pass");
+    }
+
+    #[test]
+    fn derive_report_result_returns_partial_for_warning_only_failures() {
+        let failures = vec![ReportFailure {
+            failure_id: "warn:1".to_owned(),
+            node_id: None,
+            description: "warning only".to_owned(),
+            severity: Some("warning".to_owned()),
+        }];
+
+        assert_eq!(derive_report_result(&failures), "partial");
+    }
+
+    #[test]
+    fn derive_report_result_returns_fail_for_error_failures() {
+        let failures = vec![ReportFailure {
+            failure_id: "err:1".to_owned(),
+            node_id: None,
+            description: "error".to_owned(),
+            severity: Some("error".to_owned()),
+        }];
+
+        assert_eq!(derive_report_result(&failures), "fail");
+    }
+
+    #[test]
+    fn derive_report_result_treats_missing_severity_as_fail() {
+        let failures = vec![ReportFailure {
+            failure_id: "unknown:1".to_owned(),
+            node_id: None,
+            description: "unknown severity".to_owned(),
+            severity: None,
+        }];
+
+        assert_eq!(derive_report_result(&failures), "fail");
     }
 }
