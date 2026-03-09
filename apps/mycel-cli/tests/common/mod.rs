@@ -182,6 +182,14 @@ pub fn assert_stderr_contains(output: &Output, expected_text: &str) {
     );
 }
 
+pub fn assert_stderr_starts_with(output: &Output, expected_prefix: &str) {
+    let stderr = stderr_text(output);
+    assert!(
+        stderr.starts_with(expected_prefix),
+        "expected stderr to start with '{expected_prefix}', stderr: {stderr}"
+    );
+}
+
 pub fn assert_empty_stderr(output: &Output) {
     let stderr = stderr_text(output);
     assert_eq!(stderr, "", "expected empty stderr, stderr: {stderr}");

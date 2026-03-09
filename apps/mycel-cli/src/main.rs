@@ -47,11 +47,11 @@ impl CliError {
     fn emit(&self) {
         match self {
             Self::Usage(message) => {
-                eprintln!("{message}");
+                eprintln!("error: {message}");
                 eprintln!();
                 print_usage();
             }
-            _ => eprintln!("{self}"),
+            _ => eprintln!("error: {self}"),
         }
     }
 }

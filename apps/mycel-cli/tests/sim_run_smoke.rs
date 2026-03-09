@@ -8,9 +8,9 @@ use serde_json::Value;
 mod common;
 
 use common::{
-    assert_empty_stderr, assert_exit_code, assert_stderr_contains, assert_stdout_contains,
-    create_temp_dir, load_report, parse_json_stdout, repo_root, run_mycel_in_dir, run_sim,
-    stderr_text, validate_generated_report,
+    assert_empty_stderr, assert_exit_code, assert_stderr_contains, assert_stderr_starts_with,
+    assert_stdout_contains, create_temp_dir, load_report, parse_json_stdout, repo_root,
+    run_mycel_in_dir, run_sim, stderr_text, validate_generated_report,
 };
 
 fn sim_run_lock() -> MutexGuard<'static, ()> {
@@ -433,6 +433,7 @@ fn sim_run_outside_repo_reports_root_detection_failure() {
     );
 
     assert_exit_code(&output, 1);
+    assert_stderr_starts_with(&output, "error: ");
     assert_stderr_contains(&output, "sim run failed:");
     assert_stderr_contains(&output, "could not find repository root");
 }
