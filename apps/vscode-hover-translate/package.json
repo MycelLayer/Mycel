@@ -25,6 +25,10 @@
       {
         "command": "hoverTranslate.clearCache",
         "title": "Hover Translate: Clear Cache"
+      },
+      {
+        "command": "hoverTranslate.translateSelectionOrClipboard",
+        "title": "Hover Translate: Translate Selection or Clipboard"
       }
     ],
     "configuration": {

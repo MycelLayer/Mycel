@@ -74,7 +74,41 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
-  context.subscriptions.push(hoverProvider, clearCacheCommand);
+  const translateSelectionOrClipboardCommand = vscode.commands.registerCommand(
+    "hoverTranslate.translateSelectionOrClipboard",
+    async () => {
+      const config = getConfig();
+      if (!config.enabled) {
+        void vscode.window.showWarningMessage("Hover Translate is disabled.");
+        return;
+      }
+
+      const input = await getSelectionOrClipboard(config.maxSelectionLength);
+      if (!input) {
+        void vscode.window.showWarningMessage(
+          "No selected text or clipboard text is available for translation."
+        );
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Translating ${input.source} text`
+        },
+        async () => {
+          const result = await translateSelection(input.text, config);
+          await showTranslationDocument(input, result, config);
+        }
+      );
+    }
+  );
+
+  context.subscriptions.push(
+    hoverProvider,
+    clearCacheCommand,
+    translateSelectionOrClipboardCommand
+  );
 }
 
 export function deactivate(): void {}
@@ -164,6 +198,86 @@ async function translateWithGoogleWeb(
     translatedText,
     detectedSourceLanguage
   };
+}
+
+type TranslationInput = {
+  text: string;
+  source: "selection" | "clipboard";
+};
+
+async function getSelectionOrClipboard(
+  maxSelectionLength: number
+): Promise<TranslationInput | undefined> {
+  const editor = vscode.window.activeTextEditor;
+  const selectedText = editor?.selection.isEmpty
+    ? ""
+    : editor?.document.getText(editor.selection).trim() ?? "";
+  if (selectedText) {
+    if (selectedText.length > maxSelectionLength) {
+      void vscode.window.showWarningMessage(
+        `Selected text exceeds the ${maxSelectionLength} character limit.`
+      );
+      return undefined;
+    }
+
+    return {
+      text: selectedText,
+      source: "selection"
+    };
+  }
+
+  const clipboardText = (await vscode.env.clipboard.readText()).trim();
+  if (!clipboardText) {
+    return undefined;
+  }
+
+  if (clipboardText.length > maxSelectionLength) {
+    void vscode.window.showWarningMessage(
+      `Clipboard text exceeds the ${maxSelectionLength} character limit.`
+    );
+    return undefined;
+  }
+
+  return {
+    text: clipboardText,
+    source: "clipboard"
+  };
+}
+
+async function showTranslationDocument(
+  input: TranslationInput,
+  result: TranslationResult,
+  config: ExtensionConfig
+): Promise<void> {
+  const detected = result.detectedSourceLanguage ?? config.sourceLanguage;
+  const sourceLabel = input.source === "selection" ? "editor selection" : "clipboard";
+  const content = [
+    "# Translation",
+    "",
+    "## Result",
+    "",
+    result.translatedText,
+    "",
+    "## Source",
+    "",
+    "```text",
+    input.text,
+    "```",
+    "",
+    "## Meta",
+    "",
+    `- origin: ${sourceLabel}`,
+    `- languages: ${detected} -> ${config.targetLanguage}`
+  ].join("\n");
+
+  const document = await vscode.workspace.openTextDocument({
+    language: "markdown",
+    content
+  });
+  await vscode.window.showTextDocument(document, {
+    preview: true,
+    viewColumn: vscode.ViewColumn.Beside
+  });
 }
 
 function buildHoverMarkdown(

@@ -16,6 +16,23 @@ Minimal VS Code extension for this workflow:
 - defaults to `auto -> zh-TW`
 - currently uses the public Google web translate endpoint shape, so network access is required
 
+## Use In Codex Chat
+
+Direct hover translation only works in normal editors because VS Code hover providers run on text documents, not inside another extension's isolated chat/webview surface.
+
+For Codex chat, use this command instead:
+
+- `Hover Translate: Translate Selection or Clipboard`
+
+Workflow:
+
+1. select text in the Codex chat window
+2. copy it
+3. run `Hover Translate: Translate Selection or Clipboard`
+4. the extension opens a markdown preview with the translation result
+
+The same command also works in editors. If there is an active text selection, it translates that first. Otherwise it falls back to clipboard text.
+
 ## Settings
 
 - `hoverTranslate.enabled`
