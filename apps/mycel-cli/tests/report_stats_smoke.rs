@@ -267,6 +267,55 @@ fn report_stats_path_only_latest_prints_matching_latest_path() {
 }
 
 #[test]
+fn report_stats_full_latest_json_emits_matching_raw_report() {
+    let temp_dir = create_temp_dir("report-stats-full-latest");
+    let older_matching = temp_dir.path().join("older-matching.report.json");
+    let newer_matching = temp_dir.path().join("newer-matching.report.json");
+    let wrong_result = temp_dir.path().join("wrong-result.report.json");
+    write_report_with_result_and_validation_status(
+        &older_matching,
+        "run:older-matching",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &newer_matching,
+        "run:newer-matching",
+        "2026-03-09T12:00:05+08:00",
+        "pass",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &wrong_result,
+        "run:wrong-result",
+        "2026-03-09T13:00:05+08:00",
+        "fail",
+        "warning",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "stats",
+        &target,
+        "--result",
+        "pass",
+        "--validation-status",
+        "warning",
+        "--full-latest",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["run_id"], "run:newer-matching");
+    assert_eq!(json["result"], "pass");
+    assert_eq!(json["metadata"]["validation_status"], "warning");
+    assert!(json.get("latest_valid_report").is_none());
+}
+
+#[test]
 fn report_stats_path_only_latest_fails_when_no_report_matches_filters() {
     let temp_dir = create_temp_dir("report-stats-path-only-latest-miss");
     let pass_report = temp_dir.path().join("pass.report.json");
@@ -299,6 +348,43 @@ fn report_stats_path_only_latest_fails_when_no_report_matches_filters() {
 }
 
 #[test]
+fn report_stats_full_latest_json_falls_back_to_stats_summary_when_no_report_matches() {
+    let temp_dir = create_temp_dir("report-stats-full-latest-miss");
+    let pass_report = temp_dir.path().join("pass.report.json");
+    write_report_with_result_and_validation_status(
+        &pass_report,
+        "run:pass",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "stats",
+        &target,
+        "--result",
+        "fail",
+        "--validation-status",
+        "warning",
+        "--full-latest",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert_eq!(json["result_filter"], "fail");
+    assert_eq!(json["validation_status_filter"], "warning");
+    assert_eq!(json["latest_valid_report"], serde_json::Value::Null);
+    assert_eq!(
+        json["errors"][0],
+        "no valid reports found under target with result=fail, validation_status=warning"
+    );
+}
+
+#[test]
 fn report_stats_json_reports_missing_target_as_failed() {
     let output = run_report(&["report", "stats", "sim/reports/missing-directory", "--json"]);
 
@@ -326,4 +412,29 @@ fn report_stats_rejects_path_only_latest_with_json() {
     assert_stderr_contains(&output, "cannot be used with");
     assert_stderr_contains(&output, "--path-only-latest");
     assert_stderr_contains(&output, "--json");
+}
+
+#[test]
+fn report_stats_rejects_full_latest_without_json() {
+    let output = run_report(&["report", "stats", "sim/reports", "--full-latest"]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "--json");
+}
+
+#[test]
+fn report_stats_rejects_full_latest_with_path_only_latest() {
+    let output = run_report(&[
+        "report",
+        "stats",
+        "sim/reports",
+        "--full-latest",
+        "--path-only-latest",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "cannot be used with");
+    assert_stderr_contains(&output, "--full-latest");
+    assert_stderr_contains(&output, "--path-only-latest");
 }

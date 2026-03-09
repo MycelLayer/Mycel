@@ -336,9 +336,16 @@ struct ReportStatsCliArgs {
     #[arg(long, help = "Emit machine-readable report statistics output")]
     json: bool,
     #[arg(
+        long = "full-latest",
+        help = "Emit the latest matching raw report (requires --json)",
+        requires = "json",
+        conflicts_with = "path_only_latest"
+    )]
+    full_latest: bool,
+    #[arg(
         long = "path-only-latest",
         help = "Print only the latest matching valid report path",
-        conflicts_with = "json"
+        conflicts_with_all = ["json", "full_latest"]
     )]
     path_only_latest: bool,
     #[arg(
@@ -1763,10 +1770,17 @@ fn print_report_stats_json(summary: &ReportStatsSummary) -> Result<i32, CliError
         })),
     );
 
+    render_report_stats_json(json, summary.is_ok())
+}
+
+fn render_report_stats_json(
+    json: serde_json::Map<String, serde_json::Value>,
+    ok: bool,
+) -> Result<i32, CliError> {
     match serde_json::to_string_pretty(&json) {
         Ok(json) => {
             println!("{json}");
-            if summary.is_ok() {
+            if ok {
                 Ok(0)
             } else {
                 Ok(1)
@@ -1792,6 +1806,46 @@ fn print_report_stats_latest_path(summary: &ReportStatsSummary) -> i32 {
                     .describe_missing(),
             );
             1
+        }
+    }
+}
+
+fn print_report_stats_full_latest(summary: &ReportStatsSummary) -> Result<i32, CliError> {
+    match summary.latest_valid_report.as_ref() {
+        Some(report) => {
+            let inspected = inspect_report(report.path.clone());
+            match inspected.report.as_ref() {
+                Some(report) => print_report_full_json(&inspected.summary, report),
+                None => print_report_stats_json(summary),
+            }
+        }
+        None => {
+            if !summary.errors.is_empty() {
+                return print_report_stats_json(summary);
+            }
+
+            let error = ReportQuery::new(summary.result_filter, summary.validation_status_filter)
+                .describe_missing();
+            let mut json = report_query_summary_json(ReportQuerySummaryView::from(summary));
+            json.insert("status".to_string(), serde_json::json!("failed"));
+            json.insert(
+                "result_counts".to_string(),
+                serde_json::json!(summary.result_counts),
+            );
+            json.insert(
+                "validation_status_counts".to_string(),
+                serde_json::json!(summary.validation_status_counts),
+            );
+            json.insert(
+                "latest_finished_at".to_string(),
+                serde_json::json!(summary.latest_finished_at),
+            );
+            json.insert(
+                "latest_valid_report".to_string(),
+                serde_json::json!(serde_json::Value::Null),
+            );
+            json.insert("errors".to_string(), serde_json::json!([error]));
+            render_report_stats_json(json, false)
         }
     }
 }
@@ -2132,6 +2186,7 @@ fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
             report_stats(
                 PathBuf::from(target),
                 args.json,
+                args.full_latest,
                 args.path_only_latest,
                 args.result,
                 args.validation_status,
@@ -2380,6 +2435,7 @@ fn report_latest(
 fn report_stats(
     target: PathBuf,
     json: bool,
+    full_latest: bool,
     path_only_latest: bool,
     result_filter: Option<ReportResultFilter>,
     validation_status_filter: Option<ReportValidationStatusFilter>,
@@ -2390,6 +2446,8 @@ fn report_stats(
     ));
     if path_only_latest {
         Ok(print_report_stats_latest_path(&summary))
+    } else if full_latest {
+        print_report_stats_full_latest(&summary)
     } else if json {
         print_report_stats_json(&summary)
     } else {
