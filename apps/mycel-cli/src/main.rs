@@ -16,6 +16,7 @@ fn print_usage() {
     println!();
     println!("Validate options:");
     println!("  --json     Emit machine-readable validation output");
+    println!("  --strict   Treat warnings as failures");
     println!();
     println!("Planned next commands:");
     println!("  sim        Run a simulator test case");
@@ -40,21 +41,31 @@ fn print_validation_text(summary: &mycel_sim::validate::ValidationSummary) -> i3
     if let Some(target) = &summary.target {
         println!("validated target: {}", target.display());
     }
+    println!("status: {}", summary.status);
     println!("fixtures: {}", summary.fixture_count);
     println!("peers: {}", summary.peer_count);
     println!("topologies: {}", summary.topology_count);
     println!("tests: {}", summary.test_case_count);
     println!("reports: {}", summary.report_count);
 
-    if summary.is_ok() {
-        println!("validation: ok");
-        0
-    } else {
+    if !summary.warnings.is_empty() {
+        for warning in &summary.warnings {
+            eprintln!("warning: {}: {}", warning.path, warning.message);
+        }
+    }
+
+    if !summary.is_ok() {
         println!("validation: failed");
         for error in &summary.errors {
             eprintln!("error: {}: {}", error.path, error.message);
         }
         1
+    } else if summary.has_warnings() {
+        println!("validation: warning");
+        0
+    } else {
+        println!("validation: ok");
+        0
     }
 }
 
@@ -75,13 +86,26 @@ fn print_validation_json(summary: &mycel_sim::validate::ValidationSummary) -> i3
     }
 }
 
-fn validate(target: PathBuf, json: bool) -> i32 {
+fn validate(target: PathBuf, json: bool, strict: bool) -> i32 {
     let summary = validate_path(&target);
+    let exit_code = if !summary.is_ok() {
+        1
+    } else if strict && summary.has_warnings() {
+        1
+    } else {
+        0
+    };
 
-    if json {
+    let print_code = if json {
         print_validation_json(&summary)
     } else {
         print_validation_text(&summary)
+    };
+
+    if print_code != 0 {
+        print_code
+    } else {
+        exit_code
     }
 }
 
@@ -93,10 +117,13 @@ fn main() {
         Some("validate") => {
             let mut target = PathBuf::from(".");
             let mut json = false;
+            let mut strict = false;
 
             for arg in args {
                 if arg == "--json" {
                     json = true;
+                } else if arg == "--strict" {
+                    strict = true;
                 } else if target == PathBuf::from(".") {
                     target = PathBuf::from(arg);
                 } else {
@@ -107,7 +134,7 @@ fn main() {
                 }
             }
 
-            std::process::exit(validate(target, json));
+            std::process::exit(validate(target, json, strict));
         }
         Some("help") | None => print_usage(),
         Some(other) => {

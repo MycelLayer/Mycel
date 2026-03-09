@@ -33,3 +33,9 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- validate`
 - `cargo run -p mycel-cli -- validate <path>`
 - `cargo run -p mycel-cli -- validate <path> --json`
+- `cargo run -p mycel-cli -- validate <path> --strict`
+
+Validation output notes:
+
+- `--json` includes a stable top-level `status`
+- `--strict` treats warnings as failures for CI-oriented validation

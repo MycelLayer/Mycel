@@ -43,6 +43,13 @@ Current validate examples:
 - `cargo run -p mycel-cli -- validate fixtures/object-sets/signature-mismatch/fixture.json`
 - `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json --json`
+- `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json --strict`
+
+Current validate output behavior:
+
+- text output now reports a top-level validation status
+- `--json` emits a stable `status` field with `ok`, `warning`, or `failed`
+- `--strict` returns a non-zero exit code when warnings are present, which is useful for CI
 
 Recommended next:
 

@@ -1,6 +1,7 @@
 //! Validation logic for fixture, peer, topology, test-case, and report inputs.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -8,8 +9,34 @@ use serde::Serialize;
 
 use crate::model::{Fixture, Peer, Report, TestCase, Topology};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ValidationStatus {
+    Ok,
+    Warning,
+    Failed,
+}
+
+impl Default for ValidationStatus {
+    fn default() -> Self {
+        Self::Ok
+    }
+}
+
+impl fmt::Display for ValidationStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Ok => "ok",
+            Self::Warning => "warning",
+            Self::Failed => "failed",
+        };
+
+        f.write_str(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ValidationError {
+pub struct ValidationMessage {
     pub path: String,
     pub message: String,
 }
@@ -18,17 +45,33 @@ pub struct ValidationError {
 pub struct ValidationSummary {
     pub root: Option<PathBuf>,
     pub target: Option<PathBuf>,
+    pub status: ValidationStatus,
     pub fixture_count: usize,
     pub peer_count: usize,
     pub topology_count: usize,
     pub test_case_count: usize,
     pub report_count: usize,
-    pub errors: Vec<ValidationError>,
+    pub errors: Vec<ValidationMessage>,
+    pub warnings: Vec<ValidationMessage>,
 }
 
 impl ValidationSummary {
     pub fn is_ok(&self) -> bool {
         self.errors.is_empty()
+    }
+
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.is_empty()
+    }
+
+    pub fn refresh_status(&mut self) {
+        self.status = if !self.errors.is_empty() {
+            ValidationStatus::Failed
+        } else if !self.warnings.is_empty() {
+            ValidationStatus::Warning
+        } else {
+            ValidationStatus::Ok
+        };
     }
 }
 
@@ -102,6 +145,7 @@ pub fn validate_path(target_path: &Path) -> ValidationSummary {
             "could not find repository root containing Cargo.toml, fixtures/, and sim/".to_owned(),
         );
         summary.target = Some(normalized_target);
+        summary.refresh_status();
         return summary;
     };
 
@@ -111,6 +155,7 @@ pub fn validate_path(target_path: &Path) -> ValidationSummary {
             push_error(&mut summary, &normalized_target, message);
             summary.root = Some(root);
             summary.target = Some(normalized_target);
+            summary.refresh_status();
             return summary;
         }
     };
@@ -154,6 +199,15 @@ fn validate_from_target(
         &scoped.reports,
         &mut summary,
     );
+
+    validate_peer_topology_usage(&scoped.peers, &scoped.topologies, &mut summary);
+    validate_quality_hints(
+        &scoped.peers,
+        &scoped.test_cases,
+        &scoped.reports,
+        &mut summary,
+    );
+    summary.refresh_status();
 
     summary
 }
@@ -1204,6 +1258,90 @@ fn validate_reports(
     }
 }
 
+fn validate_peer_topology_usage(
+    peers: &[NamedPeer],
+    topologies: &[NamedTopology],
+    summary: &mut ValidationSummary,
+) {
+    let referenced_node_ids: HashSet<_> = topologies
+        .iter()
+        .flat_map(|topology| {
+            topology
+                .value
+                .peers
+                .iter()
+                .map(|peer| peer.node_id.as_str())
+        })
+        .collect();
+
+    for peer in peers {
+        if !referenced_node_ids.contains(peer.value.node_id.as_str()) {
+            push_warning(
+                summary,
+                &peer.path,
+                format!(
+                    "standalone peer '{}' is not referenced by any loaded topology",
+                    peer.value.node_id
+                ),
+            );
+        }
+    }
+}
+
+fn validate_quality_hints(
+    peers: &[NamedPeer],
+    test_cases: &[NamedTestCase],
+    reports: &[NamedReport],
+    summary: &mut ValidationSummary,
+) {
+    for peer in peers {
+        if peer.value.capabilities.is_empty() {
+            push_warning(
+                summary,
+                &peer.path,
+                format!(
+                    "peer '{}' does not declare any capabilities",
+                    peer.value.node_id
+                ),
+            );
+        }
+    }
+
+    for test_case in test_cases {
+        if test_case.value.assertions.is_empty() {
+            push_warning(
+                summary,
+                &test_case.path,
+                format!(
+                    "test-case '{}' does not declare any assertions",
+                    test_case.value.test_id
+                ),
+            );
+        }
+    }
+
+    for report in reports {
+        if report.value.test_id.is_none() {
+            push_warning(
+                summary,
+                &report.path,
+                format!("report '{}' does not declare test_id", report.value.run_id),
+            );
+        }
+
+        if report.value.summary.is_none() {
+            push_warning(
+                summary,
+                &report.path,
+                format!(
+                    "report '{}' does not include a summary block",
+                    report.value.run_id
+                ),
+            );
+        }
+    }
+}
+
 fn fixture_dir_name(path: &str) -> String {
     Path::new(path)
         .file_name()
@@ -1223,7 +1361,14 @@ fn relative_display(root: &Path, path: &Path) -> Option<String> {
 }
 
 fn push_error(summary: &mut ValidationSummary, path: &Path, message: String) {
-    summary.errors.push(ValidationError {
+    summary.errors.push(ValidationMessage {
+        path: path.display().to_string(),
+        message,
+    });
+}
+
+fn push_warning(summary: &mut ValidationSummary, path: &Path, message: String) {
+    summary.warnings.push(ValidationMessage {
         path: path.display().to_string(),
         message,
     });
