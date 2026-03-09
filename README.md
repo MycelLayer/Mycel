@@ -99,3 +99,7 @@ Mycel is a protocol stack for verifiable, evolvable, decentralized text history 
 ## License
 
 This repository is licensed under the [MIT License](./LICENSE), unless a future file or directory states otherwise.
+
+## Contributing and License Expectations
+
+Unless a future contributing guide says otherwise, contributions submitted to this repository are expected to be offered under the same MIT terms as the rest of the repository.
