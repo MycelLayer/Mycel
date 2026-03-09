@@ -92,6 +92,25 @@ fn report_inspect_events_text_reports_event_trace_for_example_report() {
 }
 
 #[test]
+fn report_inspect_full_json_returns_raw_report_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--full",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["run_id"], "run:example-001");
+    assert_eq!(json["result"], "pass");
+    assert_eq!(json["summary"]["verified_object_count"], 1);
+    assert_eq!(json["events"][0]["action"], "load-fixture");
+    assert_eq!(json["metadata"]["seed_source"], "derived");
+}
+
+#[test]
 fn report_inspect_generated_report_path_round_trips() {
     let _guard = sim_run_lock();
     let sim_output = run_sim(&[
@@ -223,7 +242,38 @@ fn report_inspect_rejects_conflicting_filter_flags() {
     assert_exit_code(&output, 2);
     assert_stderr_contains(
         &output,
-        "report inspect accepts only one of --events or --failures",
+        "report inspect accepts only one of --events, --failures, or --full",
+    );
+}
+
+#[test]
+fn report_inspect_rejects_full_without_json() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--full",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "report inspect --full requires --json");
+}
+
+#[test]
+fn report_inspect_rejects_full_with_other_filter_flags() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--full",
+        "--events",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "report inspect accepts only one of --events, --failures, or --full",
     );
 }
 

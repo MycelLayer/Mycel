@@ -39,6 +39,7 @@ fn print_usage() {
     println!("  --json          Emit machine-readable report inspection output");
     println!("  --events        Show only report events");
     println!("  --failures      Show only report failures");
+    println!("  --full          Emit the full raw report (requires --json)");
     println!();
     println!("Sim options:");
     println!("  run <path> Run one test-case and write a report to sim/reports/out/");
@@ -283,6 +284,7 @@ enum ReportInspectMode {
     Summary,
     Events,
     Failures,
+    Full,
 }
 
 struct ReportInspectSummary {
@@ -350,6 +352,7 @@ impl ReportInspectSummary {
 
 struct InspectedReport {
     summary: ReportInspectSummary,
+    report: Option<Report>,
     events: Vec<ReportEvent>,
     failures: Vec<ReportFailure>,
 }
@@ -391,6 +394,7 @@ fn metadata_array_len(report: &Report, key: &str) -> usize {
 fn inspect_report(target: PathBuf) -> InspectedReport {
     let mut inspected = InspectedReport {
         summary: ReportInspectSummary::new(target.clone()),
+        report: None,
         events: Vec::new(),
         failures: Vec::new(),
     };
@@ -466,8 +470,9 @@ fn inspect_report(target: PathBuf) -> InspectedReport {
         .unwrap_or_default();
     inspected.summary.scheduled_peer_order = metadata_string_vec(&report, "scheduled_peer_order");
     inspected.summary.fault_plan_count = metadata_array_len(&report, "fault_plan");
-    inspected.events = report.events;
-    inspected.failures = report.failures;
+    inspected.events = report.events.clone();
+    inspected.failures = report.failures.clone();
+    inspected.report = Some(report);
 
     inspected
 }
@@ -703,6 +708,23 @@ fn print_report_failures_json(summary: &ReportInspectSummary, failures: &[Report
     }
 }
 
+fn print_report_full_json(summary: &ReportInspectSummary, report: &Report) -> i32 {
+    if !summary.is_ok() {
+        return print_report_summary_json(summary);
+    }
+
+    match serde_json::to_string_pretty(report) {
+        Ok(json) => {
+            println!("{json}");
+            0
+        }
+        Err(err) => {
+            eprintln!("failed to serialize full report JSON: {err}");
+            2
+        }
+    }
+}
+
 fn report_inspect(target: PathBuf, json: bool, mode: ReportInspectMode) -> i32 {
     let inspected = inspect_report(target);
     match mode {
@@ -725,6 +747,17 @@ fn report_inspect(target: PathBuf, json: bool, mode: ReportInspectMode) -> i32 {
                 print_report_failures_json(&inspected.summary, &inspected.failures)
             } else {
                 print_report_failures_text(&inspected.summary, &inspected.failures)
+            }
+        }
+        ReportInspectMode::Full => {
+            if json {
+                match inspected.report.as_ref() {
+                    Some(report) => print_report_full_json(&inspected.summary, report),
+                    None => print_report_summary_json(&inspected.summary),
+                }
+            } else {
+                eprintln!("report inspect --full requires --json");
+                2
             }
         }
     }
@@ -932,9 +965,21 @@ fn main() {
                 for arg in args {
                     if arg == "--json" {
                         json = true;
+                    } else if arg == "--full" {
+                        if mode != ReportInspectMode::Summary {
+                            eprintln!(
+                                "report inspect accepts only one of --events, --failures, or --full"
+                            );
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        mode = ReportInspectMode::Full;
                     } else if arg == "--events" {
                         if mode != ReportInspectMode::Summary {
-                            eprintln!("report inspect accepts only one of --events or --failures");
+                            eprintln!(
+                                "report inspect accepts only one of --events, --failures, or --full"
+                            );
                             eprintln!();
                             print_usage();
                             std::process::exit(2);
@@ -942,7 +987,9 @@ fn main() {
                         mode = ReportInspectMode::Events;
                     } else if arg == "--failures" {
                         if mode != ReportInspectMode::Summary {
-                            eprintln!("report inspect accepts only one of --events or --failures");
+                            eprintln!(
+                                "report inspect accepts only one of --events, --failures, or --full"
+                            );
                             eprintln!();
                             print_usage();
                             std::process::exit(2);
@@ -964,6 +1011,13 @@ fn main() {
                     print_usage();
                     std::process::exit(2);
                 };
+
+                if mode == ReportInspectMode::Full && !json {
+                    eprintln!("report inspect --full requires --json");
+                    eprintln!();
+                    print_usage();
+                    std::process::exit(2);
+                }
 
                 std::process::exit(report_inspect(target, json, mode));
             }
