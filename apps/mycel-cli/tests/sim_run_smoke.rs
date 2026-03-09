@@ -4,7 +4,10 @@ use serde_json::Value;
 
 mod common;
 
-use common::{load_report, parse_json_stdout, run_sim, run_validate, stderr_text};
+use common::{
+    assert_exit_code, assert_stderr_contains, load_report, parse_json_stdout, run_sim,
+    run_validate, stderr_text,
+};
 
 fn sim_run_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -259,12 +262,8 @@ fn sim_run_rejects_schema_file_targets() {
     let _guard = sim_run_lock();
     let output = run_sim(&["sim", "run", "sim/tests/test-case.schema.json"]);
 
-    assert_eq!(output.status.code(), Some(1));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("schema files are not"),
-        "expected schema target rejection, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 1);
+    assert_stderr_contains(&output, "schema files are not");
 }
 
 #[test]
@@ -277,12 +276,8 @@ fn sim_run_requires_seed_value_after_flag() {
         "--seed",
     ]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("missing value for --seed"),
-        "expected missing seed value error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "missing value for --seed");
 }
 
 #[test]
@@ -296,12 +291,8 @@ fn sim_run_rejects_unexpected_extra_arguments() {
         "unexpected",
     ]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("unexpected sim run argument: unexpected"),
-        "expected unexpected argument error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "unexpected sim run argument: unexpected");
 }
 
 #[test]
@@ -309,12 +300,8 @@ fn sim_requires_subcommand() {
     let _guard = sim_run_lock();
     let output = run_sim(&["sim"]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("missing sim subcommand"),
-        "expected missing subcommand error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "missing sim subcommand");
 }
 
 #[test]
@@ -322,12 +309,8 @@ fn sim_rejects_unknown_subcommand() {
     let _guard = sim_run_lock();
     let output = run_sim(&["sim", "bogus"]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("unknown sim subcommand: bogus"),
-        "expected unknown subcommand error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "unknown sim subcommand: bogus");
 }
 
 #[test]
@@ -335,12 +318,8 @@ fn sim_run_requires_target_path() {
     let _guard = sim_run_lock();
     let output = run_sim(&["sim", "run"]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("missing sim run target"),
-        "expected missing run target error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "missing sim run target");
 }
 
 #[test]
@@ -348,7 +327,7 @@ fn sim_run_rejects_directory_targets() {
     let _guard = sim_run_lock();
     let output = run_sim(&["sim", "run", "sim/tests"]);
 
-    assert_eq!(output.status.code(), Some(1));
+    assert_exit_code(&output, 1);
     let stderr = stderr_text(&output);
     assert!(
         stderr.contains("failed to read") && stderr.contains("Is a directory"),

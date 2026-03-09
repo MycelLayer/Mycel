@@ -52,3 +52,34 @@ pub fn stderr_text(output: &Output) -> String {
 pub fn stdout_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
+
+pub fn assert_exit_code(output: &Output, expected: i32) {
+    assert_eq!(
+        output.status.code(),
+        Some(expected),
+        "expected exit code {expected}, stdout: {}, stderr: {}",
+        stdout_text(output),
+        stderr_text(output)
+    );
+}
+
+pub fn assert_stdout_contains(output: &Output, expected_text: &str) {
+    let stdout = stdout_text(output);
+    assert!(
+        stdout.contains(expected_text),
+        "expected stdout to contain '{expected_text}', stdout: {stdout}"
+    );
+}
+
+pub fn assert_stderr_contains(output: &Output, expected_text: &str) {
+    let stderr = stderr_text(output);
+    assert!(
+        stderr.contains(expected_text),
+        "expected stderr to contain '{expected_text}', stderr: {stderr}"
+    );
+}
+
+pub fn assert_empty_stderr(output: &Output) {
+    let stderr = stderr_text(output);
+    assert_eq!(stderr, "", "expected empty stderr, stderr: {stderr}");
+}

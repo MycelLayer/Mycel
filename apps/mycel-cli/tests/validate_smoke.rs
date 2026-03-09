@@ -2,7 +2,9 @@ use serde_json::Value;
 
 mod common;
 
-use common::{parse_json_stdout, run_validate, stderr_text, stdout_text};
+use common::{
+    assert_exit_code, assert_stderr_contains, parse_json_stdout, run_validate, stdout_text,
+};
 
 fn assert_failed_with_message(output: &std::process::Output, expected_text: &str) {
     assert!(
@@ -188,31 +190,23 @@ fn missing_seed_source_warns_and_strict_fails() {
 fn validate_rejects_unexpected_extra_argument_after_target() {
     let output = run_validate(&["validate", "sim/tests", "--json", "unexpected"]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("unexpected validate argument: unexpected"),
-        "expected unexpected argument error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "unexpected validate argument: unexpected");
 }
 
 #[test]
 fn validate_rejects_unknown_flag_after_target() {
     let output = run_validate(&["validate", "sim/tests", "--bogus"]);
 
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = stderr_text(&output);
-    assert!(
-        stderr.contains("unexpected validate argument: --bogus"),
-        "expected unknown flag error, stderr: {stderr}"
-    );
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "unexpected validate argument: --bogus");
 }
 
 #[test]
 fn validate_treats_positional_after_known_flags_as_target() {
     let output = run_validate(&["validate", "--json", "--strict", "unexpected"]);
 
-    assert_eq!(output.status.code(), Some(1));
+    assert_exit_code(&output, 1);
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], "failed");
     let errors = json["errors"]
