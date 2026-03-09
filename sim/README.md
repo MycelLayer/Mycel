@@ -34,6 +34,8 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- help`
 - `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture>`
 - `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture> --json`
+- `cargo run -p mycel-cli -- object inspect <path>`
+- `cargo run -p mycel-cli -- object inspect <path> --json`
 - `cargo run -p mycel-cli -- object verify <path>`
 - `cargo run -p mycel-cli -- object verify <path> --json`
 - `cargo run -p mycel-cli -- report inspect <path>`
@@ -225,6 +227,43 @@ Minimal JSON shape example:
     {
       "message": "report metadata does not include seed_source"
     }
+  ],
+  "errors": []
+}
+```
+
+Object-inspection output notes:
+
+- text output is intended for quick structural inspection
+- `--json` is the stable machine-consumable surface
+- `object inspect` summarizes structure and declared metadata without recomputing IDs or verifying signatures
+- tools and tests should rely on fields such as `status`, `object_type`, `version`, `signature_rule`, `signer_field`, `declared_id_field`, `declared_id`, `has_signature`, `top_level_keys`, `notes`, and `errors`
+- `status: warning` means the file parsed as one JSON object but the shape is incomplete, unsupported, or suspicious
+
+Minimal JSON shape example:
+
+```json
+{
+  "status": "warning",
+  "object_type": "patch",
+  "version": "mycel/0.1",
+  "signature_rule": "required",
+  "signer_field": "author",
+  "declared_id_field": "patch_id",
+  "declared_id": null,
+  "has_signature": false,
+  "top_level_keys": [
+    "base_revision",
+    "doc_id",
+    "ops",
+    "timestamp",
+    "type",
+    "version"
+  ],
+  "notes": [
+    "patch object is missing string signer field 'author'",
+    "patch object is missing string field 'patch_id'",
+    "patch object is missing top-level 'signature'"
   ],
   "errors": []
 }

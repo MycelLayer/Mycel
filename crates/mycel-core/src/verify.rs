@@ -22,6 +22,23 @@ pub struct ObjectVerificationSummary {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ObjectInspectionSummary {
+    pub path: PathBuf,
+    pub status: String,
+    pub object_type: Option<String>,
+    pub version: Option<String>,
+    pub signature_rule: Option<String>,
+    pub signer_field: Option<String>,
+    pub signer: Option<String>,
+    pub declared_id_field: Option<String>,
+    pub declared_id: Option<String>,
+    pub has_signature: bool,
+    pub top_level_keys: Vec<String>,
+    pub notes: Vec<String>,
+    pub errors: Vec<String>,
+}
+
 impl ObjectVerificationSummary {
     fn new(path: &Path) -> Self {
         Self {
@@ -47,6 +64,72 @@ impl ObjectVerificationSummary {
         self.status = "failed".to_string();
         self.errors.push(message.into());
     }
+}
+
+impl ObjectInspectionSummary {
+    fn new(path: &Path) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            status: "ok".to_string(),
+            object_type: None,
+            version: None,
+            signature_rule: None,
+            signer_field: None,
+            signer: None,
+            declared_id_field: None,
+            declared_id: None,
+            has_signature: false,
+            top_level_keys: Vec::new(),
+            notes: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn is_failed(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    fn push_note(&mut self, message: impl Into<String>) {
+        self.notes.push(message.into());
+        self.refresh_status();
+    }
+
+    fn push_error(&mut self, message: impl Into<String>) {
+        self.errors.push(message.into());
+        self.refresh_status();
+    }
+
+    fn refresh_status(&mut self) {
+        self.status = if !self.errors.is_empty() {
+            "failed".to_string()
+        } else if !self.notes.is_empty() {
+            "warning".to_string()
+        } else {
+            "ok".to_string()
+        };
+    }
+}
+
+pub fn inspect_object_path(path: &Path) -> ObjectInspectionSummary {
+    let mut summary = ObjectInspectionSummary::new(path);
+
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(err) => {
+            summary.push_error(format!("failed to read object file: {err}"));
+            return summary;
+        }
+    };
+
+    let value: Value = match serde_json::from_str(&content) {
+        Ok(value) => value,
+        Err(err) => {
+            summary.push_error(format!("failed to parse JSON: {err}"));
+            return summary;
+        }
+    };
+
+    inspect_object_value_with_summary(path, value, summary)
 }
 
 pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
@@ -193,6 +276,89 @@ fn verify_object_value_with_summary(
     }
 
     finalize_signed_summary(summary)
+}
+
+fn inspect_object_value_with_summary(
+    path: &Path,
+    value: Value,
+    mut summary: ObjectInspectionSummary,
+) -> ObjectInspectionSummary {
+    summary.path = path.to_path_buf();
+
+    let object = match value.as_object() {
+        Some(object) => object,
+        None => {
+            summary.push_error("top-level JSON value must be an object");
+            return summary;
+        }
+    };
+
+    summary.top_level_keys = object.keys().cloned().collect();
+    summary.top_level_keys.sort_unstable();
+    summary.has_signature = object.contains_key("signature");
+
+    match object.get("version") {
+        Some(Value::String(version)) => summary.version = Some(version.clone()),
+        Some(_) => summary.push_note("top-level 'version' should be a string"),
+        None => {}
+    }
+
+    let object_type = match object.get("type").and_then(Value::as_str) {
+        Some(object_type) => object_type,
+        None => {
+            summary.push_note("object is missing string field 'type'");
+            return summary;
+        }
+    };
+
+    summary.object_type = Some(object_type.to_string());
+
+    let descriptor = match object_descriptor(object_type) {
+        Some(descriptor) => descriptor,
+        None => {
+            summary.push_note(format!("unsupported object type '{object_type}'"));
+            return summary;
+        }
+    };
+
+    summary.signature_rule = Some(descriptor.signature_rule.to_string());
+    if let Some(signer_field) = descriptor.signer_field {
+        summary.signer_field = Some(signer_field.to_string());
+        match object.get(signer_field) {
+            Some(Value::String(signer)) => summary.signer = Some(signer.clone()),
+            Some(_) => summary.push_note(format!("top-level '{signer_field}' should be a string")),
+            None => summary.push_note(format!(
+                "{object_type} object is missing string signer field '{signer_field}'"
+            )),
+        }
+    }
+
+    if let Some((id_field, _prefix)) = descriptor.derived_id {
+        summary.declared_id_field = Some(id_field.to_string());
+        match object.get(id_field) {
+            Some(Value::String(id)) => summary.declared_id = Some(id.clone()),
+            Some(_) => summary.push_note(format!("top-level '{id_field}' should be a string")),
+            None => summary.push_note(format!(
+                "{object_type} object is missing string field '{id_field}'"
+            )),
+        }
+    }
+
+    if descriptor.signature_required {
+        match object.get("signature") {
+            Some(Value::String(_)) => {}
+            Some(_) => summary.push_note("top-level 'signature' should be a string"),
+            None => summary.push_note(format!(
+                "{object_type} object is missing top-level 'signature'"
+            )),
+        }
+    } else if object.contains_key("signature") {
+        summary.push_note(format!(
+            "{object_type} object includes top-level 'signature' even though signatures are forbidden"
+        ));
+    }
+
+    summary
 }
 
 fn finalize_signed_summary(mut summary: ObjectVerificationSummary) -> ObjectVerificationSummary {

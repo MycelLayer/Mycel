@@ -1,0 +1,155 @@
+use std::fs;
+use std::path::PathBuf;
+
+use serde_json::{json, Value};
+
+mod common;
+
+use common::{
+    assert_empty_stderr, assert_exit_code, assert_json_status, assert_stderr_contains,
+    assert_stdout_contains, assert_success, create_temp_dir, run_mycel, stdout_text,
+};
+
+struct TempObjectFile {
+    _dir: common::TempDir,
+    path: PathBuf,
+}
+
+fn write_object_file(prefix: &str, name: &str, value: Value) -> TempObjectFile {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join(name);
+    let content = serde_json::to_string_pretty(&value).expect("object JSON should serialize");
+    fs::write(&path, content).expect("object JSON should be written");
+    TempObjectFile { _dir: dir, path }
+}
+
+fn write_raw_object_file(prefix: &str, name: &str, content: &str) -> TempObjectFile {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join(name);
+    fs::write(&path, content).expect("object JSON should be written");
+    TempObjectFile { _dir: dir, path }
+}
+
+fn path_arg(path: &PathBuf) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+#[test]
+fn object_inspect_json_reports_ok_for_document() {
+    let object = write_object_file(
+        "object-inspect-document",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "title": "Plain document"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["object_type"], "document");
+    assert_eq!(json["version"], "mycel/0.1");
+    assert_eq!(json["signature_rule"], "forbidden");
+    assert_eq!(json["has_signature"], false);
+    assert_eq!(
+        json["top_level_keys"],
+        json!(["doc_id", "title", "type", "version"])
+    );
+}
+
+#[test]
+fn object_inspect_text_warns_for_patch_missing_signature() {
+    let object = write_object_file(
+        "object-inspect-patch-warning",
+        "patch.json",
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1777778888u64,
+            "ops": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path]);
+
+    assert_success(&output);
+    assert_empty_stderr(&output);
+    assert_stdout_contains(&output, "object type: patch");
+    assert_stdout_contains(&output, "signature rule: required");
+    assert_stdout_contains(&output, "has signature: no");
+    assert_stdout_contains(&output, "inspection: warning");
+    assert_stdout_contains(
+        &output,
+        "note: patch object is missing string signer field 'author'",
+    );
+    assert_stdout_contains(
+        &output,
+        "note: patch object is missing top-level 'signature'",
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_unsupported_type() {
+    let object = write_object_file(
+        "object-inspect-unsupported",
+        "custom.json",
+        json!({
+            "type": "custom-object",
+            "version": "mycel/0.1",
+            "title": "Experimental object"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "custom-object");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(
+                    |message| message.contains("unsupported object type 'custom-object'")
+                ))),
+        "expected unsupported-type note, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_fails_for_non_object_top_level_value() {
+    let object = write_raw_object_file("object-inspect-non-object", "array.json", "[1,2,3]");
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level JSON value must be an object")
+                })
+            })),
+        "expected top-level object error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_missing_target_fails_cleanly() {
+    let output = run_mycel(&["object", "inspect"]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "required arguments were not provided");
+    assert_stderr_contains(&output, "<PATH>");
+}

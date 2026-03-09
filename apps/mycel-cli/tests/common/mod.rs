@@ -404,6 +404,25 @@ pub fn assert_object_verify_help(stdout: &str) {
     );
 }
 
+pub fn assert_object_inspect_help(stdout: &str) {
+    assert!(
+        stdout.contains("Usage: mycel object inspect"),
+        "expected object inspect usage, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("Inspect one object file without verifying signatures"),
+        "expected object inspect description, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("<PATH>"),
+        "expected object path argument in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--json"),
+        "expected json flag in help, stdout: {stdout}"
+    );
+}
+
 pub fn assert_sim_run_help(stdout: &str) {
     assert!(
         stdout.contains("Usage: mycel sim run"),
