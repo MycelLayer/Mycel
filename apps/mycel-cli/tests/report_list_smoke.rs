@@ -245,6 +245,61 @@ fn report_list_json_filters_to_warning_validation_status() {
 }
 
 #[test]
+fn report_list_json_filters_to_result_and_validation_status_intersection() {
+    let temp_dir = create_temp_dir("report-list-result-validation-intersection");
+    let matching_report = temp_dir.path().join("matching.report.json");
+    let wrong_result_report = temp_dir.path().join("wrong-result.report.json");
+    let wrong_validation_report = temp_dir.path().join("wrong-validation.report.json");
+    write_report_with_result_and_validation_status(
+        &matching_report,
+        "run:matching",
+        "2026-03-09T13:00:05+08:00",
+        "pass",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &wrong_result_report,
+        "run:wrong-result",
+        "2026-03-09T12:00:05+08:00",
+        "fail",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &wrong_validation_report,
+        "run:wrong-validation",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "list",
+        &target,
+        "--result",
+        "pass",
+        "--validation-status",
+        "warning",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["result_filter"], "pass");
+    assert_eq!(json["validation_status_filter"], "warning");
+    assert_eq!(json["report_count"], 1);
+    assert_eq!(json["valid_report_count"], 1);
+    let reports = json["reports"]
+        .as_array()
+        .expect("reports should be an array");
+    assert_eq!(reports.len(), 1);
+    assert_eq!(reports[0]["run_id"], "run:matching");
+    assert_eq!(reports[0]["result"], "pass");
+    assert_eq!(reports[0]["validation_status"], "warning");
+}
+
+#[test]
 fn report_list_text_filters_to_fail_result_and_keeps_invalid_entries() {
     let temp_dir = create_temp_dir("report-list-result-fail");
     let pass_report = temp_dir.path().join("pass.report.json");

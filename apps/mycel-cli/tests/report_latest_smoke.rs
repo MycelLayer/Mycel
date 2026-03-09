@@ -190,6 +190,67 @@ fn report_latest_json_filters_to_warning_validation_status() {
 }
 
 #[test]
+fn report_latest_json_filters_to_result_and_validation_status_intersection() {
+    let temp_dir = create_temp_dir("report-latest-result-validation-intersection");
+    let older_matching = temp_dir.path().join("older-matching.report.json");
+    let newer_matching = temp_dir.path().join("newer-matching.report.json");
+    let wrong_result = temp_dir.path().join("wrong-result.report.json");
+    let wrong_validation = temp_dir.path().join("wrong-validation.report.json");
+    write_report_with_result_and_validation_status(
+        &older_matching,
+        "run:older-matching",
+        "2026-03-09T11:00:00+08:00",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &newer_matching,
+        "run:newer-matching",
+        "2026-03-09T12:00:00+08:00",
+        "2026-03-09T12:00:05+08:00",
+        "pass",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &wrong_result,
+        "run:wrong-result",
+        "2026-03-09T13:00:00+08:00",
+        "2026-03-09T13:00:05+08:00",
+        "fail",
+        "warning",
+    );
+    write_report_with_result_and_validation_status(
+        &wrong_validation,
+        "run:wrong-validation",
+        "2026-03-09T14:00:00+08:00",
+        "2026-03-09T14:00:05+08:00",
+        "pass",
+        "ok",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "latest",
+        &target,
+        "--result",
+        "pass",
+        "--validation-status",
+        "warning",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["result_filter"], "pass");
+    assert_eq!(json["validation_status_filter"], "warning");
+    assert_eq!(json["selected"]["run_id"], "run:newer-matching");
+    assert_eq!(json["selected"]["result"], "pass");
+    assert_eq!(json["selected"]["validation_status"], "warning");
+}
+
+#[test]
 fn report_latest_path_only_filters_to_fail_result() {
     let temp_dir = create_temp_dir("report-latest-result-fail");
     let pass_report = temp_dir.path().join("pass.report.json");
