@@ -95,3 +95,7 @@ Mycel is not:
 - a Git clone
 
 Mycel is a protocol stack for verifiable, evolvable, decentralized text history and governed text-bearing systems.
+
+## License
+
+This repository is licensed under the [MIT License](./LICENSE), unless a future file or directory states otherwise.
