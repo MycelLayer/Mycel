@@ -389,6 +389,10 @@ fn scope_for_fixture(root: &Path, input: &ValidationInput, path: &Path) -> Valid
 
 fn scope_for_topology(root: &Path, input: &ValidationInput, path: &Path) -> ValidationInput {
     let topologies = filter_by_path(&input.topologies, path);
+    let peer_node_ids: HashSet<_> = topologies
+        .iter()
+        .flat_map(|topology| topology.value.peers.iter().map(|peer| peer.node_id.as_str()))
+        .collect();
     let topology_ids: HashSet<_> = topologies
         .iter()
         .map(|topology| topology.value.topology_id.as_str())
@@ -406,6 +410,12 @@ fn scope_for_topology(root: &Path, input: &ValidationInput, path: &Path) -> Vali
         .fixtures
         .iter()
         .filter(|fixture| fixture_ids.contains(&fixture.value.fixture_id))
+        .cloned()
+        .collect();
+    let peers: Vec<_> = input
+        .peers
+        .iter()
+        .filter(|peer| peer_node_ids.contains(peer.value.node_id.as_str()))
         .cloned()
         .collect();
     let test_cases: Vec<_> = input
@@ -437,7 +447,7 @@ fn scope_for_topology(root: &Path, input: &ValidationInput, path: &Path) -> Vali
 
     ValidationInput {
         fixtures,
-        peers: Vec::new(),
+        peers,
         topologies,
         test_cases,
         reports,
@@ -669,6 +679,10 @@ fn scope_for_fixtures_dir(root: &Path, input: &ValidationInput, path: &Path) -> 
 
 fn scope_for_topologies_dir(root: &Path, input: &ValidationInput, path: &Path) -> ValidationInput {
     let topologies = filter_by_dir(&input.topologies, path);
+    let peer_node_ids: HashSet<_> = topologies
+        .iter()
+        .flat_map(|topology| topology.value.peers.iter().map(|peer| peer.node_id.as_str()))
+        .collect();
     let topology_ids: HashSet<_> = topologies
         .iter()
         .map(|topology| topology.value.topology_id.as_str())
@@ -685,6 +699,12 @@ fn scope_for_topologies_dir(root: &Path, input: &ValidationInput, path: &Path) -
         .fixtures
         .iter()
         .filter(|fixture| fixture_ids.contains(&fixture.value.fixture_id))
+        .cloned()
+        .collect();
+    let peers: Vec<_> = input
+        .peers
+        .iter()
+        .filter(|peer| peer_node_ids.contains(peer.value.node_id.as_str()))
         .cloned()
         .collect();
     let test_cases: Vec<_> = input
@@ -716,7 +736,7 @@ fn scope_for_topologies_dir(root: &Path, input: &ValidationInput, path: &Path) -
 
     ValidationInput {
         fixtures,
-        peers: Vec::new(),
+        peers,
         topologies,
         test_cases,
         reports,

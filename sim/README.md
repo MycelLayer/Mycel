@@ -452,7 +452,7 @@ Minimal `validate sim/topologies --json` shape example:
   "root": "/workspaces/Mycel",
   "target": "/workspaces/Mycel/sim/topologies",
   "fixture_count": 4,
-  "peer_count": 0,
+  "peer_count": 1,
   "topology_count": 4,
   "test_case_count": 4,
   "report_count": 5,
