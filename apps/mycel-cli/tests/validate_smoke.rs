@@ -3,44 +3,16 @@ use serde_json::Value;
 mod common;
 
 use common::{
-    assert_exit_code, assert_stderr_contains, parse_json_stdout, run_validate, stdout_text,
+    assert_exit_code, assert_json_error_contains, assert_json_status, assert_json_warning_contains,
+    assert_stderr_contains, assert_success, parse_json_stdout, run_validate, stdout_text,
 };
-
-fn assert_failed_with_message(output: &std::process::Output, expected_text: &str) {
-    assert!(
-        !output.status.success(),
-        "expected failure, stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
-
-    let json = parse_json_stdout(output);
-    assert_eq!(json["status"], "failed");
-    let errors = json["errors"]
-        .as_array()
-        .expect("errors should be an array");
-    assert!(
-        errors.iter().any(|entry| {
-            entry["message"]
-                .as_str()
-                .is_some_and(|message| message.contains(expected_text))
-        }),
-        "expected error containing '{expected_text}', stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
-}
 
 #[test]
 fn repo_validate_json_reports_ok_status() {
     let output = run_validate(&["validate", "--json"]);
 
-    assert!(
-        output.status.success(),
-        "expected success, stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
     assert_eq!(json["errors"], Value::Array(Vec::new()));
 }
 
@@ -48,14 +20,8 @@ fn repo_validate_json_reports_ok_status() {
 fn tests_directory_validate_json_reports_ok_status() {
     let output = run_validate(&["validate", "sim/tests", "--json"]);
 
-    assert!(
-        output.status.success(),
-        "expected success, stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
     assert_eq!(json["test_case_count"], 4);
     assert_eq!(json["topology_count"], 4);
 }
@@ -64,14 +30,8 @@ fn tests_directory_validate_json_reports_ok_status() {
 fn reports_out_directory_validate_json_reports_ok_status() {
     let output = run_validate(&["validate", "sim/reports/out", "--json"]);
 
-    assert!(
-        output.status.success(),
-        "expected success, stderr: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
     assert!(
         json["report_count"]
             .as_u64()
@@ -86,14 +46,14 @@ fn reports_out_directory_validate_json_reports_ok_status() {
 fn schema_file_is_not_a_valid_validate_target() {
     let output = run_validate(&["validate", "sim/tests/test-case.schema.json", "--json"]);
 
-    assert_failed_with_message(&output, "schema files are not validate targets");
+    assert_json_error_contains(&output, "schema files are not validate targets");
 }
 
 #[test]
 fn missing_validate_target_path_fails_cleanly() {
     let output = run_validate(&["validate", "does-not-exist.json", "--json"]);
 
-    assert_failed_with_message(&output, "path does not exist");
+    assert_json_error_contains(&output, "path does not exist");
 }
 
 #[test]
@@ -104,7 +64,7 @@ fn invalid_random_seed_prefix_report_fails_validation() {
         "--json",
     ]);
 
-    assert_failed_with_message(&output, "seed_source 'random'");
+    assert_json_error_contains(&output, "seed_source 'random'");
 }
 
 #[test]
@@ -115,7 +75,7 @@ fn invalid_auto_seed_prefix_report_fails_validation() {
         "--json",
     ]);
 
-    assert_failed_with_message(&output, "seed_source 'auto'");
+    assert_json_error_contains(&output, "seed_source 'auto'");
 }
 
 #[test]
@@ -126,7 +86,7 @@ fn unknown_topology_reference_report_fails_validation() {
         "--json",
     ]);
 
-    assert_failed_with_message(&output, "does not match any loaded topology");
+    assert_json_error_contains(&output, "does not match any loaded topology");
 }
 
 #[test]
@@ -137,7 +97,7 @@ fn unknown_fixture_reference_report_fails_validation() {
         "--json",
     ]);
 
-    assert_failed_with_message(&output, "does not match any loaded fixture");
+    assert_json_error_contains(&output, "does not match any loaded fixture");
 }
 
 #[test]
@@ -148,26 +108,8 @@ fn missing_seed_source_warns_and_strict_fails() {
         "--json",
     ]);
 
-    assert!(
-        normal_output.status.success(),
-        "expected warning-only success, stderr: {}",
-        String::from_utf8_lossy(&normal_output.stderr)
-    );
-
-    let normal_json = parse_json_stdout(&normal_output);
-    assert_eq!(normal_json["status"], "warning");
-    let warnings = normal_json["warnings"]
-        .as_array()
-        .expect("warnings should be an array");
-    assert!(
-        warnings.iter().any(|entry| {
-            entry["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("does not include seed_source"))
-        }),
-        "expected missing seed_source warning, stdout: {}",
-        String::from_utf8_lossy(&normal_output.stdout)
-    );
+    assert_success(&normal_output);
+    let _normal_json = assert_json_warning_contains(&normal_output, "does not include seed_source");
 
     let strict_output = run_validate(&[
         "validate",
@@ -182,8 +124,7 @@ fn missing_seed_source_warns_and_strict_fails() {
         String::from_utf8_lossy(&strict_output.stdout)
     );
 
-    let strict_json = parse_json_stdout(&strict_output);
-    assert_eq!(strict_json["status"], "warning");
+    let _strict_json = assert_json_warning_contains(&strict_output, "does not include seed_source");
 }
 
 #[test]

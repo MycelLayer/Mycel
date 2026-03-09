@@ -37,6 +37,60 @@ pub fn parse_json_stdout(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
 }
 
+pub fn assert_success(output: &Output) {
+    assert!(
+        output.status.success(),
+        "expected success, stdout: {}, stderr: {}",
+        stdout_text(output),
+        stderr_text(output)
+    );
+}
+
+pub fn assert_json_status(output: &Output, expected_status: &str) -> Value {
+    let json = parse_json_stdout(output);
+    assert_eq!(
+        json["status"],
+        expected_status,
+        "expected JSON status '{expected_status}', stdout: {}",
+        stdout_text(output)
+    );
+    json
+}
+
+pub fn assert_json_error_contains(output: &Output, expected_text: &str) -> Value {
+    let json = assert_json_status(output, "failed");
+    let errors = json["errors"]
+        .as_array()
+        .expect("errors should be an array");
+    assert!(
+        errors.iter().any(|entry| {
+            entry["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_text))
+        }),
+        "expected error containing '{expected_text}', stdout: {}",
+        stdout_text(output)
+    );
+    json
+}
+
+pub fn assert_json_warning_contains(output: &Output, expected_text: &str) -> Value {
+    let json = assert_json_status(output, "warning");
+    let warnings = json["warnings"]
+        .as_array()
+        .expect("warnings should be an array");
+    assert!(
+        warnings.iter().any(|entry| {
+            entry["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_text))
+        }),
+        "expected warning containing '{expected_text}', stdout: {}",
+        stdout_text(output)
+    );
+    json
+}
+
 pub fn load_report(summary: &Value) -> Value {
     let report_path = summary["report_path"]
         .as_str()
