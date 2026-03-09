@@ -9,6 +9,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 pub const CORE_PROTOCOL_VERSION: &str = "mycel/0.1";
 pub const WIRE_PROTOCOL_VERSION: &str = "mycel-wire/0.1";
@@ -171,9 +172,141 @@ pub fn object_schema(object_type: &str) -> Option<ObjectSchema> {
         .map(ObjectKind::schema)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StringFieldError {
+    Missing,
+    WrongType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseObjectEnvelopeError {
+    TopLevelNotObject,
+    MissingType,
+    TypeNotString,
+    UnsupportedType(String),
+}
+
+impl fmt::Display for ParseObjectEnvelopeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TopLevelNotObject => f.write_str("top-level JSON value must be an object"),
+            Self::MissingType => f.write_str("object is missing string field 'type'"),
+            Self::TypeNotString => f.write_str("top-level 'type' should be a string"),
+            Self::UnsupportedType(object_type) => {
+                write!(f, "unsupported object type '{object_type}'")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParsedObjectEnvelope<'a> {
+    object: &'a Map<String, Value>,
+    kind: ObjectKind,
+    schema: ObjectSchema,
+}
+
+impl<'a> ParsedObjectEnvelope<'a> {
+    pub fn object(&self) -> &'a Map<String, Value> {
+        self.object
+    }
+
+    pub fn kind(&self) -> ObjectKind {
+        self.kind
+    }
+
+    pub fn schema(&self) -> ObjectSchema {
+        self.schema
+    }
+
+    pub fn object_type(&self) -> &'static str {
+        self.kind.as_str()
+    }
+
+    pub fn has_signature(&self) -> bool {
+        self.object.contains_key("signature")
+    }
+
+    pub fn top_level_keys(&self) -> Vec<String> {
+        let mut keys: Vec<String> = self.object.keys().cloned().collect();
+        keys.sort_unstable();
+        keys
+    }
+
+    pub fn optional_string_field(&self, field: &str) -> Result<Option<&'a str>, StringFieldError> {
+        optional_string_field(self.object, field)
+    }
+
+    pub fn required_string_field(&self, field: &str) -> Result<&'a str, StringFieldError> {
+        required_string_field(self.object, field)
+    }
+
+    pub fn signer(&self) -> Result<Option<&'a str>, StringFieldError> {
+        match self.schema.signer_field {
+            Some(field) => required_string_field(self.object, field).map(Some),
+            None => Ok(None),
+        }
+    }
+
+    pub fn declared_id(&self) -> Result<Option<&'a str>, StringFieldError> {
+        match self.schema.derived_id_field {
+            Some(field) => required_string_field(self.object, field).map(Some),
+            None => Ok(None),
+        }
+    }
+}
+
+pub fn parse_object_envelope(
+    value: &Value,
+) -> Result<ParsedObjectEnvelope<'_>, ParseObjectEnvelopeError> {
+    let object = value
+        .as_object()
+        .ok_or(ParseObjectEnvelopeError::TopLevelNotObject)?;
+    let object_type = match object.get("type") {
+        Some(Value::String(object_type)) => object_type.as_str(),
+        Some(_) => return Err(ParseObjectEnvelopeError::TypeNotString),
+        None => return Err(ParseObjectEnvelopeError::MissingType),
+    };
+
+    let kind = ObjectKind::from_str(object_type)
+        .map_err(|_| ParseObjectEnvelopeError::UnsupportedType(object_type.to_string()))?;
+
+    Ok(ParsedObjectEnvelope {
+        object,
+        kind,
+        schema: kind.schema(),
+    })
+}
+
+pub fn optional_string_field<'a>(
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<Option<&'a str>, StringFieldError> {
+    match object.get(field) {
+        Some(Value::String(value)) => Ok(Some(value.as_str())),
+        Some(_) => Err(StringFieldError::WrongType),
+        None => Ok(None),
+    }
+}
+
+pub fn required_string_field<'a>(
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<&'a str, StringFieldError> {
+    match optional_string_field(object, field)? {
+        Some(value) => Ok(value),
+        None => Err(StringFieldError::Missing),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{object_schema, ObjectKind, SignatureRule};
+    use serde_json::json;
+
+    use super::{
+        object_schema, parse_object_envelope, ObjectKind, ParseObjectEnvelopeError, SignatureRule,
+        StringFieldError,
+    };
 
     #[test]
     fn object_kind_round_trips_from_strings() {
@@ -196,5 +329,53 @@ mod tests {
     #[test]
     fn unknown_object_kind_has_no_schema() {
         assert!(object_schema("unknown-object").is_none());
+    }
+
+    #[test]
+    fn parse_object_envelope_exposes_schema_and_fields() {
+        let value = json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test"
+        });
+
+        let envelope = parse_object_envelope(&value).expect("view envelope should parse");
+        assert_eq!(envelope.kind(), ObjectKind::View);
+        assert_eq!(envelope.object_type(), "view");
+        assert_eq!(envelope.schema().signer_field, Some("maintainer"));
+        assert_eq!(
+            envelope.optional_string_field("version"),
+            Ok(Some("mycel/0.1"))
+        );
+        assert_eq!(envelope.signer(), Ok(Some("pk:ed25519:test")));
+        assert_eq!(envelope.declared_id(), Ok(Some("view:test")));
+    }
+
+    #[test]
+    fn parse_object_envelope_rejects_non_object_values() {
+        let value = json!(["not-an-object"]);
+        assert_eq!(
+            parse_object_envelope(&value).unwrap_err(),
+            ParseObjectEnvelopeError::TopLevelNotObject
+        );
+    }
+
+    #[test]
+    fn required_string_field_reports_missing_and_wrong_type() {
+        let value = json!({
+            "type": "document",
+            "version": 1
+        });
+
+        let envelope = parse_object_envelope(&value).expect("document should parse");
+        assert_eq!(
+            envelope.optional_string_field("version"),
+            Err(StringFieldError::WrongType)
+        );
+        assert_eq!(
+            envelope.required_string_field("missing"),
+            Err(StringFieldError::Missing)
+        );
     }
 }

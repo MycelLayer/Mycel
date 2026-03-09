@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::protocol::object_schema;
+use crate::protocol::{parse_object_envelope, ParseObjectEnvelopeError, StringFieldError};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ObjectVerificationSummary {
@@ -184,24 +184,19 @@ fn verify_object_value_with_summary(
             return summary;
         }
     };
+    if let Some(object_type) = object.get("type").and_then(Value::as_str) {
+        summary.object_type = Some(object_type.to_string());
+    }
 
-    let object_type = match object.get("type").and_then(Value::as_str) {
-        Some(object_type) => object_type,
-        None => {
-            summary.push_error("object is missing string field 'type'");
+    let envelope = match parse_object_envelope(&value) {
+        Ok(envelope) => envelope,
+        Err(error) => {
+            summary.push_error(error.to_string());
             return summary;
         }
     };
-
-    summary.object_type = Some(object_type.to_string());
-
-    let schema = match object_schema(object_type) {
-        Some(schema) => schema,
-        None => {
-            summary.push_error(format!("unsupported object type '{object_type}'"));
-            return summary;
-        }
-    };
+    let object_type = envelope.object_type();
+    let schema = envelope.schema();
 
     summary.signature_rule = Some(schema.signature_rule.to_string());
     summary.signature_verification = Some(if schema.signature_rule.is_required() {
@@ -228,14 +223,18 @@ fn verify_object_value_with_summary(
 
         let mut signer_value = None;
         if let Some(signer_field) = schema.signer_field {
-            match object.get(signer_field).and_then(Value::as_str) {
-                Some(signer) => {
+            match envelope.signer() {
+                Ok(Some(signer)) => {
                     summary.signer = Some(signer.to_string());
                     signer_value = Some(signer);
                 }
-                None => summary.push_error(format!(
+                Err(StringFieldError::Missing) => summary.push_error(format!(
                     "{object_type} object is missing string signer field '{signer_field}'"
                 )),
+                Err(StringFieldError::WrongType) => {
+                    summary.push_error(format!("top-level '{signer_field}' must be a string"))
+                }
+                Ok(None) => {}
             }
         }
 
@@ -257,11 +256,15 @@ fn verify_object_value_with_summary(
     }
 
     if let Some((id_field, prefix)) = schema.derived_id() {
-        match object.get(id_field).and_then(Value::as_str) {
-            Some(declared_id) => summary.declared_id = Some(declared_id.to_string()),
-            None => summary.push_error(format!(
+        match envelope.declared_id() {
+            Ok(Some(declared_id)) => summary.declared_id = Some(declared_id.to_string()),
+            Err(StringFieldError::Missing) => summary.push_error(format!(
                 "{object_type} object is missing string field '{id_field}'"
             )),
+            Err(StringFieldError::WrongType) => {
+                summary.push_error(format!("top-level '{id_field}' must be a string"))
+            }
+            Ok(None) => {}
         }
 
         match recompute_object_id(&value, id_field, prefix) {
@@ -286,7 +289,6 @@ fn inspect_object_value_with_summary(
     mut summary: ObjectInspectionSummary,
 ) -> ObjectInspectionSummary {
     summary.path = path.to_path_buf();
-
     let object = match value.as_object() {
         Some(object) => object,
         None => {
@@ -294,7 +296,6 @@ fn inspect_object_value_with_summary(
             return summary;
         }
     };
-
     summary.top_level_keys = object.keys().cloned().collect();
     summary.top_level_keys.sort_unstable();
     summary.has_signature = object.contains_key("signature");
@@ -305,44 +306,52 @@ fn inspect_object_value_with_summary(
         None => {}
     }
 
-    let object_type = match object.get("type").and_then(Value::as_str) {
-        Some(object_type) => object_type,
-        None => {
-            summary.push_note("object is missing string field 'type'");
+    if let Some(object_type) = object.get("type").and_then(Value::as_str) {
+        summary.object_type = Some(object_type.to_string());
+    }
+
+    let envelope = match parse_object_envelope(&value) {
+        Ok(envelope) => envelope,
+        Err(ParseObjectEnvelopeError::TopLevelNotObject) => {
+            summary.push_error("top-level JSON value must be an object");
+            return summary;
+        }
+        Err(error) => {
+            summary.push_note(error.to_string());
             return summary;
         }
     };
-
+    let object = envelope.object();
+    let object_type = envelope.object_type();
+    let schema = envelope.schema();
     summary.object_type = Some(object_type.to_string());
-
-    let schema = match object_schema(object_type) {
-        Some(schema) => schema,
-        None => {
-            summary.push_note(format!("unsupported object type '{object_type}'"));
-            return summary;
-        }
-    };
 
     summary.signature_rule = Some(schema.signature_rule.to_string());
     if let Some(signer_field) = schema.signer_field {
         summary.signer_field = Some(signer_field.to_string());
-        match object.get(signer_field) {
-            Some(Value::String(signer)) => summary.signer = Some(signer.clone()),
-            Some(_) => summary.push_note(format!("top-level '{signer_field}' should be a string")),
-            None => summary.push_note(format!(
+        match envelope.signer() {
+            Ok(Some(signer)) => summary.signer = Some(signer.to_string()),
+            Err(StringFieldError::WrongType) => {
+                summary.push_note(format!("top-level '{signer_field}' should be a string"))
+            }
+            Err(StringFieldError::Missing) => summary.push_note(format!(
                 "{object_type} object is missing string signer field '{signer_field}'"
             )),
+            Ok(None) => {}
         }
     }
 
     if let Some((id_field, _prefix)) = schema.derived_id() {
         summary.declared_id_field = Some(id_field.to_string());
-        match object.get(id_field) {
-            Some(Value::String(id)) => summary.declared_id = Some(id.clone()),
-            Some(_) => summary.push_note(format!("top-level '{id_field}' should be a string")),
-            None => summary.push_note(format!(
+        match envelope.declared_id() {
+            Ok(Some(id)) => summary.declared_id = Some(id.to_string()),
+            Err(StringFieldError::WrongType) => {
+                summary.push_note(format!("top-level '{id_field}' should be a string"))
+            }
+            Err(StringFieldError::Missing) => summary.push_note(format!(
                 "{object_type} object is missing string field '{id_field}'"
             )),
+            Ok(None) => {}
         }
     }
 
