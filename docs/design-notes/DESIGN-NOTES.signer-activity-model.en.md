@@ -4,6 +4,12 @@ Status: design draft
 
 This note describes how a Mycel-based custody deployment should evaluate signer activity rather than treating signer availability as a binary guess.
 
+Related notes:
+
+- `DESIGN-NOTES.policy-driven-threshold-custody.*` for the base m-of-n custody model
+- `DESIGN-NOTES.auto-signer-consent-model.*` for signer consent and eligibility boundaries
+- `DESIGN-NOTES.signer-availability-emergency-response.*` for the operational response model when activity decline threatens lockout
+
 The main design principle is:
 
 - a signer may be validly enrolled but still operationally unavailable

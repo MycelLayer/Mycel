@@ -6,6 +6,12 @@
 
 在這份文件中，`m-of-n = members + threshold`。
 
+相關文件：
+
+- `DESIGN-NOTES.auto-signer-consent-model.*`：signer enrollment 與 consent 邊界
+- `DESIGN-NOTES.signer-activity-model.*`：如何評估實際 signer readiness 與 effective signer capacity
+- `DESIGN-NOTES.signer-availability-emergency-response.*`：當 signer availability 下降時的 warning / critical / emergency 應對
+
 核心設計原則是：
 
 - Mycel 承載 signer enrollment state（簽署者加入狀態）、signer-set versions（簽署者集合版本）、policy bundles（政策包）、trigger records（觸發紀錄）、execution intent（執行意圖）與 audit history（審計歷史）

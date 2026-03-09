@@ -4,6 +4,12 @@
 
 這份文件描述 Mycel-based m-of-n custody deployment 應如何偵測危險的 signer availability（可用性）下降，並在實際 lockout（鎖死）前，觸發 emergency rotation、address renewal 或其他 recovery path。
 
+相關文件：
+
+- `DESIGN-NOTES.policy-driven-threshold-custody.*`：基礎 m-of-n custody 與 rotation 模型
+- `DESIGN-NOTES.auto-signer-consent-model.*`：signer 資格與 consent scope
+- `DESIGN-NOTES.signer-activity-model.*`：如何量測 signer readiness 與 effective signer capacity
+
 核心設計原則是：
 
 - 不要等到 signer 完全失效才行動

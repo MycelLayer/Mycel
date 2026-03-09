@@ -6,6 +6,12 @@ This note describes a custody model where Mycel carries the policy and governanc
 
 In this note, `m-of-n = members + threshold`.
 
+Related notes:
+
+- `DESIGN-NOTES.auto-signer-consent-model.*` for signer enrollment and consent boundaries
+- `DESIGN-NOTES.signer-activity-model.*` for evaluating practical signer readiness and effective signer capacity
+- `DESIGN-NOTES.signer-availability-emergency-response.*` for warning, critical, and emergency response when signer availability declines
+
 The main design principle is:
 
 - Mycel carries signer enrollment state, signer-set versions, policy bundles, trigger records, execution intent, and audit history

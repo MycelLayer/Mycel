@@ -4,6 +4,12 @@ Status: design draft
 
 This note describes how a Mycel-based m-of-n custody deployment should detect dangerous signer-availability decline and trigger emergency rotation, address renewal, or other recovery paths before practical lockout occurs.
 
+Related notes:
+
+- `DESIGN-NOTES.policy-driven-threshold-custody.*` for the base m-of-n custody and rotation model
+- `DESIGN-NOTES.auto-signer-consent-model.*` for signer eligibility and consent scope
+- `DESIGN-NOTES.signer-activity-model.*` for how signer readiness and effective signer capacity are measured
+
 The main design principle is:
 
 - do not wait for complete signer failure before acting

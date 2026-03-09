@@ -4,6 +4,12 @@
 
 這份文件描述 Mycel-based custody deployment 應如何評估 signer activity，而不是把 signer availability（可用性）當成二元猜測。
 
+相關文件：
+
+- `DESIGN-NOTES.policy-driven-threshold-custody.*`：基礎 m-of-n custody 模型
+- `DESIGN-NOTES.auto-signer-consent-model.*`：signer consent 與資格邊界
+- `DESIGN-NOTES.signer-availability-emergency-response.*`：當 activity 下降威脅到 lockout 時的操作應對模型
+
 核心設計原則是：
 
 - signer 可能合法 enrolled，但在操作上已不可用
