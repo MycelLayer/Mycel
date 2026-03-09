@@ -771,6 +771,18 @@ struct ReportLatestSummary {
     errors: Vec<String>,
 }
 
+#[derive(Clone, Copy)]
+struct ReportQuerySummaryView<'a> {
+    root: &'a Path,
+    status: &'a str,
+    result_filter: Option<ReportResultFilter>,
+    validation_status_filter: Option<ReportValidationStatusFilter>,
+    report_count: usize,
+    valid_report_count: usize,
+    invalid_report_count: usize,
+    errors: &'a [String],
+}
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct ReportQuery {
     result_filter: Option<ReportResultFilter>,
@@ -822,6 +834,36 @@ impl ReportQuery {
 impl ReportLatestSummary {
     fn is_ok(&self) -> bool {
         self.errors.is_empty()
+    }
+}
+
+impl<'a> From<&'a ReportListSummary> for ReportQuerySummaryView<'a> {
+    fn from(summary: &'a ReportListSummary) -> Self {
+        Self {
+            root: &summary.root,
+            status: &summary.status,
+            result_filter: summary.result_filter,
+            validation_status_filter: summary.validation_status_filter,
+            report_count: summary.report_count,
+            valid_report_count: summary.valid_report_count,
+            invalid_report_count: summary.invalid_report_count,
+            errors: &summary.errors,
+        }
+    }
+}
+
+impl<'a> From<&'a ReportLatestSummary> for ReportQuerySummaryView<'a> {
+    fn from(summary: &'a ReportLatestSummary) -> Self {
+        Self {
+            root: &summary.root,
+            status: &summary.status,
+            result_filter: summary.result_filter,
+            validation_status_filter: summary.validation_status_filter,
+            report_count: summary.report_count,
+            valid_report_count: summary.valid_report_count,
+            invalid_report_count: summary.invalid_report_count,
+            errors: &summary.errors,
+        }
     }
 }
 
@@ -1230,6 +1272,98 @@ fn latest_report_path(summary: &ReportLatestSummary) -> Option<PathBuf> {
         .map(|selected| selected.path.clone())
 }
 
+fn print_report_query_text_header(summary: ReportQuerySummaryView<'_>) {
+    println!("reports root: {}", summary.root.display());
+    println!("status: {}", summary.status);
+    if let Some(result_filter) = summary.result_filter {
+        println!("result filter: {}", result_filter.as_str());
+    }
+    if let Some(validation_status_filter) = summary.validation_status_filter {
+        println!(
+            "validation status filter: {}",
+            validation_status_filter.as_str()
+        );
+    }
+    println!("reports: {}", summary.report_count);
+    println!("valid reports: {}", summary.valid_report_count);
+    println!("invalid reports: {}", summary.invalid_report_count);
+}
+
+fn report_query_summary_json(
+    summary: ReportQuerySummaryView<'_>,
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut json = serde_json::Map::new();
+    json.insert("root".to_string(), serde_json::json!(summary.root));
+    json.insert("status".to_string(), serde_json::json!(summary.status));
+    json.insert(
+        "result_filter".to_string(),
+        serde_json::json!(summary.result_filter.map(ReportResultFilter::as_str)),
+    );
+    json.insert(
+        "validation_status_filter".to_string(),
+        serde_json::json!(summary
+            .validation_status_filter
+            .map(ReportValidationStatusFilter::as_str)),
+    );
+    json.insert(
+        "report_count".to_string(),
+        serde_json::json!(summary.report_count),
+    );
+    json.insert(
+        "valid_report_count".to_string(),
+        serde_json::json!(summary.valid_report_count),
+    );
+    json.insert(
+        "invalid_report_count".to_string(),
+        serde_json::json!(summary.invalid_report_count),
+    );
+    json.insert("errors".to_string(), serde_json::json!(summary.errors));
+    json
+}
+
+fn report_list_entry_json(report: &ReportListEntry) -> serde_json::Value {
+    serde_json::json!({
+        "path": report.path,
+        "status": report.status,
+        "run_id": report.run_id,
+        "topology_id": report.topology_id,
+        "fixture_id": report.fixture_id,
+        "test_id": report.test_id,
+        "started_at": report.started_at,
+        "finished_at": report.finished_at,
+        "validation_status": report.validation_status,
+        "result": report.result,
+        "peer_count": report.peer_count,
+        "event_count": report.event_count,
+        "failure_count": report.failure_count,
+        "parse_error": report.parse_error,
+    })
+}
+
+fn finish_report_query_text(command: &str, summary: ReportQuerySummaryView<'_>) -> i32 {
+    if summary.errors.is_empty() {
+        println!("{command}: {}", summary.status);
+        0
+    } else {
+        println!("{command}: failed");
+        for error in summary.errors {
+            emit_error_line(error);
+        }
+        1
+    }
+}
+
+fn finish_report_query_paths(summary: ReportQuerySummaryView<'_>) -> i32 {
+    if summary.errors.is_empty() {
+        0
+    } else {
+        for error in summary.errors {
+            emit_error_line(error);
+        }
+        1
+    }
+}
+
 fn print_report_text(summary: &ReportInspectSummary) -> i32 {
     println!("report path: {}", summary.path.display());
     if let Some(run_id) = &summary.run_id {
@@ -1302,20 +1436,8 @@ fn print_report_text(summary: &ReportInspectSummary) -> i32 {
 }
 
 fn print_report_list_text(summary: &ReportListSummary) -> i32 {
-    println!("reports root: {}", summary.root.display());
-    println!("status: {}", summary.status);
-    if let Some(result_filter) = summary.result_filter {
-        println!("result filter: {}", result_filter.as_str());
-    }
-    if let Some(validation_status_filter) = summary.validation_status_filter {
-        println!(
-            "validation status filter: {}",
-            validation_status_filter.as_str()
-        );
-    }
-    println!("reports: {}", summary.report_count);
-    println!("valid reports: {}", summary.valid_report_count);
-    println!("invalid reports: {}", summary.invalid_report_count);
+    let query_summary = ReportQuerySummaryView::from(summary);
+    print_report_query_text_header(query_summary);
 
     for report in &summary.reports {
         print!("report: {} status={}", report.path.display(), report.status);
@@ -1337,33 +1459,12 @@ fn print_report_list_text(summary: &ReportListSummary) -> i32 {
         println!();
     }
 
-    if summary.is_ok() {
-        println!("report listing: {}", summary.status);
-        0
-    } else {
-        println!("report listing: failed");
-        for error in &summary.errors {
-            emit_error_line(error);
-        }
-        1
-    }
+    finish_report_query_text("report listing", query_summary)
 }
 
 fn print_report_latest_text(summary: &ReportLatestSummary) -> i32 {
-    println!("reports root: {}", summary.root.display());
-    println!("status: {}", summary.status);
-    if let Some(result_filter) = summary.result_filter {
-        println!("result filter: {}", result_filter.as_str());
-    }
-    if let Some(validation_status_filter) = summary.validation_status_filter {
-        println!(
-            "validation status filter: {}",
-            validation_status_filter.as_str()
-        );
-    }
-    println!("reports: {}", summary.report_count);
-    println!("valid reports: {}", summary.valid_report_count);
-    println!("invalid reports: {}", summary.invalid_report_count);
+    let query_summary = ReportQuerySummaryView::from(summary);
+    print_report_query_text_header(query_summary);
 
     if let Some(selected) = &summary.selected {
         println!("selected report: {}", selected.path.display());
@@ -1393,50 +1494,15 @@ fn print_report_latest_text(summary: &ReportLatestSummary) -> i32 {
         println!("failures: {}", selected.failure_count);
     }
 
-    if summary.is_ok() {
-        println!("report latest: {}", summary.status);
-        0
-    } else {
-        println!("report latest: failed");
-        for error in &summary.errors {
-            emit_error_line(error);
-        }
-        1
-    }
+    finish_report_query_text("report latest", query_summary)
 }
 
 fn print_report_latest_json(summary: &ReportLatestSummary) -> Result<i32, CliError> {
-    let selected = summary.selected.as_ref().map(|report| {
-        serde_json::json!({
-            "path": report.path,
-            "status": report.status,
-            "run_id": report.run_id,
-            "topology_id": report.topology_id,
-            "fixture_id": report.fixture_id,
-            "test_id": report.test_id,
-            "started_at": report.started_at,
-            "finished_at": report.finished_at,
-            "validation_status": report.validation_status,
-            "result": report.result,
-            "peer_count": report.peer_count,
-            "event_count": report.event_count,
-            "failure_count": report.failure_count,
-            "parse_error": report.parse_error,
-        })
-    });
-    let json = serde_json::json!({
-        "root": summary.root,
-        "status": summary.status,
-        "result_filter": summary.result_filter.map(ReportResultFilter::as_str),
-        "validation_status_filter": summary
-            .validation_status_filter
-            .map(ReportValidationStatusFilter::as_str),
-        "report_count": summary.report_count,
-        "valid_report_count": summary.valid_report_count,
-        "invalid_report_count": summary.invalid_report_count,
-        "selected": selected,
-        "errors": summary.errors,
-    });
+    let mut json = report_query_summary_json(ReportQuerySummaryView::from(summary));
+    json.insert(
+        "selected".to_string(),
+        serde_json::json!(summary.selected.as_ref().map(report_list_entry_json)),
+    );
 
     match serde_json::to_string_pretty(&json) {
         Ok(json) => {
@@ -1455,38 +1521,10 @@ fn print_report_list_json(summary: &ReportListSummary) -> Result<i32, CliError> 
     let reports = summary
         .reports
         .iter()
-        .map(|report| {
-            serde_json::json!({
-                "path": report.path,
-                "status": report.status,
-                "run_id": report.run_id,
-                "topology_id": report.topology_id,
-                "fixture_id": report.fixture_id,
-                "test_id": report.test_id,
-                "started_at": report.started_at,
-                "finished_at": report.finished_at,
-                "validation_status": report.validation_status,
-                "result": report.result,
-                "peer_count": report.peer_count,
-                "event_count": report.event_count,
-                "failure_count": report.failure_count,
-                "parse_error": report.parse_error,
-            })
-        })
+        .map(report_list_entry_json)
         .collect::<Vec<_>>();
-    let json = serde_json::json!({
-        "root": summary.root,
-        "status": summary.status,
-        "result_filter": summary.result_filter.map(ReportResultFilter::as_str),
-        "validation_status_filter": summary
-            .validation_status_filter
-            .map(ReportValidationStatusFilter::as_str),
-        "report_count": summary.report_count,
-        "valid_report_count": summary.valid_report_count,
-        "invalid_report_count": summary.invalid_report_count,
-        "reports": reports,
-        "errors": summary.errors,
-    });
+    let mut json = report_query_summary_json(ReportQuerySummaryView::from(summary));
+    json.insert("reports".to_string(), serde_json::json!(reports));
 
     match serde_json::to_string_pretty(&json) {
         Ok(json) => {
@@ -1508,13 +1546,16 @@ fn print_report_list_paths(summary: &ReportListSummary) -> i32 {
         }
     }
 
-    if summary.is_ok() {
-        0
-    } else {
-        for error in &summary.errors {
-            emit_error_line(error);
+    finish_report_query_paths(ReportQuerySummaryView::from(summary))
+}
+
+fn print_report_latest_path(summary: &ReportLatestSummary) -> i32 {
+    match latest_report_path(summary) {
+        Some(path) => {
+            println!("{}", path.display());
+            0
         }
-        1
+        None => finish_report_query_paths(ReportQuerySummaryView::from(summary)),
     }
 }
 
@@ -2058,18 +2099,7 @@ fn report_latest(
         ReportQuery::new(result_filter, validation_status_filter),
     ));
     if path_only {
-        return match latest_report_path(&summary) {
-            Some(path) => {
-                println!("{}", path.display());
-                Ok(0)
-            }
-            None => {
-                for error in &summary.errors {
-                    emit_error_line(error);
-                }
-                Ok(1)
-            }
-        };
+        return Ok(print_report_latest_path(&summary));
     }
 
     if full {
