@@ -274,6 +274,12 @@ struct ReportLatestCliArgs {
     json: bool,
     #[arg(
         long,
+        help = "Print only the selected report path",
+        conflicts_with_all = ["json", "full"]
+    )]
+    path_only: bool,
+    #[arg(
+        long,
         help = "Emit the selected raw report (requires --json)",
         requires = "json"
     )]
@@ -1615,7 +1621,7 @@ fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
             }
 
             let target = args.target.unwrap_or_else(|| "sim/reports".to_owned());
-            report_latest(PathBuf::from(target), args.json, args.full)
+            report_latest(PathBuf::from(target), args.json, args.full, args.path_only)
         }
         Some(ReportSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
@@ -1806,8 +1812,28 @@ fn report_list(target: PathBuf, json: bool) -> Result<i32, CliError> {
     }
 }
 
-fn report_latest(target: PathBuf, json: bool, full: bool) -> Result<i32, CliError> {
+fn report_latest(
+    target: PathBuf,
+    json: bool,
+    full: bool,
+    path_only: bool,
+) -> Result<i32, CliError> {
     let summary = latest_report(list_reports(target));
+    if path_only {
+        return match latest_report_path(&summary) {
+            Some(path) => {
+                println!("{}", path.display());
+                Ok(0)
+            }
+            None => {
+                for error in &summary.errors {
+                    emit_error_line(error);
+                }
+                Ok(1)
+            }
+        };
+    }
+
     if full {
         if !json {
             return Err(CliError::usage("report latest --full requires --json"));

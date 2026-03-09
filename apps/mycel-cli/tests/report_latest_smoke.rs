@@ -128,6 +128,31 @@ fn report_latest_text_reports_selected_summary() {
 }
 
 #[test]
+fn report_latest_path_only_prints_selected_path() {
+    let temp_dir = create_temp_dir("report-latest-path-only");
+    let older = temp_dir.path().join("older.report.json");
+    let newer = temp_dir.path().join("newer.report.json");
+    write_report(
+        &older,
+        "run:older",
+        "2026-03-09T10:00:00+08:00",
+        "2026-03-09T10:00:05+08:00",
+    );
+    write_report(
+        &newer,
+        "run:newer",
+        "2026-03-09T11:00:00+08:00",
+        "2026-03-09T11:00:05+08:00",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&["report", "latest", &target, "--path-only"]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output).trim(), newer.display().to_string());
+}
+
+#[test]
 fn report_latest_json_warns_when_invalid_reports_exist_but_valid_latest_is_selected() {
     let temp_dir = create_temp_dir("report-latest-warning");
     let valid = temp_dir.path().join("valid.report.json");
@@ -175,6 +200,26 @@ fn report_latest_full_json_ignores_invalid_reports_when_valid_latest_exists() {
 }
 
 #[test]
+fn report_latest_path_only_ignores_invalid_reports_when_valid_latest_exists() {
+    let temp_dir = create_temp_dir("report-latest-path-only-warning");
+    let valid = temp_dir.path().join("valid.report.json");
+    let invalid = temp_dir.path().join("broken.report.json");
+    write_report(
+        &valid,
+        "run:valid",
+        "2026-03-09T11:00:00+08:00",
+        "2026-03-09T11:00:05+08:00",
+    );
+    fs::write(&invalid, "{ broken json").expect("invalid report should be written");
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&["report", "latest", &target, "--path-only"]);
+
+    assert_success(&output);
+    assert_eq!(stdout_text(&output).trim(), valid.display().to_string());
+}
+
+#[test]
 fn report_latest_json_fails_when_no_valid_reports_exist() {
     let temp_dir = create_temp_dir("report-latest-invalid");
     let invalid = temp_dir.path().join("broken.report.json");
@@ -210,9 +255,32 @@ fn report_latest_json_reports_missing_target_as_failed() {
 }
 
 #[test]
+fn report_latest_path_only_fails_when_no_valid_reports_exist() {
+    let temp_dir = create_temp_dir("report-latest-path-only-invalid");
+    let invalid = temp_dir.path().join("broken.report.json");
+    fs::write(&invalid, "{ broken json").expect("invalid report should be written");
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&["report", "latest", &target, "--path-only"]);
+
+    assert_exit_code(&output, 1);
+    assert_stderr_contains(&output, "no valid reports found under target");
+}
+
+#[test]
 fn report_latest_full_json_requires_json() {
     let output = run_report(&["report", "latest", "sim/reports", "--full"]);
 
     assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "--json");
+}
+
+#[test]
+fn report_latest_rejects_path_only_with_json() {
+    let output = run_report(&["report", "latest", "sim/reports", "--path-only", "--json"]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "cannot be used with");
+    assert_stderr_contains(&output, "--path-only");
     assert_stderr_contains(&output, "--json");
 }
