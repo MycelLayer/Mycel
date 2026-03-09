@@ -416,6 +416,71 @@ fn report_inspect_step_range_json_returns_empty_events_for_unknown_range() {
 }
 
 #[test]
+fn report_inspect_last_json_filters_events_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--last",
+        "2",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["event_count"], 2);
+    let events = json["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["step"], 2);
+    assert_eq!(events[1]["step"], 3);
+}
+
+#[test]
+fn report_inspect_last_text_filters_events_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--last",
+        "1",
+    ]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "events: 1");
+    assert_stdout_contains(
+        &output,
+        "event #3 phase=replay action=reader-compare outcome=ok",
+    );
+}
+
+#[test]
+fn report_inspect_last_after_other_filters_keeps_tail_subset() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--outcome",
+        "ok",
+        "--last",
+        "2",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["event_count"], 2);
+    let events = json["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["step"], 2);
+    assert_eq!(events[1]["step"], 3);
+}
+
+#[test]
 fn report_inspect_node_json_filters_events_for_example_report() {
     let output = run_report(&[
         "report",
@@ -990,6 +1055,43 @@ fn report_inspect_rejects_step_range_with_full() {
 }
 
 #[test]
+fn report_inspect_rejects_last_with_failures() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--failures",
+        "--last",
+        "1",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "report inspect --last cannot be combined with --failures",
+    );
+}
+
+#[test]
+fn report_inspect_rejects_last_with_full() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--last",
+        "1",
+        "--full",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "report inspect --last cannot be combined with --full",
+    );
+}
+
+#[test]
 fn report_inspect_rejects_step_and_step_range_together() {
     let output = run_report(&[
         "report",
@@ -1135,6 +1237,33 @@ fn report_inspect_rejects_reversed_step_range() {
         &output,
         "invalid value for --step-range: 3:2 (start must be <= end)",
     );
+}
+
+#[test]
+fn report_inspect_requires_last_value() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--last",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "missing value for --last");
+}
+
+#[test]
+fn report_inspect_rejects_invalid_last_value() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--last",
+        "bogus",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "invalid value for --last: bogus");
 }
 
 #[test]
