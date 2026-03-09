@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -173,6 +174,8 @@ enum ReportSubcommand {
     List(ReportListCliArgs),
     #[command(about = "Select the latest simulator report under a directory or one file")]
     Latest(ReportLatestCliArgs),
+    #[command(about = "Summarize simulator reports under a directory or one file")]
+    Stats(ReportStatsCliArgs),
     #[command(external_subcommand)]
     External(Vec<String>),
 }
@@ -318,6 +321,20 @@ struct ReportLatestCliArgs {
         requires = "json"
     )]
     full: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Args)]
+struct ReportStatsCliArgs {
+    #[arg(
+        value_name = "PATH",
+        help = "Report directory or one report file to summarize",
+        allow_hyphen_values = true
+    )]
+    target: Option<String>,
+    #[arg(long, help = "Emit machine-readable report statistics output")]
+    json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
 }
@@ -771,6 +788,27 @@ struct ReportLatestSummary {
     errors: Vec<String>,
 }
 
+struct ReportStatsLatestReport {
+    path: PathBuf,
+    run_id: Option<String>,
+    finished_at: Option<String>,
+    result: Option<String>,
+    validation_status: Option<String>,
+}
+
+struct ReportStatsSummary {
+    root: PathBuf,
+    status: String,
+    report_count: usize,
+    valid_report_count: usize,
+    invalid_report_count: usize,
+    result_counts: BTreeMap<String, usize>,
+    validation_status_counts: BTreeMap<String, usize>,
+    latest_finished_at: Option<String>,
+    latest_valid_report: Option<ReportStatsLatestReport>,
+    errors: Vec<String>,
+}
+
 #[derive(Clone, Copy)]
 struct ReportQuerySummaryView<'a> {
     root: &'a Path,
@@ -837,6 +875,12 @@ impl ReportLatestSummary {
     }
 }
 
+impl ReportStatsSummary {
+    fn is_ok(&self) -> bool {
+        self.errors.is_empty()
+    }
+}
+
 impl<'a> From<&'a ReportListSummary> for ReportQuerySummaryView<'a> {
     fn from(summary: &'a ReportListSummary) -> Self {
         Self {
@@ -859,6 +903,21 @@ impl<'a> From<&'a ReportLatestSummary> for ReportQuerySummaryView<'a> {
             status: &summary.status,
             result_filter: summary.result_filter,
             validation_status_filter: summary.validation_status_filter,
+            report_count: summary.report_count,
+            valid_report_count: summary.valid_report_count,
+            invalid_report_count: summary.invalid_report_count,
+            errors: &summary.errors,
+        }
+    }
+}
+
+impl<'a> From<&'a ReportStatsSummary> for ReportQuerySummaryView<'a> {
+    fn from(summary: &'a ReportStatsSummary) -> Self {
+        Self {
+            root: &summary.root,
+            status: &summary.status,
+            result_filter: None,
+            validation_status_filter: None,
             report_count: summary.report_count,
             valid_report_count: summary.valid_report_count,
             invalid_report_count: summary.invalid_report_count,
@@ -1272,6 +1331,59 @@ fn latest_report_path(summary: &ReportLatestSummary) -> Option<PathBuf> {
         .map(|selected| selected.path.clone())
 }
 
+fn summarize_reports(summary: ReportListSummary) -> ReportStatsSummary {
+    let mut result_counts = BTreeMap::new();
+    let mut validation_status_counts = BTreeMap::new();
+    let latest_valid_report = summary
+        .reports
+        .iter()
+        .filter(|report| report.status == "ok")
+        .max_by_key(|report| latest_report_sort_key(report))
+        .cloned();
+
+    for report in summary
+        .reports
+        .iter()
+        .filter(|report| report.status == "ok")
+    {
+        let result_key = report.result.as_deref().unwrap_or("unknown").to_string();
+        *result_counts.entry(result_key).or_insert(0) += 1;
+
+        let validation_status_key = report
+            .validation_status
+            .as_deref()
+            .unwrap_or("unknown")
+            .to_string();
+        *validation_status_counts
+            .entry(validation_status_key)
+            .or_insert(0) += 1;
+    }
+
+    let latest_finished_at = latest_valid_report
+        .as_ref()
+        .and_then(|report| report.finished_at.clone());
+    let latest_valid_report = latest_valid_report.map(|report| ReportStatsLatestReport {
+        path: report.path,
+        run_id: report.run_id,
+        finished_at: report.finished_at,
+        result: report.result,
+        validation_status: report.validation_status,
+    });
+
+    ReportStatsSummary {
+        root: summary.root,
+        status: summary.status,
+        report_count: summary.report_count,
+        valid_report_count: summary.valid_report_count,
+        invalid_report_count: summary.invalid_report_count,
+        result_counts,
+        validation_status_counts,
+        latest_finished_at,
+        latest_valid_report,
+        errors: summary.errors,
+    }
+}
+
 fn print_report_query_text_header(summary: ReportQuerySummaryView<'_>) {
     println!("reports root: {}", summary.root.display());
     println!("status: {}", summary.status);
@@ -1556,6 +1668,87 @@ fn print_report_latest_path(summary: &ReportLatestSummary) -> i32 {
             0
         }
         None => finish_report_query_paths(ReportQuerySummaryView::from(summary)),
+    }
+}
+
+fn print_report_stats_text(summary: &ReportStatsSummary) -> i32 {
+    let query_summary = ReportQuerySummaryView::from(summary);
+    print_report_query_text_header(query_summary);
+    println!("result counts:");
+    if summary.result_counts.is_empty() {
+        println!("  (none)");
+    } else {
+        for (result, count) in &summary.result_counts {
+            println!("  {result}: {count}");
+        }
+    }
+    println!("validation status counts:");
+    if summary.validation_status_counts.is_empty() {
+        println!("  (none)");
+    } else {
+        for (status, count) in &summary.validation_status_counts {
+            println!("  {status}: {count}");
+        }
+    }
+    if let Some(latest_finished_at) = &summary.latest_finished_at {
+        println!("latest finished at: {latest_finished_at}");
+    }
+    if let Some(latest_valid_report) = &summary.latest_valid_report {
+        println!(
+            "latest valid report: {}",
+            latest_valid_report.path.display()
+        );
+        if let Some(run_id) = &latest_valid_report.run_id {
+            println!("latest run id: {run_id}");
+        }
+        if let Some(result) = &latest_valid_report.result {
+            println!("latest result: {result}");
+        }
+        if let Some(validation_status) = &latest_valid_report.validation_status {
+            println!("latest validation status: {validation_status}");
+        }
+    }
+
+    finish_report_query_text("report stats", query_summary)
+}
+
+fn print_report_stats_json(summary: &ReportStatsSummary) -> Result<i32, CliError> {
+    let mut json = report_query_summary_json(ReportQuerySummaryView::from(summary));
+    json.insert(
+        "result_counts".to_string(),
+        serde_json::json!(summary.result_counts),
+    );
+    json.insert(
+        "validation_status_counts".to_string(),
+        serde_json::json!(summary.validation_status_counts),
+    );
+    json.insert(
+        "latest_finished_at".to_string(),
+        serde_json::json!(summary.latest_finished_at),
+    );
+    json.insert(
+        "latest_valid_report".to_string(),
+        serde_json::json!(summary.latest_valid_report.as_ref().map(|report| {
+            serde_json::json!({
+                "path": report.path,
+                "run_id": report.run_id,
+                "finished_at": report.finished_at,
+                "result": report.result,
+                "validation_status": report.validation_status,
+            })
+        })),
+    );
+
+    match serde_json::to_string_pretty(&json) {
+        Ok(json) => {
+            println!("{json}");
+            if summary.is_ok() {
+                Ok(0)
+            } else {
+                Ok(1)
+            }
+        }
+        Err(source) => Err(CliError::serialization("report statistics summary", source)),
     }
 }
 
@@ -1886,6 +2079,14 @@ fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
                 args.validation_status,
             )
         }
+        Some(ReportSubcommand::Stats(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "report stats") {
+                return Err(CliError::usage(message));
+            }
+
+            let target = args.target.unwrap_or_else(|| "sim/reports".to_owned());
+            report_stats(PathBuf::from(target), args.json)
+        }
         Some(ReportSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
             Err(CliError::usage(format!(
@@ -2123,6 +2324,15 @@ fn report_latest(
         print_report_latest_json(&summary)
     } else {
         Ok(print_report_latest_text(&summary))
+    }
+}
+
+fn report_stats(target: PathBuf, json: bool) -> Result<i32, CliError> {
+    let summary = summarize_reports(list_reports(target));
+    if json {
+        print_report_stats_json(&summary)
+    } else {
+        Ok(print_report_stats_text(&summary))
     }
 }
 

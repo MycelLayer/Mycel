@@ -52,6 +52,9 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- report latest --result pass --json`
 - `cargo run -p mycel-cli -- report latest --validation-status warning --json`
 - `cargo run -p mycel-cli -- report latest <path> --json`
+- `cargo run -p mycel-cli -- report stats`
+- `cargo run -p mycel-cli -- report stats --json`
+- `cargo run -p mycel-cli -- report stats <path> --json`
 - `cargo run -p mycel-cli -- report inspect <path> --events`
 - `cargo run -p mycel-cli -- report inspect <path> --failures`
 - `cargo run -p mycel-cli -- report inspect <path> --phase <name>`
@@ -89,6 +92,9 @@ Runnable examples:
 - `cargo run -p mycel-cli -- report latest --result fail --json`
 - `cargo run -p mycel-cli -- report latest --validation-status failed --path-only`
 - `cargo run -p mycel-cli -- report latest sim/reports/out --json`
+- `cargo run -p mycel-cli -- report stats`
+- `cargo run -p mycel-cli -- report stats --json`
+- `cargo run -p mycel-cli -- report stats sim/reports/out --json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --full --json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --events`
@@ -129,6 +135,9 @@ Report-inspection output notes:
 - `report latest --validation-status <ok|warning|failed>` narrows latest selection to one report validation status before any summary, raw, or path-only output is produced
 - latest selection prefers `finished_at`, then `started_at`, then path as a deterministic tie-break
 - invalid reports do not block `report latest` if at least one valid report exists; they downgrade the top-level status to `warning`
+- `report stats` summarizes one report directory or file and aggregates counts across valid reports
+- `report stats --json` emits a stable summary with `root`, `status`, counts, `result_counts`, `validation_status_counts`, `latest_finished_at`, `latest_valid_report`, and `errors`
+- `report stats` counts valid reports by `result` and `validation_status`, while still surfacing invalid parse entries through the shared top-level status and counts
 - `report inspect <path>` prints a human-readable summary for one simulator report
 - `report inspect <path> --json` emits a stable inspection summary including run identity, result, counts, selected metadata, and errors
 - `report inspect <path> --full --json` emits the raw report JSON without summary reshaping
