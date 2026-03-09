@@ -10,6 +10,7 @@ It exists to separate simulator structure from implementation choice.
 - `topologies/`: named peer graph and bootstrap examples
 - `tests/`: simulator test cases and expected assertions
 - `reports/`: machine-readable output shape and report conventions
+- `SCHEMA-CROSS-CHECK.md`: consistency rules between fixture, peer, topology, test case, and report schemas
 - `runtime/`: ignored local runtime state for manual experiments
 
 ## Build Direction

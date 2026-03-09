@@ -64,6 +64,7 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 
 - [fixtures/README.md](./fixtures/README.md): Language-neutral fixture sets for simulator and verification testing
 - [sim/README.md](./sim/README.md): Language-neutral scaffold for peer simulator structure, topologies, tests, and reports
+- [sim/SCHEMA-CROSS-CHECK.md](./sim/SCHEMA-CROSS-CHECK.md): Cross-check rules for how simulator schemas and IDs should line up
 
 ## Near-Term Priorities
 
