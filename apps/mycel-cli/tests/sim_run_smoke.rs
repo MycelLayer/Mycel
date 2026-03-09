@@ -78,6 +78,10 @@ fn assert_runtime_seed_mode(summary: &Value, report: &Value, expected_source: &s
     assert_eq!(metadata["deterministic_seed"], deterministic_seed);
 }
 
+fn stderr_text(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
 #[test]
 fn three_peer_consistency_run_produces_pass_report() {
     let output = run_sim(&[
@@ -277,4 +281,51 @@ fn partial_want_recovery_run_records_recovery_flow() {
 
     let validation = validate_generated_report(&summary);
     assert_eq!(validation["report_count"], 1);
+}
+
+#[test]
+fn sim_run_rejects_schema_file_targets() {
+    let output = run_sim(&["sim", "run", "sim/tests/test-case.schema.json"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("schema files are not"),
+        "expected schema target rejection, stderr: {stderr}"
+    );
+}
+
+#[test]
+fn sim_run_requires_seed_value_after_flag() {
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/hash-mismatch.example.json",
+        "--seed",
+    ]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("missing value for --seed"),
+        "expected missing seed value error, stderr: {stderr}"
+    );
+}
+
+#[test]
+fn sim_run_rejects_unexpected_extra_arguments() {
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/hash-mismatch.example.json",
+        "--json",
+        "unexpected",
+    ]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("unexpected sim run argument: unexpected"),
+        "expected unexpected argument error, stderr: {stderr}"
+    );
 }
