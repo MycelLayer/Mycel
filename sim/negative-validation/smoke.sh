@@ -100,6 +100,10 @@ validate_expected_error_text \
   "sim/reports/invalid/unknown-topology-reference.example.json" \
   "does not match any loaded topology" \
   "unknown-topology-reference"
+validate_expected_error_text \
+  "sim/reports/invalid/unknown-fixture-reference.example.json" \
+  "does not match any loaded fixture" \
+  "unknown-fixture-reference"
 
 echo "[smoke] validating intentional warning report should warn by default"
 warning_output="$(cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json)"

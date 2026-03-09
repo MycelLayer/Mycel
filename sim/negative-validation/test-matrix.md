@@ -27,6 +27,12 @@
   Expected status: `failed`
   Expected failure: `topology_id` does not match any loaded topology
 
+- `unknown-fixture-reference`
+  Artifact: `sim/reports/invalid/unknown-fixture-reference.example.json`
+  Target type: report
+  Expected status: `failed`
+  Expected failure: `fixture_id` does not match any loaded fixture
+
 ## Planned Cases
 
 ## Usage
@@ -39,6 +45,7 @@ cargo run -p mycel-cli -- validate sim/reports/invalid/auto-seed-prefix-mismatch
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json --strict
 cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-topology-reference.example.json --json
+cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-fixture-reference.example.json --json
 ```
 
 Run the whole repo and confirm the invalid artifacts are not part of normal validation:
@@ -59,6 +66,7 @@ The smoke script currently covers:
 - `random-seed-prefix-mismatch` hard failure
 - `auto-seed-prefix-mismatch` hard failure
 - `unknown-topology-reference` hard failure
+- `unknown-fixture-reference` hard failure
 - `missing-seed-source` warning in normal mode
 - `missing-seed-source` non-zero exit under `--strict`
 - a final per-case summary for quick scanability

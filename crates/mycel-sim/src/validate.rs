@@ -469,17 +469,15 @@ fn build_report_scope(
         .filter_map(|report| report.value.test_id.as_deref())
         .collect();
 
-    let fixtures: Vec<_> = input
-        .fixtures
-        .iter()
-        .filter(|fixture| fixture_ids.contains(fixture.value.fixture_id.as_str()))
-        .cloned()
-        .collect();
     let test_cases: Vec<_> = input
         .test_cases
         .iter()
         .filter(|test_case| test_ids.contains(test_case.value.test_id.as_str()))
         .cloned()
+        .collect();
+    let fixture_refs: HashSet<_> = test_cases
+        .iter()
+        .map(|test_case| fixture_dir_name(&test_case.value.fixture_set))
         .collect();
     let topology_refs: HashSet<_> = test_cases
         .iter()
@@ -499,6 +497,20 @@ fn build_report_scope(
                 || relative_display(root, &topology.path)
                     .is_some_and(|path| topology_refs.contains(path.as_str()))
                 || topology_paths.contains(topology.value.topology_id.as_str())
+        })
+        .cloned()
+        .collect();
+    let topology_fixture_refs: HashSet<_> = topologies
+        .iter()
+        .map(|topology| fixture_dir_name(&topology.value.fixture_set))
+        .collect();
+    let fixtures: Vec<_> = input
+        .fixtures
+        .iter()
+        .filter(|fixture| {
+            fixture_ids.contains(fixture.value.fixture_id.as_str())
+                || fixture_refs.contains(&fixture.value.fixture_id)
+                || topology_fixture_refs.contains(&fixture.value.fixture_id)
         })
         .cloned()
         .collect();

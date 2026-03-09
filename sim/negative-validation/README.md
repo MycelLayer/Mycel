@@ -27,6 +27,9 @@ This directory is the index and matrix for those cases.
 - `unknown-topology-reference`
   Artifact: `sim/reports/invalid/unknown-topology-reference.example.json`
   Expected result: `mycel validate` fails because `topology_id` does not match any loaded topology
+- `unknown-fixture-reference`
+  Artifact: `sim/reports/invalid/unknown-fixture-reference.example.json`
+  Expected result: `mycel validate` fails because `fixture_id` does not match any loaded fixture
 
 ## Command
 
@@ -36,6 +39,7 @@ cargo run -p mycel-cli -- validate sim/reports/invalid/auto-seed-prefix-mismatch
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json
 cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json --strict
 cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-topology-reference.example.json --json
+cargo run -p mycel-cli -- validate sim/reports/invalid/unknown-fixture-reference.example.json --json
 ```
 
 ## Smoke Script
@@ -54,6 +58,7 @@ The script expects:
 - the intentional invalid `random` and `auto` reports return `status: "failed"`
 - each failure message mentions the matching `seed_source` mismatch
 - the `unknown-topology-reference` report returns `status: "failed"` with a topology lookup error
+- the `unknown-fixture-reference` report returns `status: "failed"` with a fixture lookup error
 - the `missing-seed-source` report returns `status: "warning"` by default
 - the same `missing-seed-source` report returns a non-zero exit code under `--strict`
 
