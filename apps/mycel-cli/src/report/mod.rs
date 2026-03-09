@@ -63,6 +63,14 @@ struct ReportDiffCliArgs {
     )]
     events: bool,
     #[arg(
+        long = "event-align",
+        value_enum,
+        value_name = "POLICY",
+        default_value = "trace",
+        help = "Event alignment policy for --events: trace identity or raw step"
+    )]
+    event_align: ReportEventAlign,
+    #[arg(
         long = "field",
         value_enum,
         value_name = "FIELD",
@@ -308,6 +316,21 @@ impl ReportValidationStatusFilter {
             Self::Ok => "ok",
             Self::Warning => "warning",
             Self::Failed => "failed",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum ReportEventAlign {
+    Trace,
+    Step,
+}
+
+impl ReportEventAlign {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Trace => "trace",
+            Self::Step => "step",
         }
     }
 }
@@ -596,6 +619,7 @@ struct ReportEventDiffEntry {
 struct ReportEventDiffSummary {
     status: String,
     comparison: String,
+    event_alignment: String,
     event_difference_count: usize,
     selected_fields: Vec<String>,
     ignored_fields: Vec<String>,
@@ -828,6 +852,7 @@ pub(crate) fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliEr
                 PathBuf::from(args.right),
                 args.json,
                 args.events,
+                args.event_align,
                 &args.fields,
                 &args.ignore_fields,
                 args.fail_on_diff,
@@ -949,12 +974,13 @@ fn report_diff(
     right: PathBuf,
     json: bool,
     events: bool,
+    event_align: ReportEventAlign,
     fields: &[ReportDiffIgnoreField],
     ignore_fields: &[ReportDiffIgnoreField],
     fail_on_diff: bool,
 ) -> Result<i32, CliError> {
     if events {
-        let summary = diff_report_events(left, right, fields, ignore_fields);
+        let summary = diff_report_events(left, right, event_align, fields, ignore_fields);
         if json {
             print_report_event_diff_json(&summary, fail_on_diff)
         } else {

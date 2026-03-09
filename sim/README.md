@@ -44,6 +44,7 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- report diff <left-report> <right-report> --field run-id`
 - `cargo run -p mycel-cli -- report diff <left-report> <right-report> --ignore-field run-id`
 - `cargo run -p mycel-cli -- report diff <left-report> <right-report> --events`
+- `cargo run -p mycel-cli -- report diff <left-report> <right-report> --events --event-align step`
 - `cargo run -p mycel-cli -- report diff <left-report> <right-report> --events --json`
 - `cargo run -p mycel-cli -- report inspect <path>`
 - `cargo run -p mycel-cli -- report inspect <path> --json`
@@ -120,6 +121,7 @@ Runnable examples:
 - `cargo run -p mycel-cli -- report diff sim/reports/report.example.json sim/reports/invalid/missing-seed-source.example.json --field run-id --field peer-count`
 - `cargo run -p mycel-cli -- report diff sim/reports/report.example.json sim/reports/invalid/missing-seed-source.example.json --ignore-field run-id --ignore-field seed-source`
 - `cargo run -p mycel-cli -- report diff sim/reports/report.example.json sim/reports/invalid/missing-seed-source.example.json --events`
+- `cargo run -p mycel-cli -- report diff sim/reports/report.example.json sim/reports/invalid/missing-seed-source.example.json --events --event-align step`
 - `cargo run -p mycel-cli -- report diff sim/reports/report.example.json sim/reports/invalid/missing-seed-source.example.json --events --json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --full --json`
@@ -175,7 +177,8 @@ Report-inspection output notes:
 - `report diff <left> <right> --field <field>` turns diffing into an allowlist mode; repeat the flag to compare multiple specific fields
 - `report diff <left> <right> --ignore-field <field>` removes specific fields from comparison; repeat the flag to ignore multiple fields
 - `report diff <left> <right> --events` compares event traces by trace identity rather than raw `step`, so step drift alone does not create a diff
-- `report diff <left> <right> --events --json` emits `event_difference_count` plus `event_differences[]`; each entry includes `trace_identity`, `left_step`, and `right_step`, and is classified as `changed`, `left_only`, or `right_only`
+- `report diff <left> <right> --events --event-align step` switches event pairing back to raw `step` alignment when we explicitly want step drift to count as a difference
+- `report diff <left> <right> --events --json` emits `event_alignment`, `event_difference_count`, and `event_differences[]`; each entry includes `trace_identity`, `left_step`, and `right_step`, and is classified as `changed`, `left_only`, or `right_only`
 - `--field` and `--ignore-field` are mutually exclusive
 - `status: ok` means both inputs parsed as report targets successfully; use `comparison: match|different` to tell whether the summaries differ
 - the default diff mode compares stable summary fields such as IDs, execution metadata, counts, expected outcomes, scheduled peer order, and fault-plan count

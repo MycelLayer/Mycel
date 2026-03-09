@@ -271,6 +271,7 @@ fn report_diff_events_json_reports_match_for_same_report() {
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["comparison"], "match");
+    assert_eq!(json["event_alignment"], "trace");
     assert_eq!(json["event_difference_count"], 0);
     assert_eq!(
         json["event_differences"].as_array().map(Vec::len),
@@ -326,6 +327,7 @@ fn report_diff_events_json_reports_step_level_differences() {
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["comparison"], "different");
+    assert_eq!(json["event_alignment"], "trace");
     assert!(
         json["event_difference_count"]
             .as_u64()
@@ -382,11 +384,65 @@ fn report_diff_events_json_matches_shifted_steps_by_trace_identity() {
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["comparison"], "match");
+    assert_eq!(json["event_alignment"], "trace");
     assert_eq!(json["event_difference_count"], 0);
     assert_eq!(
         json["event_differences"].as_array().map(Vec::len),
         Some(0),
         "expected trace identity to absorb step-only drift, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn report_diff_events_json_can_align_by_step() {
+    let temp = create_temp_dir("report-diff-step-align");
+    let left_path = temp.path().join("left.json");
+    let right_path = temp.path().join("right.json");
+    let source_path = repo_root().join("sim/reports/report.example.json");
+    fs::copy(&source_path, &left_path).expect("left report fixture should copy");
+
+    let mut right_report: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&source_path).expect("right source report should read"),
+    )
+    .expect("right source report should parse");
+
+    let events = right_report["events"]
+        .as_array_mut()
+        .expect("events should be an array");
+    for (index, event) in events.iter_mut().enumerate() {
+        event["step"] = serde_json::json!((index as u64) + 11);
+    }
+
+    fs::write(
+        &right_path,
+        serde_json::to_string_pretty(&right_report).expect("shifted report should serialize"),
+    )
+    .expect("shifted report should write");
+
+    let left = left_path.to_string_lossy().into_owned();
+    let right = right_path.to_string_lossy().into_owned();
+    let output = run_report(&[
+        "report",
+        "diff",
+        &left,
+        &right,
+        "--events",
+        "--event-align",
+        "step",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["comparison"], "different");
+    assert_eq!(json["event_alignment"], "step");
+    assert!(
+        json["event_difference_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 2),
+        "expected step alignment to expose drift, stdout: {}",
         stdout_text(&output)
     );
 }
@@ -478,6 +534,7 @@ fn report_diff_events_text_reports_human_event_summary() {
 
     assert_success(&output);
     assert_stdout_contains(&output, "comparison: different");
+    assert_stdout_contains(&output, "event alignment: trace");
     assert_stdout_contains(&output, "event difference count:");
     assert_stdout_contains(
         &output,

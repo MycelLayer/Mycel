@@ -697,6 +697,7 @@ pub(super) fn print_report_event_diff_text(
     println!("left report: {}", summary.left.path.display());
     println!("right report: {}", summary.right.path.display());
     println!("comparison: {}", summary.comparison);
+    println!("event alignment: {}", summary.event_alignment);
     println!("event difference count: {}", summary.event_difference_count);
     if !summary.selected_fields.is_empty() {
         println!("selected fields: {}", summary.selected_fields.join(", "));

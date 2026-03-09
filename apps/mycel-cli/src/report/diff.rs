@@ -161,6 +161,16 @@ struct IndexedReportEvent {
     event: ReportEvent,
 }
 
+fn trace_identity_from_event(event: &ReportEvent, occurrence: usize) -> ReportEventTraceIdentity {
+    ReportEventTraceIdentity {
+        phase: Some(event.phase.clone()),
+        action: Some(event.action.clone()),
+        node_id: event.node_id.clone(),
+        object_ids: event.object_ids.clone(),
+        occurrence,
+    }
+}
+
 fn identity_field_retained(
     fields: &[ReportDiffIgnoreField],
     ignore_fields: &[ReportDiffIgnoreField],
@@ -450,6 +460,7 @@ pub(super) fn diff_reports(
 pub(super) fn diff_report_events(
     left_path: PathBuf,
     right_path: PathBuf,
+    event_align: ReportEventAlign,
     fields: &[ReportDiffIgnoreField],
     ignore_fields: &[ReportDiffIgnoreField],
 ) -> ReportEventDiffSummary {
@@ -464,6 +475,7 @@ pub(super) fn diff_report_events(
         return ReportEventDiffSummary {
             status: "failed".to_string(),
             comparison: "failed".to_string(),
+            event_alignment: event_align.as_str().to_string(),
             event_difference_count: 0,
             selected_fields: selected_field_names(fields),
             ignored_fields: ignored_field_names(ignore_fields),
@@ -474,65 +486,145 @@ pub(super) fn diff_report_events(
         };
     }
 
-    let left_by_identity = index_report_events(left_inspected.events, fields, ignore_fields);
-    let right_by_identity = index_report_events(right_inspected.events, fields, ignore_fields);
-
-    let all_identities = left_by_identity
-        .keys()
-        .chain(right_by_identity.keys())
-        .cloned()
-        .collect::<std::collections::BTreeSet<_>>();
-
     let mut event_differences = Vec::new();
-    for identity_key in all_identities {
-        let left_event = left_by_identity.get(&identity_key).cloned();
-        let right_event = right_by_identity.get(&identity_key).cloned();
-        let trace_identity = left_event
-            .as_ref()
-            .map(|indexed| indexed.identity.clone())
-            .or_else(|| right_event.as_ref().map(|indexed| indexed.identity.clone()))
-            .expect("event identity set should contain one side");
-        let left_step = left_event.as_ref().map(|indexed| indexed.event.step);
-        let right_step = right_event.as_ref().map(|indexed| indexed.event.step);
-        let step = left_step.or(right_step).unwrap_or_default();
-        match (&left_event, &right_event) {
-            (Some(left_event), Some(right_event))
-                if normalized_event_value(&left_event.event, fields, ignore_fields)
-                    != normalized_event_value(&right_event.event, fields, ignore_fields) =>
-            {
-                event_differences.push(ReportEventDiffEntry {
-                    step,
-                    left_step,
-                    right_step,
-                    trace_identity,
-                    change: "changed".to_string(),
-                    left: Some(left_event.event.clone()),
-                    right: Some(right_event.event.clone()),
-                });
+    match event_align {
+        ReportEventAlign::Trace => {
+            let left_by_identity =
+                index_report_events(left_inspected.events, fields, ignore_fields);
+            let right_by_identity =
+                index_report_events(right_inspected.events, fields, ignore_fields);
+
+            let all_identities = left_by_identity
+                .keys()
+                .chain(right_by_identity.keys())
+                .cloned()
+                .collect::<std::collections::BTreeSet<_>>();
+
+            for identity_key in all_identities {
+                let left_event = left_by_identity.get(&identity_key).cloned();
+                let right_event = right_by_identity.get(&identity_key).cloned();
+                let trace_identity = left_event
+                    .as_ref()
+                    .map(|indexed| indexed.identity.clone())
+                    .or_else(|| right_event.as_ref().map(|indexed| indexed.identity.clone()))
+                    .expect("event identity set should contain one side");
+                let left_step = left_event.as_ref().map(|indexed| indexed.event.step);
+                let right_step = right_event.as_ref().map(|indexed| indexed.event.step);
+                let step = left_step.or(right_step).unwrap_or_default();
+                match (&left_event, &right_event) {
+                    (Some(left_event), Some(right_event))
+                        if normalized_event_value(&left_event.event, fields, ignore_fields)
+                            != normalized_event_value(
+                                &right_event.event,
+                                fields,
+                                ignore_fields,
+                            ) =>
+                    {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step,
+                            right_step,
+                            trace_identity,
+                            change: "changed".to_string(),
+                            left: Some(left_event.event.clone()),
+                            right: Some(right_event.event.clone()),
+                        });
+                    }
+                    (Some(_), None) => {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step,
+                            right_step,
+                            trace_identity,
+                            change: "left_only".to_string(),
+                            left: left_event.map(|indexed| indexed.event),
+                            right: None,
+                        });
+                    }
+                    (None, Some(_)) => {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step,
+                            right_step,
+                            trace_identity,
+                            change: "right_only".to_string(),
+                            left: None,
+                            right: right_event.map(|indexed| indexed.event),
+                        });
+                    }
+                    _ => {}
+                }
             }
-            (Some(_), None) => {
-                event_differences.push(ReportEventDiffEntry {
-                    step,
-                    left_step,
-                    right_step,
-                    trace_identity,
-                    change: "left_only".to_string(),
-                    left: left_event.map(|indexed| indexed.event),
-                    right: None,
-                });
+        }
+        ReportEventAlign::Step => {
+            let mut left_by_step = BTreeMap::new();
+            for event in left_inspected.events {
+                left_by_step.insert(event.step, event);
             }
-            (None, Some(_)) => {
-                event_differences.push(ReportEventDiffEntry {
-                    step,
-                    left_step,
-                    right_step,
-                    trace_identity,
-                    change: "right_only".to_string(),
-                    left: None,
-                    right: right_event.map(|indexed| indexed.event),
-                });
+
+            let mut right_by_step = BTreeMap::new();
+            for event in right_inspected.events {
+                right_by_step.insert(event.step, event);
             }
-            _ => {}
+
+            let all_steps = left_by_step
+                .keys()
+                .chain(right_by_step.keys())
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>();
+
+            for step in all_steps {
+                let left_event = left_by_step.get(&step).cloned();
+                let right_event = right_by_step.get(&step).cloned();
+                let trace_identity = left_event
+                    .as_ref()
+                    .map(|event| trace_identity_from_event(event, 1))
+                    .or_else(|| {
+                        right_event
+                            .as_ref()
+                            .map(|event| trace_identity_from_event(event, 1))
+                    })
+                    .expect("event step set should contain one side");
+                match (&left_event, &right_event) {
+                    (Some(left_event), Some(right_event))
+                        if normalized_event_value(left_event, fields, ignore_fields)
+                            != normalized_event_value(right_event, fields, ignore_fields) =>
+                    {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step: Some(left_event.step),
+                            right_step: Some(right_event.step),
+                            trace_identity,
+                            change: "changed".to_string(),
+                            left: Some(left_event.clone()),
+                            right: Some(right_event.clone()),
+                        });
+                    }
+                    (Some(left_event), None) => {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step: Some(left_event.step),
+                            right_step: None,
+                            trace_identity,
+                            change: "left_only".to_string(),
+                            left: Some(left_event.clone()),
+                            right: None,
+                        });
+                    }
+                    (None, Some(right_event)) => {
+                        event_differences.push(ReportEventDiffEntry {
+                            step,
+                            left_step: None,
+                            right_step: Some(right_event.step),
+                            trace_identity,
+                            change: "right_only".to_string(),
+                            left: None,
+                            right: Some(right_event.clone()),
+                        });
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -545,6 +637,7 @@ pub(super) fn diff_report_events(
     ReportEventDiffSummary {
         status: "ok".to_string(),
         comparison: comparison.to_string(),
+        event_alignment: event_align.as_str().to_string(),
         event_difference_count: event_differences.len(),
         selected_fields: selected_field_names(fields),
         ignored_fields: ignored_field_names(ignore_fields),
