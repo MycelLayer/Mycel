@@ -18,6 +18,44 @@ fn repo_validate_json_reports_ok_status() {
 }
 
 #[test]
+fn fixture_file_validate_json_scopes_related_artifacts() {
+    let output = run_validate(&[
+        "validate",
+        "fixtures/object-sets/minimal-valid/fixture.json",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert!(
+        json["report_count"]
+            .as_u64()
+            .expect("report_count should be numeric")
+            >= 1
+    );
+}
+
+#[test]
+fn fixture_directory_validate_json_scopes_related_artifacts() {
+    let output = run_validate(&["validate", "fixtures/object-sets/minimal-valid", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert!(
+        json["report_count"]
+            .as_u64()
+            .expect("report_count should be numeric")
+            >= 1
+    );
+}
+
+#[test]
 fn repo_validate_text_reports_ok_summary() {
     let output = run_validate(&["validate"]);
 
@@ -36,6 +74,107 @@ fn tests_directory_validate_json_reports_ok_status() {
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["test_case_count"], 4);
     assert_eq!(json["topology_count"], 4);
+}
+
+#[test]
+fn peer_file_validate_json_reports_warning_status() {
+    let output = run_validate(&["validate", "sim/peers/peer.example.json", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_warning_contains(&output, "is not referenced by any loaded topology");
+    assert_eq!(json["peer_count"], 1);
+    assert_eq!(json["topology_count"], 0);
+    assert_eq!(json["test_case_count"], 0);
+    assert_eq!(json["report_count"], 0);
+}
+
+#[test]
+fn peers_directory_validate_json_reports_warning_status() {
+    let output = run_validate(&["validate", "sim/peers", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_warning_contains(&output, "is not referenced by any loaded topology");
+    assert_eq!(json["peer_count"], 1);
+    assert_eq!(json["topology_count"], 0);
+    assert_eq!(json["test_case_count"], 0);
+    assert_eq!(json["report_count"], 0);
+}
+
+#[test]
+fn topology_file_validate_json_scopes_related_artifacts() {
+    let output = run_validate(&[
+        "validate",
+        "sim/topologies/three-peer-consistency.example.json",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert!(
+        json["report_count"]
+            .as_u64()
+            .expect("report_count should be numeric")
+            >= 1
+    );
+}
+
+#[test]
+fn topologies_directory_validate_json_reports_ok_status() {
+    let output = run_validate(&["validate", "sim/topologies", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 4);
+    assert_eq!(json["topology_count"], 4);
+    assert_eq!(json["test_case_count"], 4);
+}
+
+#[test]
+fn test_case_file_validate_json_scopes_related_artifacts() {
+    let output = run_validate(&[
+        "validate",
+        "sim/tests/three-peer-consistency.example.json",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert!(
+        json["report_count"]
+            .as_u64()
+            .expect("report_count should be numeric")
+            >= 1
+    );
+}
+
+#[test]
+fn report_file_validate_json_scopes_report_only() {
+    let output = run_validate(&["validate", "sim/reports/report.example.json", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert_eq!(json["report_count"], 1);
+}
+
+#[test]
+fn reports_directory_validate_json_scopes_report_only() {
+    let output = run_validate(&["validate", "sim/reports", "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["fixture_count"], 1);
+    assert_eq!(json["topology_count"], 1);
+    assert_eq!(json["test_case_count"], 1);
+    assert_eq!(json["report_count"], 1);
 }
 
 #[test]
