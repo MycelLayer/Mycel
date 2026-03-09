@@ -3,6 +3,7 @@
 ## Git workflow
 - Commit after every code change.
 - Push to `origin main` after every code change.
+- After each completed code change and push, proactively check the latest CI workflow status and report any failures.
 
 ## Git identity (User vs Agent)
 - User commits (VS Code): `ctf2090 <ctf2090@gmail.com>`
