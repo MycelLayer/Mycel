@@ -1501,6 +1501,23 @@ fn validate_quality_hints(
                     ),
                 );
             }
+
+            if let (Some(deterministic_seed), Some(seed_source)) = (
+                metadata
+                    .get("deterministic_seed")
+                    .and_then(|value| value.as_str()),
+                metadata.get("seed_source").and_then(|value| value.as_str()),
+            ) {
+                if let Some(message) =
+                    validate_seed_source_consistency(deterministic_seed, seed_source)
+                {
+                    push_error(
+                        summary,
+                        &report.path,
+                        format!("report '{}' {message}", report.value.run_id),
+                    );
+                }
+            }
         }
     }
 }
@@ -1523,6 +1540,32 @@ fn relative_display(root: &Path, path: &Path) -> Option<String> {
         .and_then(|relative| relative.to_str().map(|s| s.replace('\\', "/")))
 }
 
+fn validate_seed_source_consistency(deterministic_seed: &str, seed_source: &str) -> Option<String> {
+    match seed_source {
+        "random" => {
+            if deterministic_seed.starts_with("random:") {
+                None
+            } else {
+                Some(format!(
+                    "metadata has seed_source 'random' but deterministic_seed '{}' does not start with 'random:'",
+                    deterministic_seed
+                ))
+            }
+        }
+        "auto" => {
+            if deterministic_seed.starts_with("auto:") {
+                None
+            } else {
+                Some(format!(
+                    "metadata has seed_source 'auto' but deterministic_seed '{}' does not start with 'auto:'",
+                    deterministic_seed
+                ))
+            }
+        }
+        _ => None,
+    }
+}
+
 fn push_error(summary: &mut ValidationSummary, path: &Path, message: String) {
     summary.errors.push(ValidationMessage {
         path: path.display().to_string(),
@@ -1535,4 +1578,31 @@ fn push_warning(summary: &mut ValidationSummary, path: &Path, message: String) {
         path: path.display().to_string(),
         message,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_seed_source_consistency;
+
+    #[test]
+    fn random_seed_source_requires_random_prefix() {
+        assert!(validate_seed_source_consistency("random:123", "random").is_none());
+        assert!(validate_seed_source_consistency("custom-seed", "random").is_some());
+    }
+
+    #[test]
+    fn auto_seed_source_requires_auto_prefix() {
+        assert!(validate_seed_source_consistency("auto:123", "auto").is_none());
+        assert!(validate_seed_source_consistency("custom-seed", "auto").is_some());
+    }
+
+    #[test]
+    fn non_runtime_seed_sources_do_not_require_prefixes() {
+        assert!(validate_seed_source_consistency("custom-seed", "override").is_none());
+        assert!(validate_seed_source_consistency(
+            "three-peer-consistency|three-peer-consistency|minimal-valid|single-process",
+            "derived"
+        )
+        .is_none());
+    }
 }
