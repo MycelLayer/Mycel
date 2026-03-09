@@ -9,6 +9,7 @@
 ## Negative
 
 - `reject-hash-mismatch`: reject invalid object body hash
+  Reference JSON: `sim/tests/hash-mismatch.example.json`
 - `reject-signature-mismatch`: reject invalid object or wire signature
   Reference JSON: `sim/tests/signature-mismatch.example.json`
 
