@@ -31,6 +31,7 @@ This scaffold does not commit us to a language yet.
 The Rust workspace currently exposes:
 
 - `cargo run -p mycel-cli -- info`
+- `cargo run -p mycel-cli -- help`
 - `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture>`
 - `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture> --json`
 - `cargo run -p mycel-cli -- object verify <path>`
@@ -47,10 +48,18 @@ The Rust workspace currently exposes:
 
 Runnable examples:
 
+- `cargo run -p mycel-cli -- info`
+- `cargo run -p mycel-cli -- help`
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/hash-mismatch.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/signature-mismatch.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/partial-want-recovery.example.json`
+
+Info/help output notes:
+
+- `info` prints the workspace banner, simulator scaffold banner, and the current fixture / peer / topology / test / report paths
+- `help` and a no-argument invocation both print the same top-level usage sections
+- unknown top-level commands print the same usage text and exit with an error
 
 Validation output notes:
 
