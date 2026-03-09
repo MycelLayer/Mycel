@@ -336,6 +336,13 @@ struct ReportStatsCliArgs {
     #[arg(long, help = "Emit machine-readable report statistics output")]
     json: bool,
     #[arg(
+        long = "counts-only",
+        help = "Emit only aggregate counts (requires --json)",
+        requires = "json",
+        conflicts_with_all = ["full_latest", "path_only_latest"]
+    )]
+    counts_only: bool,
+    #[arg(
         long = "full-latest",
         help = "Emit the latest matching raw report (requires --json)",
         requires = "json",
@@ -1773,6 +1780,19 @@ fn print_report_stats_json(summary: &ReportStatsSummary) -> Result<i32, CliError
     render_report_stats_json(json, summary.is_ok())
 }
 
+fn print_report_stats_counts_json(summary: &ReportStatsSummary) -> Result<i32, CliError> {
+    let mut json = report_query_summary_json(ReportQuerySummaryView::from(summary));
+    json.insert(
+        "result_counts".to_string(),
+        serde_json::json!(summary.result_counts),
+    );
+    json.insert(
+        "validation_status_counts".to_string(),
+        serde_json::json!(summary.validation_status_counts),
+    );
+    render_report_stats_json(json, summary.is_ok())
+}
+
 fn render_report_stats_json(
     json: serde_json::Map<String, serde_json::Value>,
     ok: bool,
@@ -2186,6 +2206,7 @@ fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
             report_stats(
                 PathBuf::from(target),
                 args.json,
+                args.counts_only,
                 args.full_latest,
                 args.path_only_latest,
                 args.result,
@@ -2435,6 +2456,7 @@ fn report_latest(
 fn report_stats(
     target: PathBuf,
     json: bool,
+    counts_only: bool,
     full_latest: bool,
     path_only_latest: bool,
     result_filter: Option<ReportResultFilter>,
@@ -2446,6 +2468,8 @@ fn report_stats(
     ));
     if path_only_latest {
         Ok(print_report_stats_latest_path(&summary))
+    } else if counts_only {
+        print_report_stats_counts_json(&summary)
     } else if full_latest {
         print_report_stats_full_latest(&summary)
     } else if json {

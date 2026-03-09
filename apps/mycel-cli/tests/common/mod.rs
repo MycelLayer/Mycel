@@ -364,6 +364,10 @@ pub fn assert_report_stats_help(stdout: &str) {
         "expected json flag in report stats help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--counts-only"),
+        "expected counts-only flag in report stats help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("--full-latest"),
         "expected full-latest flag in report stats help, stdout: {stdout}"
     );

@@ -54,6 +54,7 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- report latest <path> --json`
 - `cargo run -p mycel-cli -- report stats`
 - `cargo run -p mycel-cli -- report stats --json`
+- `cargo run -p mycel-cli -- report stats --counts-only --json`
 - `cargo run -p mycel-cli -- report stats --full-latest --json`
 - `cargo run -p mycel-cli -- report stats --path-only-latest`
 - `cargo run -p mycel-cli -- report stats --result pass --json`
@@ -98,6 +99,7 @@ Runnable examples:
 - `cargo run -p mycel-cli -- report latest sim/reports/out --json`
 - `cargo run -p mycel-cli -- report stats`
 - `cargo run -p mycel-cli -- report stats --json`
+- `cargo run -p mycel-cli -- report stats --counts-only --json`
 - `cargo run -p mycel-cli -- report stats --full-latest --json`
 - `cargo run -p mycel-cli -- report stats --path-only-latest`
 - `cargo run -p mycel-cli -- report stats --result pass --json`
@@ -145,6 +147,7 @@ Report-inspection output notes:
 - invalid reports do not block `report latest` if at least one valid report exists; they downgrade the top-level status to `warning`
 - `report stats` summarizes one report directory or file and aggregates counts across valid reports
 - `report stats --json` emits a stable summary with `root`, `status`, counts, `result_counts`, `validation_status_counts`, `latest_finished_at`, `latest_valid_report`, and `errors`
+- `report stats --counts-only --json` emits only aggregate counts plus top-level status/filter fields, without latest-report detail fields
 - `report stats --full-latest --json` emits the latest matching raw report JSON and falls back to a failed stats summary JSON when no valid report matches
 - `report stats --path-only-latest` prints only the latest matching valid report path and is intended for shell-script handoff
 - `report stats --result <pass|fail>` narrows the aggregated valid-report set to one result while still retaining invalid parse entries in the top-level counts and status

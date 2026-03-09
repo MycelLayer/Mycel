@@ -156,6 +156,45 @@ fn report_stats_json_filters_to_result_and_validation_status_intersection() {
 }
 
 #[test]
+fn report_stats_counts_only_json_emits_aggregate_counts_only() {
+    let temp_dir = create_temp_dir("report-stats-counts-only");
+    let pass_report = temp_dir.path().join("pass.report.json");
+    let fail_report = temp_dir.path().join("fail.report.json");
+    let invalid = temp_dir.path().join("broken.report.json");
+    write_report_with_result_and_validation_status(
+        &pass_report,
+        "run:pass",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+    write_report_with_result_and_validation_status(
+        &fail_report,
+        "run:fail",
+        "2026-03-09T12:00:05+08:00",
+        "fail",
+        "warning",
+    );
+    fs::write(&invalid, "{ broken json").expect("invalid report should be written");
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&["report", "stats", &target, "--counts-only", "--json"]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "warning");
+    assert_eq!(json["report_count"], 3);
+    assert_eq!(json["valid_report_count"], 2);
+    assert_eq!(json["invalid_report_count"], 1);
+    assert_eq!(json["result_counts"]["pass"], 1);
+    assert_eq!(json["result_counts"]["fail"], 1);
+    assert_eq!(json["validation_status_counts"]["ok"], 1);
+    assert_eq!(json["validation_status_counts"]["warning"], 1);
+    assert!(json.get("latest_valid_report").is_none());
+    assert!(json.get("latest_finished_at").is_none());
+}
+
+#[test]
 fn report_stats_text_reports_human_summary() {
     let temp_dir = create_temp_dir("report-stats-text");
     let pass_report = temp_dir.path().join("pass.report.json");
@@ -437,4 +476,29 @@ fn report_stats_rejects_full_latest_with_path_only_latest() {
     assert_stderr_contains(&output, "cannot be used with");
     assert_stderr_contains(&output, "--full-latest");
     assert_stderr_contains(&output, "--path-only-latest");
+}
+
+#[test]
+fn report_stats_rejects_counts_only_without_json() {
+    let output = run_report(&["report", "stats", "sim/reports", "--counts-only"]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "--json");
+}
+
+#[test]
+fn report_stats_rejects_counts_only_with_full_latest() {
+    let output = run_report(&[
+        "report",
+        "stats",
+        "sim/reports",
+        "--counts-only",
+        "--full-latest",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "cannot be used with");
+    assert_stderr_contains(&output, "--counts-only");
+    assert_stderr_contains(&output, "--full-latest");
 }
