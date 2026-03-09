@@ -303,3 +303,55 @@ fn sim_run_rejects_unexpected_extra_arguments() {
         "expected unexpected argument error, stderr: {stderr}"
     );
 }
+
+#[test]
+fn sim_requires_subcommand() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("missing sim subcommand"),
+        "expected missing subcommand error, stderr: {stderr}"
+    );
+}
+
+#[test]
+fn sim_rejects_unknown_subcommand() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim", "bogus"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("unknown sim subcommand: bogus"),
+        "expected unknown subcommand error, stderr: {stderr}"
+    );
+}
+
+#[test]
+fn sim_run_requires_target_path() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim", "run"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("missing sim run target"),
+        "expected missing run target error, stderr: {stderr}"
+    );
+}
+
+#[test]
+fn sim_run_rejects_directory_targets() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim", "run", "sim/tests"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = stderr_text(&output);
+    assert!(
+        stderr.contains("failed to read") && stderr.contains("Is a directory"),
+        "expected directory target read failure, stderr: {stderr}"
+    );
+}
