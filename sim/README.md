@@ -36,6 +36,8 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture> --json`
 - `cargo run -p mycel-cli -- object verify <path>`
 - `cargo run -p mycel-cli -- object verify <path> --json`
+- `cargo run -p mycel-cli -- report inspect <path>`
+- `cargo run -p mycel-cli -- report inspect <path> --json`
 - `cargo run -p mycel-cli -- validate`
 - `cargo run -p mycel-cli -- validate <path>`
 - `cargo run -p mycel-cli -- validate <path> --json`
@@ -50,6 +52,7 @@ Runnable examples:
 
 - `cargo run -p mycel-cli -- info`
 - `cargo run -p mycel-cli -- help`
+- `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/hash-mismatch.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/signature-mismatch.example.json`
@@ -60,6 +63,12 @@ Info/help output notes:
 - `info` prints the workspace banner, simulator scaffold banner, and the current fixture / peer / topology / test / report paths
 - `help` and a no-argument invocation both print the same top-level usage sections
 - unknown top-level commands print the same usage text and exit with an error
+
+Report-inspection output notes:
+
+- `report inspect <path>` prints a human-readable summary for one simulator report
+- `report inspect <path> --json` emits a stable inspection summary including run identity, result, counts, selected metadata, and errors
+- schema files are not valid inspect targets; use an actual report file such as `sim/reports/report.example.json` or one generated under `sim/reports/out/`
 
 Validation output notes:
 

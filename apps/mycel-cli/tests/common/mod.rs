@@ -68,6 +68,10 @@ pub fn run_sim(args: &[&str]) -> Output {
     run_mycel(args)
 }
 
+pub fn run_report(args: &[&str]) -> Output {
+    run_mycel(args)
+}
+
 pub fn parse_json_stdout(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
 }
@@ -201,8 +205,16 @@ pub fn assert_usage_sections(stdout: &str) {
         "expected Object options section, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("Report options:"),
+        "expected Report options section, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("Sim options:"),
         "expected Sim options section, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("report"),
+        "expected report command in usage, stdout: {stdout}"
     );
     assert!(
         stdout.contains("Validate options:"),
