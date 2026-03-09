@@ -31,6 +31,10 @@ This scaffold does not commit us to a language yet.
 The Rust workspace currently exposes:
 
 - `cargo run -p mycel-cli -- info`
+- `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture>`
+- `cargo run -p mycel-cli -- head inspect <doc_id> --input <path|fixture> --json`
+- `cargo run -p mycel-cli -- object verify <path>`
+- `cargo run -p mycel-cli -- object verify <path> --json`
 - `cargo run -p mycel-cli -- validate`
 - `cargo run -p mycel-cli -- validate <path>`
 - `cargo run -p mycel-cli -- validate <path> --json`
@@ -52,6 +56,12 @@ Validation output notes:
 
 - `--json` includes a stable top-level `status`
 - `--strict` treats warnings as failures for CI-oriented validation
+
+Head-inspection output notes:
+
+- `decision_trace` is intentionally kept as a high-level explanatory summary for humans
+- typed arrays such as `effective_weights[]`, `maintainer_support[]`, and `critical_violations[]` carry the stable machine-consumable selection detail
+- tools and tests should rely on typed arrays for detailed assertions instead of parsing `decision_trace`
 
 Simulator run notes:
 
