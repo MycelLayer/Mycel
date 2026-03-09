@@ -57,6 +57,21 @@ The script now ends with a short per-case summary so we can confirm the outcome 
 Use `--summary-only` when we want compact CI-oriented output.
 Use `--case <name>` when we want to run one case in isolation.
 
+## CI
+
+GitHub Actions now runs this script as part of the main CI workflow:
+
+```bash
+./sim/negative-validation/smoke.sh --summary-only
+```
+
+The CI job currently runs:
+
+- `cargo fmt --all --check`
+- `cargo check`
+- `cargo test -p mycel-sim`
+- `./sim/negative-validation/smoke.sh --summary-only`
+
 Available case names:
 
 - `repo-validate-ok`

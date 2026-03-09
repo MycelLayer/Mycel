@@ -68,6 +68,10 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 - [sim/SCHEMA-CROSS-CHECK.md](./sim/SCHEMA-CROSS-CHECK.md): Cross-check rules for how simulator schemas and IDs should line up
 - [RUST-WORKSPACE.md](./RUST-WORKSPACE.md): Initial Rust workspace layout for the core, simulator library, and CLI
 
+### CI
+
+- [.github/workflows/ci.yml](./.github/workflows/ci.yml): GitHub Actions workflow for Rust checks and negative validation smoke coverage
+
 ## Near-Term Priorities
 
 1. Build a narrow first client around sync, verification, accepted-head selection, and reader-first text rendering
