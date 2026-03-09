@@ -36,24 +36,24 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 
 ### Design Notes
 
-- [DESIGN-NOTES.client-non-discretionary-multi-view.en.md](./DESIGN-NOTES.client-non-discretionary-multi-view.en.md): Design draft for a protocol-governed multi-view reader model
-- [DESIGN-NOTES.two-maintainer-role.en.md](./DESIGN-NOTES.two-maintainer-role.en.md): Design draft for splitting editor and view maintainer authority
-- [DESIGN-NOTES.mycel-app-layer.en.md](./DESIGN-NOTES.mycel-app-layer.en.md): Design draft for separating client, runtime, and effect responsibilities
-- [DESIGN-NOTES.qa-app-layer.en.md](./DESIGN-NOTES.qa-app-layer.en.md): Design draft for a Q&A app carried by Mycel
-- [DESIGN-NOTES.qa-minimal-schema.en.md](./DESIGN-NOTES.qa-minimal-schema.en.md): Minimal schema draft for a Q&A app
-- [DESIGN-NOTES.donation-app-layer.en.md](./DESIGN-NOTES.donation-app-layer.en.md): Design draft for a donation-oriented app carried by Mycel
-- [DESIGN-NOTES.canonical-text-profile.en.md](./DESIGN-NOTES.canonical-text-profile.en.md): Design draft for a neutral canonical-text profile with witnesses, anchors, commentary, and accepted readings
-- [DESIGN-NOTES.interpretation-dispute-model.en.md](./DESIGN-NOTES.interpretation-dispute-model.en.md): Design draft for preserving and governing rival interpretations without overwriting root text
-- [DESIGN-NOTES.auto-signer-consent-model.en.md](./DESIGN-NOTES.auto-signer-consent-model.en.md): Design draft for enrollment and consent boundaries in automatic signer systems
-- [DESIGN-NOTES.policy-driven-threshold-custody.en.md](./DESIGN-NOTES.policy-driven-threshold-custody.en.md): Design draft for policy-authorized automatic threshold custody
-- [DESIGN-NOTES.mycel-anonymity-model.en.md](./DESIGN-NOTES.mycel-anonymity-model.en.md): Design draft for analyzing anonymity across transport, metadata, client, runtime, and replication layers
-- [DESIGN-NOTES.first-client-scope-v0.1.en.md](./DESIGN-NOTES.first-client-scope-v0.1.en.md): Design draft for the narrow first-client target and what it must deliberately defer
-- [DESIGN-NOTES.mycel-full-stack-map.en.md](./DESIGN-NOTES.mycel-full-stack-map.en.md): Design draft mapping the current Mycel documents into one layered full-stack system view
-- [DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md](./DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md): Design draft for keeping protocol core changes conservative while moving faster in profiles and design notes
-- [DESIGN-NOTES.peer-discovery-model.en.md](./DESIGN-NOTES.peer-discovery-model.en.md): Design draft for bounded peer discovery across public, restricted, and Tor-oriented deployments
-- [DESIGN-NOTES.peer-simulator-v0.en.md](./DESIGN-NOTES.peer-simulator-v0.en.md): Design draft for an early multi-peer simulator and test harness
-- [DESIGN-NOTES.sensor-triggered-donation.en.md](./DESIGN-NOTES.sensor-triggered-donation.en.md): Design draft for a sensor-triggered donation flow
-- [DESIGN-NOTES.governance-history-security.en.md](./DESIGN-NOTES.governance-history-security.en.md): Design draft for securing governance history
+- [docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.en.md](./docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.en.md): Design draft for a protocol-governed multi-view reader model
+- [docs/design-notes/DESIGN-NOTES.two-maintainer-role.en.md](./docs/design-notes/DESIGN-NOTES.two-maintainer-role.en.md): Design draft for splitting editor and view maintainer authority
+- [docs/design-notes/DESIGN-NOTES.mycel-app-layer.en.md](./docs/design-notes/DESIGN-NOTES.mycel-app-layer.en.md): Design draft for separating client, runtime, and effect responsibilities
+- [docs/design-notes/DESIGN-NOTES.qa-app-layer.en.md](./docs/design-notes/DESIGN-NOTES.qa-app-layer.en.md): Design draft for a Q&A app carried by Mycel
+- [docs/design-notes/DESIGN-NOTES.qa-minimal-schema.en.md](./docs/design-notes/DESIGN-NOTES.qa-minimal-schema.en.md): Minimal schema draft for a Q&A app
+- [docs/design-notes/DESIGN-NOTES.donation-app-layer.en.md](./docs/design-notes/DESIGN-NOTES.donation-app-layer.en.md): Design draft for a donation-oriented app carried by Mycel
+- [docs/design-notes/DESIGN-NOTES.canonical-text-profile.en.md](./docs/design-notes/DESIGN-NOTES.canonical-text-profile.en.md): Design draft for a neutral canonical-text profile with witnesses, anchors, commentary, and accepted readings
+- [docs/design-notes/DESIGN-NOTES.interpretation-dispute-model.en.md](./docs/design-notes/DESIGN-NOTES.interpretation-dispute-model.en.md): Design draft for preserving and governing rival interpretations without overwriting root text
+- [docs/design-notes/DESIGN-NOTES.auto-signer-consent-model.en.md](./docs/design-notes/DESIGN-NOTES.auto-signer-consent-model.en.md): Design draft for enrollment and consent boundaries in automatic signer systems
+- [docs/design-notes/DESIGN-NOTES.policy-driven-threshold-custody.en.md](./docs/design-notes/DESIGN-NOTES.policy-driven-threshold-custody.en.md): Design draft for policy-authorized automatic threshold custody
+- [docs/design-notes/DESIGN-NOTES.mycel-anonymity-model.en.md](./docs/design-notes/DESIGN-NOTES.mycel-anonymity-model.en.md): Design draft for analyzing anonymity across transport, metadata, client, runtime, and replication layers
+- [docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.en.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.en.md): Design draft for the narrow first-client target and what it must deliberately defer
+- [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md): Design draft mapping the current Mycel documents into one layered full-stack system view
+- [docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md): Design draft for keeping protocol core changes conservative while moving faster in profiles and design notes
+- [docs/design-notes/DESIGN-NOTES.peer-discovery-model.en.md](./docs/design-notes/DESIGN-NOTES.peer-discovery-model.en.md): Design draft for bounded peer discovery across public, restricted, and Tor-oriented deployments
+- [docs/design-notes/DESIGN-NOTES.peer-simulator-v0.en.md](./docs/design-notes/DESIGN-NOTES.peer-simulator-v0.en.md): Design draft for an early multi-peer simulator and test harness
+- [docs/design-notes/DESIGN-NOTES.sensor-triggered-donation.en.md](./docs/design-notes/DESIGN-NOTES.sensor-triggered-donation.en.md): Design draft for a sensor-triggered donation flow
+- [docs/design-notes/DESIGN-NOTES.governance-history-security.en.md](./docs/design-notes/DESIGN-NOTES.governance-history-security.en.md): Design draft for securing governance history
 
 ### Meta
 
