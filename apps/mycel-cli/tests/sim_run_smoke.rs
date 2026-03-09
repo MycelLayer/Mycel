@@ -23,6 +23,14 @@ fn run_sim(args: &[&str]) -> Output {
         .expect("sim command should run")
 }
 
+fn run_validate(args: &[&str]) -> Output {
+    Command::new(mycel_bin())
+        .current_dir(repo_root())
+        .args(args)
+        .output()
+        .expect("validate command should run")
+}
+
 fn parse_json_stdout(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
 }
@@ -33,6 +41,24 @@ fn load_report(summary: &Value) -> Value {
         .expect("report_path should be a string");
     let content = fs::read_to_string(report_path).expect("report file should exist");
     serde_json::from_str(&content).expect("report file should contain valid JSON")
+}
+
+fn validate_generated_report(summary: &Value) -> Value {
+    let report_path = summary["report_path"]
+        .as_str()
+        .expect("report_path should be a string");
+    let output = run_validate(&["validate", report_path, "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected generated report to validate, stdout: {}, stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let validation = parse_json_stdout(&output);
+    assert_eq!(validation["status"], "ok");
+    validation
 }
 
 #[test]
@@ -83,6 +109,9 @@ fn three_peer_consistency_run_produces_pass_report() {
             .any(|entry| entry["action"] == "seed-advertise"),
         "expected seed-advertise event in report"
     );
+
+    let validation = validate_generated_report(&summary);
+    assert_eq!(validation["report_count"], 1);
 }
 
 #[test]
@@ -128,6 +157,9 @@ fn hash_mismatch_run_produces_fault_plan_and_fail_result() {
             .any(|entry| entry["action"] == "reject-object-set"),
         "expected reject-object-set event in report"
     );
+
+    let validation = validate_generated_report(&summary);
+    assert_eq!(validation["report_count"], 1);
 }
 
 #[test]
@@ -169,4 +201,7 @@ fn partial_want_recovery_run_records_recovery_flow() {
             .any(|entry| entry["action"] == "request-missing-objects"),
         "expected request-missing-objects event in report"
     );
+
+    let validation = validate_generated_report(&summary);
+    assert_eq!(validation["report_count"], 1);
 }
