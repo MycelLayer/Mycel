@@ -46,6 +46,7 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- report inspect <path> --outcome <name>`
 - `cargo run -p mycel-cli -- report inspect <path> --step <n>`
 - `cargo run -p mycel-cli -- report inspect <path> --step-range <a>:<b>`
+- `cargo run -p mycel-cli -- report inspect <path> --first <n>`
 - `cargo run -p mycel-cli -- report inspect <path> --last <n>`
 - `cargo run -p mycel-cli -- report inspect <path> --node <id>`
 - `cargo run -p mycel-cli -- validate`
@@ -70,6 +71,7 @@ Runnable examples:
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --outcome ok`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --step 2`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --step-range 2:3`
+- `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --first 2`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --last 2`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --node node:peer-seed`
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
@@ -95,6 +97,7 @@ Report-inspection output notes:
 - `report inspect <path> --outcome <name>` narrows event inspection to one outcome and implicitly uses event view
 - `report inspect <path> --step <n>` narrows event inspection to one step number and implicitly uses event view
 - `report inspect <path> --step-range <a>:<b>` narrows event inspection to one inclusive step range and implicitly uses event view
+- `report inspect <path> --first <n>` keeps the first `n` matching events after other event filters are applied
 - `report inspect <path> --last <n>` keeps the last `n` matching events after other event filters are applied
 - `report inspect <path> --node <id>` narrows event inspection to one node, or failure inspection when combined with `--failures`
 - `--events`, `--failures`, and `--full` are mutually exclusive
@@ -103,6 +106,7 @@ Report-inspection output notes:
 - `--outcome` cannot be combined with `--failures` or `--full`
 - `--step` cannot be combined with `--failures` or `--full`
 - `--step-range` cannot be combined with `--failures` or `--full`
+- `--first` cannot be combined with `--failures` or `--full`
 - `--last` cannot be combined with `--failures` or `--full`
 - `--step` and `--step-range` are mutually exclusive
 - `--node` cannot be combined with `--full`

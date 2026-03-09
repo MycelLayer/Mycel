@@ -45,6 +45,7 @@ fn print_usage() {
     println!("  --outcome <name> Filter event inspection to one outcome");
     println!("  --step <n>      Filter event inspection to one step number");
     println!("  --step-range <a>:<b>  Filter event inspection to one inclusive step range");
+    println!("  --first <n>     Filter event inspection to the first N matching events");
     println!("  --last <n>      Filter event inspection to the last N matching events");
     println!("  --node <id>     Filter event or failure inspection to one node");
     println!();
@@ -301,6 +302,7 @@ struct ReportInspectFilters {
     outcome: Option<String>,
     step: Option<u64>,
     step_range: Option<(u64, u64)>,
+    first: Option<usize>,
     last: Option<usize>,
     node: Option<String>,
 }
@@ -708,6 +710,11 @@ fn filter_events(events: &[ReportEvent], filters: &ReportInspectFilters) -> Vec<
         .cloned()
         .collect();
 
+    let filtered = match filters.first {
+        Some(first) => filtered.into_iter().take(first).collect(),
+        None => filtered,
+    };
+
     match filters.last {
         Some(last) => {
             let skip = filtered.len().saturating_sub(last);
@@ -1075,6 +1082,7 @@ fn main() {
                 let mut expect_outcome_value = false;
                 let mut expect_step_value = false;
                 let mut expect_step_range_value = false;
+                let mut expect_first_value = false;
                 let mut expect_last_value = false;
                 let mut expect_node_value = false;
 
@@ -1112,6 +1120,18 @@ fn main() {
                         };
                         filters.step_range = Some(step_range);
                         expect_step_range_value = false;
+                    } else if expect_first_value {
+                        let first = match arg.parse::<usize>() {
+                            Ok(first) => first,
+                            Err(_) => {
+                                eprintln!("invalid value for --first: {arg}");
+                                eprintln!();
+                                print_usage();
+                                std::process::exit(2);
+                            }
+                        };
+                        filters.first = Some(first);
+                        expect_first_value = false;
                     } else if expect_last_value {
                         let last = match arg.parse::<usize>() {
                             Ok(last) => last,
@@ -1156,6 +1176,12 @@ fn main() {
                         }
                         if filters.step_range.is_some() {
                             eprintln!("report inspect --step-range cannot be combined with --full");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if filters.first.is_some() {
+                            eprintln!("report inspect --first cannot be combined with --full");
                             eprintln!();
                             print_usage();
                             std::process::exit(2);
@@ -1222,6 +1248,12 @@ fn main() {
                             eprintln!(
                                 "report inspect --step-range cannot be combined with --failures"
                             );
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if filters.first.is_some() {
+                            eprintln!("report inspect --first cannot be combined with --failures");
                             eprintln!();
                             print_usage();
                             std::process::exit(2);
@@ -1357,6 +1389,26 @@ fn main() {
                             std::process::exit(2);
                         }
                         expect_step_range_value = true;
+                    } else if arg == "--first" {
+                        if expect_first_value {
+                            eprintln!("missing value for --first");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if mode == ReportInspectMode::Full {
+                            eprintln!("report inspect --first cannot be combined with --full");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if mode == ReportInspectMode::Failures {
+                            eprintln!("report inspect --first cannot be combined with --failures");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        expect_first_value = true;
                     } else if arg == "--last" {
                         if expect_last_value {
                             eprintln!("missing value for --last");
@@ -1431,6 +1483,12 @@ fn main() {
                     print_usage();
                     std::process::exit(2);
                 }
+                if expect_first_value {
+                    eprintln!("missing value for --first");
+                    eprintln!();
+                    print_usage();
+                    std::process::exit(2);
+                }
                 if expect_last_value {
                     eprintln!("missing value for --last");
                     eprintln!();
@@ -1450,6 +1508,7 @@ fn main() {
                         || filters.outcome.is_some()
                         || filters.step.is_some()
                         || filters.step_range.is_some()
+                        || filters.first.is_some()
                         || filters.last.is_some()
                         || filters.node.is_some())
                 {
