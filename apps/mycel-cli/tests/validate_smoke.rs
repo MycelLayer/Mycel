@@ -4,7 +4,8 @@ mod common;
 
 use common::{
     assert_exit_code, assert_json_error_contains, assert_json_status, assert_json_warning_contains,
-    assert_stderr_contains, assert_success, parse_json_stdout, run_validate, stdout_text,
+    assert_stderr_contains, assert_stdout_contains, assert_success, parse_json_stdout,
+    run_validate, stdout_text,
 };
 
 #[test]
@@ -14,6 +15,17 @@ fn repo_validate_json_reports_ok_status() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["errors"], Value::Array(Vec::new()));
+}
+
+#[test]
+fn repo_validate_text_reports_ok_summary() {
+    let output = run_validate(&["validate"]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "repo root:");
+    assert_stdout_contains(&output, "validated target:");
+    assert_stdout_contains(&output, "status: ok");
+    assert_stdout_contains(&output, "validation: ok");
 }
 
 #[test]
@@ -125,6 +137,34 @@ fn missing_seed_source_warns_and_strict_fails() {
     );
 
     let _strict_json = assert_json_warning_contains(&strict_output, "does not include seed_source");
+}
+
+#[test]
+fn missing_seed_source_text_reports_warning_summary() {
+    let output = run_validate(&[
+        "validate",
+        "sim/reports/invalid/missing-seed-source.example.json",
+    ]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "status: warning");
+    assert_stdout_contains(&output, "validation: warning");
+    assert_stderr_contains(&output, "warning:");
+    assert_stderr_contains(&output, "does not include seed_source");
+}
+
+#[test]
+fn invalid_random_seed_prefix_text_reports_failure_summary() {
+    let output = run_validate(&[
+        "validate",
+        "sim/reports/invalid/random-seed-prefix-mismatch.example.json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    assert_stdout_contains(&output, "status: failed");
+    assert_stdout_contains(&output, "validation: failed");
+    assert_stderr_contains(&output, "error:");
+    assert_stderr_contains(&output, "seed_source 'random'");
 }
 
 #[test]

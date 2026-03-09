@@ -5,8 +5,8 @@ use serde_json::Value;
 mod common;
 
 use common::{
-    assert_exit_code, assert_stderr_contains, load_report, parse_json_stdout, run_sim, stderr_text,
-    validate_generated_report,
+    assert_empty_stderr, assert_exit_code, assert_stderr_contains, assert_stdout_contains,
+    load_report, parse_json_stdout, run_sim, stderr_text, validate_generated_report,
 };
 
 fn sim_run_lock() -> MutexGuard<'static, ()> {
@@ -237,6 +237,47 @@ fn partial_want_recovery_run_records_recovery_flow() {
 
     let validation = validate_generated_report(&summary);
     assert_eq!(validation["report_count"], 1);
+}
+
+#[test]
+fn three_peer_consistency_run_text_reports_human_summary() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/three-peer-consistency.example.json",
+    ]);
+
+    assert_exit_code(&output, 0);
+    assert_empty_stderr(&output);
+    assert_stdout_contains(&output, "repo root:");
+    assert_stdout_contains(&output, "run target:");
+    assert_stdout_contains(&output, "seed source: derived");
+    assert_stdout_contains(&output, "fault plan: none");
+    assert_stdout_contains(&output, "validation status: ok");
+    assert_stdout_contains(&output, "result: pass");
+    assert_stdout_contains(&output, "matched expected outcomes:");
+}
+
+#[test]
+fn hash_mismatch_run_text_reports_fault_summary() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/hash-mismatch.example.json",
+        "--seed",
+        "custom-seed",
+    ]);
+
+    assert_exit_code(&output, 0);
+    assert_empty_stderr(&output);
+    assert_stdout_contains(&output, "deterministic seed: custom-seed");
+    assert_stdout_contains(&output, "seed source: override");
+    assert_stdout_contains(&output, "fault plan: #1:hash-mismatch:");
+    assert_stdout_contains(&output, "validation status: ok");
+    assert_stdout_contains(&output, "result: fail");
+    assert_stdout_contains(&output, "rejected objects: 1");
 }
 
 #[test]
