@@ -26,6 +26,27 @@ fn parse_json_stdout(output: &std::process::Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
 }
 
+fn assert_failed_with_message(output: &std::process::Output, expected_text: &str) {
+    assert!(
+        !output.status.success(),
+        "expected failure, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let json = parse_json_stdout(output);
+    assert_eq!(json["status"], "failed");
+    let errors = json["errors"].as_array().expect("errors should be an array");
+    assert!(
+        errors.iter().any(|entry| {
+            entry["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_text))
+        }),
+        "expected error containing '{expected_text}', stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
 #[test]
 fn repo_validate_json_reports_ok_status() {
     let output = run_validate(&["validate", "--json"]);
@@ -49,26 +70,40 @@ fn invalid_random_seed_prefix_report_fails_validation() {
         "--json",
     ]);
 
-    assert!(
-        !output.status.success(),
-        "expected failure, stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
+    assert_failed_with_message(&output, "seed_source 'random'");
+}
 
-    let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "failed");
-    let errors = json["errors"]
-        .as_array()
-        .expect("errors should be an array");
-    assert!(
-        errors.iter().any(|entry| {
-            entry["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("seed_source 'random'"))
-        }),
-        "expected random seed prefix error, stdout: {}",
-        String::from_utf8_lossy(&output.stdout)
-    );
+#[test]
+fn invalid_auto_seed_prefix_report_fails_validation() {
+    let output = run_validate(&[
+        "validate",
+        "sim/reports/invalid/auto-seed-prefix-mismatch.example.json",
+        "--json",
+    ]);
+
+    assert_failed_with_message(&output, "seed_source 'auto'");
+}
+
+#[test]
+fn unknown_topology_reference_report_fails_validation() {
+    let output = run_validate(&[
+        "validate",
+        "sim/reports/invalid/unknown-topology-reference.example.json",
+        "--json",
+    ]);
+
+    assert_failed_with_message(&output, "does not match any loaded topology");
+}
+
+#[test]
+fn unknown_fixture_reference_report_fails_validation() {
+    let output = run_validate(&[
+        "validate",
+        "sim/reports/invalid/unknown-fixture-reference.example.json",
+        "--json",
+    ]);
+
+    assert_failed_with_message(&output, "does not match any loaded fixture");
 }
 
 #[test]
