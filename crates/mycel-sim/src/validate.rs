@@ -918,7 +918,7 @@ fn load_test_cases(root: &Path, summary: &mut ValidationSummary) -> Vec<NamedTes
 
 fn load_reports(root: &Path, summary: &mut ValidationSummary) -> Vec<NamedReport> {
     let base = root.join("sim/reports");
-    load_json_files::<Report>(&base, summary)
+    load_json_files_recursive::<Report>(&base, summary)
         .into_iter()
         .map(|(path, value)| NamedReport { path, value })
         .collect()
@@ -948,6 +948,30 @@ fn load_json_files<T: serde::de::DeserializeOwned>(
     items
 }
 
+fn load_json_files_recursive<T: serde::de::DeserializeOwned>(
+    base: &Path,
+    summary: &mut ValidationSummary,
+) -> Vec<(PathBuf, T)> {
+    let mut items = Vec::new();
+
+    for path in read_dir_paths_recursive(base, summary) {
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !name.ends_with(".json") || name.ends_with(".schema.json") {
+            continue;
+        }
+        if let Some(value) = load_json::<T>(&path, summary) {
+            items.push((path, value));
+        }
+    }
+
+    items
+}
+
 fn read_dir_paths(base: &Path, summary: &mut ValidationSummary) -> Vec<PathBuf> {
     match fs::read_dir(base) {
         Ok(entries) => entries
@@ -958,6 +982,19 @@ fn read_dir_paths(base: &Path, summary: &mut ValidationSummary) -> Vec<PathBuf> 
             Vec::new()
         }
     }
+}
+
+fn read_dir_paths_recursive(base: &Path, summary: &mut ValidationSummary) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    for path in read_dir_paths(base, summary) {
+        paths.push(path.clone());
+        if path.is_dir() {
+            paths.extend(read_dir_paths_recursive(&path, summary));
+        }
+    }
+
+    paths
 }
 
 fn validate_peers(peers: &[NamedPeer], summary: &mut ValidationSummary) {

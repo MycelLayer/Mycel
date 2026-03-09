@@ -20,8 +20,9 @@ The current Rust workspace now includes:
 
 - a protocol-facing core crate
 - a simulator-facing crate with scaffold data models
-- a CLI crate with `info` and `validate`
+- a CLI crate with `info`, `validate`, and `sim run`
 - repository validation for fixture, peer, topology, test-case, and report inputs
+- first-pass single-process report generation for one test-case
 
 It does not yet implement:
 
@@ -36,6 +37,7 @@ Implemented now:
 
 - `mycel info`
 - `mycel validate`
+- `mycel sim run`
 
 Current validate examples:
 
@@ -44,6 +46,8 @@ Current validate examples:
 - `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json --json`
 - `cargo run -p mycel-cli -- validate sim/tests/three-peer-consistency.example.json --strict`
+- `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
+- `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json`
 
 Current validate output behavior:
 
@@ -51,8 +55,15 @@ Current validate output behavior:
 - `--json` emits a stable `status` field with `ok`, `warning`, or `failed`
 - `--strict` returns a non-zero exit code when warnings are present, which is useful for CI
 
+Current `sim run` behavior:
+
+- supports only `single-process` test-cases
+- loads one `test-case -> topology -> fixture` chain
+- writes a machine-readable report to `sim/reports/out/`
+- uses deterministic placeholder object IDs instead of real wire sync
+
 Recommended next:
 
-- `mycel sim run`
-- richer schema-level validation
-- fixture/topology/test/report loading into executable simulator state
+- add per-step event traces to `sim run`
+- replace placeholder object flow with protocol-aware sync state
+- support additional negative and recovery test-cases

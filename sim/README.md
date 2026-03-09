@@ -34,8 +34,15 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- validate <path>`
 - `cargo run -p mycel-cli -- validate <path> --json`
 - `cargo run -p mycel-cli -- validate <path> --strict`
+- `cargo run -p mycel-cli -- sim run <test-case>`
+- `cargo run -p mycel-cli -- sim run <test-case> --json`
 
 Validation output notes:
 
 - `--json` includes a stable top-level `status`
 - `--strict` treats warnings as failures for CI-oriented validation
+
+Simulator run notes:
+
+- `sim run` currently supports only `single-process` test-cases
+- generated reports are written under `sim/reports/out/`

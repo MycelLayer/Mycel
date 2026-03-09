@@ -12,6 +12,7 @@ Tracked outputs should eventually include:
 - failure summaries
 
 Generated report files should go under `sim/reports/out/`, which is ignored by git.
+Generated reports under `sim/reports/out/` can also be validated with `mycel validate`.
 
 ## Schema
 

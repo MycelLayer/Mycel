@@ -1,9 +1,9 @@
 //! Data model for the language-neutral simulator scaffold.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FixtureDocumentRef {
     pub doc_id: String,
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct FixtureDocumentRef {
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Fixture {
     #[serde(rename = "$schema", default)]
     pub schema: Option<String>,
@@ -31,7 +31,7 @@ pub struct Fixture {
     pub metadata: Option<Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peer {
     #[serde(rename = "$schema", default)]
     pub schema: Option<String>,
@@ -52,7 +52,7 @@ pub struct Peer {
     pub metadata: Option<Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Topology {
     #[serde(rename = "$schema", default)]
     pub schema: Option<String>,
@@ -69,7 +69,7 @@ pub struct Topology {
     pub metadata: Option<Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TestAssertion {
     pub assertion_id: String,
     pub description: String,
@@ -79,7 +79,7 @@ pub struct TestAssertion {
     pub expected: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TestCase {
     #[serde(rename = "$schema", default)]
     pub schema: Option<String>,
@@ -100,7 +100,7 @@ pub struct TestCase {
     pub metadata: Option<Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReportPeer {
     pub node_id: String,
     pub status: String,
@@ -111,7 +111,7 @@ pub struct ReportPeer {
     pub notes: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReportFailure {
     pub failure_id: String,
     #[serde(default)]
@@ -121,7 +121,7 @@ pub struct ReportFailure {
     pub severity: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ReportSummary {
     #[serde(default)]
     pub verified_object_count: Option<u64>,
@@ -131,7 +131,7 @@ pub struct ReportSummary {
     pub matched_expected_outcomes: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Report {
     #[serde(rename = "$schema", default)]
     pub schema: Option<String>,

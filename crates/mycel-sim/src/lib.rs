@@ -5,6 +5,7 @@
 
 pub mod manifest;
 pub mod model;
+pub mod run;
 pub mod validate;
 
 use mycel_core::protocol::ProtocolVersion;
