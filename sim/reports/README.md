@@ -14,7 +14,7 @@ Tracked outputs should eventually include:
 
 Generated report files should go under `sim/reports/out/`, which is ignored by git.
 Generated reports under `sim/reports/out/` can also be validated with `mycel validate`.
-Intentional negative validation examples live under `sim/reports/invalid/` and are excluded from repo-wide validation scans.
+Intentional negative validation examples live under `sim/reports/invalid/` and are indexed by `sim/negative-validation/`; they are excluded from repo-wide validation scans.
 
 ## Schema
 
@@ -34,3 +34,5 @@ Intentional negative validation examples live under `sim/reports/invalid/` and a
 - `sim/reports/invalid/random-seed-prefix-mismatch.example.json` intentionally uses `seed_source = "random"` with a non-`random:` seed so `mycel validate` should fail for that file.
 - Example command:
   `cargo run -p mycel-cli -- validate sim/reports/invalid/random-seed-prefix-mismatch.example.json --json`
+- Matrix index:
+  `sim/negative-validation/test-matrix.md`

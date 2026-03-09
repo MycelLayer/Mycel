@@ -10,6 +10,7 @@ It exists to separate simulator structure from implementation choice.
 - `topologies/`: named peer graph and bootstrap examples
 - `tests/`: simulator test cases and expected assertions
 - `reports/`: machine-readable output shape and report conventions
+- `negative-validation/`: matrix and index for intentionally invalid validation examples
 - `SCHEMA-CROSS-CHECK.md`: consistency rules between fixture, peer, topology, test case, and report schemas
 - `SCHEMA-CROSS-CHECK.zh-TW.md`: Traditional Chinese version of the schema cross-check note
 - `runtime/`: ignored local runtime state for manual experiments
@@ -64,3 +65,8 @@ Simulator run notes:
 - runtime observation metadata now includes `events_per_second` and `ms_per_event`
 - deterministic scheduling now records `scheduled_peer_order`
 - deterministic fault ordering now records `fault_plan`
+
+Negative validation notes:
+
+- `sim/negative-validation/README.md` indexes intentionally invalid artifacts without mixing them into normal simulator examples
+- `sim/negative-validation/test-matrix.md` tracks current and planned validator failure cases
