@@ -4,6 +4,8 @@ Status: design draft
 
 This note describes an app-layer design where a runtime observes machine-derived user-state events and may create donation-related records under a pre-authorized consent policy.
 
+Plainly put, this is a model where future practitioners may receive donations through meditation under agreed conditions.
+
 The main design principle is:
 
 - Mycel carries consent state, session state, derived user-state events, donation intents or pledges, settlement receipts, and audit history

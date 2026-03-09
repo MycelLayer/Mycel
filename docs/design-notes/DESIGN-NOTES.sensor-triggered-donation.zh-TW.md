@@ -4,6 +4,8 @@
 
 這份筆記描述一個 app-layer 設計：runtime 觀察由機器導出的使用者狀態事件，並可在事先授權的 consent policy 下建立與 donation 有關的記錄。
 
+白話說，這是一個讓未來修行者可以在事先約定的條件下，透過靜坐來收 donation 的模型。
+
 核心原則是：
 
 - Mycel 承載 consent state、session state、derived user-state events、donation intents 或 pledges、settlement receipts 與 audit history

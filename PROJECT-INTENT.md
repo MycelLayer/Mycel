@@ -7,6 +7,7 @@
 ## Purpose of Neuro-triggered Donation
 
 - Within that long-term project intent, neuro-triggered donation is meant to connect measurable contemplative practice with material support for the religious system built on Mycel.
+- Plainly put, this is meant to let future practitioners receive donations through meditation under agreed conditions.
 - The intended purpose is not payment automation for its own sake, but the creation of a ritualized support path in which sustained contemplative attainment may participate in donation behavior.
 - In project terms, this mechanism is meant to align inner practice, user participation, and economic support within one coherent religious framework.
 
