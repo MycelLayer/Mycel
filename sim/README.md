@@ -179,10 +179,12 @@ Report-inspection output notes:
 - `report diff <left> <right> --events` compares event traces by trace identity rather than raw `step`, so step drift alone does not create a diff
 - `report diff <left> <right> --events --event-align step` switches event pairing back to raw `step` alignment when we explicitly want step drift to count as a difference
 - `report diff <left> <right> --events --json` emits `event_alignment`, `event_difference_count`, and `event_differences[]`; each entry includes `trace_identity`, `left_step`, and `right_step`, and is classified as `changed`, `left_only`, or `right_only`
+- `report diff <left> <right> --events --event-align trace --json` is best when we care about semantic trace flow and want reordered or renumbered steps to remain matched
+- `report diff <left> <right> --events --event-align step --json` is best when we care about exact scheduler order and want step drift to appear as `left_only` / `right_only` differences
+- choose `trace` for stable regression checks across benign sequencing drift; choose `step` for low-level scheduler debugging and exact replay audits
 - `--field` and `--ignore-field` are mutually exclusive
 - `status: ok` means both inputs parsed as report targets successfully; use `comparison: match|different` to tell whether the summaries differ
 - the default diff mode compares stable summary fields such as IDs, execution metadata, counts, expected outcomes, scheduled peer order, and fault-plan count
-- event diff currently aligns trace entries by `step`
 - event diff can ignore event subfields such as `event-detail`, `event-node-id`, and `event-object-ids`
 - `report inspect <path>` prints a human-readable summary for one simulator report
 - `report inspect <path> --json` emits a stable inspection summary including run identity, result, counts, selected metadata, and errors
