@@ -1,30 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
 use serde_json::Value;
 
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("repo root should resolve")
-}
+mod common;
 
-fn mycel_bin() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_mycel"))
-}
-
-fn run_validate(args: &[&str]) -> std::process::Output {
-    Command::new(mycel_bin())
-        .current_dir(repo_root())
-        .args(args)
-        .output()
-        .expect("validate command should run")
-}
-
-fn parse_json_stdout(output: &std::process::Output) -> Value {
-    serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
-}
+use common::{parse_json_stdout, run_validate};
 
 fn assert_failed_with_message(output: &std::process::Output, expected_text: &str) {
     assert!(

@@ -1,46 +1,16 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use serde_json::Value;
 
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("repo root should resolve")
-}
+mod common;
 
-fn mycel_bin() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_mycel"))
-}
+use common::{load_report, parse_json_stdout, run_sim, run_validate, stderr_text};
 
-fn run_sim(args: &[&str]) -> Output {
-    Command::new(mycel_bin())
-        .current_dir(repo_root())
-        .args(args)
-        .output()
-        .expect("sim command should run")
-}
-
-fn run_validate(args: &[&str]) -> Output {
-    Command::new(mycel_bin())
-        .current_dir(repo_root())
-        .args(args)
-        .output()
-        .expect("validate command should run")
-}
-
-fn parse_json_stdout(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
-}
-
-fn load_report(summary: &Value) -> Value {
-    let report_path = summary["report_path"]
-        .as_str()
-        .expect("report_path should be a string");
-    let content = fs::read_to_string(report_path).expect("report file should exist");
-    serde_json::from_str(&content).expect("report file should contain valid JSON")
+fn sim_run_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("sim run test lock should not be poisoned")
 }
 
 fn validate_generated_report(summary: &Value) -> Value {
@@ -78,12 +48,9 @@ fn assert_runtime_seed_mode(summary: &Value, report: &Value, expected_source: &s
     assert_eq!(metadata["deterministic_seed"], deterministic_seed);
 }
 
-fn stderr_text(output: &Output) -> String {
-    String::from_utf8_lossy(&output.stderr).into_owned()
-}
-
 #[test]
 fn three_peer_consistency_run_produces_pass_report() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -137,6 +104,7 @@ fn three_peer_consistency_run_produces_pass_report() {
 
 #[test]
 fn hash_mismatch_run_produces_fault_plan_and_fail_result() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -185,6 +153,7 @@ fn hash_mismatch_run_produces_fault_plan_and_fail_result() {
 
 #[test]
 fn hash_mismatch_run_supports_random_seed_mode() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -213,6 +182,7 @@ fn hash_mismatch_run_supports_random_seed_mode() {
 
 #[test]
 fn hash_mismatch_run_supports_auto_seed_mode() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -241,6 +211,7 @@ fn hash_mismatch_run_supports_auto_seed_mode() {
 
 #[test]
 fn partial_want_recovery_run_records_recovery_flow() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -285,6 +256,7 @@ fn partial_want_recovery_run_records_recovery_flow() {
 
 #[test]
 fn sim_run_rejects_schema_file_targets() {
+    let _guard = sim_run_lock();
     let output = run_sim(&["sim", "run", "sim/tests/test-case.schema.json"]);
 
     assert_eq!(output.status.code(), Some(1));
@@ -297,6 +269,7 @@ fn sim_run_rejects_schema_file_targets() {
 
 #[test]
 fn sim_run_requires_seed_value_after_flag() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",
@@ -314,6 +287,7 @@ fn sim_run_requires_seed_value_after_flag() {
 
 #[test]
 fn sim_run_rejects_unexpected_extra_arguments() {
+    let _guard = sim_run_lock();
     let output = run_sim(&[
         "sim",
         "run",

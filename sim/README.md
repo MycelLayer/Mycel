@@ -71,6 +71,7 @@ Negative validation notes:
 - `sim/negative-validation/README.md` indexes intentionally invalid artifacts without mixing them into normal simulator examples
 - `sim/negative-validation/test-matrix.md` tracks current and planned validator failure cases
 - `sim/negative-validation/smoke.sh` runs one positive and one intentional negative validation path together
+- `apps/mycel-cli/tests/common/mod.rs` provides shared CLI test helpers for command execution, JSON parsing, report loading, and stderr handling
 - `apps/mycel-cli/tests/validate_smoke.rs` begins moving core smoke cases into Rust integration tests
 - `apps/mycel-cli/tests/sim_run_smoke.rs` covers baseline `sim run` behavior for positive, negative, and recovery paths, including generated-report round-trip validation, `random` / `auto` seed modes, and core CLI error paths
 - GitHub Actions now runs `./sim/negative-validation/smoke.sh --summary-only` in CI alongside Rust formatting, compile, and workspace test checks
