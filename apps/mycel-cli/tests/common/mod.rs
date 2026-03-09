@@ -309,6 +309,10 @@ pub fn assert_report_diff_help(stdout: &str) {
         stdout.contains("--fail-on-diff"),
         "expected fail-on-diff flag in report diff help, stdout: {stdout}"
     );
+    assert!(
+        stdout.contains("--ignore-field <FIELD>"),
+        "expected ignore-field flag in report diff help, stdout: {stdout}"
+    );
 }
 
 pub fn assert_report_list_help(stdout: &str) {
