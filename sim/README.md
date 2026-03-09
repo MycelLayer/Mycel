@@ -42,6 +42,7 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- report inspect <path> --events`
 - `cargo run -p mycel-cli -- report inspect <path> --failures`
 - `cargo run -p mycel-cli -- report inspect <path> --phase <name>`
+- `cargo run -p mycel-cli -- report inspect <path> --action <name>`
 - `cargo run -p mycel-cli -- report inspect <path> --node <id>`
 - `cargo run -p mycel-cli -- validate`
 - `cargo run -p mycel-cli -- validate <path>`
@@ -61,6 +62,7 @@ Runnable examples:
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --full --json`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --events`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --phase sync`
+- `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --action seed-advertise`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --node node:peer-seed`
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/hash-mismatch.example.json`
@@ -81,9 +83,11 @@ Report-inspection output notes:
 - `report inspect <path> --events` narrows the view to event trace entries
 - `report inspect <path> --failures` narrows the view to failure entries
 - `report inspect <path> --phase <name>` narrows event inspection to one phase and implicitly uses event view
+- `report inspect <path> --action <name>` narrows event inspection to one action and implicitly uses event view
 - `report inspect <path> --node <id>` narrows event inspection to one node, or failure inspection when combined with `--failures`
 - `--events`, `--failures`, and `--full` are mutually exclusive
 - `--phase` cannot be combined with `--failures` or `--full`
+- `--action` cannot be combined with `--failures` or `--full`
 - `--node` cannot be combined with `--full`
 - `--full` requires `--json`
 - schema files are not valid inspect targets; use an actual report file such as `sim/reports/report.example.json` or one generated under `sim/reports/out/`
