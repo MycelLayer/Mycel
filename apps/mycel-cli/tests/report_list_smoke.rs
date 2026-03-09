@@ -9,6 +9,16 @@ use common::{
 use serde_json::json;
 
 fn write_report_with_result(path: &std::path::Path, run_id: &str, finished_at: &str, result: &str) {
+    write_report_with_result_and_validation_status(path, run_id, finished_at, result, "ok");
+}
+
+fn write_report_with_result_and_validation_status(
+    path: &std::path::Path,
+    run_id: &str,
+    finished_at: &str,
+    result: &str,
+    validation_status: &str,
+) {
     let report = json!({
         "$schema": "../report.schema.json",
         "run_id": run_id,
@@ -36,7 +46,7 @@ fn write_report_with_result(path: &std::path::Path, run_id: &str, finished_at: &
             "matched_expected_outcomes": ["sync-success"]
         },
         "metadata": {
-            "validation_status": "ok",
+            "validation_status": validation_status,
             "seed_source": "derived"
         }
     });
@@ -193,6 +203,48 @@ fn report_list_json_filters_to_pass_result() {
 }
 
 #[test]
+fn report_list_json_filters_to_warning_validation_status() {
+    let temp_dir = create_temp_dir("report-list-validation-warning");
+    let ok_report = temp_dir.path().join("ok.report.json");
+    let warning_report = temp_dir.path().join("warning.report.json");
+    write_report_with_result_and_validation_status(
+        &ok_report,
+        "run:ok",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+    write_report_with_result_and_validation_status(
+        &warning_report,
+        "run:warning",
+        "2026-03-09T12:00:05+08:00",
+        "pass",
+        "warning",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "list",
+        &target,
+        "--validation-status",
+        "warning",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["validation_status_filter"], "warning");
+    assert_eq!(json["report_count"], 1);
+    let reports = json["reports"]
+        .as_array()
+        .expect("reports should be an array");
+    assert_eq!(reports.len(), 1);
+    assert_eq!(reports[0]["run_id"], "run:warning");
+    assert_eq!(reports[0]["validation_status"], "warning");
+}
+
+#[test]
 fn report_list_text_filters_to_fail_result_and_keeps_invalid_entries() {
     let temp_dir = create_temp_dir("report-list-result-fail");
     let pass_report = temp_dir.path().join("pass.report.json");
@@ -280,6 +332,43 @@ fn report_list_path_only_filters_to_fail_result() {
 }
 
 #[test]
+fn report_list_path_only_filters_to_failed_validation_status() {
+    let temp_dir = create_temp_dir("report-list-validation-failed");
+    let ok_report = temp_dir.path().join("ok.report.json");
+    let failed_report = temp_dir.path().join("failed.report.json");
+    write_report_with_result_and_validation_status(
+        &ok_report,
+        "run:ok",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+    write_report_with_result_and_validation_status(
+        &failed_report,
+        "run:failed",
+        "2026-03-09T12:00:05+08:00",
+        "pass",
+        "failed",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "list",
+        &target,
+        "--validation-status",
+        "failed",
+        "--path-only",
+    ]);
+
+    assert_success(&output);
+    assert_eq!(
+        stdout_text(&output).trim(),
+        failed_report.display().to_string()
+    );
+}
+
+#[test]
 fn report_list_json_returns_empty_valid_results_when_no_report_matches_filter() {
     let temp_dir = create_temp_dir("report-list-result-miss");
     let pass_report = temp_dir.path().join("pass.report.json");
@@ -297,6 +386,37 @@ fn report_list_json_returns_empty_valid_results_when_no_report_matches_filter() 
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["result_filter"], "fail");
+    assert_eq!(json["report_count"], 0);
+    assert_eq!(json["valid_report_count"], 0);
+    assert_eq!(json["invalid_report_count"], 0);
+}
+
+#[test]
+fn report_list_json_returns_empty_valid_results_when_no_report_matches_validation_status_filter() {
+    let temp_dir = create_temp_dir("report-list-validation-miss");
+    let ok_report = temp_dir.path().join("ok.report.json");
+    write_report_with_result_and_validation_status(
+        &ok_report,
+        "run:ok",
+        "2026-03-09T11:00:05+08:00",
+        "pass",
+        "ok",
+    );
+
+    let target = temp_dir.path().display().to_string();
+    let output = run_report(&[
+        "report",
+        "list",
+        &target,
+        "--validation-status",
+        "warning",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["validation_status_filter"], "warning");
     assert_eq!(json["report_count"], 0);
     assert_eq!(json["valid_report_count"], 0);
     assert_eq!(json["invalid_report_count"], 0);

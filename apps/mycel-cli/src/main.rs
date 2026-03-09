@@ -271,6 +271,13 @@ struct ReportListCliArgs {
         value_enum
     )]
     result: Option<ReportResultFilter>,
+    #[arg(
+        long = "validation-status",
+        value_name = "VALIDATION_STATUS",
+        help = "List only reports with one validation status",
+        value_enum
+    )]
+    validation_status: Option<ReportValidationStatusFilter>,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
 }
@@ -744,6 +751,7 @@ struct ReportListSummary {
     root: PathBuf,
     status: String,
     result_filter: Option<ReportResultFilter>,
+    validation_status_filter: Option<ReportValidationStatusFilter>,
     report_count: usize,
     valid_report_count: usize,
     invalid_report_count: usize,
@@ -775,6 +783,7 @@ impl ReportListSummary {
             root,
             status: "ok".to_string(),
             result_filter: None,
+            validation_status_filter: None,
             report_count: 0,
             valid_report_count: 0,
             invalid_report_count: 0,
@@ -1057,15 +1066,22 @@ fn list_reports(target: PathBuf) -> ReportListSummary {
 fn filter_report_list(
     mut summary: ReportListSummary,
     result_filter: Option<ReportResultFilter>,
+    validation_status_filter: Option<ReportValidationStatusFilter>,
 ) -> ReportListSummary {
     summary.result_filter = result_filter;
+    summary.validation_status_filter = validation_status_filter;
 
-    let Some(result_filter) = result_filter else {
+    if result_filter.is_none() && validation_status_filter.is_none() {
         return summary;
-    };
+    }
 
     summary.reports.retain(|report| {
-        report.status != "ok" || report.result.as_deref() == Some(result_filter.as_str())
+        report.status != "ok"
+            || (result_filter
+                .is_none_or(|expected| report.result.as_deref() == Some(expected.as_str()))
+                && validation_status_filter.is_none_or(|expected| {
+                    report.validation_status.as_deref() == Some(expected.as_str())
+                }))
     });
     summary.report_count = summary.reports.len();
     summary.valid_report_count = summary
@@ -1280,6 +1296,12 @@ fn print_report_list_text(summary: &ReportListSummary) -> i32 {
     if let Some(result_filter) = summary.result_filter {
         println!("result filter: {}", result_filter.as_str());
     }
+    if let Some(validation_status_filter) = summary.validation_status_filter {
+        println!(
+            "validation status filter: {}",
+            validation_status_filter.as_str()
+        );
+    }
     println!("reports: {}", summary.report_count);
     println!("valid reports: {}", summary.valid_report_count);
     println!("invalid reports: {}", summary.invalid_report_count);
@@ -1445,6 +1467,9 @@ fn print_report_list_json(summary: &ReportListSummary) -> Result<i32, CliError> 
         "root": summary.root,
         "status": summary.status,
         "result_filter": summary.result_filter.map(ReportResultFilter::as_str),
+        "validation_status_filter": summary
+            .validation_status_filter
+            .map(ReportValidationStatusFilter::as_str),
         "report_count": summary.report_count,
         "valid_report_count": summary.valid_report_count,
         "invalid_report_count": summary.invalid_report_count,
@@ -1791,6 +1816,7 @@ fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
                 args.json,
                 args.path_only,
                 args.result,
+                args.validation_status,
             )
         }
         Some(ReportSubcommand::Latest(args)) => {
@@ -1993,8 +2019,13 @@ fn report_list(
     json: bool,
     path_only: bool,
     result_filter: Option<ReportResultFilter>,
+    validation_status_filter: Option<ReportValidationStatusFilter>,
 ) -> Result<i32, CliError> {
-    let summary = filter_report_list(list_reports(target), result_filter);
+    let summary = filter_report_list(
+        list_reports(target),
+        result_filter,
+        validation_status_filter,
+    );
     if path_only {
         Ok(print_report_list_paths(&summary))
     } else if json {

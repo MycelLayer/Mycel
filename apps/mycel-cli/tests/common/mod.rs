@@ -302,6 +302,10 @@ pub fn assert_report_list_help(stdout: &str) {
         "expected result flag in report list help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--validation-status <VALIDATION_STATUS>"),
+        "expected validation-status flag in report list help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("--path-only"),
         "expected path-only flag in report list help, stdout: {stdout}"
     );
