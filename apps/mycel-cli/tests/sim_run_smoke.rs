@@ -549,7 +549,7 @@ fn sim_run_requires_seed_value_after_flag() {
     ]);
 
     assert_exit_code(&output, 2);
-    assert_stderr_contains(&output, "missing value for --seed");
+    assert_stderr_contains(&output, "a value is required for '--seed <SEED>'");
 }
 
 #[test]
@@ -591,7 +591,8 @@ fn sim_run_requires_target_path() {
     let output = run_sim(&["sim", "run"]);
 
     assert_exit_code(&output, 2);
-    assert_stderr_contains(&output, "missing sim run target");
+    assert_stderr_contains(&output, "required arguments were not provided");
+    assert_stderr_contains(&output, "<PATH>");
 }
 
 #[test]

@@ -272,8 +272,8 @@ fn object_verify_missing_target_fails_cleanly() {
     let output = run_mycel(&["object", "verify"]);
 
     assert_exit_code(&output, 2);
-    assert_stderr_contains(&output, "missing object verify target");
-    assert_top_level_help(&stdout_text(&output));
+    assert_stderr_contains(&output, "required arguments were not provided");
+    assert_stderr_contains(&output, "<PATH>");
 }
 
 #[test]

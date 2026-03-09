@@ -692,8 +692,8 @@ fn head_inspect_requires_input_path() {
     let output = run_mycel(&["head", "inspect", "doc:sample"]);
 
     assert_exit_code(&output, 2);
-    assert_stderr_contains(&output, "missing --input for head inspect");
-    assert_top_level_help(&stdout_text(&output));
+    assert_stderr_contains(&output, "required arguments were not provided");
+    assert_stderr_contains(&output, "--input <PATH_OR_FIXTURE>");
 }
 
 #[test]

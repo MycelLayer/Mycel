@@ -62,11 +62,17 @@ struct HeadInspectCliArgs {
     #[arg(
         value_name = "DOC_ID",
         help = "Document identifier to inspect",
+        required = true,
         allow_hyphen_values = true
     )]
-    doc_id: Option<String>,
-    #[arg(long, value_name = "PATH_OR_FIXTURE", help = "Input bundle path or repo fixture name", num_args = 0..=1)]
-    input: Option<Option<String>>,
+    doc_id: String,
+    #[arg(
+        long,
+        value_name = "PATH_OR_FIXTURE",
+        help = "Input bundle path or repo fixture name",
+        required = true
+    )]
+    input: String,
     #[arg(long, help = "Emit machine-readable head inspection output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -92,9 +98,10 @@ struct ObjectVerifyCliArgs {
     #[arg(
         value_name = "PATH",
         help = "Object file to verify",
+        required = true,
         allow_hyphen_values = true
     )]
-    target: Option<String>,
+    target: String,
     #[arg(long, help = "Emit machine-readable object verification output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -200,13 +207,18 @@ struct SimRunCliArgs {
     #[arg(
         value_name = "PATH",
         help = "Simulator test case to run",
+        required = true,
         allow_hyphen_values = true
     )]
-    target: Option<String>,
+    target: String,
     #[arg(long, help = "Emit machine-readable run output")]
     json: bool,
-    #[arg(long, value_name = "SEED", help = "Use a fixed seed, or 'random' / 'auto' to generate one", num_args = 0..=1)]
-    seed: Option<Option<String>>,
+    #[arg(
+        long,
+        value_name = "SEED",
+        help = "Use a fixed seed, or 'random' / 'auto' to generate one"
+    )]
+    seed: Option<String>,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
 }
@@ -960,16 +972,12 @@ fn handle_head_command(command: HeadCliArgs) -> ! {
             if let Some(message) = unexpected_extra(&args.extra, "head inspect") {
                 exit_usage_error(message);
             }
-            let Some(doc_id) = args.doc_id else {
-                exit_usage_error("missing head inspect doc_id");
-            };
-            let input = match require_optional_flag_value(args.input, "--input") {
-                Ok(Some(input)) => PathBuf::from(input),
-                Ok(None) => exit_usage_error("missing --input for head inspect"),
-                Err(message) => exit_usage_error(message),
-            };
 
-            std::process::exit(head_inspect(doc_id, input, args.json));
+            std::process::exit(head_inspect(
+                args.doc_id,
+                PathBuf::from(args.input),
+                args.json,
+            ));
         }
         Some(HeadSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
@@ -985,11 +993,8 @@ fn handle_object_command(command: ObjectCliArgs) -> ! {
             if let Some(message) = unexpected_extra(&args.extra, "object verify") {
                 exit_usage_error(message);
             }
-            let Some(target) = args.target else {
-                exit_usage_error("missing object verify target");
-            };
 
-            std::process::exit(object_verify(PathBuf::from(target), args.json));
+            std::process::exit(object_verify(PathBuf::from(args.target), args.json));
         }
         Some(ObjectSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
@@ -1108,15 +1113,8 @@ fn handle_sim_command(command: SimCliArgs) -> ! {
             if let Some(message) = unexpected_extra(&args.extra, "sim run") {
                 exit_usage_error(message);
             }
-            let seed_override = match require_optional_flag_value(args.seed, "--seed") {
-                Ok(value) => value,
-                Err(message) => exit_usage_error(message),
-            };
-            let Some(target) = args.target else {
-                exit_usage_error("missing sim run target");
-            };
 
-            std::process::exit(sim_run(PathBuf::from(target), args.json, seed_override));
+            std::process::exit(sim_run(PathBuf::from(args.target), args.json, args.seed));
         }
         Some(SimSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
