@@ -38,6 +38,8 @@ The Rust workspace currently exposes:
 - `cargo run -p mycel-cli -- object verify <path> --json`
 - `cargo run -p mycel-cli -- report inspect <path>`
 - `cargo run -p mycel-cli -- report inspect <path> --json`
+- `cargo run -p mycel-cli -- report inspect <path> --events`
+- `cargo run -p mycel-cli -- report inspect <path> --failures`
 - `cargo run -p mycel-cli -- validate`
 - `cargo run -p mycel-cli -- validate <path>`
 - `cargo run -p mycel-cli -- validate <path> --json`
@@ -53,6 +55,7 @@ Runnable examples:
 - `cargo run -p mycel-cli -- info`
 - `cargo run -p mycel-cli -- help`
 - `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json`
+- `cargo run -p mycel-cli -- report inspect sim/reports/report.example.json --events`
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/hash-mismatch.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/signature-mismatch.example.json`
@@ -68,6 +71,9 @@ Report-inspection output notes:
 
 - `report inspect <path>` prints a human-readable summary for one simulator report
 - `report inspect <path> --json` emits a stable inspection summary including run identity, result, counts, selected metadata, and errors
+- `report inspect <path> --events` narrows the view to event trace entries
+- `report inspect <path> --failures` narrows the view to failure entries
+- `--events` and `--failures` are mutually exclusive
 - schema files are not valid inspect targets; use an actual report file such as `sim/reports/report.example.json` or one generated under `sim/reports/out/`
 
 Validation output notes:

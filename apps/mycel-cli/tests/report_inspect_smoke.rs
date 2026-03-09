@@ -49,6 +49,49 @@ fn report_inspect_text_reports_summary_for_example_report() {
 }
 
 #[test]
+fn report_inspect_events_json_reports_event_trace_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--events",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["event_count"], 3);
+    let events = json["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert_eq!(events.len(), 3);
+    assert_eq!(events[0]["action"], "load-fixture");
+    assert_eq!(events[1]["action"], "seed-advertise");
+}
+
+#[test]
+fn report_inspect_events_text_reports_event_trace_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--events",
+    ]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "events: 3");
+    assert_stdout_contains(
+        &output,
+        "event #1 phase=load action=load-fixture outcome=ok",
+    );
+    assert_stdout_contains(
+        &output,
+        "event #2 phase=sync action=seed-advertise outcome=ok",
+    );
+}
+
+#[test]
 fn report_inspect_generated_report_path_round_trips() {
     let _guard = sim_run_lock();
     let sim_output = run_sim(&[
@@ -74,6 +117,44 @@ fn report_inspect_generated_report_path_round_trips() {
     assert_eq!(json["result"], "pass");
     assert_eq!(json["validation_status"], "ok");
     assert_eq!(json["matched_expected_outcomes"][0], "sync-success");
+}
+
+#[test]
+fn report_inspect_failures_json_reports_failures_for_generated_negative_report() {
+    let _guard = sim_run_lock();
+    let sim_output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/hash-mismatch.example.json",
+        "--json",
+    ]);
+    assert_success(&sim_output);
+
+    let sim_json = parse_json_stdout(&sim_output);
+    let report_path = sim_json["report_path"]
+        .as_str()
+        .expect("report_path should be a string")
+        .to_owned();
+
+    let output = run_report(&["report", "inspect", &report_path, "--failures", "--json"]);
+    assert_success(&output);
+
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["result"], "fail");
+    assert_eq!(json["failure_count"], 2);
+    let failures = json["failures"]
+        .as_array()
+        .expect("failures should be an array");
+    assert!(
+        failures.iter().any(|entry| {
+            entry["description"]
+                .as_str()
+                .is_some_and(|description| description.contains("Reader rejected planned fault"))
+        }),
+        "expected reader rejection failure, stdout: {}",
+        stdout_text(&output)
+    );
 }
 
 #[test]
@@ -126,6 +207,23 @@ fn report_inspect_missing_target_fails_cleanly() {
             })),
         "expected missing-path error, stdout: {}",
         stdout_text(&output)
+    );
+}
+
+#[test]
+fn report_inspect_rejects_conflicting_filter_flags() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--events",
+        "--failures",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "report inspect accepts only one of --events or --failures",
     );
 }
 

@@ -7,7 +7,7 @@ use mycel_core::head::HeadInspectSummary;
 use mycel_core::verify::{verify_object_path, ObjectVerificationSummary};
 use mycel_core::workspace_banner;
 use mycel_sim::manifest::SimulatorPaths;
-use mycel_sim::model::Report;
+use mycel_sim::model::{Report, ReportEvent, ReportFailure};
 use mycel_sim::run::{run_test_case_with_options, RunOptions};
 use mycel_sim::simulator_banner;
 use mycel_sim::validate::validate_path;
@@ -37,6 +37,8 @@ fn print_usage() {
     println!("Report options:");
     println!("  inspect <path>  Inspect one simulator report");
     println!("  --json          Emit machine-readable report inspection output");
+    println!("  --events        Show only report events");
+    println!("  --failures      Show only report failures");
     println!();
     println!("Sim options:");
     println!("  run <path> Run one test-case and write a report to sim/reports/out/");
@@ -276,6 +278,13 @@ fn validate(target: PathBuf, json: bool, strict: bool) -> i32 {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReportInspectMode {
+    Summary,
+    Events,
+    Failures,
+}
+
 struct ReportInspectSummary {
     path: PathBuf,
     status: String,
@@ -339,6 +348,12 @@ impl ReportInspectSummary {
     }
 }
 
+struct InspectedReport {
+    summary: ReportInspectSummary,
+    events: Vec<ReportEvent>,
+    failures: Vec<ReportFailure>,
+}
+
 fn metadata_string(report: &Report, key: &str) -> Option<String> {
     report
         .metadata
@@ -373,74 +388,88 @@ fn metadata_array_len(report: &Report, key: &str) -> usize {
         .unwrap_or(0)
 }
 
-fn inspect_report(target: PathBuf) -> ReportInspectSummary {
-    let mut summary = ReportInspectSummary::new(target.clone());
+fn inspect_report(target: PathBuf) -> InspectedReport {
+    let mut inspected = InspectedReport {
+        summary: ReportInspectSummary::new(target.clone()),
+        events: Vec::new(),
+        failures: Vec::new(),
+    };
 
     if !target.exists() {
-        summary.push_error(format!("report path does not exist: {}", target.display()));
-        return summary;
+        inspected
+            .summary
+            .push_error(format!("report path does not exist: {}", target.display()));
+        return inspected;
     }
 
     if target.is_dir() {
-        summary.push_error(format!(
+        inspected.summary.push_error(format!(
             "report inspect target is a directory: {}",
             target.display()
         ));
-        return summary;
+        return inspected;
     }
 
     if target.file_name().and_then(|name| name.to_str()) == Some("report.schema.json") {
-        summary.push_error("report schema files are not inspect targets");
-        return summary;
+        inspected
+            .summary
+            .push_error("report schema files are not inspect targets");
+        return inspected;
     }
 
     let content = match fs::read_to_string(&target) {
         Ok(content) => content,
         Err(err) => {
-            summary.push_error(format!("failed to read report file: {err}"));
-            return summary;
+            inspected
+                .summary
+                .push_error(format!("failed to read report file: {err}"));
+            return inspected;
         }
     };
 
     let report: Report = match serde_json::from_str(&content) {
         Ok(report) => report,
         Err(err) => {
-            summary.push_error(format!("failed to parse report JSON: {err}"));
-            return summary;
+            inspected
+                .summary
+                .push_error(format!("failed to parse report JSON: {err}"));
+            return inspected;
         }
     };
 
-    summary.run_id = Some(report.run_id.clone());
-    summary.topology_id = Some(report.topology_id.clone());
-    summary.fixture_id = Some(report.fixture_id.clone());
-    summary.test_id = report.test_id.clone();
-    summary.execution_mode = report.execution_mode.clone();
-    summary.started_at = report.started_at.clone();
-    summary.finished_at = report.finished_at.clone();
-    summary.validation_status = metadata_string(&report, "validation_status");
-    summary.deterministic_seed = metadata_string(&report, "deterministic_seed");
-    summary.seed_source = metadata_string(&report, "seed_source");
-    summary.result = Some(report.result.clone());
-    summary.peer_count = report.peers.len();
-    summary.event_count = report.events.len();
-    summary.failure_count = report.failures.len();
-    summary.verified_object_count = report
+    inspected.summary.run_id = Some(report.run_id.clone());
+    inspected.summary.topology_id = Some(report.topology_id.clone());
+    inspected.summary.fixture_id = Some(report.fixture_id.clone());
+    inspected.summary.test_id = report.test_id.clone();
+    inspected.summary.execution_mode = report.execution_mode.clone();
+    inspected.summary.started_at = report.started_at.clone();
+    inspected.summary.finished_at = report.finished_at.clone();
+    inspected.summary.validation_status = metadata_string(&report, "validation_status");
+    inspected.summary.deterministic_seed = metadata_string(&report, "deterministic_seed");
+    inspected.summary.seed_source = metadata_string(&report, "seed_source");
+    inspected.summary.result = Some(report.result.clone());
+    inspected.summary.peer_count = report.peers.len();
+    inspected.summary.event_count = report.events.len();
+    inspected.summary.failure_count = report.failures.len();
+    inspected.summary.verified_object_count = report
         .summary
         .as_ref()
         .and_then(|report_summary| report_summary.verified_object_count);
-    summary.rejected_object_count = report
+    inspected.summary.rejected_object_count = report
         .summary
         .as_ref()
         .and_then(|report_summary| report_summary.rejected_object_count);
-    summary.matched_expected_outcomes = report
+    inspected.summary.matched_expected_outcomes = report
         .summary
         .as_ref()
         .map(|report_summary| report_summary.matched_expected_outcomes.clone())
         .unwrap_or_default();
-    summary.scheduled_peer_order = metadata_string_vec(&report, "scheduled_peer_order");
-    summary.fault_plan_count = metadata_array_len(&report, "fault_plan");
+    inspected.summary.scheduled_peer_order = metadata_string_vec(&report, "scheduled_peer_order");
+    inspected.summary.fault_plan_count = metadata_array_len(&report, "fault_plan");
+    inspected.events = report.events;
+    inspected.failures = report.failures;
 
-    summary
+    inspected
 }
 
 fn print_report_text(summary: &ReportInspectSummary) -> i32 {
@@ -514,7 +543,7 @@ fn print_report_text(summary: &ReportInspectSummary) -> i32 {
     }
 }
 
-fn print_report_json(summary: &ReportInspectSummary) -> i32 {
+fn print_report_summary_json(summary: &ReportInspectSummary) -> i32 {
     let json = serde_json::json!({
         "path": summary.path,
         "status": summary.status,
@@ -556,12 +585,148 @@ fn print_report_json(summary: &ReportInspectSummary) -> i32 {
     }
 }
 
-fn report_inspect(target: PathBuf, json: bool) -> i32 {
-    let summary = inspect_report(target);
-    if json {
-        print_report_json(&summary)
+fn print_report_events_text(summary: &ReportInspectSummary, events: &[ReportEvent]) -> i32 {
+    println!("report path: {}", summary.path.display());
+    if let Some(run_id) = &summary.run_id {
+        println!("run id: {run_id}");
+    }
+    println!("status: {}", summary.status);
+    println!("events: {}", events.len());
+    for event in events {
+        println!(
+            "event #{} phase={} action={} outcome={}",
+            event.step, event.phase, event.action, event.outcome
+        );
+        if let Some(node_id) = &event.node_id {
+            println!("  node: {node_id}");
+        }
+        if !event.object_ids.is_empty() {
+            println!("  object ids: {}", event.object_ids.join(", "));
+        }
+        if let Some(detail) = &event.detail {
+            println!("  detail: {detail}");
+        }
+    }
+
+    if summary.is_ok() {
+        println!("report inspection: ok");
+        0
     } else {
-        print_report_text(&summary)
+        println!("report inspection: failed");
+        for error in &summary.errors {
+            eprintln!("error: {error}");
+        }
+        1
+    }
+}
+
+fn print_report_events_json(summary: &ReportInspectSummary, events: &[ReportEvent]) -> i32 {
+    let json = serde_json::json!({
+        "path": summary.path,
+        "status": summary.status,
+        "run_id": summary.run_id,
+        "result": summary.result,
+        "event_count": events.len(),
+        "events": events,
+        "errors": summary.errors,
+    });
+
+    match serde_json::to_string_pretty(&json) {
+        Ok(json) => {
+            println!("{json}");
+            if summary.is_ok() {
+                0
+            } else {
+                1
+            }
+        }
+        Err(err) => {
+            eprintln!("failed to serialize report event inspection summary: {err}");
+            2
+        }
+    }
+}
+
+fn print_report_failures_text(summary: &ReportInspectSummary, failures: &[ReportFailure]) -> i32 {
+    println!("report path: {}", summary.path.display());
+    if let Some(run_id) = &summary.run_id {
+        println!("run id: {run_id}");
+    }
+    println!("status: {}", summary.status);
+    println!("failures: {}", failures.len());
+    for failure in failures {
+        println!("failure {}: {}", failure.failure_id, failure.description);
+        if let Some(node_id) = &failure.node_id {
+            println!("  node: {node_id}");
+        }
+        if let Some(severity) = &failure.severity {
+            println!("  severity: {severity}");
+        }
+    }
+
+    if summary.is_ok() {
+        println!("report inspection: ok");
+        0
+    } else {
+        println!("report inspection: failed");
+        for error in &summary.errors {
+            eprintln!("error: {error}");
+        }
+        1
+    }
+}
+
+fn print_report_failures_json(summary: &ReportInspectSummary, failures: &[ReportFailure]) -> i32 {
+    let json = serde_json::json!({
+        "path": summary.path,
+        "status": summary.status,
+        "run_id": summary.run_id,
+        "result": summary.result,
+        "failure_count": failures.len(),
+        "failures": failures,
+        "errors": summary.errors,
+    });
+
+    match serde_json::to_string_pretty(&json) {
+        Ok(json) => {
+            println!("{json}");
+            if summary.is_ok() {
+                0
+            } else {
+                1
+            }
+        }
+        Err(err) => {
+            eprintln!("failed to serialize report failure inspection summary: {err}");
+            2
+        }
+    }
+}
+
+fn report_inspect(target: PathBuf, json: bool, mode: ReportInspectMode) -> i32 {
+    let inspected = inspect_report(target);
+    match mode {
+        ReportInspectMode::Summary => {
+            if json {
+                print_report_summary_json(&inspected.summary)
+            } else {
+                print_report_text(&inspected.summary)
+            }
+        }
+        ReportInspectMode::Events => {
+            if json {
+                print_report_events_json(&inspected.summary, &inspected.events)
+            } else {
+                print_report_events_text(&inspected.summary, &inspected.events)
+            }
+        }
+        ReportInspectMode::Failures => {
+            if json {
+                print_report_failures_json(&inspected.summary, &inspected.failures)
+            } else {
+                print_report_failures_text(&inspected.summary, &inspected.failures)
+            }
+        }
     }
 }
 
@@ -762,10 +927,27 @@ fn main() {
             Some("inspect") => {
                 let mut target = None;
                 let mut json = false;
+                let mut mode = ReportInspectMode::Summary;
 
                 for arg in args {
                     if arg == "--json" {
                         json = true;
+                    } else if arg == "--events" {
+                        if mode != ReportInspectMode::Summary {
+                            eprintln!("report inspect accepts only one of --events or --failures");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        mode = ReportInspectMode::Events;
+                    } else if arg == "--failures" {
+                        if mode != ReportInspectMode::Summary {
+                            eprintln!("report inspect accepts only one of --events or --failures");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        mode = ReportInspectMode::Failures;
                     } else if target.is_none() {
                         target = Some(PathBuf::from(arg));
                     } else {
@@ -783,7 +965,7 @@ fn main() {
                     std::process::exit(2);
                 };
 
-                std::process::exit(report_inspect(target, json));
+                std::process::exit(report_inspect(target, json, mode));
             }
             Some(other) => {
                 eprintln!("unknown report subcommand: {other}");
