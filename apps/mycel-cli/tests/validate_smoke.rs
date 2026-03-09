@@ -43,6 +43,58 @@ fn repo_validate_json_reports_ok_status() {
 }
 
 #[test]
+fn tests_directory_validate_json_reports_ok_status() {
+    let output = run_validate(&["validate", "sim/tests", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["test_case_count"], 4);
+    assert_eq!(json["topology_count"], 4);
+}
+
+#[test]
+fn reports_out_directory_validate_json_reports_ok_status() {
+    let output = run_validate(&["validate", "sim/reports/out", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert!(
+        json["report_count"]
+            .as_u64()
+            .expect("report_count should be numeric")
+            >= 1,
+        "expected at least one generated report, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+fn schema_file_is_not_a_valid_validate_target() {
+    let output = run_validate(&["validate", "sim/tests/test-case.schema.json", "--json"]);
+
+    assert_failed_with_message(&output, "schema files are not validate targets");
+}
+
+#[test]
+fn missing_validate_target_path_fails_cleanly() {
+    let output = run_validate(&["validate", "does-not-exist.json", "--json"]);
+
+    assert_failed_with_message(&output, "path does not exist");
+}
+
+#[test]
 fn invalid_random_seed_prefix_report_fails_validation() {
     let output = run_validate(&[
         "validate",
