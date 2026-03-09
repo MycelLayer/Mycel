@@ -58,6 +58,9 @@ fn print_object_verification_text(summary: &ObjectVerificationSummary) -> i32 {
     if let Some(signer) = &summary.signer {
         println!("signer: {signer}");
     }
+    if let Some(signature_verification) = &summary.signature_verification {
+        println!("signature verification: {signature_verification}");
+    }
     if let Some(declared_id) = &summary.declared_id {
         println!("declared id: {declared_id}");
     }

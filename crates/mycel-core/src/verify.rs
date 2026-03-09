@@ -1,8 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Serialize)]
@@ -13,6 +15,7 @@ pub struct ObjectVerificationSummary {
     pub signature_rule: Option<String>,
     pub signer_field: Option<String>,
     pub signer: Option<String>,
+    pub signature_verification: Option<String>,
     pub declared_id: Option<String>,
     pub recomputed_id: Option<String>,
     pub notes: Vec<String>,
@@ -28,6 +31,7 @@ impl ObjectVerificationSummary {
             signature_rule: None,
             signer_field: None,
             signer: None,
+            signature_verification: None,
             declared_id: None,
             recomputed_id: None,
             notes: Vec::new(),
@@ -97,6 +101,11 @@ pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
     };
 
     summary.signature_rule = Some(descriptor.signature_rule.to_string());
+    summary.signature_verification = Some(if descriptor.signature_required {
+        "failed".to_string()
+    } else {
+        "not_applicable".to_string()
+    });
 
     if let Some(signer_field) = descriptor.signer_field {
         summary.signer_field = Some(signer_field.to_string());
@@ -107,19 +116,35 @@ pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
             summary.push_error(format!(
                 "{object_type} object is missing required top-level 'signature'"
             ));
-            return finalize_signed_summary(summary, object, descriptor);
+            return finalize_signed_summary(summary);
         };
 
         if !signature.is_string() {
             summary.push_error("top-level 'signature' must be a string");
         }
 
+        let mut signer_value = None;
         if let Some(signer_field) = descriptor.signer_field {
             match object.get(signer_field).and_then(Value::as_str) {
-                Some(signer) => summary.signer = Some(signer.to_string()),
+                Some(signer) => {
+                    summary.signer = Some(signer.to_string());
+                    signer_value = Some(signer);
+                }
                 None => summary.push_error(format!(
                     "{object_type} object is missing string signer field '{signer_field}'"
                 )),
+            }
+        }
+
+        if summary.errors.is_empty() {
+            let signer_value = signer_value.expect("signer should exist when errors are empty");
+            match verify_object_signature(
+                &value,
+                signer_value,
+                signature.as_str().unwrap_or_default(),
+            ) {
+                Ok(()) => summary.signature_verification = Some("verified".to_string()),
+                Err(err) => summary.push_error(err),
             }
         }
     } else if object.contains_key("signature") {
@@ -149,21 +174,10 @@ pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
         }
     }
 
-    finalize_signed_summary(summary, object, descriptor)
+    finalize_signed_summary(summary)
 }
 
-fn finalize_signed_summary(
-    mut summary: ObjectVerificationSummary,
-    object: &Map<String, Value>,
-    descriptor: ObjectTypeDescriptor,
-) -> ObjectVerificationSummary {
-    if descriptor.signature_required && object.contains_key("signature") {
-        summary.notes.push(
-            "cryptographic signature verification is not implemented yet; only signature presence and signer-field checks ran"
-                .to_string(),
-        );
-    }
-
+fn finalize_signed_summary(mut summary: ObjectVerificationSummary) -> ObjectVerificationSummary {
     if summary.errors.is_empty() {
         summary.status = "ok".to_string();
     } else {
@@ -268,6 +282,50 @@ fn recompute_object_id(
     Ok(format!("{prefix}:{}", hex_encode(&digest)))
 }
 
+fn verify_object_signature(value: &Value, signer: &str, signature: &str) -> Result<(), String> {
+    let public_key = parse_public_key(signer)?;
+    let signature = parse_signature(signature)?;
+    let payload = signed_payload_bytes(value)?;
+
+    public_key
+        .verify(&payload, &signature)
+        .map_err(|err| format!("Ed25519 signature verification failed: {err}"))
+}
+
+fn parse_public_key(value: &str) -> Result<VerifyingKey, String> {
+    let encoded = value
+        .strip_prefix("pk:ed25519:")
+        .ok_or_else(|| "signer field must use format 'pk:ed25519:<base64>'".to_string())?;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|err| format!("failed to decode Ed25519 public key: {err}"))?;
+    let bytes: [u8; 32] = decoded
+        .try_into()
+        .map_err(|_| "Ed25519 public key must decode to 32 bytes".to_string())?;
+    VerifyingKey::from_bytes(&bytes)
+        .map_err(|err| format!("invalid Ed25519 public key bytes: {err}"))
+}
+
+fn parse_signature(value: &str) -> Result<Signature, String> {
+    let encoded = value
+        .strip_prefix("sig:ed25519:")
+        .ok_or_else(|| "signature field must use format 'sig:ed25519:<base64>'".to_string())?;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|err| format!("failed to decode Ed25519 signature: {err}"))?;
+    Signature::from_slice(&decoded).map_err(|err| format!("invalid Ed25519 signature bytes: {err}"))
+}
+
+fn signed_payload_bytes(value: &Value) -> Result<Vec<u8>, String> {
+    let mut object = value
+        .as_object()
+        .cloned()
+        .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
+    object.remove("signature");
+    let canonical = canonical_json(&Value::Object(object))?;
+    Ok(canonical.into_bytes())
+}
+
 fn canonical_json(value: &Value) -> Result<String, String> {
     let mut output = String::new();
     write_canonical_json(value, &mut output)?;
@@ -339,7 +397,9 @@ fn hex_encode(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use base64::Engine;
+    use ed25519_dalek::{Signer, SigningKey};
+    use serde_json::{json, Value};
 
     use super::verify_object_path;
 
@@ -353,31 +413,51 @@ mod tests {
         path
     }
 
+    fn signer_material() -> (SigningKey, String) {
+        let signing_key = SigningKey::from_bytes(&[7u8; 32]);
+        let public_key = format!(
+            "pk:ed25519:{}",
+            base64::engine::general_purpose::STANDARD
+                .encode(signing_key.verifying_key().as_bytes())
+        );
+        (signing_key, public_key)
+    }
+
+    fn sign_value(signing_key: &SigningKey, value: &Value) -> String {
+        let payload = super::signed_payload_bytes(value).expect("payload should canonicalize");
+        let signature = signing_key.sign(&payload);
+        format!(
+            "sig:ed25519:{}",
+            base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+        )
+    }
+
     #[test]
     fn patch_id_recomputes_from_canonical_json() {
+        let (signing_key, public_key) = signer_material();
+        let mut value = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": public_key,
+            "timestamp": 1777778888u64,
+            "ops": [],
+        });
+        let patch_id = super::recompute_object_id(&value, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        value["patch_id"] = Value::String(patch_id.clone());
+        value["signature"] = Value::String(sign_value(&signing_key, &value));
         let path = write_test_file(
             "patch-valid",
-            &serde_json::to_string_pretty(&json!({
-                "type": "patch",
-                "version": "mycel/0.1",
-                "doc_id": "doc:test",
-                "base_revision": "rev:genesis-null",
-                "author": "pk:authorA",
-                "timestamp": 1777778888u64,
-                "ops": [],
-                "patch_id": "patch:76d519509ad9f7b9c2bf4a7a4def39ff5f9c5e4fb4d798e9c8cfdfa2cb48bc43",
-                "signature": "sig:test"
-            }))
-            .expect("test JSON should serialize"),
+            &serde_json::to_string_pretty(&value).expect("test JSON should serialize"),
         );
 
         let summary = verify_object_path(&path);
 
         assert!(summary.is_ok(), "expected success, got {summary:?}");
-        assert_eq!(
-            summary.recomputed_id.as_deref(),
-            Some("patch:76d519509ad9f7b9c2bf4a7a4def39ff5f9c5e4fb4d798e9c8cfdfa2cb48bc43")
-        );
+        assert_eq!(summary.signature_verification.as_deref(), Some("verified"));
+        assert_eq!(summary.recomputed_id.as_deref(), Some(patch_id.as_str()));
 
         let _ = std::fs::remove_file(path);
     }
@@ -404,6 +484,45 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("$.title: null is not allowed")),
             "expected null validation error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn invalid_signature_is_rejected() {
+        let (_signing_key, public_key) = signer_material();
+        let mut value = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": public_key,
+            "timestamp": 1777778888u64,
+            "ops": []
+        });
+        let patch_id = super::recompute_object_id(&value, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        value["patch_id"] = Value::String(patch_id);
+        value["signature"] = Value::String(
+            "sig:ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+                .to_string(),
+        );
+        let path = write_test_file(
+            "patch-invalid-signature",
+            &serde_json::to_string_pretty(&value).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert_eq!(summary.signature_verification.as_deref(), Some("failed"));
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("Ed25519 signature verification failed")),
+            "expected signature failure, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
