@@ -41,6 +41,7 @@ fn print_usage() {
     println!("  --failures      Show only report failures");
     println!("  --full          Emit the full raw report (requires --json)");
     println!("  --phase <name>  Filter event inspection to one phase");
+    println!("  --node <id>     Filter event or failure inspection to one node");
     println!();
     println!("Sim options:");
     println!("  run <path> Run one test-case and write a report to sim/reports/out/");
@@ -286,6 +287,12 @@ enum ReportInspectMode {
     Events,
     Failures,
     Full,
+}
+
+#[derive(Default)]
+struct ReportInspectFilters {
+    phase: Option<String>,
+    node: Option<String>,
 }
 
 struct ReportInspectSummary {
@@ -653,15 +660,43 @@ fn print_report_events_json(summary: &ReportInspectSummary, events: &[ReportEven
     }
 }
 
-fn filter_events_by_phase(events: &[ReportEvent], phase_filter: Option<&str>) -> Vec<ReportEvent> {
-    match phase_filter {
-        Some(phase) => events
-            .iter()
-            .filter(|event| event.phase == phase)
-            .cloned()
-            .collect(),
-        None => events.to_vec(),
-    }
+fn filter_events(events: &[ReportEvent], filters: &ReportInspectFilters) -> Vec<ReportEvent> {
+    events
+        .iter()
+        .filter(|event| {
+            filters
+                .phase
+                .as_deref()
+                .is_none_or(|phase| event.phase == phase)
+        })
+        .filter(|event| {
+            filters.node.as_deref().is_none_or(|node| {
+                event
+                    .node_id
+                    .as_deref()
+                    .is_some_and(|event_node_id| event_node_id == node)
+            })
+        })
+        .cloned()
+        .collect()
+}
+
+fn filter_failures(
+    failures: &[ReportFailure],
+    filters: &ReportInspectFilters,
+) -> Vec<ReportFailure> {
+    failures
+        .iter()
+        .filter(|failure| {
+            filters.node.as_deref().is_none_or(|node| {
+                failure
+                    .node_id
+                    .as_deref()
+                    .is_some_and(|failure_node_id| failure_node_id == node)
+            })
+        })
+        .cloned()
+        .collect()
 }
 
 fn print_report_failures_text(summary: &ReportInspectSummary, failures: &[ReportFailure]) -> i32 {
@@ -741,7 +776,7 @@ fn report_inspect(
     target: PathBuf,
     json: bool,
     mode: ReportInspectMode,
-    phase_filter: Option<&str>,
+    filters: &ReportInspectFilters,
 ) -> i32 {
     let inspected = inspect_report(target);
     match mode {
@@ -753,7 +788,7 @@ fn report_inspect(
             }
         }
         ReportInspectMode::Events => {
-            let filtered_events = filter_events_by_phase(&inspected.events, phase_filter);
+            let filtered_events = filter_events(&inspected.events, filters);
             if json {
                 print_report_events_json(&inspected.summary, &filtered_events)
             } else {
@@ -761,10 +796,11 @@ fn report_inspect(
             }
         }
         ReportInspectMode::Failures => {
+            let filtered_failures = filter_failures(&inspected.failures, filters);
             if json {
-                print_report_failures_json(&inspected.summary, &inspected.failures)
+                print_report_failures_json(&inspected.summary, &filtered_failures)
             } else {
-                print_report_failures_text(&inspected.summary, &inspected.failures)
+                print_report_failures_text(&inspected.summary, &filtered_failures)
             }
         }
         ReportInspectMode::Full => {
@@ -979,21 +1015,28 @@ fn main() {
                 let mut target = None;
                 let mut json = false;
                 let mut mode = ReportInspectMode::Summary;
-                let mut phase_filter = None;
+                let mut filters = ReportInspectFilters::default();
                 let mut expect_phase_value = false;
+                let mut expect_node_value = false;
 
                 for arg in args {
                     if expect_phase_value {
-                        phase_filter = Some(arg);
+                        filters.phase = Some(arg);
                         expect_phase_value = false;
-                        if mode == ReportInspectMode::Summary {
-                            mode = ReportInspectMode::Events;
-                        }
+                    } else if expect_node_value {
+                        filters.node = Some(arg);
+                        expect_node_value = false;
                     } else if arg == "--json" {
                         json = true;
                     } else if arg == "--full" {
-                        if phase_filter.is_some() {
+                        if filters.phase.is_some() {
                             eprintln!("report inspect --phase cannot be combined with --full");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if filters.node.is_some() {
+                            eprintln!("report inspect --node cannot be combined with --full");
                             eprintln!();
                             print_usage();
                             std::process::exit(2);
@@ -1018,7 +1061,7 @@ fn main() {
                         }
                         mode = ReportInspectMode::Events;
                     } else if arg == "--failures" {
-                        if phase_filter.is_some() {
+                        if filters.phase.is_some() {
                             eprintln!("report inspect --phase cannot be combined with --failures");
                             eprintln!();
                             print_usage();
@@ -1053,6 +1096,20 @@ fn main() {
                             std::process::exit(2);
                         }
                         expect_phase_value = true;
+                    } else if arg == "--node" {
+                        if expect_node_value {
+                            eprintln!("missing value for --node");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        if mode == ReportInspectMode::Full {
+                            eprintln!("report inspect --node cannot be combined with --full");
+                            eprintln!();
+                            print_usage();
+                            std::process::exit(2);
+                        }
+                        expect_node_value = true;
                     } else if target.is_none() {
                         target = Some(PathBuf::from(arg));
                     } else {
@@ -1069,6 +1126,18 @@ fn main() {
                     print_usage();
                     std::process::exit(2);
                 }
+                if expect_node_value {
+                    eprintln!("missing value for --node");
+                    eprintln!();
+                    print_usage();
+                    std::process::exit(2);
+                }
+
+                if mode == ReportInspectMode::Summary
+                    && (filters.phase.is_some() || filters.node.is_some())
+                {
+                    mode = ReportInspectMode::Events;
+                }
 
                 let Some(target) = target else {
                     eprintln!("missing report inspect target");
@@ -1084,7 +1153,7 @@ fn main() {
                     std::process::exit(2);
                 }
 
-                std::process::exit(report_inspect(target, json, mode, phase_filter.as_deref()));
+                std::process::exit(report_inspect(target, json, mode, &filters));
             }
             Some(other) => {
                 eprintln!("unknown report subcommand: {other}");

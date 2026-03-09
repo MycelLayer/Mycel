@@ -155,6 +155,75 @@ fn report_inspect_phase_json_returns_empty_events_for_unknown_phase() {
 }
 
 #[test]
+fn report_inspect_node_json_filters_events_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--node",
+        "node:peer-seed",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["event_count"], 1);
+    let events = json["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["node_id"], "node:peer-seed");
+    assert_eq!(events[0]["action"], "seed-advertise");
+}
+
+#[test]
+fn report_inspect_node_and_phase_json_filters_events_for_example_report() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--node",
+        "node:peer-seed",
+        "--phase",
+        "sync",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["event_count"], 1);
+    let events = json["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0]["phase"], "sync");
+    assert_eq!(events[0]["node_id"], "node:peer-seed");
+}
+
+#[test]
+fn report_inspect_node_json_returns_empty_events_for_unknown_node() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--node",
+        "node:missing",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["event_count"], 0);
+    assert_eq!(
+        json["events"].as_array().map(Vec::len),
+        Some(0),
+        "expected empty events array, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn report_inspect_full_json_returns_raw_report_for_example_report() {
     let output = run_report(&[
         "report",
@@ -237,6 +306,44 @@ fn report_inspect_failures_json_reports_failures_for_generated_negative_report()
         "expected reader rejection failure, stdout: {}",
         stdout_text(&output)
     );
+}
+
+#[test]
+fn report_inspect_node_json_filters_failures_for_generated_negative_report() {
+    let _guard = sim_run_lock();
+    let sim_output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/hash-mismatch.example.json",
+        "--json",
+    ]);
+    assert_success(&sim_output);
+
+    let sim_json = parse_json_stdout(&sim_output);
+    let report_path = sim_json["report_path"]
+        .as_str()
+        .expect("report_path should be a string")
+        .to_owned();
+
+    let output = run_report(&[
+        "report",
+        "inspect",
+        &report_path,
+        "--node",
+        "node:peer-reader-a",
+        "--failures",
+        "--json",
+    ]);
+    assert_success(&output);
+
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["failure_count"], 1);
+    let failures = json["failures"]
+        .as_array()
+        .expect("failures should be an array");
+    assert_eq!(failures.len(), 1);
+    assert_eq!(failures[0]["node_id"], "node:peer-reader-a");
 }
 
 #[test]
@@ -378,6 +485,25 @@ fn report_inspect_rejects_phase_with_full() {
 }
 
 #[test]
+fn report_inspect_rejects_node_with_full() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--node",
+        "node:peer-seed",
+        "--full",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "report inspect --node cannot be combined with --full",
+    );
+}
+
+#[test]
 fn report_inspect_requires_phase_value() {
     let output = run_report(&[
         "report",
@@ -388,6 +514,19 @@ fn report_inspect_requires_phase_value() {
 
     assert_exit_code(&output, 2);
     assert_stderr_contains(&output, "missing value for --phase");
+}
+
+#[test]
+fn report_inspect_requires_node_value() {
+    let output = run_report(&[
+        "report",
+        "inspect",
+        "sim/reports/report.example.json",
+        "--node",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(&output, "missing value for --node");
 }
 
 #[test]
