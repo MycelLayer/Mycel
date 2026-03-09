@@ -59,6 +59,8 @@ Run the smoke check for both paths together:
 ```bash
 ./sim/negative-validation/smoke.sh
 ./sim/negative-validation/smoke.sh --summary-only
+./sim/negative-validation/smoke.sh --case unknown-fixture-reference
+./sim/negative-validation/smoke.sh --case missing-seed-source-strict --summary-only
 ```
 
 The smoke script currently covers:
@@ -72,3 +74,4 @@ The smoke script currently covers:
 - `missing-seed-source` non-zero exit under `--strict`
 - a final per-case summary for quick scanability
 - optional `--summary-only` output for shorter logs
+- optional `--case <name>` filtering for single-case debugging
