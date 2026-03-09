@@ -1,4 +1,5 @@
 {
+  "$schema": "../fixture.schema.json",
   "fixture_id": "minimal-valid",
   "description": "Smallest valid seed fixture for first sync testing",
   "seed_peer": "peer-seed",
@@ -12,5 +13,8 @@
     "sync-success",
     "all-objects-verified",
     "deterministic-replay"
+  ],
+  "notes": [
+    "Use this as the baseline positive sync fixture."
   ]
 }

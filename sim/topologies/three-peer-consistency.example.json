@@ -1,27 +1,35 @@
 {
+  "$schema": "./topology.schema.json",
   "topology_id": "three-peer-consistency",
   "description": "One seed peer and two reader peers compare verified results",
   "fixture_set": "fixtures/object-sets/minimal-valid",
+  "execution_mode": "single-process",
   "peers": [
     {
       "node_id": "node:peer-seed",
       "role": "seed",
-      "bootstrap_peers": []
+      "bootstrap_peers": [],
+      "endpoint": "local:peer-seed"
     },
     {
       "node_id": "node:peer-reader-a",
       "role": "reader",
-      "bootstrap_peers": ["node:peer-seed"]
+      "bootstrap_peers": ["node:peer-seed"],
+      "endpoint": "local:peer-reader-a"
     },
     {
       "node_id": "node:peer-reader-b",
       "role": "reader",
-      "bootstrap_peers": ["node:peer-seed"]
+      "bootstrap_peers": ["node:peer-seed"],
+      "endpoint": "local:peer-reader-b"
     }
   ],
   "expected_outcomes": [
     "sync-success",
     "matching-object-sets",
     "matching-replay-results"
+  ],
+  "notes": [
+    "This is the baseline topology for deterministic comparison across readers."
   ]
 }

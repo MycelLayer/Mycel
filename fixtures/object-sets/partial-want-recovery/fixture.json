@@ -1,4 +1,5 @@
 {
+  "$schema": "../fixture.schema.json",
   "fixture_id": "partial-want-recovery",
   "description": "Fixture for explicit WANT-based recovery of missing objects",
   "seed_peer": "peer-seed",
@@ -7,5 +8,8 @@
     "missing-objects-requested",
     "recovery-success",
     "post-recovery-replay-success"
+  ],
+  "notes": [
+    "Use this to test a reader that begins with an incomplete object graph."
   ]
 }
