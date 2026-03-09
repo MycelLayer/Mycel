@@ -26,6 +26,32 @@ The repository does not yet have:
 - end-to-end wire sync
 - a production-ready public CLI or app
 
+## Roadmap Summary
+
+### Now
+
+The current lane is:
+
+1. finish the narrow first-client core
+2. harden deterministic validation and replay behavior
+3. keep expanding fixtures, simulator coverage, and negative tests
+
+### Next
+
+After the narrow core is stable, the next lane is:
+
+1. reader-oriented accepted-head and governance workflows
+2. fixed-profile accepted reading
+3. reader-first text reconstruction and inspection
+
+### Later
+
+The later lane is:
+
+1. canonical wire sync
+2. end-to-end peer replication
+3. selective app-layer expansion on top of a stable protocol core
+
 ## Planning Levels
 
 The roadmap follows the planning split already suggested in the design notes:
@@ -35,6 +61,16 @@ The roadmap follows the planning split already suggested in the design notes:
 3. `full-stack`
 
 Each later phase assumes the earlier one is already stable.
+
+## Milestones
+
+The roadmap is tracked through these milestones:
+
+1. `M1` Core Object and Validation Base
+2. `M2` Replay, Storage, and Rebuild
+3. `M3` Reader and Governance Surface
+4. `M4` Wire Sync and Peer Interop
+5. `M5` Selective App-Layer Expansion
 
 ## Phase 1: Minimal
 
@@ -77,6 +113,69 @@ Still missing or incomplete:
 4. Storage-write and object-authoring path
 5. Formal store-rebuild workflow
 
+### Milestones in This Phase
+
+#### M1: Core Object and Validation Base
+
+Focus:
+
+1. shared object schema and parsing
+2. canonical object validation rules
+3. object inspection and verification tooling
+4. interop fixtures and negative validation coverage
+
+Completion gate:
+
+1. all required v0.1 object families can be parsed into a shared protocol layer
+2. derived IDs can be recomputed reproducibly
+3. required signature rules are enforced consistently
+4. CLI and tests expose stable validation and verification surfaces for internal workflows
+
+Current read:
+
+Partially complete.
+
+Already visible in the repo:
+
+1. shared schema metadata
+2. shared object-envelope parsing
+3. object inspection and verification
+4. internal validation and simulator harness coverage
+
+Main remaining gaps:
+
+1. full typed object-family coverage
+2. canonical serialization promoted into a clearly shared protocol utility
+3. stronger `mycel-core`-level test depth around protocol parsing and verification
+
+#### M2: Replay, Storage, and Rebuild
+
+Focus:
+
+1. replay-based revision verification
+2. `state_hash` recomputation
+3. local object-store indexing
+4. store rebuild and recovery workflows
+5. initial object-authoring and storage-write path
+
+Completion gate:
+
+1. revisions can be replayed deterministically from stored objects
+2. `state_hash` is recomputed and verified during replay
+3. indexes can be rebuilt from canonical objects alone
+4. at least a narrow object creation and write path exists for the first client
+
+Current read:
+
+Started conceptually, but still largely incomplete.
+
+Main remaining gaps:
+
+1. replay engine
+2. `state_hash` verification engine
+3. persistent local store model
+4. object builder and writer path
+
 ## Phase 2: Reader-Plus-Governance
 
 Goal: add a usable reader-oriented client layer with deterministic accepted-head behavior and governance-aware reading state.
@@ -112,6 +211,41 @@ Still missing or incomplete:
 2. View publication workflow
 3. Stable reader-facing profile selection surface
 4. Complete storage and retrieval path for governance inputs
+
+### Milestones in This Phase
+
+#### M3: Reader and Governance Surface
+
+Focus:
+
+1. verified View ingestion
+2. fixed-profile accepted-head selection
+3. reader-first text reconstruction
+4. clear separation between reader inspection and governance publication workflows
+
+Completion gate:
+
+1. a fixed reader profile yields deterministic accepted heads across repeated runs
+2. governance data is stored and consumed separately from local discretionary policy
+3. reconstructed accepted text can be rendered or inspected from stored objects
+4. reader-facing CLI or API surfaces are stable enough for repeated internal use
+
+Current read:
+
+Early partial progress.
+
+Already visible in the repo:
+
+1. accepted-head inspection
+2. structured decision detail in typed arrays
+3. simulator and validation workflows around peer, topology, test, and report scopes
+
+Main remaining gaps:
+
+1. reader text rendering path
+2. fixed-profile reading workflow
+3. governance publication workflow
+4. broader governance-state persistence
 
 ## Phase 3: Full-Stack
 
@@ -150,6 +284,46 @@ Still missing or incomplete:
 4. Production replication behavior
 5. App-layer runtime support
 
+### Milestones in This Phase
+
+#### M4: Wire Sync and Peer Interop
+
+Focus:
+
+1. canonical wire envelope
+2. minimal message set
+3. end-to-end sync between peers
+4. verified object ingestion before indexing
+
+Completion gate:
+
+1. `HELLO`, `MANIFEST`, `HEADS`, `WANT`, `OBJECT`, `BYE`, and `ERROR` work end-to-end
+2. peers can complete a minimal first-time and incremental sync flow
+3. fetched objects are verified before storage and exposure
+4. interop fixtures and simulator coverage include sync success and negative sync cases
+
+Current read:
+
+Not started in implementation, but scaffolded in docs and simulator structure.
+
+#### M5: Selective App-Layer Expansion
+
+Focus:
+
+1. conservative profile growth above the protocol core
+2. selective app-layer support only after the first client is stable
+3. authoring and merge-generation workflows where the protocol already supports them
+
+Completion gate:
+
+1. app-layer additions depend on stable core protocol behavior
+2. merge generation emits replayable patch operations
+3. profile-specific logic stays outside the protocol core unless clearly justified
+
+Current read:
+
+Mostly deferred by design.
+
 ## Cross-Cutting Priorities
 
 These priorities apply across all phases:
@@ -160,14 +334,23 @@ These priorities apply across all phases:
 4. Add regression coverage whenever a new protocol rule or CLI contract is introduced
 5. Preserve the separation between protocol state, governance state, and local discretionary policy
 
-## Near-Term Work
+## Immediate Priorities
 
 The highest-value near-term work is:
 
-1. finish the Phase 1 core object and storage path
-2. complete replay and `state_hash` verification
-3. keep strengthening interop fixtures and negative tests
-4. turn mature governance behavior into fixed reader-profile workflows
+1. complete `M1` by finishing shared object-family coverage and shared canonical object mechanics
+2. begin `M2` with replay, `state_hash`, and store-rebuild foundations
+3. keep strengthening interop fixtures and negative tests as each protocol rule lands
+4. turn mature governance behavior into fixed reader-profile workflows only after the minimal core is stable
+
+## What Moves a Milestone Forward
+
+A milestone should normally move only when all of these are true:
+
+1. the core behavior exists in `mycel-core` or another shared implementation layer, not only in CLI glue
+2. CLI or simulator surfaces expose the behavior in a stable enough form for internal use
+3. fixtures or negative tests cover the new rule or behavior
+4. the change narrows the first-client path instead of widening the protocol scope prematurely
 
 ## Not Yet the Target
 
