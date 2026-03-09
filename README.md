@@ -38,6 +38,7 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 
 - [PROTOCOL.en.md](./PROTOCOL.en.md): Full protocol specification
 - [WIRE-PROTOCOL.en.md](./WIRE-PROTOCOL.en.md): Wire protocol draft
+- [ROADMAP.md](./ROADMAP.md): Repo-level phased roadmap for the first client and later expansion
 - [IMPLEMENTATION-CHECKLIST.en.md](./IMPLEMENTATION-CHECKLIST.en.md): Implementation checklist for a minimal v0.1 client
 - [PROFILE.fund-auto-disbursement-v0.1.en.md](./PROFILE.fund-auto-disbursement-v0.1.en.md): Narrow v0.1 profile draft for automatic fund disbursement with m-of-n custody
 - [PROFILE.mycel-over-tor-v0.1.en.md](./PROFILE.mycel-over-tor-v0.1.en.md): Narrow v0.1 deployment profile for Tor-routed Mycel transport
