@@ -7,6 +7,8 @@ use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::protocol::object_schema;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ObjectVerificationSummary {
     pub path: PathBuf,
@@ -193,26 +195,26 @@ fn verify_object_value_with_summary(
 
     summary.object_type = Some(object_type.to_string());
 
-    let descriptor = match object_descriptor(object_type) {
-        Some(descriptor) => descriptor,
+    let schema = match object_schema(object_type) {
+        Some(schema) => schema,
         None => {
             summary.push_error(format!("unsupported object type '{object_type}'"));
             return summary;
         }
     };
 
-    summary.signature_rule = Some(descriptor.signature_rule.to_string());
-    summary.signature_verification = Some(if descriptor.signature_required {
+    summary.signature_rule = Some(schema.signature_rule.to_string());
+    summary.signature_verification = Some(if schema.signature_rule.is_required() {
         "failed".to_string()
     } else {
         "not_applicable".to_string()
     });
 
-    if let Some(signer_field) = descriptor.signer_field {
+    if let Some(signer_field) = schema.signer_field {
         summary.signer_field = Some(signer_field.to_string());
     }
 
-    if descriptor.signature_required {
+    if schema.signature_rule.is_required() {
         let Some(signature) = object.get("signature") else {
             summary.push_error(format!(
                 "{object_type} object is missing required top-level 'signature'"
@@ -225,7 +227,7 @@ fn verify_object_value_with_summary(
         }
 
         let mut signer_value = None;
-        if let Some(signer_field) = descriptor.signer_field {
+        if let Some(signer_field) = schema.signer_field {
             match object.get(signer_field).and_then(Value::as_str) {
                 Some(signer) => {
                     summary.signer = Some(signer.to_string());
@@ -254,7 +256,7 @@ fn verify_object_value_with_summary(
         ));
     }
 
-    if let Some((id_field, prefix)) = descriptor.derived_id {
+    if let Some((id_field, prefix)) = schema.derived_id() {
         match object.get(id_field).and_then(Value::as_str) {
             Some(declared_id) => summary.declared_id = Some(declared_id.to_string()),
             None => summary.push_error(format!(
@@ -313,16 +315,16 @@ fn inspect_object_value_with_summary(
 
     summary.object_type = Some(object_type.to_string());
 
-    let descriptor = match object_descriptor(object_type) {
-        Some(descriptor) => descriptor,
+    let schema = match object_schema(object_type) {
+        Some(schema) => schema,
         None => {
             summary.push_note(format!("unsupported object type '{object_type}'"));
             return summary;
         }
     };
 
-    summary.signature_rule = Some(descriptor.signature_rule.to_string());
-    if let Some(signer_field) = descriptor.signer_field {
+    summary.signature_rule = Some(schema.signature_rule.to_string());
+    if let Some(signer_field) = schema.signer_field {
         summary.signer_field = Some(signer_field.to_string());
         match object.get(signer_field) {
             Some(Value::String(signer)) => summary.signer = Some(signer.clone()),
@@ -333,7 +335,7 @@ fn inspect_object_value_with_summary(
         }
     }
 
-    if let Some((id_field, _prefix)) = descriptor.derived_id {
+    if let Some((id_field, _prefix)) = schema.derived_id() {
         summary.declared_id_field = Some(id_field.to_string());
         match object.get(id_field) {
             Some(Value::String(id)) => summary.declared_id = Some(id.clone()),
@@ -344,7 +346,7 @@ fn inspect_object_value_with_summary(
         }
     }
 
-    if descriptor.signature_required {
+    if schema.signature_rule.is_required() {
         match object.get("signature") {
             Some(Value::String(_)) => {}
             Some(_) => summary.push_note("top-level 'signature' should be a string"),
@@ -369,56 +371,6 @@ fn finalize_signed_summary(mut summary: ObjectVerificationSummary) -> ObjectVeri
     }
 
     summary
-}
-
-#[derive(Copy, Clone)]
-struct ObjectTypeDescriptor {
-    signature_required: bool,
-    signature_rule: &'static str,
-    signer_field: Option<&'static str>,
-    derived_id: Option<(&'static str, &'static str)>,
-}
-
-fn object_descriptor(object_type: &str) -> Option<ObjectTypeDescriptor> {
-    match object_type {
-        "document" => Some(ObjectTypeDescriptor {
-            signature_required: false,
-            signature_rule: "forbidden",
-            signer_field: None,
-            derived_id: None,
-        }),
-        "block" => Some(ObjectTypeDescriptor {
-            signature_required: false,
-            signature_rule: "forbidden",
-            signer_field: None,
-            derived_id: None,
-        }),
-        "patch" => Some(ObjectTypeDescriptor {
-            signature_required: true,
-            signature_rule: "required",
-            signer_field: Some("author"),
-            derived_id: Some(("patch_id", "patch")),
-        }),
-        "revision" => Some(ObjectTypeDescriptor {
-            signature_required: true,
-            signature_rule: "required",
-            signer_field: Some("author"),
-            derived_id: Some(("revision_id", "rev")),
-        }),
-        "view" => Some(ObjectTypeDescriptor {
-            signature_required: true,
-            signature_rule: "required",
-            signer_field: Some("maintainer"),
-            derived_id: Some(("view_id", "view")),
-        }),
-        "snapshot" => Some(ObjectTypeDescriptor {
-            signature_required: true,
-            signature_rule: "required",
-            signer_field: Some("created_by"),
-            derived_id: Some(("snapshot_id", "snap")),
-        }),
-        _ => None,
-    }
 }
 
 fn collect_value_errors(value: &Value, path: &str, errors: &mut Vec<String>) {
