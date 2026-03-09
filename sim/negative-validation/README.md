@@ -42,6 +42,8 @@ Run both the positive and negative validation path in one command:
 ./sim/negative-validation/smoke.sh
 ```
 
+The script now ends with a short per-case summary so we can confirm the outcome without re-reading every JSON block.
+
 The script expects:
 
 - repo-wide `mycel validate --json` returns `status: "ok"`

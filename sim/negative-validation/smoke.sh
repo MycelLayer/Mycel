@@ -3,6 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+summary_lines=()
 
 cd "$repo_root"
 
@@ -14,11 +15,13 @@ if [[ "$repo_output" != *'"status": "ok"'* ]]; then
   echo "[smoke] expected repo validation status ok" >&2
   exit 1
 fi
+summary_lines+=("PASS  repo-validate-ok")
 
 echo
 validate_expected_failure() {
   local artifact_path="$1"
   local expected_source="$2"
+  local case_name="$3"
 
   echo "[smoke] validating intentional invalid report should fail: $artifact_path"
 
@@ -45,15 +48,19 @@ validate_expected_failure() {
     exit 1
   fi
 
+  summary_lines+=("PASS  ${case_name} -> failed as expected")
+
   echo
 }
 
 validate_expected_failure \
   "sim/reports/invalid/random-seed-prefix-mismatch.example.json" \
-  "random"
+  "random" \
+  "random-seed-prefix-mismatch"
 validate_expected_failure \
   "sim/reports/invalid/auto-seed-prefix-mismatch.example.json" \
-  "auto"
+  "auto" \
+  "auto-seed-prefix-mismatch"
 
 echo "[smoke] validating intentional warning report should warn by default"
 warning_output="$(cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json)"
@@ -68,6 +75,7 @@ if [[ "$warning_output" != *"does not include seed_source"* ]]; then
   echo "[smoke] expected missing-seed-source warning message" >&2
   exit 1
 fi
+summary_lines+=("PASS  missing-seed-source -> warning in normal mode")
 
 echo
 echo "[smoke] validating intentional warning report should fail under --strict"
@@ -93,6 +101,12 @@ if [[ "$strict_warning_output" != *"does not include seed_source"* ]]; then
   echo "[smoke] expected missing-seed-source strict warning message" >&2
   exit 1
 fi
+summary_lines+=("PASS  missing-seed-source -> non-zero exit under --strict")
 
+echo
+echo "[smoke] summary"
+for line in "${summary_lines[@]}"; do
+  echo "  $line"
+done
 echo
 echo "[smoke] negative validation smoke passed"

@@ -58,3 +58,4 @@ The smoke script currently covers:
 - `auto-seed-prefix-mismatch` hard failure
 - `missing-seed-source` warning in normal mode
 - `missing-seed-source` non-zero exit under `--strict`
+- a final per-case summary for quick scanability
