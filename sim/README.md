@@ -41,6 +41,7 @@ Runnable examples:
 
 - `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json`
 - `cargo run -p mycel-cli -- sim run sim/tests/signature-mismatch.example.json`
+- `cargo run -p mycel-cli -- sim run sim/tests/partial-want-recovery.example.json`
 
 Validation output notes:
 

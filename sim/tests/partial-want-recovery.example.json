@@ -1,0 +1,30 @@
+{
+  "$schema": "./test-case.schema.json",
+  "test_id": "partial-want-recovery",
+  "description": "A reader should request missing objects and recover to a replayable state.",
+  "category": "recovery",
+  "topology": "sim/topologies/partial-want-recovery.example.json",
+  "fixture_set": "fixtures/object-sets/partial-want-recovery",
+  "execution_mode": "single-process",
+  "expected_result": "pass",
+  "expected_outcomes": [
+    "missing-objects-requested",
+    "recovery-success",
+    "post-recovery-replay-success"
+  ],
+  "assertions": [
+    {
+      "assertion_id": "want-requested",
+      "description": "The generated event trace records a missing-object recovery request.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "recovery-success",
+      "description": "The generated report shows successful recovery after the WANT cycle.",
+      "severity": "error"
+    }
+  ],
+  "notes": [
+    "Use this to inspect the current deterministic recovery path before full object-level WANT handling exists."
+  ]
+}

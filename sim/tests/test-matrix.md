@@ -15,6 +15,7 @@
 ## Recovery
 
 - `recover-missing-objects`: recover missing objects via `WANT`
+  Reference JSON: `sim/tests/partial-want-recovery.example.json`
 
 ## Deferred
 
