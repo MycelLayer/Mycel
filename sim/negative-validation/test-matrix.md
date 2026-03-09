@@ -58,6 +58,7 @@ The smoke script currently covers:
 - repo-wide success
 - `random-seed-prefix-mismatch` hard failure
 - `auto-seed-prefix-mismatch` hard failure
+- `unknown-topology-reference` hard failure
 - `missing-seed-source` warning in normal mode
 - `missing-seed-source` non-zero exit under `--strict`
 - a final per-case summary for quick scanability

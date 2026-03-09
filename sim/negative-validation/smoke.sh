@@ -53,6 +53,41 @@ validate_expected_failure() {
   echo
 }
 
+validate_expected_error_text() {
+  local artifact_path="$1"
+  local expected_text="$2"
+  local case_name="$3"
+
+  echo "[smoke] validating intentional invalid report should fail: $artifact_path"
+
+  set +e
+  local invalid_output
+  invalid_output="$(cargo run -p mycel-cli -- validate "$artifact_path" --json 2>&1)"
+  local invalid_exit=$?
+  set -e
+
+  echo "$invalid_output"
+
+  if [[ $invalid_exit -eq 0 ]]; then
+    echo "[smoke] expected invalid report validation to fail" >&2
+    exit 1
+  fi
+
+  if [[ "$invalid_output" != *'"status": "failed"'* ]]; then
+    echo "[smoke] expected invalid report validation status failed" >&2
+    exit 1
+  fi
+
+  if [[ "$invalid_output" != *"$expected_text"* ]]; then
+    echo "[smoke] expected invalid report failure to mention: $expected_text" >&2
+    exit 1
+  fi
+
+  summary_lines+=("PASS  ${case_name} -> failed as expected")
+
+  echo
+}
+
 validate_expected_failure \
   "sim/reports/invalid/random-seed-prefix-mismatch.example.json" \
   "random" \
@@ -61,6 +96,10 @@ validate_expected_failure \
   "sim/reports/invalid/auto-seed-prefix-mismatch.example.json" \
   "auto" \
   "auto-seed-prefix-mismatch"
+validate_expected_error_text \
+  "sim/reports/invalid/unknown-topology-reference.example.json" \
+  "does not match any loaded topology" \
+  "unknown-topology-reference"
 
 echo "[smoke] validating intentional warning report should warn by default"
 warning_output="$(cargo run -p mycel-cli -- validate sim/reports/invalid/missing-seed-source.example.json --json)"

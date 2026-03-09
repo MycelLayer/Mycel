@@ -53,6 +53,7 @@ The script expects:
 - repo-wide `mycel validate --json` returns `status: "ok"`
 - the intentional invalid `random` and `auto` reports return `status: "failed"`
 - each failure message mentions the matching `seed_source` mismatch
+- the `unknown-topology-reference` report returns `status: "failed"` with a topology lookup error
 - the `missing-seed-source` report returns `status: "warning"` by default
 - the same `missing-seed-source` report returns a non-zero exit code under `--strict`
 
