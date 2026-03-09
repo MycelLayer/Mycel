@@ -1,0 +1,15 @@
+[package]
+name = "mycel-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "mycel"
+path = "src/main.rs"
+
+[dependencies]
+mycel-core = { path = "../../crates/mycel-core" }
+mycel-sim = { path = "../../crates/mycel-sim" }

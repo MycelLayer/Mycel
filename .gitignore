@@ -1,4 +1,5 @@
 AGENTS-MYCEL.md
+target/
 sim/runtime/*
 !sim/runtime/README.md
 sim/reports/out/

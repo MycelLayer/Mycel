@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/mycel-core",
+  "crates/mycel-sim",
+  "apps/mycel-cli",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+authors = ["gpt-5:codex <codex@local>"]
+rust-version = "1.79"
+
+[workspace.metadata.mycel]
+app = "mycel"
+focus = "reader-first simulator and CLI skeleton"
