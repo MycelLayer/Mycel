@@ -170,6 +170,14 @@ Implementation anchors:
    `cargo run -p mycel-cli -- object verify <path> --json`
    `cargo run -p mycel-cli -- validate <path> --json`
 
+Recommended build order:
+
+1. finish shared protocol parsing coverage for all required object families in `crates/mycel-core/src/protocol.rs`
+2. move canonical object mechanics into shared protocol-level helpers instead of leaving them only inside `crates/mycel-core/src/verify.rs`
+3. extend `crates/mycel-core/src/verify.rs` to consume those shared helpers for every supported object family
+4. deepen `mycel-core` tests before expanding CLI surface, so object-rule regressions are caught below the CLI layer
+5. only after the shared core is stable, widen CLI and simulator-facing validation coverage where needed
+
 #### M2: Replay, Storage, and Rebuild
 
 Focus:
@@ -214,6 +222,14 @@ Implementation anchors:
 4. Useful commands:
    `cargo test -p mycel-core`
    `cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json`
+
+Recommended build order:
+
+1. land replay primitives in `crates/mycel-core` before building any new storage-writing CLI flow
+2. implement deterministic `state_hash` recomputation on top of replay, not as a separate isolated utility
+3. define the minimal local store and rebuild model once replay output is stable
+4. add a narrow object builder and storage-write path only after replay and rebuild semantics are fixed
+5. expose CLI or API entry points last, so they sit on top of shared replay and storage logic instead of inventing parallel behavior
 
 ## Phase 2: Reader-Plus-Governance
 
