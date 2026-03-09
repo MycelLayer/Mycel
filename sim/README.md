@@ -63,6 +63,40 @@ Head-inspection output notes:
 - typed arrays such as `effective_weights[]`, `maintainer_support[]`, and `critical_violations[]` carry the stable machine-consumable selection detail
 - tools and tests should rely on typed arrays for detailed assertions instead of parsing `decision_trace`
 
+Minimal JSON shape example:
+
+```json
+{
+  "status": "ok",
+  "selected_head": "rev:...",
+  "effective_weights": [
+    {
+      "maintainer": "pk:ed25519:...",
+      "admitted": true,
+      "effective_weight": 2
+    }
+  ],
+  "maintainer_support": [
+    {
+      "maintainer": "pk:ed25519:...",
+      "revision_id": "rev:...",
+      "effective_weight": 2
+    }
+  ],
+  "critical_violations": [],
+  "decision_trace": [
+    {
+      "step": "effective_weight",
+      "detail": "maintainers=3 admitted=2 penalized=0 zero_weight=1 max_effective_weight=2"
+    },
+    {
+      "step": "selected_head",
+      "detail": "selected=rev:... tie_break_reason=higher_selector_score"
+    }
+  ]
+}
+```
+
 Simulator run notes:
 
 - `sim run` currently supports only `single-process` test-cases
