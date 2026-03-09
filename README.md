@@ -51,6 +51,7 @@ Mycel can be used in many content domains. The protocol itself remains neutral a
 - [DESIGN-NOTES.mycel-full-stack-map.en.md](./DESIGN-NOTES.mycel-full-stack-map.en.md): Design draft mapping the current Mycel documents into one layered full-stack system view
 - [DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md](./DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md): Design draft for keeping protocol core changes conservative while moving faster in profiles and design notes
 - [DESIGN-NOTES.peer-discovery-model.en.md](./DESIGN-NOTES.peer-discovery-model.en.md): Design draft for bounded peer discovery across public, restricted, and Tor-oriented deployments
+- [DESIGN-NOTES.peer-simulator-v0.en.md](./DESIGN-NOTES.peer-simulator-v0.en.md): Design draft for an early multi-peer simulator and test harness
 - [DESIGN-NOTES.sensor-triggered-donation.en.md](./DESIGN-NOTES.sensor-triggered-donation.en.md): Design draft for a sensor-triggered donation flow
 - [DESIGN-NOTES.governance-history-security.en.md](./DESIGN-NOTES.governance-history-security.en.md): Design draft for securing governance history
 
