@@ -1532,6 +1532,51 @@ fn object_verify_json_fails_for_snapshot_with_wrong_created_by_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_snapshot_missing_created_by() {
+    let mut snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "timestamp": 1777778890u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    snapshot
+        .as_object_mut()
+        .expect("snapshot should be an object")
+        .remove("created_by");
+    let object = write_object_file(
+        "object-verify-snapshot-missing-created-by",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("snapshot object is missing string signer field 'created_by'")
+                })
+            })),
+        "expected missing created_by signer-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_snapshot_with_non_string_snapshot_id() {
     let mut snapshot = json!({
         "type": "snapshot",
@@ -1682,6 +1727,47 @@ fn object_verify_json_fails_for_view_with_wrong_maintainer_prefix() {
                 })
             })),
         "expected maintainer signer-format error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_missing_maintainer() {
+    let mut view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    view.as_object_mut()
+        .expect("view should be an object")
+        .remove("maintainer");
+    let object = write_object_file("object-verify-view-missing-maintainer", "view.json", view);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("view object is missing string signer field 'maintainer'")
+                })
+            })),
+        "expected missing maintainer signer-field error, stdout: {}",
         stdout_text(&output)
     );
 }
@@ -2272,6 +2358,45 @@ fn object_verify_json_fails_for_patch_with_wrong_author_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_patch_missing_author() {
+    let mut patch = signed_object(
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1777778888u64,
+            "ops": []
+        }),
+        "author",
+        "patch_id",
+        "patch",
+    );
+    patch
+        .as_object_mut()
+        .expect("patch should be an object")
+        .remove("author");
+    let object = write_object_file("object-verify-patch-missing-author", "patch.json", patch);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("patch object is missing string signer field 'author'")
+                })
+            })),
+        "expected missing author signer-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_patch_with_wrong_patch_id_prefix() {
     let mut patch = signed_object(
         json!({
@@ -2800,6 +2925,50 @@ fn object_verify_json_fails_for_revision_with_wrong_author_prefix() {
                 })
             })),
         "expected signer-format error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_revision_missing_author() {
+    let mut revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": [],
+            "state_hash": "hash:test-state",
+            "timestamp": 1777778890u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    revision
+        .as_object_mut()
+        .expect("revision should be an object")
+        .remove("author");
+    let object = write_object_file(
+        "object-verify-revision-missing-author",
+        "revision.json",
+        revision,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("revision object is missing string signer field 'author'")
+                })
+            })),
+        "expected missing author signer-field error, stdout: {}",
         stdout_text(&output)
     );
 }
