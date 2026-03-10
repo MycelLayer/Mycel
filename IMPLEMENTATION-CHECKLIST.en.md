@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: late partial progress, M1 parsing and validation core nearly complete
+Status: late partial progress, M1 parsing, validation, and canonical reproducibility core nearly complete
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
@@ -166,10 +166,10 @@ Defer if needed:
 
 - [ ] Load all normative example objects and ensure they parse.
 - [ ] Recompute derived IDs for example `patch`, `revision`, `view`, and `snapshot` objects.
-- [ ] Recompute `state_hash` for at least one single-parent revision and one merge revision.
+- [x] Recompute `state_hash` for at least one single-parent revision and one merge revision.
 - [ ] Verify example wire envelopes and `OBJECT` validation behavior.
 - [ ] Add negative tests for hash mismatch, signature mismatch, and invalid parent ordering.
-- [ ] Add a round-trip test for canonical serialization.
+- [x] Add a round-trip test for canonical serialization.
 - [ ] Add a replay test that rebuilds document state from stored objects only.
 
 ## 13. Ready-to-Build Gate
@@ -177,7 +177,7 @@ Defer if needed:
 Treat the client as ready for a first interoperable build when all of the following are true:
 
 - [ ] all required object types parse and validate
-- [ ] canonical IDs and signatures are reproducible
+- [x] canonical IDs and signatures are reproducible
 - [x] revision replay and `state_hash` verification pass
 - [ ] minimal wire sync succeeds end-to-end
 - [x] deterministic head selection produces stable output

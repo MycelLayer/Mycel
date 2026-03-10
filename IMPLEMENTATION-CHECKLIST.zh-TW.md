@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：late partial progress，M1 parsing 與 validation core 接近完成
+狀態：late partial progress，M1 parsing、validation 與 canonical reproducibility core 接近完成
 
 這份清單把 v0.1 規格轉成偏實作導向的 build plan，目標是一個最小但可互通的 client。
 
@@ -166,10 +166,10 @@
 
 - [ ] 載入所有規範性 example objects，並確認可解析。
 - [ ] 對 example `patch`、`revision`、`view`、`snapshot` 重算 derived IDs。
-- [ ] 至少對一個 single-parent revision 與一個 merge revision 重算 `state_hash`。
+- [x] 至少對一個 single-parent revision 與一個 merge revision 重算 `state_hash`。
 - [ ] 驗證 example wire envelopes 與 `OBJECT` 驗證行為。
 - [ ] 加入 hash mismatch、signature mismatch、invalid parent ordering 的 negative tests。
-- [ ] 加入 canonical serialization 的 round-trip test。
+- [x] 加入 canonical serialization 的 round-trip test。
 - [ ] 加入只靠儲存物件重建 document state 的 replay test。
 
 ## 13. 可開始建 client 的門檻
@@ -177,7 +177,7 @@
 當以下條件都成立時，可把 client 視為 ready for first interoperable build：
 
 - [ ] 所有必要 object types 都能解析並驗證
-- [ ] canonical IDs 與 signatures 可重現
+- [x] canonical IDs 與 signatures 可重現
 - [x] revision replay 與 `state_hash` 驗證通過
 - [ ] 最小 wire sync 可端到端跑通
 - [x] 決定性 head selection 產出穩定結果

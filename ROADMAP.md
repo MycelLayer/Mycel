@@ -135,7 +135,7 @@ Completion gate:
 
 Current read:
 
-Nearly complete. The shared parsing, canonical helper, and negative-validation base now exist; the remaining work is mostly closure and stricter edge-case policy.
+Nearly complete. The shared parsing, canonical helper, negative-validation base, and canonical reproducibility coverage now exist; the remaining work is mostly strictness closure and a few milestone-close proof points.
 
 Already visible in the repo:
 
@@ -145,12 +145,13 @@ Already visible in the repo:
 4. object inspection and verification
 5. protocol-level typed parsing for the supported object families, including `document`, `block`, `patch`, `revision`, `view`, and `snapshot`
 6. duplicate-key rejection and unsupported-value rejection in shared JSON loading
-7. internal validation and simulator harness coverage
+7. canonical round-trip and reproducibility coverage for IDs, signed payloads, and signatures
+8. internal validation and simulator harness coverage
 
 Main remaining gaps:
 
 1. stricter unknown-field and malformed-field policy closure
-2. deeper `mycel-core`-level coverage for remaining semantic edge cases
+2. deeper `mycel-core`-level coverage for the remaining semantic edge cases outside the current revision/canonical batch
 3. shared helper reuse extended into future wire-validation work
 4. clearer milestone-close criteria before widening more surfaces
 
