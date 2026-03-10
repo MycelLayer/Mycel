@@ -73,6 +73,12 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - 看實作順序：[ROADMAP.md](./ROADMAP.md)
 - 看 build checklist：[IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)
 
+如果你想從全新環境開始貢獻：
+
+- 先看 setup：[docs/DEV-SETUP.zh-TW.md](./docs/DEV-SETUP.zh-TW.md)
+- 再看貢獻預期：[CONTRIBUTING.md](./CONTRIBUTING.md)
+- 如果你使用 AI coding agent，再接著看：[BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md)
+
 如果你想理解目前的 Rust 實作：
 
 - Workspace 地圖：[RUST-WORKSPACE.md](./RUST-WORKSPACE.md)
