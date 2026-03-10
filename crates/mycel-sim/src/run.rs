@@ -7,6 +7,7 @@ use std::process;
 use std::time::Instant;
 
 use chrono::{FixedOffset, Utc};
+use mycel_core::protocol::parse_json_strict;
 use serde::Serialize;
 use serde_json::json;
 
@@ -613,7 +614,7 @@ where
 {
     let body = fs::read_to_string(path)
         .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
-    serde_json::from_str(&body).map_err(|err| format!("failed to parse {}: {err}", path.display()))
+    parse_json_strict(&body).map_err(|err| format!("failed to parse {}: {err}", path.display()))
 }
 
 fn build_run_metadata(

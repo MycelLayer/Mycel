@@ -27,6 +27,13 @@ fn write_object_file(prefix: &str, name: &str, value: Value) -> TempObjectFile {
     TempObjectFile { _dir: dir, path }
 }
 
+fn write_raw_object_file(prefix: &str, name: &str, content: &str) -> TempObjectFile {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join(name);
+    fs::write(&path, content).expect("object JSON should be written");
+    TempObjectFile { _dir: dir, path }
+}
+
 fn path_arg(path: &PathBuf) -> String {
     path.to_string_lossy().into_owned()
 }
@@ -205,6 +212,37 @@ fn object_verify_json_fails_for_document_missing_doc_id() {
                         .contains("document object is missing string field 'doc_id'")))
             ),
         "expected missing doc_id error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_duplicate_object_keys() {
+    let object = write_raw_object_file(
+        "object-verify-duplicate-keys",
+        "document.json",
+        r#"{
+  "type": "document",
+  "version": "mycel/0.1",
+  "doc_id": "doc:first",
+  "doc_id": "doc:second",
+  "title": "Duplicate key object"
+}"#,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("failed to parse JSON: duplicate object key 'doc_id'")
+                })
+            })),
+        "expected duplicate-key parse error, stdout: {}",
         stdout_text(&output)
     );
 }

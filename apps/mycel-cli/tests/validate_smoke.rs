@@ -1,3 +1,5 @@
+use std::fs;
+
 use serde_json::Value;
 
 mod common;
@@ -5,7 +7,7 @@ mod common;
 use common::{
     assert_exit_code, assert_json_error_contains, assert_json_status, assert_json_warning_contains,
     assert_stderr_contains, assert_stdout_contains, assert_success, create_temp_dir,
-    parse_json_stdout, run_mycel_in_dir, run_validate, stdout_text,
+    parse_json_stdout, repo_root, run_mycel_in_dir, run_validate, stdout_text,
 };
 
 #[test]
@@ -112,6 +114,44 @@ fn peer_file_validate_json_scopes_related_artifacts() {
             .expect("report_count should be numeric")
             >= 4
     );
+}
+
+#[test]
+fn validate_json_fails_for_duplicate_keys_in_peer_file() {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system time should be after unix epoch")
+        .as_nanos();
+    let path = repo_root().join(format!("sim/peers/duplicate-keys-{unique}.json"));
+    fs::write(
+        &path,
+        r#"{
+  "node_id": "node:dup-a",
+  "node_id": "node:dup-b",
+  "role": "peer",
+  "display_name": "Duplicate peer",
+  "transport": {
+    "kind": "memory"
+  }
+}"#,
+    )
+    .expect("duplicate-key peer file should write");
+
+    let output = run_validate(&["validate", &path.to_string_lossy(), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"].as_array().is_some_and(|errors| errors.iter().any(|entry| {
+            entry["message"].as_str().is_some_and(|message| {
+                message.contains("invalid JSON content: duplicate object key 'node_id'")
+            })
+        })),
+        "expected duplicate-key validation error, stdout: {}",
+        stdout_text(&output)
+    );
+
+    let _ = fs::remove_file(path);
 }
 
 #[test]

@@ -8,9 +8,9 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::protocol::{
-    parse_block_object, parse_document_object, parse_object_envelope, parse_patch_object,
-    parse_revision_object, parse_snapshot_object, parse_view_object, recompute_object_id,
-    signed_payload_bytes, ParseObjectEnvelopeError, StringFieldError,
+    parse_block_object, parse_document_object, parse_json_value_strict, parse_object_envelope,
+    parse_patch_object, parse_revision_object, parse_snapshot_object, parse_view_object,
+    recompute_object_id, signed_payload_bytes, ParseObjectEnvelopeError, StringFieldError,
 };
 use crate::replay::replay_revision_from_index;
 
@@ -134,7 +134,7 @@ pub fn inspect_object_path(path: &Path) -> ObjectInspectionSummary {
         }
     };
 
-    let value: Value = match serde_json::from_str(&content) {
+    let value: Value = match parse_json_value_strict(&content) {
         Ok(value) => value,
         Err(err) => {
             summary.push_error(format!("failed to parse JSON: {err}"));
@@ -156,7 +156,7 @@ pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
         }
     };
 
-    let value: Value = match serde_json::from_str(&content) {
+    let value: Value = match parse_json_value_strict(&content) {
         Ok(value) => value,
         Err(err) => {
             summary.push_error(format!("failed to parse JSON: {err}"));
@@ -536,7 +536,7 @@ fn load_neighbor_object_index(
                 entry_path.display()
             )
         })?;
-        let value: Value = serde_json::from_str(&content).map_err(|err| {
+        let value: Value = parse_json_value_strict(&content).map_err(|err| {
             format!(
                 "failed to parse sibling object {}: {err}",
                 entry_path.display()

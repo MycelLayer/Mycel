@@ -9,7 +9,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, DeserializeOwned, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
@@ -634,10 +635,115 @@ pub fn signed_payload_bytes(value: &Value) -> Result<Vec<u8>, String> {
     Ok(canonical.into_bytes())
 }
 
+pub fn parse_json_value_strict(input: &str) -> Result<Value, String> {
+    let mut deserializer = serde_json::Deserializer::from_str(input);
+    let value = StrictJsonValue::deserialize(&mut deserializer)
+        .map(|value| value.0)
+        .map_err(|error| error.to_string())?;
+    deserializer.end().map_err(|error| error.to_string())?;
+    Ok(value)
+}
+
+pub fn parse_json_strict<T>(input: &str) -> Result<T, String>
+where
+    T: DeserializeOwned,
+{
+    let value = parse_json_value_strict(input)?;
+    serde_json::from_value(value).map_err(|error| error.to_string())
+}
+
 pub fn canonical_json(value: &Value) -> Result<String, String> {
     let mut output = String::new();
     write_canonical_json(value, &mut output)?;
     Ok(output)
+}
+
+#[derive(Debug)]
+struct StrictJsonValue(Value);
+
+impl<'de> Deserialize<'de> for StrictJsonValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(StrictJsonVisitor)
+    }
+}
+
+struct StrictJsonVisitor;
+
+impl<'de> Visitor<'de> for StrictJsonVisitor {
+    type Value = StrictJsonValue;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("valid JSON value without duplicate object keys")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::Bool(value)))
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::Number(value.into())))
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::Number(value.into())))
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let number = serde_json::Number::from_f64(value)
+            .ok_or_else(|| de::Error::custom("invalid floating-point number"))?;
+        Ok(StrictJsonValue(Value::Number(number)))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_string(value.to_string())
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::String(value)))
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::Null))
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        Ok(StrictJsonValue(Value::Null))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut values = Vec::new();
+        while let Some(value) = seq.next_element::<StrictJsonValue>()? {
+            values.push(value.0);
+        }
+        Ok(StrictJsonValue(Value::Array(values)))
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut entries = Map::new();
+        while let Some(key) = map.next_key::<String>()? {
+            if entries.contains_key(&key) {
+                return Err(de::Error::custom(format!("duplicate object key '{key}'")));
+            }
+            let value = map.next_value::<StrictJsonValue>()?;
+            entries.insert(key, value.0);
+        }
+        Ok(StrictJsonValue(Value::Object(entries)))
+    }
 }
 
 fn write_canonical_json(value: &Value, output: &mut String) -> Result<(), String> {
@@ -1077,9 +1183,9 @@ mod tests {
 
     use super::{
         canonical_json, object_schema, parse_block_object, parse_document_object,
-        parse_object_envelope, parse_patch_object, parse_revision_object, parse_snapshot_object,
-        parse_view_object, recompute_object_id, ObjectKind, ParseObjectEnvelopeError,
-        SignatureRule, StringFieldError,
+        parse_json_value_strict, parse_object_envelope, parse_patch_object, parse_revision_object,
+        parse_snapshot_object, parse_view_object, recompute_object_id, ObjectKind,
+        ParseObjectEnvelopeError, SignatureRule, StringFieldError,
     };
 
     #[test]
@@ -1723,6 +1829,25 @@ mod tests {
             error.to_string(),
             "top-level 'included_objects' must include revision 'rev:test' declared by 'documents.doc:test'"
         );
+    }
+
+    #[test]
+    fn parse_json_value_strict_rejects_duplicate_top_level_keys() {
+        let error =
+            parse_json_value_strict(r#"{"type":"document","doc_id":"doc:a","doc_id":"doc:b"}"#)
+                .unwrap_err();
+
+        assert!(error.contains("duplicate object key 'doc_id'"));
+    }
+
+    #[test]
+    fn parse_json_value_strict_rejects_duplicate_nested_keys() {
+        let error = parse_json_value_strict(
+            r#"{"type":"snapshot","documents":{"doc:a":"rev:a","doc:a":"rev:b"}}"#,
+        )
+        .unwrap_err();
+
+        assert!(error.contains("duplicate object key 'doc:a'"));
     }
 
     #[test]

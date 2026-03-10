@@ -8,7 +8,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::protocol::{
-    canonical_json, hex_encode, parse_patch_object, parse_revision_object, parse_view_object,
+    canonical_json, hex_encode, parse_json_strict, parse_json_value_strict, parse_patch_object,
+    parse_revision_object, parse_view_object,
 };
 use crate::verify::{verify_object_path, verify_object_value_with_object_index};
 
@@ -428,7 +429,7 @@ fn write_stored_object(
                 store_path.display()
             ))
         })?;
-        let existing_value: Value = serde_json::from_str(&existing).map_err(|error| {
+        let existing_value: Value = parse_json_value_strict(&existing).map_err(|error| {
             StoreRebuildError::new(format!(
                 "failed to parse existing stored object {}: {error}",
                 store_path.display()
@@ -565,7 +566,7 @@ fn load_objects(
                 path.display()
             ))
         })?;
-        let value: Value = serde_json::from_str(&content).map_err(|error| {
+        let value: Value = parse_json_value_strict(&content).map_err(|error| {
             StoreRebuildError::new(format!(
                 "failed to parse object JSON {}: {error}",
                 path.display()
@@ -800,7 +801,7 @@ pub fn load_store_index_manifest(
             manifest_path.display()
         ))
     })?;
-    serde_json::from_str(&content).map_err(|error| {
+    parse_json_strict(&content).map_err(|error| {
         StoreRebuildError::new(format!(
             "failed to parse store index manifest {}: {error}",
             manifest_path.display()
@@ -833,7 +834,7 @@ pub fn load_stored_object_value(
             object_path.display()
         ))
     })?;
-    serde_json::from_str(&content).map_err(|error| {
+    parse_json_value_strict(&content).map_err(|error| {
         StoreRebuildError::new(format!(
             "failed to parse stored object {}: {error}",
             object_path.display()

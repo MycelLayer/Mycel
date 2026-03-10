@@ -5,6 +5,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use mycel_core::protocol::parse_json_strict;
 use serde::Serialize;
 
 use crate::model::{Fixture, Peer, Report, TestCase, Topology};
@@ -1114,7 +1115,7 @@ fn load_json<T: serde::de::DeserializeOwned>(
     summary: &mut ValidationSummary,
 ) -> Option<T> {
     match fs::read_to_string(path) {
-        Ok(content) => match serde_json::from_str::<T>(&content) {
+        Ok(content) => match parse_json_strict::<T>(&content) {
             Ok(value) => Some(value),
             Err(err) => {
                 push_error(summary, path, format!("invalid JSON content: {err}"));

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::protocol::{canonical_json, hex_encode};
+use crate::protocol::{canonical_json, hex_encode, parse_json_strict};
 use crate::store::{load_store_index_manifest, load_stored_object_value};
 use crate::verify::verify_object_value;
 
@@ -213,7 +213,7 @@ fn load_head_inspect_input(
         }
     };
 
-    let input = match serde_json::from_str(&content) {
+    let input = match parse_json_strict(&content) {
         Ok(input) => input,
         Err(err) => {
             summary.push_error(format!("failed to parse head-inspect input JSON: {err}"));
