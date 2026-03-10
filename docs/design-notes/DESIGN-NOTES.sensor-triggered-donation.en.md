@@ -1,14 +1,16 @@
-# Sensor-triggered Donation App Layer
+# Sensor-triggered Donation App/Profile Architecture
 
 Status: design draft
 
-This note describes an app-layer design where a runtime observes machine-derived user-state events and may create donation-related records under a pre-authorized consent policy.
+This note describes an app/profile architecture where a runtime observes machine-derived user-state events and may create donation-related records under a pre-authorized consent policy.
 
 Plainly put, this is a model where future practitioners may receive donations through meditation under agreed conditions.
 
 The main design principle is:
 
 - Mycel carries consent state, session state, derived user-state events, donation intents or pledges, settlement receipts, and audit history
+- an app layer defines record families, runtime interfaces, and user-facing flow
+- a fixed profile defines trigger eligibility, payout bounds, and execution constraints
 - a client lets users inspect and configure the flow
 - a sensing and payment runtime performs external observation and payment side effects
 - the core protocol remains neutral and purely technical
@@ -44,6 +46,16 @@ The app should follow six rules.
 4. Auto-triggered donation behavior MUST require an explicit consent profile.
 5. Payment-side effects MUST happen outside the core protocol.
 6. A donor MUST be able to revoke, pause, or dispute the flow.
+
+### 1.1 App/Profile Split
+
+In this case, the architecture should be split as follows:
+
+- the **app layer** defines record families, user-visible state, runtime interaction points, and audit surfaces
+- the **profile** defines what counts as a qualifying event, how often funding may be triggered, what amount bounds apply, and whether a result becomes a pledge, manual-confirmation request, or pre-authorized execution candidate
+- the **core protocol** only carries verifiable objects, replayable history, accepted-state derivation, and replication
+
+This keeps meditation-qualified funding logic out of the protocol core while still making the outcome auditable and replayable.
 
 ## 2. Four Layers
 
@@ -241,6 +253,21 @@ Typical `action_kind` values:
 - `dispute`
 - `refund-request`
 
+### 3.7 Recommended Document Families
+
+In this case, a `document` should be treated as a long-lived history container, not as a prose file.
+
+Recommended document families:
+
+- `consent_document`: enrollment, consent scope, pause, revoke, dispute eligibility
+- `session_document`: session summaries and approved evidence references
+- `event_document`: derived user-state events admitted for evaluation
+- `intent_document`: pledge, manual-confirmation, or payment intent history
+- `receipt_document`: settlement receipts and failure receipts
+- `policy_document`: active trigger policy, funding bounds, runtime allowlists, and payout mode
+
+One deployment may collapse some of these families, but a first implementation should keep them separate for auditability.
+
 ## 4. Recommended Trigger Policy
 
 For a first client, I recommend a conservative trigger policy:
@@ -254,6 +281,21 @@ For a first client, I recommend a conservative trigger policy:
 
 This keeps derived user-state and payment authorization clearly separated.
 
+### 4.1 What the Fixed Profile Must Define
+
+A fixed profile should define at least:
+
+- `profile_id`
+- allowed `state_label` values
+- minimum duration and stability thresholds
+- approved runtime family or evidence format
+- amount and frequency limits
+- cooldown rules
+- payout mode (`pledge`, `manual-confirmation`, or `pre-authorized-payment`)
+- dispute and pause semantics
+
+Different deployments may choose different thresholds, but each accepted outcome must be traceable to one fixed profile.
+
 ## 5. Accepted-State Driven Execution
 
 The runtimes should execute external actions only from accepted state.
@@ -266,6 +308,20 @@ Recommended rule:
 4. create a pledge or payment intent if allowed
 5. execute external payment steps only where policy permits
 6. publish receipts and any dispute records
+
+### 5.1 End-to-End Flow
+
+One narrow end-to-end flow is:
+
+1. the user enrolls one explicit consent profile
+2. the sensing runtime creates one bounded session summary
+3. the deployment admits one derived event into accepted state
+4. the fixed profile evaluates that event against amount, frequency, and cooldown rules
+5. the app creates one `pledge` or `manual-confirmation` intent
+6. only then may an external payment runtime attempt settlement
+7. the runtime publishes a receipt or a failure record back into Mycel
+
+This keeps sensing, governance, and money movement connected through accepted state rather than through opaque runtime shortcuts.
 
 ## 6. Privacy and Data Minimization
 

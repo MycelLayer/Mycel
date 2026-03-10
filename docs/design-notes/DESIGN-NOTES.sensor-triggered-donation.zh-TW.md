@@ -1,14 +1,16 @@
-# Sensor-triggered Donation App Layer
+# Sensor-triggered Donation App/Profile Architecture
 
 狀態：design draft
 
-這份筆記描述一個 app-layer 設計：runtime 觀察由機器導出的使用者狀態事件，並可在事先授權的 consent policy 下建立與 donation 有關的記錄。
+這份筆記描述一個 app/profile architecture：runtime 觀察由機器導出的使用者狀態事件，並可在事先授權的 consent policy 下建立與 donation 有關的記錄。
 
 白話說，這是一個讓未來修行者可以在事先約定的條件下，透過靜坐來收 donation 的模型。
 
 核心原則是：
 
 - Mycel 承載 consent state、session state、derived user-state events、donation intents 或 pledges、settlement receipts 與 audit history
+- app layer 定義 record families、runtime interfaces 與使用者可見流程
+- 固定 profile 定義 trigger eligibility、fund 上限與 execution constraints
 - client 讓使用者檢查與設定整個流程
 - sensing 與 payment runtime 負責執行外部觀測與 payment side effects
 - core protocol 保持中立且純技術化
@@ -44,6 +46,16 @@
 4. Auto-triggered donation behavior MUST 以明確的 consent profile 為前提。
 5. Payment-side effects MUST 發生在核心協議之外。
 6. donor MUST 能撤回、暫停或提出爭議。
+
+### 1.1 App/Profile 分工
+
+在這個 case 裡，架構應這樣拆：
+
+- **app layer** 定義 record families、使用者可見狀態、runtime interaction points 與 audit surfaces
+- **固定 profile** 定義什麼算合格事件、多久可觸發一次 funding、金額邊界是什麼，以及結果是 `pledge`、`manual-confirmation` 還是 `pre-authorized-payment`
+- **core protocol** 只負責可驗證物件、可重播歷史、accepted-state derivation 與 replication
+
+這樣可以把「靜坐合格後收 fund」的邏輯留在 app/profile 層，而不是塞進 protocol core。
 
 ## 2. 四層分工
 
@@ -241,6 +253,21 @@ effect layer 顯式表示外部觀測與支付動作。
 - `dispute`
 - `refund-request`
 
+### 3.7 建議的 Document Families
+
+在這個 case 裡，`document` 應被理解為長期歷史容器，而不是傳統散文文件。
+
+建議 document families：
+
+- `consent_document`：enrollment、consent scope、pause、revoke、dispute eligibility
+- `session_document`：session summaries 與已核准 evidence references
+- `event_document`：可進入評估的 derived user-state events
+- `intent_document`：pledge、manual-confirmation 或 payment intent 的歷史
+- `receipt_document`：settlement receipts 與 failure receipts
+- `policy_document`：active trigger policy、fund 邊界、runtime allowlists 與 payout mode
+
+某些部署可以把部分 families 合併，但第一版實作最好維持分離，以利 auditability。
+
 ## 4. 建議觸發政策
 
 對第一版 client，我建議採保守的 trigger policy：
@@ -254,6 +281,21 @@ effect layer 顯式表示外部觀測與支付動作。
 
 這樣可以把 derived user-state 與 payment authorization 清楚分開。
 
+### 4.1 固定 Profile 必須定義什麼
+
+一個固定 profile 至少應定義：
+
+- `profile_id`
+- 允許的 `state_label`
+- 最小持續時間與穩定度門檻
+- 核准的 runtime family 或 evidence format
+- 金額與頻率限制
+- cooldown 規則
+- payout mode（`pledge`、`manual-confirmation` 或 `pre-authorized-payment`）
+- dispute 與 pause 語義
+
+不同部署可以選不同門檻，但每個 accepted outcome 都必須可追溯到一個固定 profile。
+
 ## 5. Accepted-State 驅動的執行
 
 runtimes 應只從 accepted state 執行外部動作。
@@ -266,6 +308,20 @@ runtimes 應只從 accepted state 執行外部動作。
 4. 若允許，建立 pledge 或 payment intent
 5. 只有在 policy 允許時才執行外部 payment steps
 6. 發布 receipts 與任何 dispute records
+
+### 5.1 端到端流程
+
+一個較窄的端到端流程可以是：
+
+1. 使用者先建立一個明確的 consent profile
+2. sensing runtime 建立一個有限時的 session summary
+3. 部署把一個 derived event 納入 accepted state
+4. 固定 profile 依金額、頻率與 cooldown 規則評估該事件
+5. app 建立一個 `pledge` 或 `manual-confirmation` intent
+6. 只有此時外部 payment runtime 才可嘗試 settlement
+7. runtime 把 receipt 或 failure record 回寫到 Mycel
+
+這樣可以讓 sensing、governance 與資金移動透過 accepted state 串起來，而不是靠不透明的 runtime shortcut。
 
 ## 6. Privacy 與 Data Minimization
 
