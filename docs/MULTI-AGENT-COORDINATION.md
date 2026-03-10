@@ -124,6 +124,39 @@ Prefer:
 
 Do not hand off a task as "done" if the acceptance criteria and verify commands in the issue have not been checked.
 
+## Milestone Batch Completion Gate
+
+Do not treat a milestone batch as complete just because several related issues landed.
+
+A milestone batch is complete only when all of the following are true:
+
+1. the intended scope for the batch is explicit
+2. the matching issue acceptance criteria are satisfied
+3. the related roadmap or checklist items can be closed or narrowed clearly
+4. the named verify commands for the batch have passed
+5. no new CI failure was introduced by the batch
+6. a short handoff exists for the next agent or maintainer
+
+Recommended completion template:
+
+- Scope:
+  one short sentence describing what this batch was supposed to close
+- Acceptance criteria:
+  the issue or issue set used to define done
+- Verify commands:
+  the exact commands that were run
+- CI status:
+  whether the latest relevant workflow stayed green
+- Remaining follow-up:
+  what is still open after this batch
+
+Recommended maintainer check:
+
+1. compare the landed commits against the issue scope, not against intent alone
+2. re-run the batch verification commands if the result is unclear
+3. update `ROADMAP.md` and `IMPLEMENTATION-CHECKLIST.*` if the batch meaningfully changed milestone status
+4. only then mark the batch complete in docs, issue tracking, or handoff notes
+
 ## Spec Ambiguity Rule
 
 If an issue runs into unclear protocol or profile semantics:

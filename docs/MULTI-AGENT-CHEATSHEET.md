@@ -17,6 +17,24 @@ Use this as the short maintainer view of [MULTI-AGENT-COORDINATION.md](./MULTI-A
 9. If `origin/main` moved, fetch and rebase before retrying.
 10. If the spec is unclear, stop and mark the task `blocked-by-spec`.
 
+## Milestone Batch Done
+
+A milestone batch is done only when:
+
+1. batch scope is explicit
+2. acceptance criteria are satisfied
+3. named verify commands passed
+4. latest relevant CI stayed green
+5. a short handoff exists
+
+Use this mini-template:
+
+- Scope:
+- Acceptance criteria:
+- Verify commands:
+- CI status:
+- Remaining follow-up:
+
 ## Fast Triage
 
 Good parallel split:
