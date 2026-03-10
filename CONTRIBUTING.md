@@ -13,6 +13,7 @@ This repository is still in an early spec-first stage. Most changes are expected
 
 - Read [README.md](./README.md) for the current project scope.
 - Read [AGENTS.md](./AGENTS.md) for the active repository working rules.
+- If you are contributing through an AI coding bot or automation workflow, read [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md) too.
 - Prefer narrow, explicit changes over broad cleanup.
 - Keep protocol-core changes conservative unless the change is clearly justified.
 
