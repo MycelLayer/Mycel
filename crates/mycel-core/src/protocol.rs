@@ -464,13 +464,13 @@ pub fn parse_document_object(value: &Value) -> Result<DocumentObject, TypedObjec
 
     let object = envelope.object();
     Ok(DocumentObject {
-        doc_id: required_string(object, "doc_id")?,
+        doc_id: required_prefixed_string(object, "doc_id", "doc:")?,
         title: required_string(object, "title")?,
         language: required_string(object, "language")?,
         content_model: required_string(object, "content_model")?,
         created_at: required_u64(object, "created_at")?,
-        created_by: required_string(object, "created_by")?,
-        genesis_revision: required_string(object, "genesis_revision")?,
+        created_by: required_prefixed_string(object, "created_by", "pk:")?,
+        genesis_revision: required_prefixed_string(object, "genesis_revision", "rev:")?,
     })
 }
 
@@ -503,10 +503,10 @@ pub fn parse_patch_object(value: &Value) -> Result<PatchObject, TypedObjectError
 
     let object = envelope.object();
     Ok(PatchObject {
-        patch_id: required_string(object, "patch_id")?,
-        doc_id: required_string(object, "doc_id")?,
-        base_revision: required_string(object, "base_revision")?,
-        author: required_string(object, "author")?,
+        patch_id: required_prefixed_string(object, "patch_id", "patch:")?,
+        doc_id: required_prefixed_string(object, "doc_id", "doc:")?,
+        base_revision: required_prefixed_string(object, "base_revision", "rev:")?,
+        author: required_prefixed_string(object, "author", "pk:")?,
         timestamp: required_u64(object, "timestamp")?,
         ops: required_array(object, "ops")?
             .iter()
@@ -527,12 +527,12 @@ pub fn parse_revision_object(value: &Value) -> Result<RevisionObject, TypedObjec
 
     let object = envelope.object();
     Ok(RevisionObject {
-        revision_id: required_string(object, "revision_id")?,
-        doc_id: required_string(object, "doc_id")?,
-        parents: required_string_array(object, "parents")?,
-        patches: required_string_array(object, "patches")?,
-        state_hash: required_string(object, "state_hash")?,
-        author: required_string(object, "author")?,
+        revision_id: required_prefixed_string(object, "revision_id", "rev:")?,
+        doc_id: required_prefixed_string(object, "doc_id", "doc:")?,
+        parents: required_prefixed_string_array(object, "parents", "rev:")?,
+        patches: required_prefixed_string_array(object, "patches", "patch:")?,
+        state_hash: required_prefixed_string(object, "state_hash", "hash:")?,
+        author: required_prefixed_string(object, "author", "pk:")?,
         timestamp: required_u64(object, "timestamp")?,
     })
 }
@@ -556,9 +556,9 @@ pub fn parse_view_object(value: &Value) -> Result<ViewObject, TypedObjectError> 
     }
 
     Ok(ViewObject {
-        view_id: required_string(object, "view_id")?,
-        maintainer: required_string(object, "maintainer")?,
-        documents,
+        view_id: required_prefixed_string(object, "view_id", "view:")?,
+        maintainer: required_prefixed_string(object, "maintainer", "pk:")?,
+        documents: require_prefixed_string_map_entries(documents, "documents", "doc:", "rev:")?,
         policy: Value::Object(required_object(object, "policy")?),
         timestamp: required_u64(object, "timestamp")?,
     })
@@ -576,11 +576,11 @@ pub fn parse_snapshot_object(value: &Value) -> Result<SnapshotObject, TypedObjec
 
     let object = envelope.object();
     Ok(SnapshotObject {
-        snapshot_id: required_string(object, "snapshot_id")?,
-        documents: required_string_map(object, "documents")?,
-        included_objects: required_string_array(object, "included_objects")?,
-        root_hash: required_string(object, "root_hash")?,
-        created_by: required_string(object, "created_by")?,
+        snapshot_id: required_prefixed_string(object, "snapshot_id", "snap:")?,
+        documents: required_prefixed_string_map(object, "documents", "doc:", "rev:")?,
+        included_objects: required_non_empty_string_array(object, "included_objects")?,
+        root_hash: required_prefixed_string(object, "root_hash", "hash:")?,
+        created_by: required_prefixed_string(object, "created_by", "pk:")?,
         timestamp: required_u64(object, "timestamp")?,
     })
 }
@@ -790,6 +790,16 @@ fn required_string(object: &Map<String, Value>, field: &str) -> Result<String, T
     }
 }
 
+fn required_prefixed_string(
+    object: &Map<String, Value>,
+    field: &str,
+    prefix: &str,
+) -> Result<String, TypedObjectError> {
+    let value = required_string(object, field)?;
+    validate_prefixed_string(&value, field, prefix)?;
+    Ok(value)
+}
+
 fn optional_string(
     object: &Map<String, Value>,
     field: &str,
@@ -887,6 +897,33 @@ fn required_string_array(
         .collect()
 }
 
+fn required_non_empty_string_array(
+    object: &Map<String, Value>,
+    field: &str,
+) -> Result<Vec<String>, TypedObjectError> {
+    let values = required_string_array(object, field)?;
+    for (index, value) in values.iter().enumerate() {
+        if value.is_empty() {
+            return Err(TypedObjectError::new(format!(
+                "top-level '{field}[{index}]' must not be an empty string"
+            )));
+        }
+    }
+    Ok(values)
+}
+
+fn required_prefixed_string_array(
+    object: &Map<String, Value>,
+    field: &str,
+    prefix: &str,
+) -> Result<Vec<String>, TypedObjectError> {
+    let values = required_string_array(object, field)?;
+    for (index, value) in values.iter().enumerate() {
+        validate_prefixed_string_with_path(value, &format!("{field}[{index}]"), prefix)?;
+    }
+    Ok(values)
+}
+
 fn required_string_map(
     object: &Map<String, Value>,
     field: &str,
@@ -908,6 +945,50 @@ fn required_string_map(
             "missing object field '{field}'"
         ))),
     }
+}
+
+fn required_prefixed_string_map(
+    object: &Map<String, Value>,
+    field: &str,
+    key_prefix: &str,
+    value_prefix: &str,
+) -> Result<BTreeMap<String, String>, TypedObjectError> {
+    let entries = required_string_map(object, field)?;
+    require_prefixed_string_map_entries(entries, field, key_prefix, value_prefix)
+}
+
+fn require_prefixed_string_map_entries(
+    entries: BTreeMap<String, String>,
+    field: &str,
+    key_prefix: &str,
+    value_prefix: &str,
+) -> Result<BTreeMap<String, String>, TypedObjectError> {
+    for (key, value) in &entries {
+        validate_prefixed_string_with_path(key, &format!("{field}.{key} key"), key_prefix)?;
+        validate_prefixed_string_with_path(value, &format!("{field}.{key}"), value_prefix)?;
+    }
+    Ok(entries)
+}
+
+fn validate_prefixed_string(
+    value: &str,
+    field: &str,
+    prefix: &str,
+) -> Result<(), TypedObjectError> {
+    validate_prefixed_string_with_path(value, field, prefix)
+}
+
+fn validate_prefixed_string_with_path(
+    value: &str,
+    path: &str,
+    prefix: &str,
+) -> Result<(), TypedObjectError> {
+    if !value.starts_with(prefix) || value.len() == prefix.len() {
+        return Err(TypedObjectError::new(format!(
+            "top-level '{path}' must use '{prefix}' prefix"
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1220,6 +1301,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_document_object_rejects_wrong_doc_id_prefix() {
+        let error = parse_document_object(&json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "revision:test",
+            "title": "Origin Text",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'doc_id' must use 'doc:' prefix"
+        );
+    }
+
+    #[test]
     fn parse_revision_object_reads_parent_and_patch_ids() {
         let revision = parse_revision_object(&json!({
             "type": "revision",
@@ -1236,6 +1338,27 @@ mod tests {
 
         assert_eq!(revision.parents, vec!["rev:base"]);
         assert_eq!(revision.patches, vec!["patch:test"]);
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_wrong_parent_prefix() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["patch:base"],
+            "patches": ["patch:test"],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'parents[0]' must use 'rev:' prefix"
+        );
     }
 
     #[test]
@@ -1312,6 +1435,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_view_object_rejects_wrong_document_value_prefix() {
+        let error = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "patch:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 7u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'documents.doc:test' must use 'rev:' prefix"
+        );
+    }
+
+    #[test]
     fn parse_snapshot_object_reads_documents_and_included_objects() {
         let snapshot = parse_snapshot_object(&json!({
             "type": "snapshot",
@@ -1332,6 +1478,28 @@ mod tests {
         assert_eq!(
             snapshot.documents.get("doc:test").map(String::as_str),
             Some("rev:test")
+        );
+    }
+
+    #[test]
+    fn parse_snapshot_object_rejects_empty_included_object_entry() {
+        let error = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", ""],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'included_objects[1]' must not be an empty string"
         );
     }
 
