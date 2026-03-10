@@ -13,7 +13,7 @@
 - Before starting any new work, first re-check the latest CI workflow status from the previous push and report any failures.
 
 ## Git identity (User vs Agent)
-- User commits (VS Code): `ctf2090 <ctf2090@gmail.com>`
+- User commits (VS Code): `ctf2090 <user-configured local email>`
 - Agent commits: `gpt-5:codex <codex@local>`
 - On each new chat, the agent should determine the current `<model_family>:<agent_identity>` string before making commits.
 - Preferred setup: keep repo `user.name/user.email` for the user; the agent overrides per commit:
