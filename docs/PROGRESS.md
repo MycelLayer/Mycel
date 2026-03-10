@@ -1,6 +1,6 @@
 # Mycel Progress View
 
-Status: draft, refreshed after the recent M1 strictness and fixture-isolation batch
+Status: draft, refreshed after the recent M1 strictness, signature-edge verify smoke, and fixture-isolation batch
 
 This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md) into one quick progress view.
 
@@ -57,7 +57,7 @@ Legend:
 | 1. Repo and Build Setup | Mostly done | `M1` | only the shared canonical JSON utility remains open |
 | 2. Object Types and IDs | Partial | `M1` | typed parsing exists for all required v0.1 families; remaining work is malformed field-shape depth, semantic-edge closure, and role modeling |
 | 3. Canonical Serialization and Hashing | Partial | `M1` | core rules and reproducibility coverage exist; shared canonical utility reuse for `state_hash` and wire remains open |
-| 4. Signature Verification | Partial | `M1` | object signature rules are mostly present; wire-envelope checks are not |
+| 4. Signature Verification | Partial | `M1` | object signature rules are mostly present, and signature-edge verify smoke coverage is broader; wire-envelope checks are not |
 | 5. Patch and Revision Engine | Mostly done | `M2` | replay and `state_hash` are in place; patch-op base is strong |
 | 6. Local State and Storage | Mostly done | `M2` | store ingest, rebuild, and indexes exist; local transport/safety separation remains |
 | 7. Wire Protocol | Not started | `M4` | canonical wire envelope and message validation are still future work |

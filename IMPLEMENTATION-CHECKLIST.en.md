@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: late partial progress, M1 parsing, parser / verify / CLI strictness coverage, broader inspect-surface parity, replay/verify smoke coverage, fixture isolation, test-foundation cleanup, and canonical reproducibility core nearly complete
+Status: late partial progress, M1 parsing, parser / verify / CLI strictness coverage, broader inspect-surface parity, signature-edge and replay/verify smoke coverage, fixture isolation, test-foundation cleanup, and canonical reproducibility core nearly complete
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
