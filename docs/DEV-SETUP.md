@@ -51,6 +51,15 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
+Use the repo-local checker if you want one command:
+
+```bash
+scripts/check-dev-env.sh
+scripts/check-dev-env.sh --full
+```
+
+`--full` goes beyond tool detection and also runs the current repo-local validation surface, so it can fail because of the present workspace state as well as missing setup.
+
 ## 2. Clone and Enter the Repo
 
 ```bash
@@ -102,6 +111,12 @@ Treat setup as complete if all of the following are true:
 - fixture validation succeeds on `fixtures/object-sets/minimal-valid/fixture.json`
 - `./sim/negative-validation/smoke.sh --summary-only` succeeds
 
+The repo-local shortcut for the full pass is:
+
+```bash
+scripts/check-dev-env.sh --full
+```
+
 ## 6. Common Working Rules
 
 - Make narrow, reviewable changes.
@@ -116,6 +131,7 @@ Treat setup as complete if all of the following are true:
 cargo run -p mycel-cli -- object inspect <path> --json
 cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
+scripts/check-dev-env.sh
 scripts/check-labels.sh
 scripts/check-doc-refresh.sh
 ```

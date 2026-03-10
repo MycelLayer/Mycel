@@ -51,6 +51,15 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
+如果想用單一命令檢查，也可以直接跑：
+
+```bash
+scripts/check-dev-env.sh
+scripts/check-dev-env.sh --full
+```
+
+`--full` 不只檢查工具是否存在，也會直接跑目前 repo 的驗證面，所以它可能因為當前 workspace 狀態而失敗，而不一定只是缺少環境安裝。
+
 ## 2. Clone 並進入 Repo
 
 ```bash
@@ -102,6 +111,12 @@ cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.js
 - `fixtures/object-sets/minimal-valid/fixture.json` 可成功驗證
 - `./sim/negative-validation/smoke.sh --summary-only` 成功
 
+完整 setup 驗證也可以直接用：
+
+```bash
+scripts/check-dev-env.sh --full
+```
+
 ## 6. 常見工作規則
 
 - 優先做範圍窄、容易 review 的修改。
@@ -116,6 +131,7 @@ cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.js
 cargo run -p mycel-cli -- object inspect <path> --json
 cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
+scripts/check-dev-env.sh
 scripts/check-labels.sh
 scripts/check-doc-refresh.sh
 ```
