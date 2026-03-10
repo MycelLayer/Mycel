@@ -1369,6 +1369,124 @@ mod tests {
     }
 
     #[test]
+    fn revision_replay_rejects_genesis_patch_with_non_genesis_base_revision() {
+        let (signing_key, public_key) = signer_material();
+        let mut patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:wrong-base",
+            "author": public_key,
+            "timestamp": 10u64,
+            "ops": []
+        });
+        let patch_id = super::recompute_object_id(&patch, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        patch["patch_id"] = Value::String(patch_id.clone());
+        patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+
+        let mut revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [patch_id.clone()],
+            "state_hash": "hash:test",
+            "author": public_key,
+            "timestamp": 11u64
+        });
+        let revision_id = super::recompute_object_id(&revision, "revision_id", "rev")
+            .expect("revision ID should recompute");
+        revision["revision_id"] = Value::String(revision_id);
+        revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+        let object_index = HashMap::from([(patch_id, patch)]);
+        let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("base_revision 'rev:wrong-base'")
+                    && message.contains("expected 'rev:genesis-null'")
+            }),
+            "expected genesis base_revision mismatch error, got {summary:?}"
+        );
+    }
+
+    #[test]
+    fn revision_replay_rejects_non_genesis_patch_with_wrong_parent_base_revision() {
+        let (signing_key, public_key) = signer_material();
+        let base_hash = compute_state_hash(&DocumentState {
+            doc_id: "doc:test".to_string(),
+            blocks: Vec::new(),
+            metadata: Map::new(),
+        })
+        .expect("empty state hash should compute");
+        let mut base_revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": base_hash,
+            "author": public_key,
+            "timestamp": 9u64
+        });
+        let base_revision_id = super::recompute_object_id(&base_revision, "revision_id", "rev")
+            .expect("base revision ID should recompute");
+        base_revision["revision_id"] = Value::String(base_revision_id.clone());
+        base_revision["signature"] = Value::String(sign_value(&signing_key, &base_revision));
+
+        let mut patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:wrong-base",
+            "author": public_key,
+            "timestamp": 10u64,
+            "ops": []
+        });
+        let patch_id = super::recompute_object_id(&patch, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        patch["patch_id"] = Value::String(patch_id.clone());
+        patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+
+        let mut revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [base_revision_id.clone()],
+            "patches": [patch_id.clone()],
+            "state_hash": compute_state_hash(&DocumentState {
+                doc_id: "doc:test".to_string(),
+                blocks: Vec::new(),
+                metadata: Map::new(),
+            })
+            .expect("empty state hash should compute"),
+            "author": public_key,
+            "timestamp": 11u64
+        });
+        let revision_id = super::recompute_object_id(&revision, "revision_id", "rev")
+            .expect("revision ID should recompute");
+        revision["revision_id"] = Value::String(revision_id);
+        revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+        let object_index = HashMap::from([(base_revision_id, base_revision), (patch_id, patch)]);
+        let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("base_revision 'rev:wrong-base'")
+                    && message.contains("does not match expected 'rev:")
+            }),
+            "expected non-genesis base_revision mismatch error, got {summary:?}"
+        );
+    }
+
+    #[test]
     fn revision_replay_rejects_patch_from_other_document() {
         let (signing_key, public_key) = signer_material();
         let mut patch = json!({

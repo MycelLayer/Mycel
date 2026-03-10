@@ -671,6 +671,96 @@ mod tests {
     }
 
     #[test]
+    fn replay_revision_rejects_genesis_patch_with_non_genesis_base_revision() {
+        let patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:seed",
+            "doc_id": "doc:test",
+            "base_revision": "rev:wrong-base",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": []
+        });
+        let revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": ["patch:seed"],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        });
+
+        let mut index = HashMap::new();
+        index.insert("patch:seed".to_string(), patch);
+        index.insert("rev:test".to_string(), revision.clone());
+
+        let error = replay_revision_from_index(&revision, &index).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "patch 'patch:seed' base_revision 'rev:wrong-base' does not match expected 'rev:genesis-null'"
+        );
+    }
+
+    #[test]
+    fn replay_revision_rejects_non_genesis_patch_with_wrong_parent_base_revision() {
+        let base_state = DocumentState {
+            doc_id: "doc:test".to_string(),
+            blocks: Vec::new(),
+            metadata: Map::new(),
+        };
+        let base_hash = compute_state_hash(&base_state).expect("empty state hash should compute");
+        let base_revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:base",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": base_hash,
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64
+        });
+        let patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:child",
+            "doc_id": "doc:test",
+            "base_revision": "rev:wrong-base",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64,
+            "ops": []
+        });
+        let revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:child",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:child"],
+            "state_hash": compute_state_hash(&base_state).expect("empty state hash should compute"),
+            "author": "pk:ed25519:test",
+            "timestamp": 3u64
+        });
+
+        let mut index = HashMap::new();
+        index.insert("rev:base".to_string(), base_revision);
+        index.insert("patch:child".to_string(), patch);
+        index.insert("rev:child".to_string(), revision.clone());
+
+        let error = replay_revision_from_index(&revision, &index).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "patch 'patch:child' base_revision 'rev:wrong-base' does not match expected 'rev:base'"
+        );
+    }
+
+    #[test]
     fn move_block_rejects_cycle_into_descendant() {
         let patch = parse_patch_object(&json!({
             "type": "patch",
