@@ -408,6 +408,7 @@ pub struct RevisionObject {
     pub doc_id: String,
     pub parents: Vec<String>,
     pub patches: Vec<String>,
+    pub merge_strategy: Option<String>,
     pub state_hash: String,
     pub author: String,
     pub timestamp: u64,
@@ -596,17 +597,39 @@ pub fn parse_revision_object(value: &Value) -> Result<RevisionObject, TypedObjec
             "doc_id",
             "parents",
             "patches",
+            "merge_strategy",
             "state_hash",
             "author",
             "timestamp",
             "signature",
         ],
     )?;
+    let parents = required_prefixed_string_array(object, "parents", "rev:")?;
+    let merge_strategy = optional_string(object, "merge_strategy")?;
+    if parents.is_empty() {
+        if merge_strategy.is_some() {
+            return Err(TypedObjectError::new(
+                "top-level 'merge_strategy' is not allowed when 'parents' is empty",
+            ));
+        }
+    } else if parents.len() == 1 {
+        if merge_strategy.is_some() {
+            return Err(TypedObjectError::new(
+                "top-level 'merge_strategy' requires multiple parents",
+            ));
+        }
+    } else if merge_strategy.is_none() {
+        return Err(TypedObjectError::new(
+            "top-level 'merge_strategy' is required when 'parents' has multiple entries",
+        ));
+    }
+
     Ok(RevisionObject {
         revision_id: required_prefixed_string(object, "revision_id", "rev:")?,
         doc_id: required_prefixed_string(object, "doc_id", "doc:")?,
-        parents: required_prefixed_string_array(object, "parents", "rev:")?,
+        parents,
         patches: required_prefixed_string_array(object, "patches", "patch:")?,
+        merge_strategy,
         state_hash: required_prefixed_string(object, "state_hash", "hash:")?,
         author: required_prefixed_string(object, "author", "pk:")?,
         timestamp: required_u64(object, "timestamp")?,
@@ -1920,6 +1943,30 @@ mod tests {
 
         assert_eq!(revision.parents, vec!["rev:base"]);
         assert_eq!(revision.patches, vec!["patch:test"]);
+        assert_eq!(revision.merge_strategy, None);
+    }
+
+    #[test]
+    fn parse_revision_object_reads_merge_strategy_for_multi_parent_revision() {
+        let revision = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base", "rev:side"],
+            "patches": ["patch:test"],
+            "merge_strategy": "semantic-block-merge",
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .expect("merge revision should parse");
+
+        assert_eq!(revision.parents, vec!["rev:base", "rev:side"]);
+        assert_eq!(
+            revision.merge_strategy.as_deref(),
+            Some("semantic-block-merge")
+        );
     }
 
     #[test]
@@ -1982,6 +2029,71 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level 'patches[1]' duplicates 'patches[0]'"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_merge_strategy_on_genesis_revision() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": ["patch:test"],
+            "merge_strategy": "semantic-block-merge",
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'merge_strategy' is not allowed when 'parents' is empty"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_merge_strategy_on_single_parent_revision() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:test"],
+            "merge_strategy": "semantic-block-merge",
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'merge_strategy' requires multiple parents"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_multi_parent_revision_without_merge_strategy() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base", "rev:side"],
+            "patches": ["patch:test"],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'merge_strategy' is required when 'parents' has multiple entries"
         );
     }
 
