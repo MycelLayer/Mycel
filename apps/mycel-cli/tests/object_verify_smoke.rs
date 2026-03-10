@@ -993,6 +993,48 @@ fn object_verify_json_fails_for_snapshot_with_non_string_snapshot_id() {
 }
 
 #[test]
+fn object_verify_json_fails_for_snapshot_with_unknown_top_level_field() {
+    let snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "timestamp": 9u64,
+            "unexpected": true
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    let object = write_object_file(
+        "object-verify-snapshot-unknown-top-level-field",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level contains unexpected field 'unexpected'")
+                })
+            })),
+        "expected unknown-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_text_fails_when_signed_object_is_missing_signature() {
     let object = write_object_file(
         "object-verify-view-missing-signature",
@@ -1218,6 +1260,49 @@ fn object_verify_json_fails_for_view_with_wrong_document_key_prefix() {
                 })
             })),
         "expected view document key-prefix error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_with_unknown_top_level_field() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64,
+            "unexpected": true
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file(
+        "object-verify-view-unknown-top-level-field",
+        "view.json",
+        view,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level contains unexpected field 'unexpected'")
+                })
+            })),
+        "expected unknown-field error, stdout: {}",
         stdout_text(&output)
     );
 }
