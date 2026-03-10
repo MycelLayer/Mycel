@@ -15,7 +15,7 @@
 ## Git identity (User vs Agent)
 - User commits should keep the user's normal local git identity.
 - Agent commits should use a distinct agent identity instead of the user's identity.
-- On each new chat, the agent should determine the current `<model_family>:<agent_identity>` string before making commits.
+- On each new chat, the agent should determine the current `<model_family>:<agent_identity>` string before making commits and use it as the per-commit `user.name` value.
 - Preferred setup: keep repo `user.name/user.email` for the user; the agent overrides per commit:
   - `git -c user.name='<agent-name>' -c user.email='<agent-email>' commit --no-gpg-sign -m "..."`
 
