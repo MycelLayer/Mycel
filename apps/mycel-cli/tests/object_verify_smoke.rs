@@ -763,6 +763,47 @@ fn object_verify_json_fails_for_revision_with_wrong_revision_id_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_revision_with_non_string_revision_id() {
+    let mut revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": "hash:test-state",
+            "timestamp": 1777778890u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    revision["revision_id"] = json!(7);
+    let object = write_object_file(
+        "object-verify-revision-non-string-derived-id",
+        "revision.json",
+        revision,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'revision_id' must be a string")
+                })
+            })),
+        "expected revision_id type error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_duplicate_revision_parent_ids() {
     let revision = signed_object(
         json!({
@@ -1619,6 +1660,47 @@ fn object_verify_json_fails_for_view_with_wrong_view_id_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_view_with_non_string_view_id() {
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "maintainer": signer_id(&signing_key()),
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed"
+        },
+        "timestamp": 1777778891u64
+    });
+    view["view_id"] = Value::String(recompute_id(&view, "view_id", "view"));
+    view["signature"] = Value::String(sign_value(&signing_key(), &view));
+    view["view_id"] = json!(7);
+    let object = write_object_file(
+        "object-verify-view-non-string-derived-id",
+        "view.json",
+        view,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("top-level 'view_id' must be a string"))
+            })),
+        "expected view_id type error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_view_with_non_object_policy() {
     let view = signed_object(
         json!({
@@ -2117,6 +2199,46 @@ fn object_verify_json_fails_for_patch_with_wrong_patch_id_prefix() {
                 })
             })),
         "expected patch_id prefix error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_patch_with_non_string_patch_id() {
+    let mut patch = signed_object(
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1777778888u64,
+            "ops": []
+        }),
+        "author",
+        "patch_id",
+        "patch",
+    );
+    patch["patch_id"] = json!(7);
+    let object = write_object_file(
+        "object-verify-patch-non-string-derived-id",
+        "patch.json",
+        patch,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'patch_id' must be a string")
+                })
+            })),
+        "expected patch_id type error, stdout: {}",
         stdout_text(&output)
     );
 }

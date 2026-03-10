@@ -1082,6 +1082,43 @@ mod tests {
     }
 
     #[test]
+    fn revision_non_string_derived_id_is_rejected() {
+        let (signing_key, public_key) = signer_material();
+        let mut revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": [],
+            "state_hash": "hash:test",
+            "author": public_key,
+            "timestamp": 11u64
+        });
+        let revision_id = super::recompute_object_id(&revision, "revision_id", "rev")
+            .expect("revision ID should recompute");
+        revision["revision_id"] = Value::String(revision_id);
+        revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+        revision["revision_id"] = json!(7);
+        let path = write_test_file(
+            "revision-non-string-derived-id",
+            &serde_json::to_string_pretty(&revision).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'revision_id' must be a string")),
+            "expected revision_id type error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn revision_wrong_derived_id_prefix_is_rejected() {
         let (signing_key, public_key) = signer_material();
         let mut revision = json!({
@@ -1146,6 +1183,42 @@ mod tests {
                 message.contains("top-level 'base_revision' must use 'rev:' prefix")
             }),
             "expected base_revision prefix error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn patch_non_string_derived_id_is_rejected() {
+        let (signing_key, public_key) = signer_material();
+        let mut patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": public_key,
+            "timestamp": 11u64,
+            "ops": []
+        });
+        let patch_id = super::recompute_object_id(&patch, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        patch["patch_id"] = Value::String(patch_id);
+        patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+        patch["patch_id"] = json!(7);
+        let path = write_test_file(
+            "patch-non-string-derived-id",
+            &serde_json::to_string_pretty(&patch).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'patch_id' must be a string")),
+            "expected patch_id type error, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
@@ -2422,6 +2495,45 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("top-level 'view_id' must use 'view:' prefix")),
             "expected view_id prefix error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn view_non_string_derived_id_is_rejected_by_typed_validation() {
+        let (signing_key, public_key) = signer_material();
+        let mut view = json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "maintainer": public_key,
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64
+        });
+        let view_id =
+            super::recompute_object_id(&view, "view_id", "view").expect("view ID should recompute");
+        view["view_id"] = Value::String(view_id);
+        view["signature"] = Value::String(sign_value(&signing_key, &view));
+        view["view_id"] = json!(7);
+        let path = write_test_file(
+            "view-non-string-derived-id",
+            &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'view_id' must be a string")),
+            "expected view_id type error, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);

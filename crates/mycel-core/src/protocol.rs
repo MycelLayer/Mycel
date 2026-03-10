@@ -1771,6 +1771,23 @@ mod tests {
     }
 
     #[test]
+    fn parse_patch_object_rejects_non_string_patch_id() {
+        let error = parse_patch_object(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": 7,
+            "doc_id": "doc:test",
+            "base_revision": "rev:base",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": []
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'patch_id' must be a string");
+    }
+
+    #[test]
     fn parse_patch_object_rejects_wrong_patch_id_prefix() {
         let error = parse_patch_object(&json!({
             "type": "patch",
@@ -2048,6 +2065,27 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level 'parents[0]' must use 'rev:' prefix"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_non_string_revision_id() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": 7,
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:test"],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'revision_id' must be a string"
         );
     }
 
@@ -2366,6 +2404,26 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.to_string(), "top-level 'documents' must not be empty");
+    }
+
+    #[test]
+    fn parse_view_object_rejects_non_string_view_id() {
+        let error = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": 7,
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 7u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'view_id' must be a string");
     }
 
     #[test]
