@@ -421,6 +421,133 @@ fn store_rebuild_json_fails_for_missing_revision_patch_dependency() {
 }
 
 #[test]
+fn store_rebuild_json_fails_for_missing_parent_revision_dependency() {
+    let dir = create_temp_dir("store-rebuild-missing-parent");
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:missing-parent",
+            "parents": ["rev:missing-parent"],
+            "patches": [],
+            "state_hash": "hash:missing-parent",
+            "timestamp": 2u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        dir.path().join("revision.json"),
+        serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+    )
+    .expect("revision should write");
+
+    let output = run_mycel(&[
+        "store",
+        "rebuild",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["verified_object_count"], 0);
+    assert_eq!(json["stored_object_count"], 0);
+    assert!(
+        json["errors"].as_array().is_some_and(|errors| errors.iter().any(|entry| {
+            entry.as_str().is_some_and(|message| {
+                message.contains(
+                    "revision replay failed: missing parent revision 'rev:missing-parent' for replay",
+                )
+            })
+        })),
+        "expected missing parent replay error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn store_rebuild_json_fails_for_cross_document_parent_revision_dependency() {
+    let dir = create_temp_dir("store-rebuild-cross-doc-parent");
+    let parent_state = json!({
+        "doc_id": "doc:parent",
+        "blocks": []
+    });
+    let mut hasher = Sha256::new();
+    hasher.update(canonical_json(&parent_state).as_bytes());
+    let parent_state_hash = format!("hash:{:x}", hasher.finalize());
+
+    let parent_revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:parent",
+            "parents": [],
+            "patches": [],
+            "state_hash": parent_state_hash,
+            "timestamp": 1u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    let parent_revision_id = parent_revision["revision_id"]
+        .as_str()
+        .expect("parent revision id should exist")
+        .to_string();
+    fs::write(
+        dir.path().join("parent-revision.json"),
+        serde_json::to_string_pretty(&parent_revision).expect("parent revision should serialize"),
+    )
+    .expect("parent revision should write");
+
+    let child_revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:child",
+            "parents": [parent_revision_id],
+            "patches": [],
+            "state_hash": "hash:child",
+            "timestamp": 2u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        dir.path().join("child-revision.json"),
+        serde_json::to_string_pretty(&child_revision).expect("child revision should serialize"),
+    )
+    .expect("child revision should write");
+
+    let output = run_mycel(&[
+        "store",
+        "rebuild",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["verified_object_count"], 1);
+    assert_eq!(json["stored_object_count"], 1);
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("revision replay failed: parent revision")
+                        && message.contains("belongs to 'doc:parent' instead of 'doc:child'")
+                })
+            })),
+        "expected cross-document parent replay error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn store_rebuild_missing_target_fails_cleanly() {
     let output = run_mycel(&["store", "rebuild"]);
 

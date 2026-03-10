@@ -1160,6 +1160,118 @@ mod tests {
     }
 
     #[test]
+    fn rebuild_store_reports_missing_parent_revision_dependency() {
+        let dir = write_temp_dir("rebuild-missing-parent");
+        let revision = signed_object(
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "doc_id": "doc:missing-parent",
+                "parents": ["rev:missing-parent"],
+                "patches": [],
+                "state_hash": "hash:missing-parent",
+                "timestamp": 2u64
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        fs::write(
+            dir.join("revision.json"),
+            serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+        )
+        .expect("revision should write");
+
+        let summary = rebuild_store_from_path(&dir).expect("store rebuild should complete");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains(
+                    "revision replay failed: missing parent revision 'rev:missing-parent' for replay",
+                )
+            }),
+            "expected missing parent replay error, got {summary:?}"
+        );
+        assert_eq!(summary.verified_object_count, 0);
+        assert_eq!(summary.stored_object_count, 0);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn rebuild_store_reports_cross_document_parent_revision_dependency() {
+        let dir = write_temp_dir("rebuild-cross-doc-parent");
+        let parent_state = json!({
+            "doc_id": "doc:parent",
+            "blocks": []
+        });
+        let mut hasher = Sha256::new();
+        hasher.update(canonical_json(&parent_state).as_bytes());
+        let parent_state_hash = format!("hash:{:x}", hasher.finalize());
+
+        let parent_revision = signed_object(
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "doc_id": "doc:parent",
+                "parents": [],
+                "patches": [],
+                "state_hash": parent_state_hash,
+                "timestamp": 1u64
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        let parent_revision_id = parent_revision["revision_id"]
+            .as_str()
+            .expect("parent revision id should exist")
+            .to_string();
+        fs::write(
+            dir.join("parent-revision.json"),
+            serde_json::to_string_pretty(&parent_revision)
+                .expect("parent revision should serialize"),
+        )
+        .expect("parent revision should write");
+
+        let child_revision = signed_object(
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "doc_id": "doc:child",
+                "parents": [parent_revision_id.clone()],
+                "patches": [],
+                "state_hash": "hash:child",
+                "timestamp": 2u64
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        fs::write(
+            dir.join("child-revision.json"),
+            serde_json::to_string_pretty(&child_revision).expect("child revision should serialize"),
+        )
+        .expect("child revision should write");
+
+        let summary = rebuild_store_from_path(&dir).expect("store rebuild should complete");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("revision replay failed: parent revision")
+                    && message.contains("belongs to 'doc:parent' instead of 'doc:child'")
+            }),
+            "expected cross-document parent replay error, got {summary:?}"
+        );
+        assert_eq!(summary.verified_object_count, 1);
+        assert_eq!(summary.stored_object_count, 1);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn ingest_store_writes_verified_objects_to_content_addressed_layout() {
         let source_dir = write_temp_dir("ingest-source");
         let store_dir = write_temp_dir("ingest-store");
