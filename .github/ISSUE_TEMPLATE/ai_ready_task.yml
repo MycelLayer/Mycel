@@ -8,6 +8,18 @@ body:
     attributes:
       value: |
         Use this template for implementation work that should be easy to scope, verify, and review. Keep it narrow. For task-shaping guidance, see `BOT-CONTRIBUTING.md`.
+  - type: markdown
+    attributes:
+      value: |
+        Recommended labels:
+
+        - `ai-ready`: always keep this on this template
+        - `well-scoped`: add when file boundaries and side effects are tightly bounded
+        - `heavy-lift`: add for substantial implementation work, not quick edits
+        - `spec-follow-up`: add when the task directly closes a spec, profile, or design-note gap
+        - `tests-needed`: add when completion should include direct test or regression coverage
+        - `fixture-backed`: add when checked-in fixtures should drive or verify the work
+        - `blocked-by-spec`: use instead of implementation labels if a clearer spec decision is still required
   - type: textarea
     id: problem
     attributes:
