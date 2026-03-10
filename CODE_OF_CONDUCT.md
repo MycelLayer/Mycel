@@ -2,7 +2,7 @@
 
 ## Our Standard
 
-Mycel is a spec-first technical project. We expect discussion to stay clear, respectful, and evidence-based.
+Mycel is a spec-first technical project. We expect technical discussion to stay clear, respectful, and evidence-based.
 
 Examples of behavior that help this project:
 
