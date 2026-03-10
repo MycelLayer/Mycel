@@ -1355,6 +1355,80 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_empty_included_object_entry_is_rejected() {
+        let (signing_key, public_key) = signer_material();
+        let mut snapshot = json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", ""],
+            "root_hash": "hash:test",
+            "created_by": public_key,
+            "timestamp": 9u64
+        });
+        let snapshot_id = super::recompute_object_id(&snapshot, "snapshot_id", "snap")
+            .expect("snapshot ID should recompute");
+        snapshot["snapshot_id"] = Value::String(snapshot_id);
+        snapshot["signature"] = Value::String(sign_value(&signing_key, &snapshot));
+        let path = write_test_file(
+            "snapshot-empty-included-object-entry",
+            &serde_json::to_string_pretty(&snapshot).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("top-level 'included_objects[1]' must not be an empty string")
+            }),
+            "expected empty included_objects entry error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn snapshot_non_canonical_included_object_id_is_rejected() {
+        let (signing_key, public_key) = signer_material();
+        let mut snapshot = json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["doc:test"],
+            "root_hash": "hash:test",
+            "created_by": public_key,
+            "timestamp": 9u64
+        });
+        let snapshot_id = super::recompute_object_id(&snapshot, "snapshot_id", "snap")
+            .expect("snapshot ID should recompute");
+        snapshot["snapshot_id"] = Value::String(snapshot_id);
+        snapshot["signature"] = Value::String(sign_value(&signing_key, &snapshot));
+        let path = write_test_file(
+            "snapshot-non-canonical-included-object-id",
+            &serde_json::to_string_pretty(&snapshot).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains(
+                    "top-level 'included_objects[0]' must use a canonical object ID prefix",
+                )
+            }),
+            "expected canonical included_objects ID error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn snapshot_missing_declared_revision_in_included_objects_is_rejected() {
         let (signing_key, public_key) = signer_material();
         let mut snapshot = json!({

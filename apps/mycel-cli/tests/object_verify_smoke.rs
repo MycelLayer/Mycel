@@ -585,6 +585,128 @@ fn object_verify_json_fails_for_duplicate_snapshot_included_objects() {
 }
 
 #[test]
+fn object_verify_json_fails_for_snapshot_with_empty_included_object_entry() {
+    let snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", ""],
+            "root_hash": "hash:test",
+            "timestamp": 9u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    let object = write_object_file(
+        "object-verify-snapshot-empty-included-object-entry",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'included_objects[1]' must not be an empty string")
+                })
+            })),
+        "expected empty included_objects entry error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_snapshot_with_non_canonical_included_object_id() {
+    let snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["doc:test"],
+            "root_hash": "hash:test",
+            "timestamp": 9u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    let object = write_object_file(
+        "object-verify-snapshot-non-canonical-included-object-id",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "top-level 'included_objects[0]' must use a canonical object ID prefix",
+                    )
+                })
+            })),
+        "expected canonical included_objects ID error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_snapshot_missing_documents() {
+    let snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "included_objects": ["rev:test"],
+            "root_hash": "hash:test",
+            "timestamp": 9u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    let object = write_object_file(
+        "object-verify-snapshot-missing-documents",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("missing object field 'documents'"))
+            })),
+        "expected missing documents error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_snapshot_missing_declared_revision_in_included_objects() {
     let snapshot = signed_object(
         json!({
@@ -856,6 +978,42 @@ fn object_verify_json_fails_for_view_with_non_object_policy() {
                     .is_some_and(|message| message.contains("top-level 'policy' must be an object"))
             })),
         "expected non-object policy error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_with_empty_documents() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {},
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file("object-verify-view-empty-documents", "view.json", view);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'documents' must not be empty")
+                })
+            })),
+        "expected empty documents error, stdout: {}",
         stdout_text(&output)
     );
 }
