@@ -73,6 +73,12 @@ If you want the shortest useful path:
 - See implementation order: [ROADMAP.md](./ROADMAP.md)
 - See build checklist: [IMPLEMENTATION-CHECKLIST.en.md](./IMPLEMENTATION-CHECKLIST.en.md)
 
+If you want to contribute from a fresh environment:
+
+- Start with setup: [docs/DEV-SETUP.md](./docs/DEV-SETUP.md)
+- Then read contribution expectations: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- If you are using an AI coding agent, continue with: [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md)
+
 If you want to understand the current Rust implementation:
 
 - Workspace map: [RUST-WORKSPACE.md](./RUST-WORKSPACE.md)
