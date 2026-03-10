@@ -12,15 +12,19 @@ Use it together with:
 - [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) to apply tracked labels back to GitHub
 - [`scripts/check-labels.sh`](./scripts/check-labels.sh) to verify GitHub labels still match the tracked set
 
-## Bot Setup
+## Agent Onboarding
 
-If you are bootstrapping bot-facing GitHub workflow for this repo:
+If you are starting fresh in this repo, use this order:
 
-1. review [`.github/labels.yml`](./.github/labels.yml) as the source of truth for tracked labels
-2. run [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) to sync that label set to GitHub before creating or triaging bot-ready issues
-3. then use the issue template and progress views after labels are in sync
+1. Read [README.md](./README.md) for scope and current positioning.
+2. Read [ROADMAP.md](./ROADMAP.md) and [IMPLEMENTATION-CHECKLIST.en.md](./IMPLEMENTATION-CHECKLIST.en.md) for build order and closure targets.
+3. Read [PROTOCOL.en.md](./PROTOCOL.en.md) and [WIRE-PROTOCOL.en.md](./WIRE-PROTOCOL.en.md) before changing protocol-facing behavior.
+4. Read [`.github/labels.yml`](./.github/labels.yml) and [docs/LABELS.md](./docs/LABELS.md) before creating or triaging bot-ready issues.
+5. Run [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) only if GitHub labels need to be applied or refreshed.
+6. Run [`scripts/check-labels.sh`](./scripts/check-labels.sh) if you need to verify that the tracked labels still match GitHub.
+7. Use [`.github/ISSUE_TEMPLATE/ai_ready_task.yml`](./.github/ISSUE_TEMPLATE/ai_ready_task.yml) and [docs/PROGRESS.md](./docs/PROGRESS.md) when shaping or selecting work.
 
-This keeps `ai-ready` and related workflow labels reproducible across new repos, test repos, or drifted environments.
+This keeps scope, labels, and task shape aligned before implementation work starts.
 
 ## What Kind of Work Fits This Repo Best
 
