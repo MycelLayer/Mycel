@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::protocol::{canonical_json, hex_encode};
 use crate::store::{load_store_index_manifest, load_stored_object_value};
 use crate::verify::verify_object_value;
-use crate::verify::{canonical_json, hex_encode};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HeadInspectSummary {

@@ -5,10 +5,9 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::protocol::{
-    parse_patch_object, parse_revision_object, BlockObject, PatchObject, PatchOperation,
-    RevisionObject,
+    canonical_json, hex_encode, parse_patch_object, parse_revision_object, BlockObject,
+    PatchObject, PatchOperation, RevisionObject,
 };
-use crate::verify::{canonical_json, hex_encode};
 
 pub const GENESIS_BASE_REVISION: &str = "rev:genesis-null";
 

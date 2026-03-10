@@ -6,9 +6,11 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Serialize;
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
-use crate::protocol::{parse_object_envelope, ParseObjectEnvelopeError, StringFieldError};
+use crate::protocol::{
+    parse_object_envelope, recompute_object_id, signed_payload_bytes, ParseObjectEnvelopeError,
+    StringFieldError,
+};
 use crate::replay::replay_revision_from_index;
 
 #[derive(Debug, Clone, Serialize)]
@@ -570,25 +572,6 @@ fn collect_value_errors(value: &Value, path: &str, errors: &mut Vec<String>) {
     }
 }
 
-fn recompute_object_id(
-    value: &Value,
-    derived_id_field: &str,
-    prefix: &str,
-) -> Result<String, String> {
-    let mut object = value
-        .as_object()
-        .cloned()
-        .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
-    object.remove(derived_id_field);
-    object.remove("signature");
-
-    let canonical = canonical_json(&Value::Object(object))?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    let digest = hasher.finalize();
-    Ok(format!("{prefix}:{}", hex_encode(&digest)))
-}
-
 fn verify_object_signature(value: &Value, signer: &str, signature: &str) -> Result<(), String> {
     let public_key = parse_public_key(signer)?;
     let signature = parse_signature(signature)?;
@@ -621,85 +604,6 @@ fn parse_signature(value: &str) -> Result<Signature, String> {
         .decode(encoded)
         .map_err(|err| format!("failed to decode Ed25519 signature: {err}"))?;
     Signature::from_slice(&decoded).map_err(|err| format!("invalid Ed25519 signature bytes: {err}"))
-}
-
-fn signed_payload_bytes(value: &Value) -> Result<Vec<u8>, String> {
-    let mut object = value
-        .as_object()
-        .cloned()
-        .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
-    object.remove("signature");
-    let canonical = canonical_json(&Value::Object(object))?;
-    Ok(canonical.into_bytes())
-}
-
-pub(crate) fn canonical_json(value: &Value) -> Result<String, String> {
-    let mut output = String::new();
-    write_canonical_json(value, &mut output)?;
-    Ok(output)
-}
-
-fn write_canonical_json(value: &Value, output: &mut String) -> Result<(), String> {
-    match value {
-        Value::Null => Err("null is not allowed in canonical objects".to_string()),
-        Value::Bool(boolean) => {
-            output.push_str(if *boolean { "true" } else { "false" });
-            Ok(())
-        }
-        Value::Number(number) => {
-            if !(number.is_i64() || number.is_u64()) {
-                return Err(
-                    "floating-point numbers are not allowed in canonical objects".to_string(),
-                );
-            }
-            output.push_str(&number.to_string());
-            Ok(())
-        }
-        Value::String(string) => {
-            let encoded = serde_json::to_string(string)
-                .map_err(|err| format!("failed to encode JSON string: {err}"))?;
-            output.push_str(&encoded);
-            Ok(())
-        }
-        Value::Array(values) => {
-            output.push('[');
-            for (index, entry) in values.iter().enumerate() {
-                if index > 0 {
-                    output.push(',');
-                }
-                write_canonical_json(entry, output)?;
-            }
-            output.push(']');
-            Ok(())
-        }
-        Value::Object(entries) => {
-            output.push('{');
-            let mut keys: Vec<&String> = entries.keys().collect();
-            keys.sort_unstable();
-
-            for (index, key) in keys.iter().enumerate() {
-                if index > 0 {
-                    output.push(',');
-                }
-
-                let encoded_key = serde_json::to_string(key)
-                    .map_err(|err| format!("failed to encode JSON object key: {err}"))?;
-                output.push_str(&encoded_key);
-                output.push(':');
-                write_canonical_json(&entries[*key], output)?;
-            }
-            output.push('}');
-            Ok(())
-        }
-    }
-}
-
-pub(crate) fn hex_encode(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        output.push_str(&format!("{byte:02x}"));
-    }
-    output
 }
 
 #[cfg(test)]

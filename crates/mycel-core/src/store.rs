@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::protocol::{parse_patch_object, parse_revision_object, parse_view_object};
-use crate::verify::{
-    canonical_json, hex_encode, verify_object_path, verify_object_value_with_object_index,
+use crate::protocol::{
+    canonical_json, hex_encode, parse_patch_object, parse_revision_object, parse_view_object,
 };
+use crate::verify::{verify_object_path, verify_object_value_with_object_index};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StoredObjectRecord {

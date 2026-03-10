@@ -11,6 +11,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 
 pub const CORE_PROTOCOL_VERSION: &str = "mycel/0.1";
 pub const WIRE_PROTOCOL_VERSION: &str = "mycel-wire/0.1";
@@ -348,6 +349,17 @@ pub struct BlockObject {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct DocumentObject {
+    pub doc_id: String,
+    pub title: String,
+    pub language: String,
+    pub content_model: String,
+    pub created_at: u64,
+    pub created_by: String,
+    pub genesis_revision: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum PatchOperation {
     InsertBlock {
         parent_block_id: Option<String>,
@@ -409,6 +421,16 @@ pub struct ViewObject {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SnapshotObject {
+    pub snapshot_id: String,
+    pub documents: BTreeMap<String, String>,
+    pub included_objects: Vec<String>,
+    pub root_hash: String,
+    pub created_by: String,
+    pub timestamp: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypedObjectError {
     message: String,
@@ -429,6 +451,28 @@ impl fmt::Display for TypedObjectError {
 }
 
 impl std::error::Error for TypedObjectError {}
+
+pub fn parse_document_object(value: &Value) -> Result<DocumentObject, TypedObjectError> {
+    let envelope = parse_object_envelope(value)
+        .map_err(|error| TypedObjectError::new(format!("document parse error: {error}")))?;
+    if envelope.kind() != ObjectKind::Document {
+        return Err(TypedObjectError::new(format!(
+            "expected document object, found '{}'",
+            envelope.object_type()
+        )));
+    }
+
+    let object = envelope.object();
+    Ok(DocumentObject {
+        doc_id: required_string(object, "doc_id")?,
+        title: required_string(object, "title")?,
+        language: required_string(object, "language")?,
+        content_model: required_string(object, "content_model")?,
+        created_at: required_u64(object, "created_at")?,
+        created_by: required_string(object, "created_by")?,
+        genesis_revision: required_string(object, "genesis_revision")?,
+    })
+}
 
 pub fn parse_block_object(value: &Value) -> Result<BlockObject, TypedObjectError> {
     let object = value
@@ -514,6 +558,125 @@ pub fn parse_view_object(value: &Value) -> Result<ViewObject, TypedObjectError> 
             .ok_or_else(|| TypedObjectError::new("missing object field 'policy'"))?,
         timestamp: required_u64(object, "timestamp")?,
     })
+}
+
+pub fn parse_snapshot_object(value: &Value) -> Result<SnapshotObject, TypedObjectError> {
+    let envelope = parse_object_envelope(value)
+        .map_err(|error| TypedObjectError::new(format!("snapshot parse error: {error}")))?;
+    if envelope.kind() != ObjectKind::Snapshot {
+        return Err(TypedObjectError::new(format!(
+            "expected snapshot object, found '{}'",
+            envelope.object_type()
+        )));
+    }
+
+    let object = envelope.object();
+    Ok(SnapshotObject {
+        snapshot_id: required_string(object, "snapshot_id")?,
+        documents: required_string_map(object, "documents")?,
+        included_objects: required_string_array(object, "included_objects")?,
+        root_hash: required_string(object, "root_hash")?,
+        created_by: required_string(object, "created_by")?,
+        timestamp: required_u64(object, "timestamp")?,
+    })
+}
+
+pub fn recompute_object_id(
+    value: &Value,
+    derived_id_field: &str,
+    prefix: &str,
+) -> Result<String, String> {
+    let mut object = value
+        .as_object()
+        .cloned()
+        .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
+    object.remove(derived_id_field);
+    object.remove("signature");
+
+    let canonical = canonical_json(&Value::Object(object))?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.as_bytes());
+    let digest = hasher.finalize();
+    Ok(format!("{prefix}:{}", hex_encode(&digest)))
+}
+
+pub fn signed_payload_bytes(value: &Value) -> Result<Vec<u8>, String> {
+    let mut object = value
+        .as_object()
+        .cloned()
+        .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
+    object.remove("signature");
+    let canonical = canonical_json(&Value::Object(object))?;
+    Ok(canonical.into_bytes())
+}
+
+pub fn canonical_json(value: &Value) -> Result<String, String> {
+    let mut output = String::new();
+    write_canonical_json(value, &mut output)?;
+    Ok(output)
+}
+
+fn write_canonical_json(value: &Value, output: &mut String) -> Result<(), String> {
+    match value {
+        Value::Null => Err("null is not allowed in canonical objects".to_string()),
+        Value::Bool(boolean) => {
+            output.push_str(if *boolean { "true" } else { "false" });
+            Ok(())
+        }
+        Value::Number(number) => {
+            if !(number.is_i64() || number.is_u64()) {
+                return Err(
+                    "floating-point numbers are not allowed in canonical objects".to_string(),
+                );
+            }
+            output.push_str(&number.to_string());
+            Ok(())
+        }
+        Value::String(string) => {
+            let encoded = serde_json::to_string(string)
+                .map_err(|err| format!("failed to encode JSON string: {err}"))?;
+            output.push_str(&encoded);
+            Ok(())
+        }
+        Value::Array(values) => {
+            output.push('[');
+            for (index, entry) in values.iter().enumerate() {
+                if index > 0 {
+                    output.push(',');
+                }
+                write_canonical_json(entry, output)?;
+            }
+            output.push(']');
+            Ok(())
+        }
+        Value::Object(entries) => {
+            output.push('{');
+            let mut keys: Vec<&String> = entries.keys().collect();
+            keys.sort_unstable();
+
+            for (index, key) in keys.iter().enumerate() {
+                if index > 0 {
+                    output.push(',');
+                }
+
+                let encoded_key = serde_json::to_string(key)
+                    .map_err(|err| format!("failed to encode JSON object key: {err}"))?;
+                output.push_str(&encoded_key);
+                output.push(':');
+                write_canonical_json(&entries[*key], output)?;
+            }
+            output.push('}');
+            Ok(())
+        }
+    }
+}
+
+pub fn hex_encode(bytes: &[u8]) -> String {
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push_str(&format!("{byte:02x}"));
+    }
+    output
 }
 
 fn parse_patch_operation(value: &Value) -> Result<PatchOperation, TypedObjectError> {
@@ -723,8 +886,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        object_schema, parse_block_object, parse_object_envelope, parse_patch_object,
-        parse_revision_object, parse_view_object, ObjectKind, ParseObjectEnvelopeError,
+        canonical_json, object_schema, parse_block_object, parse_document_object,
+        parse_object_envelope, parse_patch_object, parse_revision_object, parse_snapshot_object,
+        parse_view_object, recompute_object_id, ObjectKind, ParseObjectEnvelopeError,
         SignatureRule, StringFieldError,
     };
 
@@ -960,6 +1124,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_document_object_reads_identity_and_baseline_fields() {
+        let document = parse_document_object(&json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "title": "Origin Text",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
+        }))
+        .expect("document should parse");
+
+        assert_eq!(document.doc_id, "doc:test");
+        assert_eq!(document.content_model, "block-tree");
+        assert_eq!(document.genesis_revision, "rev:test");
+    }
+
+    #[test]
     fn parse_revision_object_reads_parent_and_patch_ids() {
         let revision = parse_revision_object(&json!({
             "type": "revision",
@@ -1013,5 +1197,60 @@ mod tests {
             Some("rev:test")
         );
         assert!(view.policy.is_object());
+    }
+
+    #[test]
+    fn parse_snapshot_object_reads_documents_and_included_objects() {
+        let snapshot = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .expect("snapshot should parse");
+
+        assert_eq!(snapshot.snapshot_id, "snap:test");
+        assert_eq!(snapshot.included_objects, vec!["rev:test", "patch:test"]);
+        assert_eq!(
+            snapshot.documents.get("doc:test").map(String::as_str),
+            Some("rev:test")
+        );
+    }
+
+    #[test]
+    fn canonical_json_is_sorted_and_compact() {
+        let canonical = canonical_json(&json!({
+            "z": 2,
+            "a": [true, {"b": "x", "a": 1}]
+        }))
+        .expect("canonical JSON should render");
+
+        assert_eq!(canonical, "{\"a\":[true,{\"a\":1,\"b\":\"x\"}],\"z\":2}");
+    }
+
+    #[test]
+    fn recompute_object_id_omits_signature_and_derived_id_field() {
+        let value = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:declared",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [],
+            "signature": "sig:ed25519:test"
+        });
+
+        let recomputed =
+            recompute_object_id(&value, "patch_id", "patch").expect("patch ID should recompute");
+        assert!(recomputed.starts_with("patch:"));
+        assert_ne!(recomputed, "patch:declared");
     }
 }
