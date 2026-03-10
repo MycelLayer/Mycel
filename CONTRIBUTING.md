@@ -15,6 +15,7 @@ This repository is still in an early spec-first stage. Most changes are expected
 - Read [docs/DEV-SETUP.md](./docs/DEV-SETUP.md) if you are starting from a fresh environment.
 - Read [AGENTS.md](./AGENTS.md) for the active repository working rules.
 - If you are contributing through an AI coding bot or automation workflow, read [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md) too.
+- If you need a machine-readable dev-environment gate for automation, use [`scripts/check-dev-env.sh --json`](./scripts/check-dev-env.sh).
 - Read [docs/LABELS.md](./docs/LABELS.md) if you need the tracked label meanings and recommended combinations.
 - If you are setting up bot-facing GitHub workflow, sync the tracked labels first with [`scripts/sync-labels.sh`](./scripts/sync-labels.sh).
 - Use [`scripts/check-labels.sh`](./scripts/check-labels.sh) to verify the tracked labels still match GitHub after host-side changes.
