@@ -81,6 +81,16 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - 再看貢獻預期：[CONTRIBUTING.md](./CONTRIBUTING.md)
 - 如果你使用 AI coding agent，再接著看：[BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md)
 
+## 從這裡開始貢獻
+
+如果你想先接一張範圍窄的任務，可以從這幾張仍開放的 issue 開始：
+
+- [#1 在共用 object parsing 中拒絕重複 JSON object keys](https://github.com/ctf2090/Mycel/issues/1)
+- [#3 補上 document 與 block objects 的 malformed logical-ID coverage](https://github.com/ctf2090/Mycel/issues/3)
+- [#4 補上 snapshot derived-ID verification smoke coverage](https://github.com/ctf2090/Mycel/issues/4)
+
+如果你想看更結構化的任務入口，請直接瀏覽帶有 `ai-ready` 與 `well-scoped` labels 的 issues。
+
 如果你想理解目前的 Rust 實作：
 
 - Workspace 地圖：[RUST-WORKSPACE.md](./RUST-WORKSPACE.md)

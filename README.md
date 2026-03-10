@@ -81,6 +81,16 @@ If you want to contribute from a fresh environment:
 - Then read contribution expectations: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - If you are using an AI coding agent, continue with: [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md)
 
+## Start Contributing Here
+
+If you want a narrow first task, start with one of these open issues:
+
+- [#1 Reject duplicate JSON object keys in shared object parsing](https://github.com/ctf2090/Mycel/issues/1)
+- [#3 Add malformed logical-ID coverage for document and block objects](https://github.com/ctf2090/Mycel/issues/3)
+- [#4 Add snapshot derived-ID verification smoke coverage](https://github.com/ctf2090/Mycel/issues/4)
+
+For more structured task intake, browse issues labeled `ai-ready` and `well-scoped`.
+
 If you want to understand the current Rust implementation:
 
 - Workspace map: [RUST-WORKSPACE.md](./RUST-WORKSPACE.md)
