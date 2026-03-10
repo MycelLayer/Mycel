@@ -388,6 +388,43 @@ fn object_verify_json_fails_for_mismatched_revision_id() {
 }
 
 #[test]
+fn object_verify_json_fails_for_mismatched_snapshot_id() {
+    let mut snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "timestamp": 9u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    snapshot["snapshot_id"] = Value::String("snap:wrong".to_string());
+    snapshot["signature"] = Value::String(sign_value(&signing_key(), &snapshot));
+    let object = write_object_file("object-verify-snapshot-mismatch", "snapshot.json", snapshot);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("declared snapshot_id does not match")))),
+        "expected snapshot derived ID mismatch error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_text_fails_when_signed_object_is_missing_signature() {
     let object = write_object_file(
         "object-verify-view-missing-signature",

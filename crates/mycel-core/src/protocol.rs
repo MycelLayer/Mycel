@@ -1830,6 +1830,50 @@ mod tests {
     }
 
     #[test]
+    fn parse_snapshot_object_rejects_non_string_snapshot_id() {
+        let error = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": 7,
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'snapshot_id' must be a string"
+        );
+    }
+
+    #[test]
+    fn parse_snapshot_object_rejects_wrong_snapshot_id_prefix() {
+        let error = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "view:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'snapshot_id' must use 'snap:' prefix"
+        );
+    }
+
+    #[test]
     fn parse_snapshot_object_rejects_empty_documents() {
         let error = parse_snapshot_object(&json!({
             "type": "snapshot",
