@@ -2287,6 +2287,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_view_object_rejects_wrong_document_key_prefix() {
+        let error = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "patch:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 7u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'documents.patch:test key' must use 'doc:' prefix"
+        );
+    }
+
+    #[test]
     fn parse_view_object_rejects_unknown_top_level_field() {
         let error = parse_view_object(&json!({
             "type": "view",
@@ -2480,6 +2503,28 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level 'included_objects' must include revision 'rev:test' declared by 'documents.doc:test'"
+        );
+    }
+
+    #[test]
+    fn parse_snapshot_object_rejects_wrong_document_value_prefix() {
+        let error = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": "patch:test"
+            },
+            "included_objects": ["patch:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'documents.doc:test' must use 'rev:' prefix"
         );
     }
 
