@@ -3956,6 +3956,131 @@ fn object_verify_json_fails_for_revision_with_unparseable_patch_dependency() {
 }
 
 #[test]
+fn object_verify_json_fails_when_sibling_object_json_is_unparseable() {
+    let dir = create_temp_dir("object-verify-unparseable-sibling-json");
+    let sibling_path = dir.path().join("patch-bad.json");
+    let revision_path = dir.path().join("revision.json");
+
+    fs::write(
+        &sibling_path,
+        r#"{
+  "type": "patch",
+  "version": "mycel/0.1",
+  "patch_id": "patch:bad",
+  "patch_id": "patch:duplicate"
+}"#,
+    )
+    .expect("malformed sibling JSON should be written");
+
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": state_hash(&json!({
+                "doc_id": "doc:test",
+                "blocks": [],
+                "metadata": {}
+            })),
+            "timestamp": 1777778891u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        &revision_path,
+        serde_json::to_string_pretty(&revision).expect("revision JSON should serialize"),
+    )
+    .expect("revision JSON should be written");
+
+    let output = run_mycel(&["object", "verify", &path_arg(&revision_path), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("failed to parse sibling object")
+                        && message.contains("patch-bad.json")
+                })
+            })),
+        "expected sibling parse failure, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_when_sibling_object_has_invalid_declared_id() {
+    let dir = create_temp_dir("object-verify-invalid-sibling-id");
+    let sibling_path = dir.path().join("patch-bad-id.json");
+    let revision_path = dir.path().join("revision.json");
+
+    fs::write(
+        &sibling_path,
+        serde_json::to_string_pretty(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": 7,
+            "doc_id": "doc:test",
+            "author": signer_id(&signing_key()),
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1777778888u64,
+            "ops": []
+        }))
+        .expect("sibling JSON should serialize"),
+    )
+    .expect("sibling JSON should be written");
+
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": state_hash(&json!({
+                "doc_id": "doc:test",
+                "blocks": [],
+                "metadata": {}
+            })),
+            "timestamp": 1777778891u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        &revision_path,
+        serde_json::to_string_pretty(&revision).expect("revision JSON should serialize"),
+    )
+    .expect("revision JSON should be written");
+
+    let output = run_mycel(&["object", "verify", &path_arg(&revision_path), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("sibling object")
+                        && message.contains("patch-bad-id.json has invalid declared ID")
+                })
+            })),
+        "expected invalid sibling declared ID error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_revision_with_invalid_move_cycle() {
     let dir = create_temp_dir("object-verify-revision-move-cycle");
     let parent_patch_path = dir.path().join("patch-parent.json");
