@@ -357,6 +357,119 @@ fn object_verify_json_fails_for_block_missing_block_id() {
 }
 
 #[test]
+fn object_verify_json_fails_for_block_with_wrong_block_id_prefix() {
+    let object = write_object_file(
+        "object-verify-block-wrong-block-id-prefix",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "paragraph-1",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'block_id' must use 'blk:' prefix")
+                })
+            })),
+        "expected block_id prefix error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_block_with_unknown_top_level_field() {
+    let object = write_object_file(
+        "object-verify-block-unknown-top-level-field",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": [],
+            "unexpected": true
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level contains unexpected field 'unexpected'")
+                })
+            })),
+        "expected unknown-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_block_with_unknown_nested_child_field() {
+    let object = write_object_file(
+        "object-verify-block-unknown-nested-child-field",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": [
+                {
+                    "block_id": "blk:002",
+                    "block_type": "paragraph",
+                    "content": "Child",
+                    "attrs": {},
+                    "children": [],
+                    "unexpected": true
+                }
+            ]
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message
+                        .contains("top-level 'children[0]' contains unexpected field 'unexpected'")
+                })
+            })),
+        "expected nested child unknown-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_floating_point_values() {
     let object = write_raw_object_file(
         "object-verify-float-value",

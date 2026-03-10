@@ -1250,6 +1250,105 @@ mod tests {
     }
 
     #[test]
+    fn block_wrong_logical_id_prefix_is_rejected() {
+        let path = write_test_file(
+            "block-wrong-block-id-prefix",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "paragraph-1",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": []
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'block_id' must use 'blk:' prefix")),
+            "expected block_id prefix error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn block_unknown_top_level_field_is_rejected() {
+        let path = write_test_file(
+            "block-unknown-top-level-field",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "blk:001",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": [],
+                "unexpected": true
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level contains unexpected field 'unexpected'")),
+            "expected unknown-field error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn block_unknown_nested_child_field_is_rejected() {
+        let path = write_test_file(
+            "block-unknown-nested-child-field",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "blk:001",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": [
+                    {
+                        "block_id": "blk:002",
+                        "block_type": "paragraph",
+                        "content": "Child",
+                        "attrs": {},
+                        "children": [],
+                        "unexpected": true
+                    }
+                ]
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("top-level 'children[0]' contains unexpected field 'unexpected'")
+            }),
+            "expected nested child unknown-field error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn snapshot_missing_documents_is_rejected_by_typed_validation() {
         let (signing_key, public_key) = signer_material();
         let mut snapshot = json!({
