@@ -2037,6 +2037,78 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_view_document_value_prefix_is_wrong() {
+        let path = write_test_file(
+            "view-wrong-document-value-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "view",
+                "version": "mycel/0.1",
+                "view_id": "view:test",
+                "maintainer": "pk:ed25519:test",
+                "documents": {
+                    "doc:test": "patch:test"
+                },
+                "policy": {
+                    "merge_rule": "manual-reviewed"
+                },
+                "timestamp": 12u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message
+                    .contains("top-level 'documents.doc:test' must use 'rev:' prefix")),
+            "expected document value prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_view_contains_unknown_top_level_field() {
+        let path = write_test_file(
+            "view-unknown-top-level-field-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "view",
+                "version": "mycel/0.1",
+                "view_id": "view:test",
+                "maintainer": "pk:ed25519:test",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "policy": {
+                    "merge_rule": "manual-reviewed"
+                },
+                "unexpected": true,
+                "timestamp": 12u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level contains unexpected field 'unexpected'")),
+            "expected unknown top-level field warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_snapshot_missing_declared_revision_in_included_objects() {
         let path = write_test_file(
             "snapshot-missing-declared-revision-inspect",
@@ -2069,6 +2141,38 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_snapshot_document_key_prefix_is_wrong() {
+        let path = write_test_file(
+            "snapshot-wrong-document-key-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "snapshot",
+                "version": "mycel/0.1",
+                "snapshot_id": "snap:test",
+                "documents": {
+                    "patch:test": "rev:test"
+                },
+                "included_objects": ["rev:test", "patch:test"],
+                "root_hash": "hash:test",
+                "created_by": "pk:ed25519:test",
+                "timestamp": 9u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| message
+                .contains("top-level 'documents.patch:test key' must use 'doc:' prefix")),
+            "expected document key prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_snapshot_missing_documents() {
         let path = write_test_file(
             "snapshot-missing-documents-inspect",
@@ -2094,6 +2198,41 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("missing object field 'documents'")),
             "expected missing documents warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_snapshot_contains_unknown_top_level_field() {
+        let path = write_test_file(
+            "snapshot-unknown-top-level-field-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "snapshot",
+                "version": "mycel/0.1",
+                "snapshot_id": "snap:test",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "included_objects": ["rev:test", "patch:test"],
+                "root_hash": "hash:test",
+                "created_by": "pk:ed25519:test",
+                "unexpected": true,
+                "timestamp": 9u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level contains unexpected field 'unexpected'")),
+            "expected unknown top-level field warning, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
