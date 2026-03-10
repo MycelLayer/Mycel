@@ -84,6 +84,7 @@ A single document may have multiple heads.
 
 A so-called "accepted version" is only the output of one governed View profile, not the only network-wide truth.
 Different valid profiles may coexist, but a conforming reader client MUST derive its active accepted head from fixed protocol-defined profile inputs rather than discretionary local preference.
+This means acceptance is a reproducible selector result under one fixed profile, not a claim that the whole network has converged on one mandatory version.
 
 ### 3.5 Transport and Acceptance are Separate
 

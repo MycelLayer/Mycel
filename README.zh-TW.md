@@ -29,6 +29,8 @@ Mycel 走的是另一條路。它把文本歷史、accepted reading、以及 rep
 - 容許分叉：多個 head 可以並存，而不假設整個網路必須只有一個全域真相。
 - 中立的 protocol core：領域語義應放在 profiles 與 app layers，不應寫死進 core protocol。
 
+換句話說，所謂「採信版本」不是全網共識，而是在某個固定 profile 下，從已驗證物件推導出的版本。
+
 ## 它不是什麼
 
 Mycel 不是：

@@ -84,6 +84,7 @@ object_id = <type-prefix>:<object_hash>
 
 所謂「採信版本」只是某個治理 View profile 的輸出，不是全網唯一版本。
 不同合法 profile 可以並存，但合規的 reader client MUST 以固定的 protocol-defined profile 輸入導出 active accepted head，而不是依本地偏好自由裁量。
+這表示「採信」是某個固定 profile 下可重現的 selector 結果，不是在宣稱整個網路已收斂到唯一強制版本。
 
 ### 3.5 傳輸與接受分離
 

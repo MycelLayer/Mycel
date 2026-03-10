@@ -29,6 +29,8 @@ The result is a protocol stack for long-lived texts, commentary systems, governe
 - Fork-tolerant model: multiple heads can coexist without pretending one global truth exists everywhere.
 - Neutral protocol core: domain-specific meaning belongs in profiles and app layers, not in the core protocol.
 
+In other words, an "accepted version" is not network-wide consensus. It is the version derived under one fixed profile from verified objects.
+
 ## What It Is Not
 
 Mycel is not:

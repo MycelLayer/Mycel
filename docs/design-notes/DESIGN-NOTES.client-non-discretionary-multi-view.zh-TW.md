@@ -87,6 +87,7 @@ client 不應自由做：
 7. 輸出唯一 `accepted_head`
 
 accepted head 是 protocol 導出的，不是使用者自己選的。
+它也不是在宣稱整個網路只有一個普遍接受的真版本；它是在某個固定 profile 與某個 effective selection time 下算出的 accepted result。
 
 ## 6. Client 角色
 

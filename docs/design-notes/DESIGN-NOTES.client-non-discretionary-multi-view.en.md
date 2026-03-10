@@ -87,6 +87,7 @@ For each `(profile_id, doc_id, effective_selection_time)`:
 7. emit one `accepted_head`
 
 The accepted head is protocol-derived, not user-chosen.
+It is also not a claim that the whole network has one universally accepted truth; it is the accepted result produced for one fixed profile at one effective selection time.
 
 ## 6. Client Roles
 
