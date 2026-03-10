@@ -16,7 +16,7 @@ The repository already has:
 
 - a growing v0.1 protocol and wire-spec document set
 - a Rust CLI suitable for internal validation and deterministic simulator workflows
-- early `mycel-core` support for object schema metadata, object-envelope parsing, object inspection, object verification, and accepted-head inspection
+- `mycel-core` support for object schema metadata, object-envelope parsing, replay-based revision verification, local object-store ingest/rebuild, persisted store indexes, and accepted-head inspection
 - simulator fixtures, topologies, tests, and reports for regression coverage
 
 The repository does not yet have:
@@ -33,8 +33,8 @@ The repository does not yet have:
 The current lane is:
 
 1. finish the narrow first-client core
-2. harden deterministic validation and replay behavior
-3. keep expanding fixtures, simulator coverage, and negative tests
+2. close the remaining shared-core gaps in parsing and canonicalization
+3. keep expanding fixtures, simulator coverage, and negative tests while beginning reader-plus-governance read paths
 
 ### Next
 
@@ -95,23 +95,25 @@ Goal: reach a narrow first client that can parse, verify, store, replay, and ins
 
 ### Current Status
 
-Partially underway.
+Late partial progress, approaching the end of the phase but not ready to declare complete.
 
 Already in progress or partially implemented:
 
 1. Shared object schema metadata
 2. Shared object-envelope parsing
 3. Object inspection and verification
-4. Accepted-head inspection
-5. Internal validation and simulator harness CLI
+4. Replay-based revision verification and `state_hash` checking
+5. Local object-store ingest, rebuild, persisted manifest indexing, and query surfaces
+6. Accepted-head inspection, including store-backed selector object loading
+7. Internal validation and simulator harness CLI
 
 Still missing or incomplete:
 
 1. Full typed object model across all object families
 2. Canonical serialization as a fully shared protocol layer
-3. Revision replay engine and complete `state_hash` verification
-4. Storage-write and object-authoring path
-5. Formal store-rebuild workflow
+3. Narrow object-authoring and write path beyond verified ingest into the store
+4. A cleaner reader-facing profile surface on top of the accepted-head selector
+5. Final closure work that would justify marking Phase 1 exit criteria as complete
 
 ### Milestones in This Phase
 
@@ -133,20 +135,22 @@ Completion gate:
 
 Current read:
 
-Partially complete.
+Mostly complete, but still missing the cleanup work needed to close the milestone confidently.
 
 Already visible in the repo:
 
 1. shared schema metadata
 2. shared object-envelope parsing
 3. object inspection and verification
-4. internal validation and simulator harness coverage
+4. protocol-level typed parsing for the currently supported object families
+5. internal validation and simulator harness coverage
 
 Main remaining gaps:
 
 1. full typed object-family coverage
 2. canonical serialization promoted into a clearly shared protocol utility
 3. stronger `mycel-core`-level test depth around protocol parsing and verification
+4. clearer closure of the remaining parsing and canonical-helper debt before widening more surfaces
 
 Implementation anchors:
 
@@ -212,14 +216,14 @@ Completion gate:
 
 Current read:
 
-Started conceptually, but still largely incomplete.
+Substantially underway.
 
 Main remaining gaps:
 
-1. replay engine
-2. `state_hash` verification engine
-3. persistent local store model
-4. object builder and writer path
+1. narrow object-authoring and builder path
+2. broader reuse of persisted store indexes across reader workflows
+3. stronger replay and store reconstruction coverage tied to more realistic fixture sets
+4. documentation cleanup so roadmap and checklist reflect the implemented store/replay baseline
 
 Implementation anchors:
 
@@ -267,20 +271,21 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress.
+Early partial progress, but no longer limited to fixture-only head inspection.
 
 Already in progress or partially implemented:
 
 1. Accepted-head inspection
 2. Structured decision output with typed machine-readable arrays
-3. Early simulator workflows around peer and topology validation
+3. Store-backed accepted-head inspection using persisted store indexes
+4. Early simulator workflows around peer and topology validation
 
 Still missing or incomplete:
 
 1. Full reader rendering path
 2. View publication workflow
 3. Stable reader-facing profile selection surface
-4. Complete storage and retrieval path for governance inputs
+4. Standalone governance retrieval and inspection surfaces beyond head inspection
 
 ### Milestones in This Phase
 
@@ -302,20 +307,21 @@ Completion gate:
 
 Current read:
 
-Early partial progress.
+Early partial progress, now with an initial bridge from persisted store state into reader inspection.
 
 Already visible in the repo:
 
 1. accepted-head inspection
 2. structured decision detail in typed arrays
-3. simulator and validation workflows around peer, topology, test, and report scopes
+3. store-backed selector object loading for accepted-head inspection
+4. simulator and validation workflows around peer, topology, test, and report scopes
 
 Main remaining gaps:
 
 1. reader text rendering path
 2. fixed-profile reading workflow
 3. governance publication workflow
-4. broader governance-state persistence
+4. broader governance-state persistence and dedicated inspection surfaces
 
 Implementation anchors:
 
