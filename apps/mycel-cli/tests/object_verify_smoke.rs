@@ -3741,6 +3741,78 @@ fn object_verify_json_fails_for_revision_with_missing_patch_object() {
 }
 
 #[test]
+fn object_verify_json_fails_for_revision_with_parent_from_other_document() {
+    let dir = create_temp_dir("object-verify-revision-cross-document-parent");
+    let parent_revision_path = dir.path().join("revision-parent.json");
+    let revision_path = dir.path().join("revision.json");
+
+    let parent_state_hash = state_hash(&json!({
+        "doc_id": "doc:other",
+        "blocks": [],
+        "metadata": {}
+    }));
+    let parent_revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:other",
+            "parents": [],
+            "patches": [],
+            "state_hash": parent_state_hash,
+            "timestamp": 1777778888u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        &parent_revision_path,
+        serde_json::to_string_pretty(&parent_revision)
+            .expect("parent revision JSON should serialize"),
+    )
+    .expect("parent revision JSON should be written");
+
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [parent_revision["revision_id"].as_str().expect("parent revision id should exist")],
+            "patches": [],
+            "state_hash": "hash:placeholder",
+            "timestamp": 1777778889u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        &revision_path,
+        serde_json::to_string_pretty(&revision).expect("revision JSON should serialize"),
+    )
+    .expect("revision JSON should be written");
+
+    let output = run_mycel(&["object", "verify", &path_arg(&revision_path), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert_eq!(json["state_hash_verification"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("parent revision '")
+                        && message.contains("belongs to 'doc:other' instead of 'doc:test'")
+                })
+            })),
+        "expected cross-document parent replay error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_revision_with_invalid_move_cycle() {
     let dir = create_temp_dir("object-verify-revision-move-cycle");
     let parent_patch_path = dir.path().join("patch-parent.json");
