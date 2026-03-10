@@ -672,6 +672,108 @@ fn object_verify_json_fails_for_block_missing_attrs() {
 }
 
 #[test]
+fn object_verify_json_fails_for_block_with_non_string_content() {
+    let object = write_object_file(
+        "object-verify-block-non-string-content",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": 7,
+            "attrs": {},
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("top-level 'content' must be a string"))
+            })),
+        "expected content type error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_block_with_non_object_attrs() {
+    let object = write_object_file(
+        "object-verify-block-non-object-attrs",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": [],
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("top-level 'attrs' must be an object"))
+            })),
+        "expected attrs object-shape error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_block_with_non_array_children() {
+    let object = write_object_file(
+        "object-verify-block-non-array-children",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": {}
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'children' must be an array")
+                })
+            })),
+        "expected children array-shape error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_block_with_wrong_block_id_prefix() {
     let object = write_object_file(
         "object-verify-block-wrong-block-id-prefix",
