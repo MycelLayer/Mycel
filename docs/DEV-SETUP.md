@@ -56,9 +56,12 @@ Use the repo-local checker if you want one command:
 ```bash
 scripts/check-dev-env.sh
 scripts/check-dev-env.sh --full
+scripts/check-dev-env.sh --json
+scripts/check-dev-env.sh --full --json
 ```
 
 `--full` goes beyond tool detection and also runs the current repo-local validation surface, so it can fail because of the present workspace state as well as missing setup.
+`--json` is intended for automation-oriented tools that need machine-readable pass/fail output.
 
 ## 2. Clone and Enter the Repo
 

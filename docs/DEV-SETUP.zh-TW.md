@@ -56,9 +56,12 @@ rustup component add clippy --toolchain stable
 ```bash
 scripts/check-dev-env.sh
 scripts/check-dev-env.sh --full
+scripts/check-dev-env.sh --json
+scripts/check-dev-env.sh --full --json
 ```
 
 `--full` 不只檢查工具是否存在，也會直接跑目前 repo 的驗證面，所以它可能因為當前 workspace 狀態而失敗，而不一定只是缺少環境安裝。
+`--json` 則適合給 automation-oriented tools（偏自動化工具）或 agent 做機器可讀的結果判讀。
 
 ## 2. Clone 並進入 Repo
 
