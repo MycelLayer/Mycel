@@ -1,4 +1,4 @@
-# Mycel Grant Concept Note
+# Mycel 資助概念說明
 
 ## 專案標題
 
@@ -72,14 +72,14 @@ Mycel 把系統拆成三層：
 - 完整的 end-to-end wire sync
 - production-ready 的 node 或終端使用者應用
 
-## Grant 支持能加速什麼
+## 資助能加速什麼
 
-Grant 支持將加速最關鍵的公共基礎設施工作：
+資助將加速最關鍵的公共基礎設施工作：
 
 - shared protocol parsing 與 canonicalization 收斂
-- replay 與 `state_hash` verification 強化
-- 可重建的 local storage 與 accepted-head selection
-- deterministic negative testing 與 interop fixtures
+- replay 與 `state_hash` 驗證強化
+- 可重建的本地儲存與 accepted-head selection
+- 決定性的負向測試與 interop fixtures
 - 更清楚的 profile、schema 與文件邊界
 - 一個更窄但可互通的 first client
 
@@ -90,10 +90,10 @@ Grant 支持將加速最關鍵的公共基礎設施工作：
 在支持下，Mycel 目標交付：
 
 - 更強的 open protocol core，支撐可驗證文本系統與文化參考文本集合
-- 更完整的 first-client implementation path
+- 更完整的第一個客戶端實作路徑
 - 可重用的 fixtures 與 negative tests，支援 interoperability
 - 更清楚的公共文件，說明 governed reading 與 accepted-state derivation
-- 作為未來 text-governance、commentary 與文化保存應用的 reference base
+- 作為未來文本治理、評註與文化保存應用的參考基礎
 
 ## 為什麼這個專案重要
 
@@ -113,7 +113,7 @@ Mycel 特別適合下列資助類型：
 - 開放數位基礎設施
 - 公共利益導向的協議開發
 - 可驗證知識系統
-- 可互通的 open-source foundations
+- 可互通的開放原始碼基礎設施
 - 值得信任的資料與治理工具
 
 ## 結語
