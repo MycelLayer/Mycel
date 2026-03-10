@@ -1969,6 +1969,41 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_view_maintainer_prefix_is_wrong() {
+        let path = write_test_file(
+            "view-wrong-maintainer-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "view",
+                "version": "mycel/0.1",
+                "view_id": "view:test",
+                "maintainer": "maintainer:test",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "policy": {
+                    "merge_rule": "manual-reviewed"
+                },
+                "timestamp": 12u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'maintainer' must use 'pk:' prefix")),
+            "expected maintainer prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_snapshot_missing_declared_revision_in_included_objects() {
         let path = write_test_file(
             "snapshot-missing-declared-revision-inspect",
@@ -1996,6 +2031,74 @@ mod tests {
                 "top-level 'included_objects' must include revision 'rev:test' declared by 'documents.doc:test'",
             )
         }), "expected missing declared revision warning, got {summary:?}");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_snapshot_root_hash_prefix_is_wrong() {
+        let path = write_test_file(
+            "snapshot-wrong-root-hash-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "snapshot",
+                "version": "mycel/0.1",
+                "snapshot_id": "snap:test",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "included_objects": ["rev:test", "patch:test"],
+                "root_hash": "rev:test",
+                "created_by": "pk:ed25519:test",
+                "timestamp": 9u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'root_hash' must use 'hash:' prefix")),
+            "expected root_hash prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_snapshot_created_by_prefix_is_wrong() {
+        let path = write_test_file(
+            "snapshot-wrong-created-by-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "snapshot",
+                "version": "mycel/0.1",
+                "snapshot_id": "snap:test",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "included_objects": ["rev:test", "patch:test"],
+                "root_hash": "hash:test",
+                "created_by": "creator:test",
+                "timestamp": 9u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'created_by' must use 'pk:' prefix")),
+            "expected created_by prefix warning, got {summary:?}"
+        );
 
         let _ = std::fs::remove_file(path);
     }
