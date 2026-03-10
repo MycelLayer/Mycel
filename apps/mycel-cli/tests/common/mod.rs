@@ -2,10 +2,14 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::process::Output;
 
+use assert_cmd::Command;
+use predicates::prelude::*;
 use serde_json::Value;
+use tempfile::Builder;
+
+pub use tempfile::TempDir;
 
 pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -18,34 +22,11 @@ pub fn mycel_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_mycel"))
 }
 
-pub struct TempDir {
-    path: PathBuf,
-}
-
-impl TempDir {
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
-}
-
 pub fn create_temp_dir(prefix: &str) -> TempDir {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time should be after unix epoch")
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "mycel-cli-{prefix}-{}-{unique}",
-        std::process::id()
-    ));
-    fs::create_dir_all(&path).expect("temporary directory should be created");
-
-    TempDir { path }
+    Builder::new()
+        .prefix(&format!("mycel-cli-{prefix}-"))
+        .tempdir()
+        .expect("temporary directory should be created")
 }
 
 pub fn run_mycel(args: &[&str]) -> Output {
@@ -169,7 +150,7 @@ pub fn assert_exit_code(output: &Output, expected: i32) {
 pub fn assert_stdout_contains(output: &Output, expected_text: &str) {
     let stdout = stdout_text(output);
     assert!(
-        stdout.contains(expected_text),
+        predicate::str::contains(expected_text).eval(&stdout),
         "expected stdout to contain '{expected_text}', stdout: {stdout}"
     );
 }
@@ -177,7 +158,7 @@ pub fn assert_stdout_contains(output: &Output, expected_text: &str) {
 pub fn assert_stderr_contains(output: &Output, expected_text: &str) {
     let stderr = stderr_text(output);
     assert!(
-        stderr.contains(expected_text),
+        predicate::str::contains(expected_text).eval(&stderr),
         "expected stderr to contain '{expected_text}', stderr: {stderr}"
     );
 }
@@ -197,35 +178,36 @@ pub fn assert_empty_stderr(output: &Output) {
 
 pub fn assert_top_level_help(stdout: &str) {
     assert!(
-        stdout.contains("Mycel CLI for validation, inspection, and simulator workflows."),
+        predicate::str::contains("Mycel CLI for validation, inspection, and simulator workflows.")
+            .eval(stdout),
         "expected CLI description, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("Usage: mycel [COMMAND]"),
+        predicate::str::contains("Usage: mycel [COMMAND]").eval(stdout),
         "expected usage header, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("Commands:"),
+        predicate::str::contains("Commands:").eval(stdout),
         "expected Commands section, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("Options:"),
+        predicate::str::contains("Options:").eval(stdout),
         "expected Options section, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("head"),
+        predicate::str::contains("head").eval(stdout),
         "expected head command in help, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("report"),
+        predicate::str::contains("report").eval(stdout),
         "expected report command in help, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("validate"),
+        predicate::str::contains("validate").eval(stdout),
         "expected validate command in help, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("-h, --help"),
+        predicate::str::contains("-h, --help").eval(stdout),
         "expected help flag in help output, stdout: {stdout}"
     );
 }
