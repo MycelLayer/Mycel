@@ -1,23 +1,23 @@
-# Schema Cross-check
+# Schema 交叉檢查
 
-本文件說明 simulator 各份 schema 之間如何互相關聯，以及哪些欄位應在不同檔案之間做一致性檢查。
+本文件說明模擬器各份 schema 之間如何互相關聯，以及哪些欄位應在不同檔案之間做一致性檢查。
 
 目標是讓下列內容彼此對齊：
 
-- fixture data
-- peer definitions
-- topology definitions
-- test cases
-- run reports
+- fixture 資料
+- peer 定義
+- topology 定義
+- 測試案例
+- 執行報告
 
 同時又不把實作綁死在單一語言上。
 
 ## 概覽
 
-simulator 的資料流如下：
+模擬器的資料流如下：
 
 1. fixture 定義測試資料情境
-2. peer definition 定義單一 peer 的形狀
+2. peer 定義單一 peer 的形狀
 3. topology 把多個 peers 組成一個有界網路
 4. test case 選定 topology 與 fixture，並宣告預期 outcomes
 5. report 記錄實際發生的結果
@@ -26,11 +26,11 @@ simulator 的資料流如下：
 
 | Schema | 主要用途 | 典型檔案位置 |
 | --- | --- | --- |
-| `fixture.schema.json` | 定義一組 fixture set | `fixtures/object-sets/*/fixture.json` |
-| `peer.schema.json` | 定義一份 peer config | `sim/peers/*.json` |
-| `topology.schema.json` | 定義一份 peer graph | `sim/topologies/*.json` |
-| `test-case.schema.json` | 定義一個可執行的 test case | `sim/tests/*.json` |
-| `report.schema.json` | 定義一次 run result | `sim/reports/*.json` 或 `sim/reports/out/*.json` |
+| `fixture.schema.json` | 定義一組 fixture 集合 | `fixtures/object-sets/*/fixture.json` |
+| `peer.schema.json` | 定義一份 peer 設定 | `sim/peers/*.json` |
+| `topology.schema.json` | 定義一份 peer 圖 | `sim/topologies/*.json` |
+| `test-case.schema.json` | 定義一個可執行的測試案例 | `sim/tests/*.json` |
+| `report.schema.json` | 定義一次執行結果 | `sim/reports/*.json` 或 `sim/reports/out/*.json` |
 
 ## Cross-check 規則
 
@@ -38,7 +38,7 @@ simulator 的資料流如下：
 
 以下值應該彼此一致：
 
-- `fixture.seed_peer` 應對上 topology 中預定載入 seed data 的 peer 角色或 node mapping。
+- `fixture.seed_peer` 應對上 topology 中預定載入 seed data 的 peer 角色或節點對應。
 - `fixture.reader_peers[]` 應對上映射到所選 topology 中的 reader peers。
 - `fixture.fault_peer` 若存在，應對上 topology 中具 fault 能力的 peer。
 - `fixture.expected_outcomes[]` 應與 topology 預期的情境相容。
@@ -51,7 +51,7 @@ simulator 的資料流如下：
 
 `topology.schema.json` 會重用 `peer.schema.json`。
 
-這表示 `topology.peers[]` 中的每個 entry，都應已滿足 standalone peer contract。
+這表示 `topology.peers[]` 中的每個 entry，都應已滿足獨立 peer 契約。
 
 Cross-check 重點：
 
@@ -61,25 +61,25 @@ Cross-check 重點：
 
 最低 loader 檢查：
 
-- 所有 bootstrap references 都能成功 resolve
+- 所有 bootstrap references 都能成功解析
 
 ## 3. Topology -> Test Case
 
 以下值應該彼此一致：
 
-- `test_case.topology` 應指向一個 topology file
+- `test_case.topology` 應指向一個 topology 檔案
 - 若 topology 宣告了 `execution_mode`，則 `test_case.execution_mode` 應與之相同或相容
 - `test_case.expected_outcomes[]` 應是 topology 與 fixture 情境的子集，或至少相容
 
 最低 loader 檢查：
 
-- 被引用的 topology file 必須存在且可解析
+- 被引用的 topology 檔案必須存在且可解析
 
 ## 4. Fixture -> Test Case
 
 以下值應該彼此一致：
 
-- `test_case.fixture_set` 應指向一個 fixture directory
+- `test_case.fixture_set` 應指向一個 fixture 目錄
 - 所選 fixture 應能支援 `test_case.category`
 - `test_case.expected_result` 應與 fixture 的意圖一致
 
@@ -91,7 +91,7 @@ Cross-check 重點：
 
 最低 loader 檢查：
 
-- 被引用的 fixture directory 必須存在，且包含合法的 `fixture.json`
+- 被引用的 fixture 目錄必須存在，且包含合法的 `fixture.json`
 
 ## 5. Test Case -> Report
 
@@ -100,11 +100,11 @@ Cross-check 重點：
 - `report.test_id` 應等於 `test_case.test_id`
 - `report.topology_id` 應等於載入後 topology 的 `topology_id`
 - `report.fixture_id` 應等於載入後 fixture 的 `fixture_id`
-- `report.execution_mode` 應等於這次 run 實際使用的 mode
+- `report.execution_mode` 應等於這次執行實際使用的 mode
 
 最低 runner 檢查：
 
-- report 的 identity fields 應來自已 resolve 的輸入，不應手動重打
+- report 的 identity fields 應來自已解析的輸入，不應手動重打
 
 ## 6. Report -> Expected Outcomes
 
@@ -120,7 +120,7 @@ Cross-check 重點：
 
 ## Identity Map
 
-以下 identifiers 應在 simulator 資料模型中保持穩定：
+以下 identifiers 應在模擬器資料模型中保持穩定：
 
 | Identifier | Source of truth | 被哪些地方重用 |
 | --- | --- | --- |
@@ -149,10 +149,10 @@ Cross-check 重點：
 
 第一版實作至少應拒絕：
 
-- 缺少被引用的 topology file
-- 缺少被引用的 fixture file
+- 缺少被引用的 topology 檔案
+- 缺少被引用的 fixture 檔案
 - 同一 topology 中重複的 `node_id`
-- 無法 resolve 的 `bootstrap_peers` 參照
+- 無法解析的 `bootstrap_peers` 參照
 - 無法映射到 topology peers 的 fixture 角色參照
 - 與已解析測試輸入不一致的 report identity fields
 
@@ -164,4 +164,4 @@ Cross-check 重點：
 - 為所有未來 profiles 定義一套通用角色分類
 - 對每個 expected outcome string 做全自動語意驗證
 
-它只定義 simulator v0 所需的最小一致性檢查。
+它只定義模擬器 v0 所需的最小一致性檢查。

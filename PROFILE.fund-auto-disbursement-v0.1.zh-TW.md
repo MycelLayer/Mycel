@@ -1,28 +1,28 @@
-# Fund Auto-disbursement Profile v0.1
+# 自動撥付 Profile v0.1
 
-狀態：profile draft
+狀態：profile 草案
 
-這份 profile 定義一個收斂且可互通的 automatic fund disbursement（資金池自動撥款）模型。它建立在 Mycel app-layer records、accepted-state selection，以及 policy-driven m-of-n custody 之上。
+這份 profile 定義一個收斂且可互通的自動資金撥付模型。它建立在 Mycel 應用層記錄、accepted-state 的選定，以及受政策驅動的 m-of-n 託管之上。
 
 這份 profile 刻意採取保守設計。
 
-它限制：
+它主要限制：
 
-- accepted trigger 如何變成 disbursement candidate（撥款候選）
-- policy checks（政策檢查）如何套用
-- automatic m-of-n signing（m-of-n 自動簽章）如何進行
-- 哪些 records 必須存在，才能支撐 audit 與 rebuild
+- 被接受的觸發記錄如何變成撥付候選
+- 政策檢查如何套用
+- m-of-n 自動簽章如何進行
+- 哪些記錄必須存在，才能支撐稽核與重建
 
 它不重新定義核心協議。
 
-## 0. Scope
+## 0. 範圍
 
 這份 profile 假設底層實作已支援：
 
-- Mycel core protocol
+- Mycel 協定核心
 - accepted-head selection
-- app-layer records
-- policy-driven m-of-n custody
+- 應用層記錄
+- 受政策驅動的 m-of-n 託管
 - signer enrollment 與 consent tracking
 
 這份 profile 適用於：
@@ -32,18 +32,18 @@
 - 每條 execution path 僅對應一個 accepted policy bundle
 - 一次只處理一個具體的 disbursement intent
 
-## 1. Profile Goals
+## 1. 目標
 
 目標如下：
 
-1. 讓 automatic disbursement 可預期
+1. 讓自動撥付可預期
 2. 保持批准邊界清楚
-3. 保留可 rebuild 的 governance history
-4. 把第一版 client 收斂到安全可做的範圍
+3. 保留可重建的治理歷史
+4. 把第一個客戶端收斂到安全可做的範圍
 
-## 2. Required Record Families
+## 2. 必要記錄家族
 
-合規實作至少必須保存以下 record families：
+合規實作至少必須保存以下記錄家族：
 
 - `fund_manifest`
 - `signer_enrollment`
@@ -56,11 +56,11 @@
 - `execution_receipt`
 - `pause_or_revoke_record`
 
-可以有額外 records，但不可用來取代這些最低需求 records。
+可以有額外記錄，但不可用來取代這些最低需求記錄。
 
-## 3. Accepted Trigger Sources
+## 3. Accepted Trigger 來源
 
-這份 profile 只允許從 accepted trigger record 開始一條撥款路徑。
+這份 profile 只允許從 accepted trigger record 開始一條撥付路徑。
 
 允許的 trigger classes：
 
@@ -81,7 +81,7 @@
 - `asset`
 - `created_at`
 
-## 4. Policy Constraints
+## 4. 政策限制
 
 每次撥款嘗試都必須綁定一份 accepted `policy_bundle`。
 
@@ -100,9 +100,9 @@ active policy bundle 必須定義：
 - `effective_from`
 - `effective_until`
 
-若缺少任何必要 policy 欄位，合規實作必須拒絕執行。
+若缺少任何必要的 policy 欄位，合規實作必須拒絕執行。
 
-## 5. Execution Eligibility Rules
+## 5. 執行資格規則
 
 只有在以下條件全部成立時，execution intent 才算 eligible：
 
@@ -114,13 +114,13 @@ active policy bundle 必須定義：
 6. destination 在 active allowlist 內
 7. active signer-set version 與 policy bundle 相符
 8. signer set 並未 paused 或 revoked
-9. fund 有足夠 available balance
+9. fund 有足夠可用餘額
 
 若任何規則失敗，系統必須產生 blocked 或 rejected execution outcome，不可靜默繼續。
 
 ## 6. Execution Intent
 
-每條 eligible 的撥款路徑都必須產生一筆 `execution_intent`。
+每條 eligible 的撥付路徑都必須產生一筆 `execution_intent`。
 
 必要欄位：
 
@@ -146,7 +146,7 @@ active policy bundle 必須定義：
 
 `intent_hash` 必須能穩定對應到當次要簽出的 outputs 與 amount。
 
-## 7. Automatic m-of-n Signing
+## 7. m-of-n 自動簽章
 
 這份 profile 只在以下規則下允許 automatic signing：
 
@@ -162,7 +162,7 @@ active policy bundle 必須定義：
 - 缺少 consent scope 或 consent 已過期
 - state 是 paused 或 revoked
 - policy 欄位不完整
-- 本地 runtime 狀態與 accepted state 不同步
+- 本地執行環境狀態與 accepted state 不同步
 
 ## 8. Signer Attestations
 
@@ -189,7 +189,7 @@ active policy bundle 必須定義：
 
 實作必須同時保留成功與失敗的結果。
 
-## 9. m-of-n Rule
+## 9. m-of-n 規則
 
 這份 profile 假設每個 active signer-set version 只有一個固定 m-of-n 規則。
 
@@ -201,7 +201,7 @@ active policy bundle 必須定義：
 
 只有在同一個 `intent_hash` 收到至少 `required_signatures` 個有效結果之後，execution layer 才能廣播。
 
-## 10. Receipt Requirements
+## 10. Receipt 要求
 
 每次 broadcast 或 settlement 嘗試都必須產生一筆 `execution_receipt`。
 
@@ -245,13 +245,13 @@ receipt 必須可回連到：
 - 舊 intents 保留舊 signer-set reference
 - pause 或 revoke 只阻擋未來簽章，不重寫舊歷史
 
-## 12. Minimal Flow
+## 12. 最小流程
 
 最小合規流程如下：
 
 1. 出現 accepted trigger record
 2. 實作檢查 active policy bundle
-3. 實作檢查 balance 與 rate limits
+3. 實作檢查餘額與 rate limits
 4. 實作建立 `execution_intent`
 5. signer runtimes 驗證資格並發出 `signer_attestation`
 6. execution layer 達到 threshold 並廣播
