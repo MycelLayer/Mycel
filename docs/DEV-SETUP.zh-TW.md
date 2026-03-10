@@ -75,7 +75,7 @@ cd Mycel
 開始改任何東西前，建議依這個順序先讀：
 
 1. [`README.zh-TW.md`](../README.zh-TW.md)
-2. [`ROADMAP.md`](../ROADMAP.md)
+2. [`ROADMAP.zh-TW.md`](../ROADMAP.zh-TW.md)
 3. [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 4. [`PROTOCOL.zh-TW.md`](../PROTOCOL.zh-TW.md)
 5. [`WIRE-PROTOCOL.zh-TW.md`](../WIRE-PROTOCOL.zh-TW.md)

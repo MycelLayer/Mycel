@@ -4,7 +4,7 @@
 
 這份文件定義 Mycel 如何同步以下幾類介面：
 
-- repo 層級的 planning Markdown，特別是 `ROADMAP.md` 與 `IMPLEMENTATION-CHECKLIST.*`
+- repo 層級的 planning Markdown，特別是 `ROADMAP.md`、`ROADMAP.zh-TW.md` 與 `IMPLEMENTATION-CHECKLIST.*`
 - GitHub Issues
 - GitHub Pages 上的 planning 摘要頁面
 
@@ -15,6 +15,7 @@
 這份計畫適用於：
 
 - [`ROADMAP.md`](../ROADMAP.md)
+- [`ROADMAP.zh-TW.md`](../ROADMAP.zh-TW.md)
 - [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md)
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)

@@ -70,7 +70,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 - 先看 protocol core：[PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)
 - 再看 transport 規則：[WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)
-- 看實作順序：[ROADMAP.md](./ROADMAP.md)
+- 看實作順序：[ROADMAP.zh-TW.md](./ROADMAP.zh-TW.md)
 - 看 build checklist：[IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)
 
 如果你想從全新環境開始貢獻：
@@ -97,7 +97,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 - [PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)：core protocol 規格
 - [WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)：transport message format 與 sync flow 草案
-- [ROADMAP.md](./ROADMAP.md)：從 first client 到後續擴展的分階段建置順序
+- [ROADMAP.zh-TW.md](./ROADMAP.zh-TW.md)：從 first client 到後續擴展的分階段建置順序
 - [IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)：窄版可互通 client 的實作檢查清單
 - [PROFILE.fund-auto-disbursement-v0.1.zh-TW.md](./PROFILE.fund-auto-disbursement-v0.1.zh-TW.md)：窄版 app-layer custody profile 草案
 - [PROFILE.mycel-over-tor-v0.1.zh-TW.md](./PROFILE.mycel-over-tor-v0.1.zh-TW.md)：窄版 Tor 導向部署 profile 草案
