@@ -548,14 +548,18 @@ pub fn parse_view_object(value: &Value) -> Result<ViewObject, TypedObjectError> 
     }
 
     let object = envelope.object();
+    let documents = required_string_map(object, "documents")?;
+    if documents.is_empty() {
+        return Err(TypedObjectError::new(
+            "top-level 'documents' must not be empty",
+        ));
+    }
+
     Ok(ViewObject {
         view_id: required_string(object, "view_id")?,
         maintainer: required_string(object, "maintainer")?,
-        documents: required_string_map(object, "documents")?,
-        policy: object
-            .get("policy")
-            .cloned()
-            .ok_or_else(|| TypedObjectError::new("missing object field 'policy'"))?,
+        documents,
+        policy: Value::Object(required_object(object, "policy")?),
         timestamp: required_u64(object, "timestamp")?,
     })
 }
@@ -706,6 +710,16 @@ fn parse_patch_operation(value: &Value) -> Result<PatchOperation, TypedObjectErr
             block_id: required_string(object, "block_id")?,
             parent_block_id: optional_string(object, "parent_block_id")?,
             after_block_id: optional_string(object, "after_block_id")?,
+        })
+        .and_then(|operation| match operation {
+            PatchOperation::MoveBlock {
+                parent_block_id: None,
+                after_block_id: None,
+                ..
+            } => Err(TypedObjectError::new(
+                "move_block requires at least one destination reference",
+            )),
+            _ => Ok(operation),
         }),
         "annotate_block" => Ok(PatchOperation::AnnotateBlock {
             block_id: required_string(object, "block_id")?,
@@ -737,10 +751,25 @@ fn parse_metadata_entries(
         let entries = metadata
             .as_object()
             .ok_or_else(|| TypedObjectError::new("top-level 'metadata' must be an object"))?;
+        if entries.is_empty() {
+            return Err(TypedObjectError::new(
+                "top-level 'metadata' must not be empty",
+            ));
+        }
+        if entries.keys().any(String::is_empty) {
+            return Err(TypedObjectError::new(
+                "top-level 'metadata' keys must not be empty strings",
+            ));
+        }
         return Ok(entries.clone());
     }
 
     let key = required_string(object, "key")?;
+    if key.is_empty() {
+        return Err(TypedObjectError::new(
+            "top-level 'key' must not be an empty string",
+        ));
+    }
     let value = object
         .get("value")
         .ok_or_else(|| TypedObjectError::new("missing object field 'value'"))?;
@@ -1124,6 +1153,53 @@ mod tests {
     }
 
     #[test]
+    fn parse_patch_object_rejects_move_without_destination() {
+        let error = parse_patch_object(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:base",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [
+                {
+                    "op": "move_block",
+                    "block_id": "blk:001"
+                }
+            ]
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "move_block requires at least one destination reference"
+        );
+    }
+
+    #[test]
+    fn parse_patch_object_rejects_empty_metadata_entries() {
+        let error = parse_patch_object(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:base",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [
+                {
+                    "op": "set_metadata",
+                    "metadata": {}
+                }
+            ]
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'metadata' must not be empty");
+    }
+
+    #[test]
     fn parse_document_object_reads_identity_and_baseline_fields() {
         let document = parse_document_object(&json!({
             "type": "document",
@@ -1197,6 +1273,42 @@ mod tests {
             Some("rev:test")
         );
         assert!(view.policy.is_object());
+    }
+
+    #[test]
+    fn parse_view_object_rejects_empty_documents() {
+        let error = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {},
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 7u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'documents' must not be empty");
+    }
+
+    #[test]
+    fn parse_view_object_rejects_non_object_policy() {
+        let error = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": "manual-reviewed",
+            "timestamp": 7u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'policy' must be an object");
     }
 
     #[test]

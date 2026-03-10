@@ -549,7 +549,7 @@ mod tests {
     use serde_json::Map;
 
     use super::{apply_patch_ops, compute_state_hash, replay_revision_from_index, DocumentState};
-    use crate::protocol::{parse_patch_object, BlockObject};
+    use crate::protocol::{parse_patch_object, BlockObject, PatchObject, PatchOperation};
 
     fn block(block_id: &str, content: &str) -> BlockObject {
         BlockObject {
@@ -746,24 +746,16 @@ mod tests {
 
     #[test]
     fn set_metadata_rejects_empty_key() {
-        let patch = parse_patch_object(&json!({
-            "type": "patch",
-            "version": "mycel/0.1",
-            "patch_id": "patch:test",
-            "doc_id": "doc:test",
-            "base_revision": "rev:base",
-            "author": "pk:ed25519:test",
-            "timestamp": 5u64,
-            "ops": [
-                {
-                    "op": "set_metadata",
-                    "metadata": {
-                        "": "bad"
-                    }
-                }
-            ]
-        }))
-        .expect("patch should parse");
+        let patch = PatchObject {
+            patch_id: "patch:test".to_string(),
+            doc_id: "doc:test".to_string(),
+            base_revision: "rev:base".to_string(),
+            author: "pk:ed25519:test".to_string(),
+            timestamp: 5u64,
+            ops: vec![PatchOperation::SetMetadata {
+                entries: Map::from_iter([(String::new(), json!("bad"))]),
+            }],
+        };
         let mut state = DocumentState {
             doc_id: "doc:test".to_string(),
             blocks: vec![],

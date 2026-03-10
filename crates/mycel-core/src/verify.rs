@@ -633,11 +633,13 @@ fn parse_signature(value: &str) -> Result<Signature, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use base64::Engine;
     use ed25519_dalek::{Signer, SigningKey};
     use serde_json::{json, Map, Value};
 
-    use super::{inspect_object_path, verify_object_path};
+    use super::{inspect_object_path, verify_object_path, verify_object_value_with_object_index};
     use crate::protocol::BlockObject;
     use crate::replay::{compute_state_hash, DocumentState};
 
@@ -935,6 +937,42 @@ mod tests {
     }
 
     #[test]
+    fn view_with_empty_documents_is_rejected_by_typed_validation() {
+        let (signing_key, public_key) = signer_material();
+        let mut view = json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "maintainer": public_key,
+            "documents": {},
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64
+        });
+        let view_id =
+            super::recompute_object_id(&view, "view_id", "view").expect("view ID should recompute");
+        view["view_id"] = Value::String(view_id);
+        view["signature"] = Value::String(sign_value(&signing_key, &view));
+        let path = write_test_file(
+            "view-empty-documents",
+            &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'documents' must not be empty")),
+            "expected typed view parse error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn revision_replay_verifies_state_hash_from_neighbor_patch() {
         let (signing_key, public_key) = signer_material();
         let dir = write_test_dir("revision-replay-valid");
@@ -1084,5 +1122,62 @@ mod tests {
         let _ = std::fs::remove_file(patch_path);
         let _ = std::fs::remove_file(revision_path);
         let _ = std::fs::remove_dir(dir);
+    }
+
+    #[test]
+    fn revision_replay_rejects_patch_from_other_document() {
+        let (signing_key, public_key) = signer_material();
+        let mut patch = json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:other",
+            "base_revision": "rev:genesis-null",
+            "author": public_key,
+            "timestamp": 10u64,
+            "ops": [
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:001",
+                        "block_type": "paragraph",
+                        "content": "Hello",
+                        "attrs": {},
+                        "children": []
+                    }
+                }
+            ]
+        });
+        let patch_id = super::recompute_object_id(&patch, "patch_id", "patch")
+            .expect("patch ID should recompute");
+        patch["patch_id"] = Value::String(patch_id.clone());
+        patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+
+        let mut revision = json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [patch_id.clone()],
+            "state_hash": "hash:wrong",
+            "author": public_key,
+            "timestamp": 11u64
+        });
+        let revision_id = super::recompute_object_id(&revision, "revision_id", "rev")
+            .expect("revision ID should recompute");
+        revision["revision_id"] = Value::String(revision_id);
+        revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+        let object_index = HashMap::from([(patch_id, patch)]);
+        let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("patch '")
+                    && message.contains("belongs to 'doc:other' instead of 'doc:test'")
+            }),
+            "expected cross-document replay error, got {summary:?}"
+        );
     }
 }
