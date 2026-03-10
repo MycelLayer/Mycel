@@ -1,4 +1,6 @@
 use std::fs;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use serde_json::Value;
 
@@ -9,6 +11,33 @@ use common::{
     assert_stderr_contains, assert_stdout_contains, assert_success, create_temp_dir,
     parse_json_stdout, repo_root, run_mycel_in_dir, run_validate, stdout_text,
 };
+
+struct TempRepoJsonFile {
+    path: PathBuf,
+}
+
+impl TempRepoJsonFile {
+    fn new(prefix: &str, content: &str) -> Self {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let path = repo_root().join(format!("sim/peers/{prefix}-{unique}.json"));
+        fs::write(&path, content).expect("temporary validate fixture should write");
+        Self { path }
+    }
+}
+
+impl Drop for TempRepoJsonFile {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn validate_peer_fixture_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[test]
 fn repo_validate_json_reports_ok_status() {
@@ -118,13 +147,11 @@ fn peer_file_validate_json_scopes_related_artifacts() {
 
 #[test]
 fn validate_json_fails_for_duplicate_keys_in_peer_file() {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("system time should be after unix epoch")
-        .as_nanos();
-    let path = repo_root().join(format!("sim/peers/duplicate-keys-{unique}.json"));
-    fs::write(
-        &path,
+    let _guard = validate_peer_fixture_lock()
+        .lock()
+        .expect("validate peer fixture lock should not be poisoned");
+    let peer_file = TempRepoJsonFile::new(
+        "duplicate-keys",
         r#"{
   "node_id": "node:dup-a",
   "node_id": "node:dup-b",
@@ -134,24 +161,92 @@ fn validate_json_fails_for_duplicate_keys_in_peer_file() {
     "kind": "memory"
   }
 }"#,
-    )
-    .expect("duplicate-key peer file should write");
+    );
 
-    let output = run_validate(&["validate", &path.to_string_lossy(), "--json"]);
+    let output = run_validate(&["validate", &peer_file.path.to_string_lossy(), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry["message"].as_str().is_some_and(|message| {
+                    message.contains("invalid JSON content: duplicate object key 'node_id'")
+                })
+            })),
+        "expected duplicate-key validation error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn validate_json_fails_for_null_values_in_peer_file() {
+    let _guard = validate_peer_fixture_lock()
+        .lock()
+        .expect("validate peer fixture lock should not be poisoned");
+    let peer_file = TempRepoJsonFile::new(
+        "null-value",
+        r#"{
+  "node_id": "node:null",
+  "role": "peer",
+  "display_name": null,
+  "transport": {
+    "kind": "memory"
+  }
+}"#,
+    );
+
+    let output = run_validate(&["validate", &peer_file.path.to_string_lossy(), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry["message"].as_str().is_some_and(|message| {
+                    message.contains("invalid JSON content: $.display_name: null is not allowed")
+                })
+            })),
+        "expected null-value validation error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn validate_json_fails_for_floating_point_values_in_peer_file() {
+    let _guard = validate_peer_fixture_lock()
+        .lock()
+        .expect("validate peer fixture lock should not be poisoned");
+    let peer_file = TempRepoJsonFile::new(
+        "floating-point",
+        r#"{
+  "node_id": "node:float",
+  "role": "peer",
+  "display_name": "Floating peer",
+  "transport": {
+    "kind": "memory",
+    "latency_ms": 1.5
+  }
+}"#,
+    );
+
+    let output = run_validate(&["validate", &peer_file.path.to_string_lossy(), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
     assert!(
         json["errors"].as_array().is_some_and(|errors| errors.iter().any(|entry| {
             entry["message"].as_str().is_some_and(|message| {
-                message.contains("invalid JSON content: duplicate object key 'node_id'")
+                message.contains(
+                    "invalid JSON content: $.transport.latency_ms: floating-point numbers are not allowed",
+                )
             })
         })),
-        "expected duplicate-key validation error, stdout: {}",
+        "expected floating-point validation error, stdout: {}",
         stdout_text(&output)
     );
-
-    let _ = fs::remove_file(path);
 }
 
 #[test]

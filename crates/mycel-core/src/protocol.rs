@@ -649,7 +649,43 @@ where
     T: DeserializeOwned,
 {
     let value = parse_json_value_strict(input)?;
+    ensure_supported_json_values(&value)?;
     serde_json::from_value(value).map_err(|error| error.to_string())
+}
+
+pub fn ensure_supported_json_values(value: &Value) -> Result<(), String> {
+    let mut errors = Vec::new();
+    collect_unsupported_json_value_errors(value, "$", &mut errors);
+    match errors.into_iter().next() {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
+}
+
+pub fn collect_unsupported_json_value_errors(value: &Value, path: &str, errors: &mut Vec<String>) {
+    match value {
+        Value::Null => errors.push(format!("{path}: null is not allowed")),
+        Value::Bool(_) | Value::String(_) => {}
+        Value::Number(number) => {
+            if !(number.is_i64() || number.is_u64()) {
+                errors.push(format!(
+                    "{path}: floating-point numbers are not allowed in canonical objects"
+                ));
+            }
+        }
+        Value::Array(values) => {
+            for (index, entry) in values.iter().enumerate() {
+                let entry_path = format!("{path}[{index}]");
+                collect_unsupported_json_value_errors(entry, &entry_path, errors);
+            }
+        }
+        Value::Object(entries) => {
+            for (key, entry) in entries {
+                let entry_path = format!("{path}.{key}");
+                collect_unsupported_json_value_errors(entry, &entry_path, errors);
+            }
+        }
+    }
 }
 
 pub fn canonical_json(value: &Value) -> Result<String, String> {
@@ -1179,13 +1215,13 @@ fn validate_block_type(value: &str) -> Result<(), TypedObjectError> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     use super::{
-        canonical_json, object_schema, parse_block_object, parse_document_object,
-        parse_json_value_strict, parse_object_envelope, parse_patch_object, parse_revision_object,
-        parse_snapshot_object, parse_view_object, recompute_object_id, ObjectKind,
-        ParseObjectEnvelopeError, SignatureRule, StringFieldError,
+        canonical_json, ensure_supported_json_values, object_schema, parse_block_object,
+        parse_document_object, parse_json_strict, parse_json_value_strict, parse_object_envelope,
+        parse_patch_object, parse_revision_object, parse_snapshot_object, parse_view_object,
+        recompute_object_id, ObjectKind, ParseObjectEnvelopeError, SignatureRule, StringFieldError,
     };
 
     #[test]
@@ -1848,6 +1884,27 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("duplicate object key 'doc:a'"));
+    }
+
+    #[test]
+    fn ensure_supported_json_values_rejects_null_with_path() {
+        let error = ensure_supported_json_values(&json!({
+            "type": "document",
+            "title": null
+        }))
+        .unwrap_err();
+
+        assert_eq!(error, "$.title: null is not allowed");
+    }
+
+    #[test]
+    fn parse_json_strict_rejects_floating_point_numbers() {
+        let error = parse_json_strict::<Value>(r#"{"timeout":1.5}"#).unwrap_err();
+
+        assert_eq!(
+            error,
+            "$.timeout: floating-point numbers are not allowed in canonical objects"
+        );
     }
 
     #[test]

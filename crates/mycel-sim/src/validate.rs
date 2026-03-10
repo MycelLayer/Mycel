@@ -178,7 +178,7 @@ fn validate_from_target(
     let input = load_all(root, &mut summary);
     let mut scoped = scope_input(root, &input, target);
     if matches!(target, ValidationTarget::Report(_)) && scoped.reports.is_empty() {
-        if let Some(value) = load_json::<Report>(target_path, &mut summary) {
+        if let Some(value) = load_relaxed_json::<Report>(target_path, &mut summary) {
             scoped = scope_for_direct_report(root, &input, target_path, value);
         }
     }
@@ -1129,6 +1129,25 @@ fn load_json<T: serde::de::DeserializeOwned>(
     }
 }
 
+fn load_relaxed_json<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    summary: &mut ValidationSummary,
+) -> Option<T> {
+    match fs::read_to_string(path) {
+        Ok(content) => match serde_json::from_str::<T>(&content) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                push_error(summary, path, format!("invalid JSON content: {err}"));
+                None
+            }
+        },
+        Err(err) => {
+            push_error(summary, path, format!("failed to read file: {err}"));
+            None
+        }
+    }
+}
+
 fn load_fixtures(root: &Path, summary: &mut ValidationSummary) -> Vec<NamedFixture> {
     let base = root.join("fixtures/object-sets");
     let mut items = Vec::new();
@@ -1174,7 +1193,7 @@ fn load_test_cases(root: &Path, summary: &mut ValidationSummary) -> Vec<NamedTes
 fn load_reports(root: &Path, summary: &mut ValidationSummary) -> Vec<NamedReport> {
     let base = root.join("sim/reports");
     let invalid_base = base.join("invalid");
-    load_json_files_recursive::<Report>(&base, summary)
+    load_relaxed_json_files_recursive::<Report>(&base, summary)
         .into_iter()
         .filter(|(path, _)| !path.starts_with(&invalid_base))
         .map(|(path, value)| NamedReport { path, value })
@@ -1205,7 +1224,7 @@ fn load_json_files<T: serde::de::DeserializeOwned>(
     items
 }
 
-fn load_json_files_recursive<T: serde::de::DeserializeOwned>(
+fn load_relaxed_json_files_recursive<T: serde::de::DeserializeOwned>(
     base: &Path,
     summary: &mut ValidationSummary,
 ) -> Vec<(PathBuf, T)> {
@@ -1221,7 +1240,7 @@ fn load_json_files_recursive<T: serde::de::DeserializeOwned>(
         if !name.ends_with(".json") || name.ends_with(".schema.json") {
             continue;
         }
-        if let Some(value) = load_json::<T>(&path, summary) {
+        if let Some(value) = load_relaxed_json::<T>(&path, summary) {
             items.push((path, value));
         }
     }

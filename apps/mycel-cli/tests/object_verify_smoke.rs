@@ -248,6 +248,38 @@ fn object_verify_json_fails_for_duplicate_object_keys() {
 }
 
 #[test]
+fn object_verify_json_fails_for_floating_point_values() {
+    let object = write_raw_object_file(
+        "object-verify-float-value",
+        "document.json",
+        r#"{
+  "type": "document",
+  "version": "mycel/0.1",
+  "doc_id": "doc:test",
+  "priority": 1.5
+}"#,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(
+                |errors| errors
+                    .iter()
+                    .any(|entry| entry.as_str().is_some_and(|message| {
+                        message.contains("$.priority: floating-point numbers are not allowed")
+                    }))
+            ),
+        "expected floating-point validation error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_mismatched_revision_id() {
     let mut revision = signed_object(
         json!({

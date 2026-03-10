@@ -8,9 +8,10 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::protocol::{
-    parse_block_object, parse_document_object, parse_json_value_strict, parse_object_envelope,
-    parse_patch_object, parse_revision_object, parse_snapshot_object, parse_view_object,
-    recompute_object_id, signed_payload_bytes, ParseObjectEnvelopeError, StringFieldError,
+    collect_unsupported_json_value_errors, parse_block_object, parse_document_object,
+    parse_json_value_strict, parse_object_envelope, parse_patch_object, parse_revision_object,
+    parse_snapshot_object, parse_view_object, recompute_object_id, signed_payload_bytes,
+    ParseObjectEnvelopeError, StringFieldError,
 };
 use crate::replay::replay_revision_from_index;
 
@@ -191,7 +192,7 @@ fn verify_object_value_with_summary(
 ) -> ObjectVerificationSummary {
     summary.path = path.to_path_buf();
 
-    collect_value_errors(&value, "$", &mut summary.errors);
+    collect_unsupported_json_value_errors(&value, "$", &mut summary.errors);
     if !summary.errors.is_empty() {
         summary.status = "failed".to_string();
         return summary;
@@ -569,32 +570,6 @@ fn finalize_signed_summary(mut summary: ObjectVerificationSummary) -> ObjectVeri
     }
 
     summary
-}
-
-fn collect_value_errors(value: &Value, path: &str, errors: &mut Vec<String>) {
-    match value {
-        Value::Null => errors.push(format!("{path}: null is not allowed")),
-        Value::Bool(_) | Value::String(_) => {}
-        Value::Number(number) => {
-            if !(number.is_i64() || number.is_u64()) {
-                errors.push(format!(
-                    "{path}: floating-point numbers are not allowed in canonical objects"
-                ));
-            }
-        }
-        Value::Array(values) => {
-            for (index, entry) in values.iter().enumerate() {
-                let entry_path = format!("{path}[{index}]");
-                collect_value_errors(entry, &entry_path, errors);
-            }
-        }
-        Value::Object(entries) => {
-            for (key, entry) in entries {
-                let entry_path = format!("{path}.{key}");
-                collect_value_errors(entry, &entry_path, errors);
-            }
-        }
-    }
 }
 
 fn verify_object_signature(value: &Value, signer: &str, signature: &str) -> Result<(), String> {
