@@ -1614,6 +1614,50 @@ fn object_verify_json_fails_for_snapshot_missing_signature() {
 }
 
 #[test]
+fn object_verify_json_fails_for_invalid_snapshot_signature() {
+    let mut snapshot = signed_object(
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "timestamp": 1777778890u64
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    snapshot["signature"] = Value::String(
+        "sig:ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            .to_string(),
+    );
+    let object = write_object_file(
+        "object-verify-snapshot-bad-signature",
+        "snapshot.json",
+        snapshot,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert_eq!(json["signature_verification"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("Ed25519 signature verification failed")))),
+        "expected signature failure, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_snapshot_with_non_string_signature() {
     let object = write_object_file(
         "object-verify-snapshot-non-string-signature",
@@ -2276,6 +2320,47 @@ fn object_verify_json_fails_for_invalid_patch_signature() {
             .to_string(),
     );
     let object = write_object_file("object-verify-patch-bad-signature", "patch.json", patch);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert_eq!(json["signature_verification"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("Ed25519 signature verification failed")))),
+        "expected signature failure, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_invalid_view_signature() {
+    let mut view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    view["signature"] = Value::String(
+        "sig:ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            .to_string(),
+    );
+    let object = write_object_file("object-verify-view-bad-signature", "view.json", view);
     let path = path_arg(&object.path);
     let output = run_mycel(&["object", "verify", &path, "--json"]);
 
@@ -3329,6 +3414,49 @@ fn object_verify_json_fails_for_revision_missing_signature() {
                 })
             })),
         "expected missing signature error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_invalid_revision_signature() {
+    let mut revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": "hash:test-state",
+            "timestamp": 1777778890u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    revision["signature"] = Value::String(
+        "sig:ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+            .to_string(),
+    );
+    let object = write_object_file(
+        "object-verify-revision-bad-signature",
+        "revision.json",
+        revision,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert_eq!(json["signature_verification"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("Ed25519 signature verification failed")))),
+        "expected signature failure, stdout: {}",
         stdout_text(&output)
     );
 }
