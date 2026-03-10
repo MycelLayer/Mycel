@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support Mycel</title>
+    <meta
+      name="description"
+      content="How to support Mycel as a design partner, grant supporter, or early collaborator."
+    >
+    <meta name="theme-color" content="#0d6b57">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mycel">
+    <meta property="og:title" content="Support Mycel">
+    <meta
+      property="og:description"
+      content="How to support Mycel as a design partner, grant supporter, or early collaborator."
+    >
+    <meta property="og:url" content="https://ctf2090.github.io/Mycel/support.html">
+    <meta property="og:image" content="https://ctf2090.github.io/Mycel/social-preview.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Support Mycel">
+    <meta
+      name="twitter:description"
+      content="How to support Mycel as a design partner, grant supporter, or early collaborator."
+    >
+    <meta name="twitter:image" content="https://ctf2090.github.io/Mycel/social-preview.png">
+    <link rel="alternate" hreflang="zh-TW" href="https://ctf2090.github.io/Mycel/zh-TW/support.html">
+    <style>
+      :root {
+        --bg: #f3efe6;
+        --surface: rgba(255, 250, 242, 0.88);
+        --surface-strong: #fffaf1;
+        --text: #1d2a26;
+        --muted: #5a6a62;
+        --accent: #0d6b57;
+        --accent-strong: #084d3f;
+        --line: rgba(29, 42, 38, 0.12);
+        --shadow: 0 24px 80px rgba(20, 32, 27, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(13, 107, 87, 0.14), transparent 34%),
+          radial-gradient(circle at top right, rgba(175, 126, 53, 0.12), transparent 30%),
+          linear-gradient(180deg, #f8f3ea 0%, var(--bg) 54%, #ece5d8 100%);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1040px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 56px;
+      }
+
+      .nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .brand {
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+        font-size: 0.95rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .nav-links a {
+        text-decoration: none;
+        color: var(--muted);
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+
+      .hero,
+      .section-panel {
+        padding: 32px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(13, 107, 87, 0.08);
+        color: var(--accent-strong);
+        font-size: 0.9rem;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        font-family: "IBM Plex Serif", Georgia, serif;
+      }
+
+      h1 {
+        margin-top: 18px;
+        font-size: clamp(2rem, 4vw, 3.3rem);
+        line-height: 1.08;
+        max-width: 13ch;
+      }
+
+      h2 {
+        font-size: clamp(1.7rem, 3vw, 2.4rem);
+        line-height: 1.1;
+        margin-bottom: 12px;
+      }
+
+      p,
+      li {
+        line-height: 1.72;
+        color: var(--muted);
+      }
+
+      .lead {
+        margin: 18px 0 0;
+        max-width: 62ch;
+        font-size: 1.08rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .card {
+        padding: 22px;
+        border-radius: 20px;
+        background: var(--surface-strong);
+        border: 1px solid var(--line);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.92rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+      }
+
+      section {
+        margin-top: 22px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 13px 18px;
+        border-radius: 999px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+      }
+
+      .button.primary {
+        background: var(--accent);
+        color: #f7f3ea;
+      }
+
+      .button.secondary {
+        background: transparent;
+        border-color: var(--line);
+        color: var(--text);
+      }
+
+      footer {
+        margin-top: 22px;
+        padding: 22px 4px 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      @media (max-width: 880px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero,
+        .section-panel {
+          padding: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="nav">
+        <div class="brand">Mycel</div>
+        <div class="nav-links">
+          <a href="/Mycel/">Home</a>
+          <a href="https://ctf2090.github.io/Mycel/zh-TW/support.html">繁體中文</a>
+          <a href="https://github.com/ctf2090/Mycel">GitHub</a>
+          <a href="https://github.com/ctf2090/Mycel/discussions">Discussions</a>
+        </div>
+      </nav>
+
+      <section class="panel hero">
+        <div class="eyebrow">Support the first interoperable client core</div>
+        <h1>Work with Mycel before the protocol hardens around real use.</h1>
+        <p class="lead">
+          We are looking for design partners, grant support, and early collaborators who already
+          face hard problems around governed text systems, commentary layers, or durable reference
+          corpora. Support now helps finish the narrow first-client core: verification, replay,
+          rebuildable storage, and profile-governed accepted reading.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/ctf2090/Mycel/discussions">Start a Conversation</a>
+          <a class="button secondary" href="https://github.com/ctf2090/Mycel/blob/main/README.md">Read the Overview</a>
+        </div>
+      </section>
+
+      <section class="panel section-panel">
+        <h2>Who We Want to Work With</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>Design Partners</strong>
+            <p>Teams with real governed-text workflows who can shape the first practical profile and client path.</p>
+          </div>
+          <div class="card">
+            <strong>Grant Supporters</strong>
+            <p>Open-infrastructure or public-interest funders who care about verifiable knowledge systems.</p>
+          </div>
+          <div class="card">
+            <strong>Early Collaborators</strong>
+            <p>Researchers, maintainers, or institutions who want to pressure-test Mycel with concrete use cases.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-panel">
+        <h2>What Support Accelerates</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>Protocol Closure</strong>
+            <p>Shared typed parsing, canonicalization, and clearer profile boundaries.</p>
+          </div>
+          <div class="card">
+            <strong>Deterministic Validation</strong>
+            <p>Replay verification, accepted-head selection, negative coverage, and fixture-backed checks.</p>
+          </div>
+          <div class="card">
+            <strong>First Client Readiness</strong>
+            <p>Rebuildable local storage, simulator-backed workflows, and a narrower interoperable client target.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-panel">
+        <h2>Why Now</h2>
+        <p>
+          Mycel is still early enough that partner input can shape the right first profile and the
+          right first client. It is also concrete enough that support funds real engineering work
+          rather than abstract protocol exploration.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/ctf2090/Mycel/discussions">Open a Support Thread</a>
+          <a class="button secondary" href="https://github.com/ctf2090/Mycel/blob/main/ROADMAP.md">See the Roadmap</a>
+        </div>
+      </section>
+
+      <footer>
+        Source repository:
+        <a href="https://github.com/ctf2090/Mycel">github.com/ctf2090/Mycel</a>
+      </footer>
+    </div>
+  </body>
+</html>
