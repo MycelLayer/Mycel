@@ -1,0 +1,132 @@
+# 開發環境設置
+
+這份文件提供從全新 checkout 到可實際開發 Mycel 的最短路徑。
+
+建議搭配閱讀：
+
+- [`README.zh-TW.md`](../README.zh-TW.md)
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+- [`BOT-CONTRIBUTING.md`](../BOT-CONTRIBUTING.md)
+- [`RUST-WORKSPACE.md`](../RUST-WORKSPACE.md)
+
+## 0. 需要的工具
+
+必要工具：
+
+- Rust toolchain manager：`rustup`
+- Rust `stable` toolchain
+- Rust components：`rustfmt`、`clippy`
+- GitHub CLI：`gh`
+- ripgrep：`rg`
+
+目前 workspace metadata 宣告：
+
+- 最低 Rust 版本：`1.79`
+- repo 內建 toolchain channel：`stable`
+
+目前維護者實際使用、可正常工作的版本是：
+
+- `cargo 1.94.0`
+- `rustc 1.94.0`
+- `gh 2.83.1`
+- `rg 14.1.0`
+
+## 1. 安裝或確認工具
+
+先檢查本機環境：
+
+```bash
+cargo --version
+rustup --version
+rustc --version
+gh --version
+rg --version
+```
+
+若缺少 Rust components，可用：
+
+```bash
+rustup toolchain install stable
+rustup component add rustfmt --toolchain stable
+rustup component add clippy --toolchain stable
+```
+
+## 2. Clone 並進入 Repo
+
+```bash
+git clone https://github.com/ctf2090/Mycel.git
+cd Mycel
+```
+
+## 3. 第一次閱讀順序
+
+開始改任何東西前，建議依這個順序先讀：
+
+1. [`README.zh-TW.md`](../README.zh-TW.md)
+2. [`ROADMAP.md`](../ROADMAP.md)
+3. [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
+4. [`PROTOCOL.zh-TW.md`](../PROTOCOL.zh-TW.md)
+5. [`WIRE-PROTOCOL.zh-TW.md`](../WIRE-PROTOCOL.zh-TW.md)
+6. 如果你是 AI coding agent，再讀 [`BOT-CONTRIBUTING.md`](../BOT-CONTRIBUTING.md)
+
+## 4. 第一次應該跑的命令
+
+在 repository root 執行：
+
+```bash
+cargo fmt --all --check
+cargo test -p mycel-core
+cargo test -p mycel-cli
+cargo run -p mycel-cli -- info
+cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json
+./sim/negative-validation/smoke.sh --summary-only
+```
+
+這些命令分別確認：
+
+- formatting 可用
+- core tests 可跑
+- CLI tests 可跑
+- repo-local CLI wiring 正常
+- fixture validation 正常
+- simulator negative-validation smoke coverage 正常
+
+## 5. 何時算 Setup 完成
+
+若以下條件都成立，就可視為 setup 完成：
+
+- `cargo fmt --all --check` 成功
+- `cargo test -p mycel-core` 成功
+- `cargo test -p mycel-cli` 成功
+- `mycel-cli -- info` 能在 repo root 執行
+- `fixtures/object-sets/minimal-valid/fixture.json` 可成功驗證
+- `./sim/negative-validation/smoke.sh --summary-only` 成功
+
+## 6. 常見工作規則
+
+- 優先做範圍窄、容易 review 的修改。
+- protocol-core 變更要保守。
+- 若你改到 protocol 或 design 概念，當中英兩版都存在時要同步更新。
+- 優先做 deterministic verification 與 fixture-backed 變更。
+- repo 特定協作規則請讀 [`AGENTS.md`](../AGENTS.md)。
+
+## 7. 常用後續命令
+
+```bash
+cargo run -p mycel-cli -- object inspect <path> --json
+cargo run -p mycel-cli -- object verify <path> --json
+cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
+scripts/check-labels.sh
+scripts/check-doc-refresh.sh
+```
+
+## 8. 如果你是新的 AI Agent
+
+setup 完成後，建議下一步：
+
+1. 讀 [`docs/PROGRESS.md`](./PROGRESS.md)
+2. 讀 [`docs/MULTI-AGENT-COORDINATION.md`](./MULTI-AGENT-COORDINATION.md)
+3. 找一張 `ai-ready` issue 或一個很窄的 checklist gap
+4. 開始改之前先確認精確的 file boundary
+
+這個 repo 最適合的貢獻類型是：範圍窄、可決定、並且直接對應到某個 spec 或 checklist closure item。

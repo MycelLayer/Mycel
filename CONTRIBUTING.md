@@ -12,6 +12,7 @@ This repository is still in an early spec-first stage. Most changes are expected
 ## Before You Contribute
 
 - Read [README.md](./README.md) for the current project scope.
+- Read [docs/DEV-SETUP.md](./docs/DEV-SETUP.md) if you are starting from a fresh environment.
 - Read [AGENTS.md](./AGENTS.md) for the active repository working rules.
 - If you are contributing through an AI coding bot or automation workflow, read [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md) too.
 - Read [docs/LABELS.md](./docs/LABELS.md) if you need the tracked label meanings and recommended combinations.

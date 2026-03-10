@@ -108,6 +108,7 @@ If you want the design layer behind current decisions:
 
 - [PROJECT-INTENT.md](./PROJECT-INTENT.md): project-intent boundary notes
 - [CONTRIBUTING.md](./CONTRIBUTING.md): contribution expectations
+- [docs/DEV-SETUP.md](./docs/DEV-SETUP.md): shortest path from fresh checkout to a usable dev environment
 - [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md): bot-oriented contribution guide for narrow, verifiable work
 - [docs/LABELS.md](./docs/LABELS.md): meanings and recommended combinations for tracked bot/task labels
 - [AGENTS.md](./AGENTS.md): repository collaboration rules

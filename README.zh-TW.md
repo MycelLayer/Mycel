@@ -108,6 +108,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 - [PROJECT-INTENT.zh-TW.md](./PROJECT-INTENT.zh-TW.md)：專案意圖邊界說明
 - [CONTRIBUTING.md](./CONTRIBUTING.md)：貢獻預期
+- [docs/DEV-SETUP.zh-TW.md](./docs/DEV-SETUP.zh-TW.md)：從全新 checkout 到可用開發環境的最短路徑
 - [AGENTS.md](./AGENTS.md)：repo 協作規則
 
 ## 近期優先事項
