@@ -1,6 +1,7 @@
 # Repo Working Agreements
 
 ## Git workflow
+- Current repo convention: the shared integration branch is `origin/main`.
 - Commit after every code change.
 - Push to `origin main` after every code change.
 - Multiple chats may work on the same project at the same time; each chat agent should just push its own commits to `origin/main`.
@@ -39,7 +40,7 @@
 ## New chat bootstrap
 - Run `git status -sb` to understand the repo state.
 - Scan the repo layout with `ls` and prefer `rg --files` for fast file discovery.
-- For a new Codespace project, ensure `gh` and `rg` are installed; install them if missing.
+- For a fresh local or Codespaces environment, ensure `gh` and `rg` are installed; install them if missing.
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to.
 - Reply with a short plan and the current repo status before making changes.
 
