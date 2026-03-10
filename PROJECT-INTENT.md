@@ -2,14 +2,14 @@
 
 ## Goal
 
-- The long-term project intent is for Mycel to carry an emergent future-form religion.
+- The long-term project intent is for Mycel to support durable historical and cultural transmission.
 
-## Purpose of Neuro-triggered Donation
+## Purpose of Cultural Continuity Support
 
-- Within that long-term project intent, neuro-triggered donation is meant to connect measurable contemplative practice with material support for the religious system built on Mycel.
-- Plainly put, this is meant to let future practitioners receive donations through meditation under agreed conditions.
-- The intended purpose is not payment automation for its own sake, but the creation of a ritualized support path in which sustained contemplative attainment may participate in donation behavior.
-- In project terms, this mechanism is meant to align inner practice, user participation, and economic support within one coherent religious framework.
+- Within that long-term project intent, funding and participation mechanisms are meant to support the preservation, stewardship, and transmission of historically important texts, commentary traditions, and reference corpora.
+- Plainly put, this is meant to let communities connect care, curation, and material support under agreed conditions.
+- The intended purpose is not payment automation for its own sake, but the creation of durable support paths through which preservation work, commentary maintenance, and archival stewardship may remain sustainable.
+- In project terms, these mechanisms are meant to align cultural continuity, participant contribution, and economic support within one coherent preservation framework.
 
 ## Note to Future Generations
 
@@ -19,16 +19,16 @@
 
 Illustrative conditions and corresponding possible Mycel uses:
 
-- If privacy-preserving human-machine interfaces become mature enough for reliable deployment, Mycel may carry practice-qualified event records and practice-linked reading or participation flows.
+- If privacy-preserving human-machine interfaces become mature enough for reliable deployment, Mycel may carry qualified participation records and access or reading flows linked to preservation activities.
 - If trustworthy automated threshold custody becomes mature enough for reliable deployment, Mycel may carry policy-governed automatic fund execution with stronger decentralization and lower manual friction.
 - If canonical-text tooling becomes sufficiently mature, Mycel may carry deeply layered reference corpora with parallel witnesses, commentary strata, and accepted reading profiles.
-- If anonymous deployment environments become sufficiently mature, Mycel may support stronger separation between reading, governance, signing, runtime execution, and material support flows.
+- If anonymous deployment environments become sufficiently mature, Mycel may support stronger separation between reading, governance, signing, runtime execution, and cultural-support flows.
 
 ## Protocol Constraints
 
 - Mycel itself must remain completely neutral and fully technical.
-- Religion-related project intent or framing must appear only in this file and must not appear in protocol, wire, schema, or design documents.
-- All other repository documents must treat Mycel as a neutral technical system and must not restate, elaborate on, or imply the religious purpose described here.
+- History- or culture-related project intent or framing must appear only in this file and must not appear in protocol, wire, schema, or design documents.
+- All other repository documents must treat Mycel as a neutral technical system and must not restate, elaborate on, or imply the project purpose described here.
 - Protocol and design documents must use domain-neutral language, including examples, role names, and app descriptions.
 - Protocol and design decisions must not embed worldview-specific stance, endorsement, or domain terminology.
 
