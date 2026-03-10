@@ -2725,6 +2725,45 @@ fn object_verify_json_fails_for_revision_with_wrong_state_hash_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_revision_missing_state_hash() {
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": [],
+            "timestamp": 1777778890u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    let object = write_object_file(
+        "object-verify-revision-missing-state-hash",
+        "revision.json",
+        revision,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("revision object is missing string field 'state_hash'")
+                })
+            })),
+        "expected missing state_hash error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_revision_with_wrong_author_prefix() {
     let mut revision = signed_object(
         json!({
