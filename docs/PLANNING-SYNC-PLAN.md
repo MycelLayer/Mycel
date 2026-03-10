@@ -21,6 +21,7 @@ This plan applies to:
 - [`docs/PROGRESS.md`](./PROGRESS.md)
 - [`docs/progress.html`](./progress.html)
 - curated contributor-entry issue links in [`README.md`](../README.md) and [`README.zh-TW.md`](../README.zh-TW.md)
+- curated contributor-entry issue links in [`docs/index.html`](./index.html) and [`docs/zh-TW/index.html`](./zh-TW/index.html)
 - GitHub Issues, especially `ai-ready` task issues
 
 It does not apply to:
@@ -40,6 +41,7 @@ Use this source-of-truth order whenever surfaces disagree:
 5. `docs/progress.html`
 6. landing-page summaries or support-page references
 7. curated README contributor-entry issue links
+8. curated landing-page contributor-entry issue links
 
 Interpretation:
 
@@ -48,6 +50,7 @@ Interpretation:
 - GitHub Issues represent executable slices of the remaining gaps.
 - `docs/PROGRESS.md` and `docs/progress.html` are derived summaries and must not invent project state.
 - curated issue links in `README.*` are contributor-facing derived summaries and must point at currently valid `ai-ready` work.
+- curated issue links in `docs/index.html` and `docs/zh-TW/index.html` are public contributor-entry summaries and must point at currently valid `ai-ready` work.
 
 ## 3. Surface Roles
 
@@ -281,6 +284,7 @@ For a docs-only planning refresh:
 5. update `docs/progress.html`
 6. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 7. refresh curated contributor-entry issue links in `README.*` if the current starter issues changed
+8. refresh curated contributor-entry issue links in `docs/index.html` and `docs/zh-TW/index.html` if the current starter issues changed
 
 ## 9. Anti-Drift Rules
 
@@ -292,6 +296,7 @@ Do not let these situations persist:
 4. issue titles drift into speculative work that the roadmap does not yet support
 5. Pages introduce project status language not present in roadmap or checklist
 6. README contributor-entry links point at stale, closed, or no-longer-representative issues
+7. landing-page contributor-entry links point at stale, closed, or no-longer-representative issues
 
 ## 10. Minimal Done Condition
 
@@ -303,6 +308,7 @@ Planning surfaces are considered in sync when all of the following are true:
 - `docs/PROGRESS.md` matches roadmap and checklist summaries
 - `docs/progress.html` matches `docs/PROGRESS.md`
 - curated README contributor-entry links still point at representative open starter issues
+- curated landing-page contributor-entry links still point at representative open starter issues
 
 ## 11. Current Practical Guidance for Mycel
 
@@ -313,5 +319,6 @@ Right now, use this concrete rule:
 3. treat open `ai-ready` issues as narrow execution slices of checklist gaps
 4. treat `docs/PROGRESS.md` and `docs/progress.html` as derived public summaries
 5. treat curated `README.*` contributor issue links as narrow public entry points that should be refreshed during planning sync
+6. treat curated contributor issue links in `docs/index.html` and `docs/zh-TW/index.html` the same way during planning sync
 
 This keeps roadmap, implementation closure, task queue, and public progress aligned without turning any one surface into an overloaded catch-all.
