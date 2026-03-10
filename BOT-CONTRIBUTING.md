@@ -9,6 +9,7 @@ Use it together with:
 - [AGENTS.md](./AGENTS.md)
 - [`.github/labels.yml`](./.github/labels.yml) for the repo-tracked bot/task label set
 - [docs/LABELS.md](./docs/LABELS.md) for label meanings and recommended combinations
+- [docs/MULTI-AGENT-COORDINATION.md](./docs/MULTI-AGENT-COORDINATION.md) for parallel issue ownership, file boundaries, and push discipline
 - [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) to apply tracked labels back to GitHub
 - [`scripts/check-labels.sh`](./scripts/check-labels.sh) to verify GitHub labels still match the tracked set
 - [`scripts/check-doc-refresh.sh`](./scripts/check-doc-refresh.sh) to check whether roadmap and checklist refresh is due
