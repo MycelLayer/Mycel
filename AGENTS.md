@@ -32,6 +32,7 @@
 - When suggesting a mature module, library, or framework, explain why now is the right time, what problem it solves, and the main tradeoff of adopting it.
 - After completing a piece of work, end with a short evaluation of valuable next-stage work and let the user choose from multiple concrete options by default.
 - In final next-stage recommendations, put the highest-value option first by default.
+- In final next-stage recommendations, include each option's roadmap location when it maps to a milestone, phase, or named roadmap track, so the user can see where that work sits in the plan.
 - If the right choice depends on unknown constraints, ask 1–2 short clarifying questions, but still provide a best-effort set of options based on common assumptions.
 
 ## New chat bootstrap
