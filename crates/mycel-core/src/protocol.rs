@@ -1384,6 +1384,19 @@ mod tests {
     }
 
     #[test]
+    fn parse_document_envelope_reports_wrong_logical_id_type() {
+        let value = json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": 7
+        });
+
+        let envelope = parse_object_envelope(&value).expect("document envelope should parse");
+        assert_eq!(envelope.kind(), ObjectKind::Document);
+        assert_eq!(envelope.logical_id(), Err(StringFieldError::WrongType));
+    }
+
+    #[test]
     fn parse_patch_envelope_reports_wrong_derived_id_type() {
         let value = json!({
             "type": "patch",
@@ -1570,6 +1583,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_document_object_rejects_non_string_doc_id() {
+        let error = parse_document_object(&json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": 7,
+            "title": "Origin Text",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'doc_id' must be a string");
+    }
+
+    #[test]
     fn parse_document_object_rejects_wrong_content_model() {
         let error = parse_document_object(&json!({
             "type": "document",
@@ -1657,6 +1688,20 @@ mod tests {
             error.to_string(),
             "top-level 'block_id' must use 'blk:' prefix"
         );
+    }
+
+    #[test]
+    fn parse_block_object_rejects_non_string_block_id() {
+        let error = parse_block_object(&json!({
+            "block_id": 7,
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": []
+        }))
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "top-level 'block_id' must be a string");
     }
 
     #[test]

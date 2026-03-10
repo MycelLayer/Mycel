@@ -788,6 +788,38 @@ mod tests {
     }
 
     #[test]
+    fn document_wrong_logical_id_prefix_is_rejected() {
+        let path = write_test_file(
+            "document-wrong-doc-id-prefix",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": "revision:test",
+                "title": "Plain document",
+                "language": "zh-Hant",
+                "content_model": "block-tree",
+                "created_at": 1u64,
+                "created_by": "pk:ed25519:test",
+                "genesis_revision": "rev:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("top-level 'doc_id' must use 'doc:' prefix")),
+            "expected logical ID prefix error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn document_missing_baseline_fields_is_rejected_by_typed_validation() {
         let path = write_test_file(
             "document-missing-title",
@@ -819,6 +851,33 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_document_logical_id_has_wrong_type() {
+        let path = write_test_file(
+            "document-wrong-doc-id-type",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": 7,
+                "title": "Plain document"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'doc_id' should be a string")),
+            "expected logical ID warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_block_logical_id_has_wrong_type() {
         let path = write_test_file(
             "block-wrong-block-id-type",
@@ -840,6 +899,35 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("top-level 'block_id' should be a string")),
             "expected logical ID warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn block_missing_logical_id_is_rejected() {
+        let path = write_test_file(
+            "block-missing-block-id",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": []
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("block object is missing string field 'block_id'")),
+            "expected missing logical ID error, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);

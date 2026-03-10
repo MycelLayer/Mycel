@@ -125,6 +125,35 @@ fn object_inspect_json_warns_for_unsupported_type() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_document_with_non_string_doc_id() {
+    let object = write_object_file(
+        "object-inspect-document-wrong-id-type",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": 7,
+            "title": "Hello"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "document");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("top-level 'doc_id' should be a string")))),
+        "expected doc_id warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_block_with_non_string_block_id() {
     let object = write_object_file(
         "object-inspect-block-wrong-id-type",
