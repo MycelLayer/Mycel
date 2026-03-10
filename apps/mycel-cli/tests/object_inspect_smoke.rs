@@ -43,7 +43,12 @@ fn object_inspect_json_reports_ok_for_document() {
             "type": "document",
             "version": "mycel/0.1",
             "doc_id": "doc:test",
-            "title": "Plain document"
+            "title": "Plain document",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
         }),
     );
     let path = path_arg(&object.path);
@@ -57,7 +62,17 @@ fn object_inspect_json_reports_ok_for_document() {
     assert_eq!(json["has_signature"], false);
     assert_eq!(
         json["top_level_keys"],
-        json!(["doc_id", "title", "type", "version"])
+        json!([
+            "content_model",
+            "created_at",
+            "created_by",
+            "doc_id",
+            "genesis_revision",
+            "language",
+            "title",
+            "type",
+            "version"
+        ])
     );
 }
 
@@ -133,7 +148,12 @@ fn object_inspect_json_warns_for_document_with_non_string_doc_id() {
             "type": "document",
             "version": "mycel/0.1",
             "doc_id": 7,
-            "title": "Hello"
+            "title": "Hello",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
         }),
     );
     let path = path_arg(&object.path);
@@ -154,6 +174,114 @@ fn object_inspect_json_warns_for_document_with_non_string_doc_id() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_document_with_wrong_content_model() {
+    let object = write_object_file(
+        "object-inspect-document-wrong-content-model",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "content_model": "rich-text",
+            "title": "Hello",
+            "language": "zh-Hant",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "document");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'content_model' must equal 'block-tree'")
+                }))),
+        "expected content_model warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_document_with_wrong_created_by_prefix() {
+    let object = write_object_file(
+        "object-inspect-document-wrong-created-by-prefix",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "created_by": "author:test",
+            "title": "Hello",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "genesis_revision": "rev:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "document");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(
+                    |message| message.contains("top-level 'created_by' must use 'pk:' prefix")
+                ))),
+        "expected created_by warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_document_with_wrong_genesis_revision_prefix() {
+    let object = write_object_file(
+        "object-inspect-document-wrong-genesis-revision-prefix",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "genesis_revision": "hash:test",
+            "title": "Hello",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "document");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'genesis_revision' must use 'rev:' prefix")
+                }))),
+        "expected genesis_revision warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_block_with_non_string_block_id() {
     let object = write_object_file(
         "object-inspect-block-wrong-id-type",
@@ -162,7 +290,10 @@ fn object_inspect_json_warns_for_block_with_non_string_block_id() {
             "type": "block",
             "version": "mycel/0.1",
             "block_id": 7,
-            "text": "Hello"
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": []
         }),
     );
     let path = path_arg(&object.path);
@@ -180,6 +311,119 @@ fn object_inspect_json_warns_for_block_with_non_string_block_id() {
                     |message| message.contains("top-level 'block_id' should be a string")
                 ))),
         "expected block_id warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_block_with_wrong_block_id_prefix() {
+    let object = write_object_file(
+        "object-inspect-block-wrong-id-prefix",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "paragraph-1",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(
+                    |message| message.contains("top-level 'block_id' must use 'blk:' prefix")
+                ))),
+        "expected block_id prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_block_with_unknown_top_level_field() {
+    let object = write_object_file(
+        "object-inspect-block-unknown-top-level-field",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": [],
+            "unexpected": true
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| {
+                    message.contains("top-level contains unexpected field 'unexpected'")
+                }))),
+        "expected unexpected-field warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_block_with_unknown_nested_child_field() {
+    let object = write_object_file(
+        "object-inspect-block-unknown-nested-child-field",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": [
+                {
+                    "block_id": "blk:child",
+                    "block_type": "paragraph",
+                    "content": "Child",
+                    "attrs": {},
+                    "children": [],
+                    "unexpected": true
+                }
+            ]
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| {
+                    message
+                        .contains("top-level 'children[0]' contains unexpected field 'unexpected'")
+                }))),
+        "expected nested child warning, stdout: {}",
         stdout_text(&output)
     );
 }

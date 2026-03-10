@@ -381,6 +381,8 @@ fn append_inspection_shape_notes(
     summary: &mut ObjectInspectionSummary,
 ) {
     let result = match object_type {
+        "document" => parse_document_object(value).map(|_| ()),
+        "block" => parse_block_object(value).map(|_| ()),
         "patch" => parse_patch_object(value).map(|_| ()),
         "revision" => parse_revision_object(value).map(|_| ()),
         "view" => parse_view_object(value).map(|_| ()),
@@ -1754,7 +1756,12 @@ mod tests {
                 "type": "document",
                 "version": "mycel/0.1",
                 "doc_id": 7,
-                "title": "Plain document"
+                "title": "Plain document",
+                "language": "zh-Hant",
+                "content_model": "block-tree",
+                "created_at": 1u64,
+                "created_by": "pk:ed25519:test",
+                "genesis_revision": "rev:test"
             }))
             .expect("test JSON should serialize"),
         );
@@ -1774,6 +1781,100 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_document_content_model_is_wrong() {
+        let path = write_test_file(
+            "document-wrong-content-model-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "content_model": "rich-text",
+                "title": "Plain document",
+                "language": "zh-Hant",
+                "created_at": 1u64,
+                "created_by": "pk:ed25519:test",
+                "genesis_revision": "rev:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level 'content_model' must equal 'block-tree'")
+            }),
+            "expected content-model warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_document_created_by_prefix_is_wrong() {
+        let path = write_test_file(
+            "document-wrong-created-by-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "created_by": "author:test",
+                "title": "Plain document",
+                "language": "zh-Hant",
+                "content_model": "block-tree",
+                "created_at": 1u64,
+                "genesis_revision": "rev:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'created_by' must use 'pk:' prefix")),
+            "expected created_by warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_document_genesis_revision_prefix_is_wrong() {
+        let path = write_test_file(
+            "document-wrong-genesis-revision-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "genesis_revision": "hash:test",
+                "title": "Plain document",
+                "language": "zh-Hant",
+                "content_model": "block-tree",
+                "created_at": 1u64,
+                "created_by": "pk:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level 'genesis_revision' must use 'rev:' prefix")
+            }),
+            "expected genesis revision warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_block_logical_id_has_wrong_type() {
         let path = write_test_file(
             "block-wrong-block-id-type",
@@ -1781,7 +1882,10 @@ mod tests {
                 "type": "block",
                 "version": "mycel/0.1",
                 "block_id": 7,
-                "text": "Hello"
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": []
             }))
             .expect("test JSON should serialize"),
         );
@@ -1795,6 +1899,104 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("top-level 'block_id' should be a string")),
             "expected logical ID warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_block_logical_id_prefix_is_wrong() {
+        let path = write_test_file(
+            "block-wrong-block-id-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "paragraph-1",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": []
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'block_id' must use 'blk:' prefix")),
+            "expected block_id prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_block_contains_unknown_top_level_field() {
+        let path = write_test_file(
+            "block-unknown-top-level-field-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "blk:test",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": [],
+                "unexpected": true
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level contains unexpected field 'unexpected'")
+            }),
+            "expected unexpected-field warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_block_contains_unknown_nested_child_field() {
+        let path = write_test_file(
+            "block-unknown-nested-child-field-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "block",
+                "version": "mycel/0.1",
+                "block_id": "blk:test",
+                "block_type": "paragraph",
+                "content": "Hello",
+                "attrs": {},
+                "children": [
+                    {
+                        "block_id": "blk:child",
+                        "block_type": "paragraph",
+                        "content": "Child",
+                        "attrs": {},
+                        "children": [],
+                        "unexpected": true
+                    }
+                ]
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level 'children[0]' contains unexpected field 'unexpected'")
+            }),
+            "expected nested child warning, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
