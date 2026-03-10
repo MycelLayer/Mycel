@@ -332,6 +332,80 @@ fn object_inspect_json_warns_for_patch_with_wrong_block_reference_prefix() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_revision_with_wrong_state_hash_prefix() {
+    let object = write_object_file(
+        "object-inspect-revision-wrong-state-hash-prefix",
+        "revision.json",
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": [],
+            "state_hash": "rev:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry
+                    .as_str()
+                    .is_some_and(|message| message
+                        .contains("top-level 'state_hash' must use 'hash:' prefix")))),
+        "expected revision state_hash prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_revision_with_wrong_author_prefix() {
+    let object = write_object_file(
+        "object-inspect-revision-wrong-author-prefix",
+        "revision.json",
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": [],
+            "state_hash": "hash:test",
+            "author": "author:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| message
+                    .contains("top-level 'author' must use 'pk:' prefix")))),
+        "expected revision author prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_fails_for_non_object_top_level_value() {
     let object = write_raw_object_file("object-inspect-non-object", "array.json", "[1,2,3]");
     let path = path_arg(&object.path);

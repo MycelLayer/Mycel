@@ -382,6 +382,7 @@ fn append_inspection_shape_notes(
 ) {
     let result = match object_type {
         "patch" => parse_patch_object(value).map(|_| ()),
+        "revision" => parse_revision_object(value).map(|_| ()),
         "view" => parse_view_object(value).map(|_| ()),
         "snapshot" => parse_snapshot_object(value).map(|_| ()),
         _ => return,
@@ -1863,6 +1864,72 @@ mod tests {
                 message.contains("top-level 'ops[0]': top-level 'block_id' must use 'blk:' prefix")
             }),
             "expected block reference prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_revision_state_hash_prefix_is_wrong() {
+        let path = write_test_file(
+            "revision-wrong-state-hash-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": ["rev:base"],
+                "patches": [],
+                "state_hash": "rev:test",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'state_hash' must use 'hash:' prefix")),
+            "expected state_hash prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_revision_author_prefix_is_wrong() {
+        let path = write_test_file(
+            "revision-wrong-author-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": ["rev:base"],
+                "patches": [],
+                "state_hash": "hash:test",
+                "author": "author:test",
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'author' must use 'pk:' prefix")),
+            "expected author prefix warning, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
