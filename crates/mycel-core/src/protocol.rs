@@ -1066,7 +1066,8 @@ fn parse_block_field(
     let value = object
         .get(field)
         .ok_or_else(|| TypedObjectError::new(format!("missing object field '{field}'")))?;
-    parse_block_object(value).map_err(|error| prepend_context(error, &format!("top-level '{field}'")))
+    parse_block_object(value)
+        .map_err(|error| prepend_context(error, &format!("top-level '{field}'")))
 }
 
 fn prepend_context(error: TypedObjectError, context: &str) -> TypedObjectError {
