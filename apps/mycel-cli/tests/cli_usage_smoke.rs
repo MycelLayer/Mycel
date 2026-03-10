@@ -118,6 +118,18 @@ fn sim_run_help_prints_structured_clap_help() {
 }
 
 #[test]
+fn store_rebuild_help_prints_structured_clap_help() {
+    let output = run_mycel(&["store", "rebuild", "--help"]);
+
+    assert_exit_code(&output, 0);
+    assert_empty_stderr(&output);
+    let stdout = stdout_text(&output);
+    assert!(stdout.contains("Rebuild local object-store indexes from stored objects"));
+    assert!(stdout.contains("Usage: mycel store rebuild [OPTIONS] <PATH>"));
+    assert!(stdout.contains("--json"));
+}
+
+#[test]
 fn validate_help_prints_structured_clap_help() {
     let output = run_mycel(&["validate", "--help"]);
 

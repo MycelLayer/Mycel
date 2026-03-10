@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -160,14 +161,22 @@ pub fn verify_object_path(path: &Path) -> ObjectVerificationSummary {
         }
     };
 
-    verify_object_value_with_summary(path, value, summary)
+    verify_object_value_with_summary(path, value, summary, None)
 }
 
 pub fn verify_object_value(value: &Value) -> ObjectVerificationSummary {
+    verify_object_value_with_object_index(value, None)
+}
+
+pub fn verify_object_value_with_object_index(
+    value: &Value,
+    object_index: Option<&HashMap<String, Value>>,
+) -> ObjectVerificationSummary {
     verify_object_value_with_summary(
         Path::new("<inline-object>"),
         value.clone(),
         ObjectVerificationSummary::new(Path::new("<inline-object>")),
+        object_index,
     )
 }
 
@@ -175,6 +184,7 @@ fn verify_object_value_with_summary(
     path: &Path,
     value: Value,
     mut summary: ObjectVerificationSummary,
+    object_index: Option<&HashMap<String, Value>>,
 ) -> ObjectVerificationSummary {
     summary.path = path.to_path_buf();
 
@@ -316,9 +326,9 @@ fn verify_object_value_with_summary(
 
     if object_type == "revision"
         && summary.errors.is_empty()
-        && path != Path::new("<inline-object>")
+        && (path != Path::new("<inline-object>") || object_index.is_some())
     {
-        match verify_revision_replay(path, &value) {
+        match verify_revision_replay(path, &value, object_index) {
             Ok(recomputed_state_hash) => {
                 summary.recomputed_state_hash = Some(recomputed_state_hash.clone());
                 summary.state_hash_verification = Some("verified".to_string());
@@ -435,9 +445,21 @@ fn inspect_object_value_with_summary(
     summary
 }
 
-fn verify_revision_replay(path: &Path, value: &Value) -> Result<String, String> {
-    let object_index = load_neighbor_object_index(path)?;
-    let replay = replay_revision_from_index(value, &object_index)
+fn verify_revision_replay(
+    path: &Path,
+    value: &Value,
+    object_index: Option<&HashMap<String, Value>>,
+) -> Result<String, String> {
+    let owned_index;
+    let object_index = match object_index {
+        Some(index) => index,
+        None => {
+            owned_index = load_neighbor_object_index(path)?;
+            &owned_index
+        }
+    };
+
+    let replay = replay_revision_from_index(value, object_index)
         .map_err(|error| format!("revision replay failed: {error}"))?;
     let declared_state_hash = value
         .as_object()

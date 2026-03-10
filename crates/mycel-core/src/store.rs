@@ -1,0 +1,652 @@
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+
+use crate::protocol::{parse_patch_object, parse_revision_object, parse_view_object};
+use crate::verify::{canonical_json, hex_encode, verify_object_value_with_object_index};
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StoredObjectRecord {
+    pub object_id: String,
+    pub object_type: String,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ViewGovernanceRecord {
+    pub view_id: String,
+    pub maintainer: String,
+    pub profile_id: String,
+    pub documents: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StoreRebuildSummary {
+    pub target: PathBuf,
+    pub status: String,
+    pub discovered_file_count: usize,
+    pub identified_object_count: usize,
+    pub verified_object_count: usize,
+    pub stored_object_count: usize,
+    pub stored_objects: Vec<StoredObjectRecord>,
+    pub doc_revisions: BTreeMap<String, Vec<String>>,
+    pub revision_parents: BTreeMap<String, Vec<String>>,
+    pub author_patches: BTreeMap<String, Vec<String>>,
+    pub view_governance: Vec<ViewGovernanceRecord>,
+    pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    pub notes: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoreRebuildError {
+    message: String,
+}
+
+impl StoreRebuildError {
+    fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for StoreRebuildError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for StoreRebuildError {}
+
+impl StoreRebuildSummary {
+    fn new(target: &Path) -> Self {
+        Self {
+            target: target.to_path_buf(),
+            status: "ok".to_string(),
+            discovered_file_count: 0,
+            identified_object_count: 0,
+            verified_object_count: 0,
+            stored_object_count: 0,
+            stored_objects: Vec::new(),
+            doc_revisions: BTreeMap::new(),
+            revision_parents: BTreeMap::new(),
+            author_patches: BTreeMap::new(),
+            view_governance: Vec::new(),
+            profile_heads: BTreeMap::new(),
+            notes: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.errors.is_empty()
+    }
+
+    fn push_error(&mut self, message: impl Into<String>) {
+        self.status = "failed".to_string();
+        self.errors.push(message.into());
+    }
+
+    fn push_note(&mut self, message: impl Into<String>) {
+        self.notes.push(message.into());
+        if self.status != "failed" {
+            self.status = "warning".to_string();
+        }
+    }
+}
+
+pub fn rebuild_store_from_path(target: &Path) -> Result<StoreRebuildSummary, StoreRebuildError> {
+    let target = normalize_path(target);
+    let mut summary = StoreRebuildSummary::new(&target);
+    let json_paths = collect_json_paths(&target)?;
+    summary.discovered_file_count = json_paths.len();
+
+    let loaded = load_objects(&json_paths, &mut summary)?;
+    let object_index = build_object_index(&loaded, &mut summary);
+    summary.identified_object_count = object_index.len();
+
+    for loaded_object in &loaded {
+        let verification =
+            verify_object_value_with_object_index(&loaded_object.value, Some(&object_index));
+        if !verification.is_ok() {
+            summary.push_error(format!(
+                "{}: {}",
+                loaded_object.path.display(),
+                verification.errors.join("; ")
+            ));
+            continue;
+        }
+
+        let Some(record) = stored_record_from_loaded(loaded_object)? else {
+            summary.push_note(format!(
+                "skipping non-content-addressed object {} ({})",
+                loaded_object.path.display(),
+                loaded_object.object_type
+            ));
+            continue;
+        };
+
+        summary.verified_object_count += 1;
+        index_loaded_object(loaded_object, &record, &mut summary)?;
+        summary.stored_objects.push(record);
+    }
+
+    summary.stored_objects.sort_by(|left, right| {
+        left.object_id
+            .cmp(&right.object_id)
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    summary.stored_object_count = summary.stored_objects.len();
+    summary.view_governance.sort_by(|left, right| {
+        left.view_id
+            .cmp(&right.view_id)
+            .then_with(|| left.profile_id.cmp(&right.profile_id))
+    });
+    sort_string_map_values(&mut summary.doc_revisions);
+    sort_string_map_values(&mut summary.revision_parents);
+    sort_string_map_values(&mut summary.author_patches);
+    sort_profile_heads(&mut summary.profile_heads);
+
+    Ok(summary)
+}
+
+#[derive(Debug, Clone)]
+struct LoadedObject {
+    path: PathBuf,
+    value: Value,
+    object_type: String,
+    declared_id: Option<String>,
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    }
+}
+
+fn collect_json_paths(target: &Path) -> Result<Vec<PathBuf>, StoreRebuildError> {
+    if !target.exists() {
+        return Err(StoreRebuildError::new(format!(
+            "store target does not exist: {}",
+            target.display()
+        )));
+    }
+
+    if target.is_file() {
+        return Ok(vec![target.to_path_buf()]);
+    }
+
+    let mut paths = Vec::new();
+    collect_json_paths_recursive(target, &mut paths)?;
+    paths.sort();
+    Ok(paths)
+}
+
+fn collect_json_paths_recursive(
+    root: &Path,
+    paths: &mut Vec<PathBuf>,
+) -> Result<(), StoreRebuildError> {
+    let entries = fs::read_dir(root).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "failed to read store directory {}: {error}",
+            root.display()
+        ))
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            StoreRebuildError::new(format!(
+                "failed to read store directory entry {}: {error}",
+                root.display()
+            ))
+        })?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_json_paths_recursive(&path, paths)?;
+            continue;
+        }
+        if path.extension().and_then(|value| value.to_str()) == Some("json")
+            && !path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .is_some_and(|name| name.ends_with(".schema.json"))
+        {
+            paths.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+fn load_objects(
+    paths: &[PathBuf],
+    summary: &mut StoreRebuildSummary,
+) -> Result<Vec<LoadedObject>, StoreRebuildError> {
+    let mut loaded = Vec::new();
+
+    for path in paths {
+        let content = fs::read_to_string(path).map_err(|error| {
+            StoreRebuildError::new(format!(
+                "failed to read object file {}: {error}",
+                path.display()
+            ))
+        })?;
+        let value: Value = serde_json::from_str(&content).map_err(|error| {
+            StoreRebuildError::new(format!(
+                "failed to parse object JSON {}: {error}",
+                path.display()
+            ))
+        })?;
+        let (object_type, declared_id) = {
+            let envelope = crate::protocol::parse_object_envelope(&value).map_err(|error| {
+                StoreRebuildError::new(format!(
+                    "failed to parse object envelope {}: {error}",
+                    path.display()
+                ))
+            })?;
+            let declared_id = envelope
+                .declared_id()
+                .map_err(|error| {
+                    StoreRebuildError::new(format!(
+                        "{}: failed to read declared object ID: {error:?}",
+                        path.display()
+                    ))
+                })?
+                .map(str::to_string);
+            (envelope.object_type().to_string(), declared_id)
+        };
+        loaded.push(LoadedObject {
+            path: path.clone(),
+            value,
+            object_type,
+            declared_id,
+        });
+    }
+
+    if loaded.is_empty() {
+        summary.push_note("store target did not contain any JSON object files");
+    }
+
+    Ok(loaded)
+}
+
+fn build_object_index(
+    loaded: &[LoadedObject],
+    summary: &mut StoreRebuildSummary,
+) -> HashMap<String, Value> {
+    let mut object_index = HashMap::new();
+
+    for loaded_object in loaded {
+        if let Some(object_id) = &loaded_object.declared_id {
+            if let Some(existing) =
+                object_index.insert(object_id.clone(), loaded_object.value.clone())
+            {
+                let _ = existing;
+                summary.push_error(format!(
+                    "duplicate declared object ID '{}' found while rebuilding store",
+                    object_id
+                ));
+            }
+        }
+    }
+
+    object_index
+}
+
+fn stored_record_from_loaded(
+    loaded_object: &LoadedObject,
+) -> Result<Option<StoredObjectRecord>, StoreRebuildError> {
+    let Some(object_id) = &loaded_object.declared_id else {
+        return Ok(None);
+    };
+
+    Ok(Some(StoredObjectRecord {
+        object_id: object_id.clone(),
+        object_type: loaded_object.object_type.clone(),
+        path: loaded_object.path.clone(),
+    }))
+}
+
+fn index_loaded_object(
+    loaded_object: &LoadedObject,
+    record: &StoredObjectRecord,
+    summary: &mut StoreRebuildSummary,
+) -> Result<(), StoreRebuildError> {
+    match record.object_type.as_str() {
+        "patch" => {
+            let patch = parse_patch_object(&loaded_object.value).map_err(|error| {
+                StoreRebuildError::new(format!(
+                    "{}: failed to parse patch for indexing: {error}",
+                    loaded_object.path.display()
+                ))
+            })?;
+            summary
+                .author_patches
+                .entry(patch.author)
+                .or_default()
+                .push(patch.patch_id);
+        }
+        "revision" => {
+            let revision = parse_revision_object(&loaded_object.value).map_err(|error| {
+                StoreRebuildError::new(format!(
+                    "{}: failed to parse revision for indexing: {error}",
+                    loaded_object.path.display()
+                ))
+            })?;
+            summary
+                .doc_revisions
+                .entry(revision.doc_id.clone())
+                .or_default()
+                .push(revision.revision_id.clone());
+            summary
+                .revision_parents
+                .insert(revision.revision_id, revision.parents);
+        }
+        "view" => {
+            let view = parse_view_object(&loaded_object.value).map_err(|error| {
+                StoreRebuildError::new(format!(
+                    "{}: failed to parse view for indexing: {error}",
+                    loaded_object.path.display()
+                ))
+            })?;
+            let profile_id = hash_value(&view.policy)?;
+            let documents = view
+                .documents
+                .iter()
+                .map(|(doc_id, revision_id)| (doc_id.clone(), revision_id.clone()))
+                .collect::<BTreeMap<_, _>>();
+            for (doc_id, revision_id) in &documents {
+                summary
+                    .profile_heads
+                    .entry(profile_id.clone())
+                    .or_default()
+                    .entry(doc_id.clone())
+                    .or_default()
+                    .push(revision_id.clone());
+            }
+            summary.view_governance.push(ViewGovernanceRecord {
+                view_id: view.view_id,
+                maintainer: view.maintainer,
+                profile_id,
+                documents,
+            });
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn hash_value(value: &Value) -> Result<String, StoreRebuildError> {
+    let canonical = canonical_json(value).map_err(|error| {
+        StoreRebuildError::new(format!("failed to canonicalize value: {error}"))
+    })?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.as_bytes());
+    Ok(format!("hash:{}", hex_encode(&hasher.finalize())))
+}
+
+fn sort_string_map_values(index: &mut BTreeMap<String, Vec<String>>) {
+    for values in index.values_mut() {
+        values.sort();
+        values.dedup();
+    }
+}
+
+fn sort_profile_heads(index: &mut BTreeMap<String, BTreeMap<String, Vec<String>>>) {
+    for documents in index.values_mut() {
+        for revision_ids in documents.values_mut() {
+            revision_ids.sort();
+            revision_ids.dedup();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
+    use base64::Engine;
+    use ed25519_dalek::{Signer, SigningKey};
+    use serde_json::{json, Value};
+    use sha2::{Digest, Sha256};
+
+    use super::rebuild_store_from_path;
+
+    fn signing_key() -> SigningKey {
+        SigningKey::from_bytes(&[7u8; 32])
+    }
+
+    fn signer_id(signing_key: &SigningKey) -> String {
+        format!(
+            "pk:ed25519:{}",
+            base64::engine::general_purpose::STANDARD
+                .encode(signing_key.verifying_key().as_bytes())
+        )
+    }
+
+    fn canonical_json(value: &Value) -> String {
+        match value {
+            Value::Null => panic!("test values should not use null"),
+            Value::Bool(boolean) => boolean.to_string(),
+            Value::Number(number) => number.to_string(),
+            Value::String(string) => serde_json::to_string(string).expect("string should encode"),
+            Value::Array(values) => format!(
+                "[{}]",
+                values
+                    .iter()
+                    .map(canonical_json)
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            Value::Object(entries) => {
+                let mut keys: Vec<&String> = entries.keys().collect();
+                keys.sort_unstable();
+                let parts = keys
+                    .into_iter()
+                    .map(|key| {
+                        format!(
+                            "{}:{}",
+                            serde_json::to_string(key).expect("key should encode"),
+                            canonical_json(&entries[key])
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                format!("{{{}}}", parts.join(","))
+            }
+        }
+    }
+
+    fn recompute_id(value: &Value, id_field: &str, prefix: &str) -> String {
+        let mut object = value
+            .as_object()
+            .cloned()
+            .expect("test object should be JSON object");
+        object.remove(id_field);
+        object.remove("signature");
+        let canonical = canonical_json(&Value::Object(object));
+        let mut hasher = Sha256::new();
+        hasher.update(canonical.as_bytes());
+        format!("{prefix}:{:x}", hasher.finalize())
+    }
+
+    fn sign_value(signing_key: &SigningKey, value: &Value) -> String {
+        let mut object = value
+            .as_object()
+            .cloned()
+            .expect("test object should be JSON object");
+        object.remove("signature");
+        let canonical = canonical_json(&Value::Object(object));
+        let signature = signing_key.sign(canonical.as_bytes());
+        format!(
+            "sig:ed25519:{}",
+            base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+        )
+    }
+
+    fn signed_object(
+        mut value: Value,
+        signer_field: &str,
+        id_field: &str,
+        id_prefix: &str,
+    ) -> Value {
+        let signing_key = signing_key();
+        value[signer_field] = Value::String(signer_id(&signing_key));
+        let id = recompute_id(&value, id_field, id_prefix);
+        value[id_field] = Value::String(id);
+        let signature = sign_value(&signing_key, &value);
+        value["signature"] = Value::String(signature);
+        value
+    }
+
+    fn write_temp_dir(prefix: &str) -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("mycel-store-{prefix}-{unique}"));
+        fs::create_dir_all(&path).expect("temp dir should be created");
+        path
+    }
+
+    #[test]
+    fn rebuild_store_indexes_verified_objects() {
+        let dir = write_temp_dir("rebuild");
+        let patch = signed_object(
+            json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "timestamp": 1u64,
+                "ops": [
+                    {
+                        "op": "insert_block",
+                        "new_block": {
+                            "block_id": "blk:001",
+                            "block_type": "paragraph",
+                            "content": "Hello",
+                            "attrs": {},
+                            "children": []
+                        }
+                    }
+                ]
+            }),
+            "author",
+            "patch_id",
+            "patch",
+        );
+        let patch_id = patch["patch_id"]
+            .as_str()
+            .expect("patch id should exist")
+            .to_string();
+        fs::write(
+            dir.join("patch.json"),
+            serde_json::to_string_pretty(&patch).expect("patch should serialize"),
+        )
+        .expect("patch should write");
+
+        let state = json!({
+            "doc_id": "doc:test",
+            "blocks": [
+                {
+                    "block_id": "blk:001",
+                    "block_type": "paragraph",
+                    "content": "Hello",
+                    "attrs": {},
+                    "children": []
+                }
+            ]
+        });
+        let mut hasher = Sha256::new();
+        hasher.update(canonical_json(&state).as_bytes());
+        let state_hash = format!("hash:{:x}", hasher.finalize());
+
+        let revision = signed_object(
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "parents": [],
+                "patches": [patch_id.clone()],
+                "state_hash": state_hash,
+                "timestamp": 2u64
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        let revision_id = revision["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string();
+        fs::write(
+            dir.join("revision.json"),
+            serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+        )
+        .expect("revision should write");
+
+        let policy = json!({
+            "accept_keys": [signer_id(&signing_key())],
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": ["main"]
+        });
+        let view = signed_object(
+            json!({
+                "type": "view",
+                "version": "mycel/0.1",
+                "documents": {
+                    "doc:test": revision_id
+                },
+                "policy": policy,
+                "timestamp": 3u64
+            }),
+            "maintainer",
+            "view_id",
+            "view",
+        );
+        fs::write(
+            dir.join("view.json"),
+            serde_json::to_string_pretty(&view).expect("view should serialize"),
+        )
+        .expect("view should write");
+
+        let summary = rebuild_store_from_path(&dir).expect("store rebuild should succeed");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.verified_object_count, 3);
+        assert_eq!(summary.stored_object_count, 3);
+        assert_eq!(
+            summary.doc_revisions.get("doc:test"),
+            Some(&vec![revision["revision_id"].as_str().unwrap().to_string()])
+        );
+        assert_eq!(
+            summary
+                .revision_parents
+                .get(revision["revision_id"].as_str().unwrap()),
+            Some(&Vec::<String>::new())
+        );
+        assert_eq!(
+            summary
+                .author_patches
+                .get(signer_id(&signing_key()).as_str())
+                .expect("author patches should be indexed"),
+            &vec![patch_id]
+        );
+        assert_eq!(summary.view_governance.len(), 1);
+        assert_eq!(summary.profile_heads.len(), 1);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+}

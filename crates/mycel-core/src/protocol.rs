@@ -5,6 +5,7 @@
 //! signing, and derived-ID knowledge in one place so the verifier and later
 //! protocol layers do not each re-encode the same rules.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -399,6 +400,15 @@ pub struct RevisionObject {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ViewObject {
+    pub view_id: String,
+    pub maintainer: String,
+    pub documents: BTreeMap<String, String>,
+    pub policy: Value,
+    pub timestamp: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypedObjectError {
     message: String,
@@ -479,6 +489,29 @@ pub fn parse_revision_object(value: &Value) -> Result<RevisionObject, TypedObjec
         patches: required_string_array(object, "patches")?,
         state_hash: required_string(object, "state_hash")?,
         author: required_string(object, "author")?,
+        timestamp: required_u64(object, "timestamp")?,
+    })
+}
+
+pub fn parse_view_object(value: &Value) -> Result<ViewObject, TypedObjectError> {
+    let envelope = parse_object_envelope(value)
+        .map_err(|error| TypedObjectError::new(format!("view parse error: {error}")))?;
+    if envelope.kind() != ObjectKind::View {
+        return Err(TypedObjectError::new(format!(
+            "expected view object, found '{}'",
+            envelope.object_type()
+        )));
+    }
+
+    let object = envelope.object();
+    Ok(ViewObject {
+        view_id: required_string(object, "view_id")?,
+        maintainer: required_string(object, "maintainer")?,
+        documents: required_string_map(object, "documents")?,
+        policy: object
+            .get("policy")
+            .cloned()
+            .ok_or_else(|| TypedObjectError::new("missing object field 'policy'"))?,
         timestamp: required_u64(object, "timestamp")?,
     })
 }
@@ -662,14 +695,37 @@ fn required_string_array(
         .collect()
 }
 
+fn required_string_map(
+    object: &Map<String, Value>,
+    field: &str,
+) -> Result<BTreeMap<String, String>, TypedObjectError> {
+    match object.get(field) {
+        Some(Value::Object(entries)) => entries
+            .iter()
+            .map(|(key, value)| match value {
+                Value::String(value) => Ok((key.clone(), value.clone())),
+                _ => Err(TypedObjectError::new(format!(
+                    "top-level '{field}.{key}' must be a string"
+                ))),
+            })
+            .collect(),
+        Some(_) => Err(TypedObjectError::new(format!(
+            "top-level '{field}' must be an object"
+        ))),
+        None => Err(TypedObjectError::new(format!(
+            "missing object field '{field}'"
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
     use super::{
         object_schema, parse_block_object, parse_object_envelope, parse_patch_object,
-        parse_revision_object, ObjectKind, ParseObjectEnvelopeError, SignatureRule,
-        StringFieldError,
+        parse_revision_object, parse_view_object, ObjectKind, ParseObjectEnvelopeError,
+        SignatureRule, StringFieldError,
     };
 
     #[test]
@@ -932,5 +988,30 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.to_string(), "missing object field 'attrs'");
+    }
+
+    #[test]
+    fn parse_view_object_reads_documents_and_policy() {
+        let view = parse_view_object(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 7u64
+        }))
+        .expect("view should parse");
+
+        assert_eq!(view.view_id, "view:test");
+        assert_eq!(
+            view.documents.get("doc:test").map(String::as_str),
+            Some("rev:test")
+        );
+        assert!(view.policy.is_object());
     }
 }

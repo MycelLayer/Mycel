@@ -12,9 +12,11 @@ use thiserror::Error;
 mod head;
 mod object;
 mod report;
+mod store;
 use head::HeadCliArgs;
 use object::ObjectCliArgs;
 use report::ReportCliArgs;
+use store::StoreCliArgs;
 
 #[derive(Debug, Error)]
 pub(crate) enum CliError {
@@ -90,6 +92,8 @@ enum CliCommand {
     Report(ReportCliArgs),
     #[command(about = "Run a simulator test case")]
     Sim(SimCliArgs),
+    #[command(about = "Rebuild local object-store indexes from stored objects")]
+    Store(StoreCliArgs),
     #[command(about = "Validate the repo root, one file, or one supported directory")]
     Validate(ValidateCliArgs),
     #[command(external_subcommand)]
@@ -391,6 +395,7 @@ fn main() {
         Some(CliCommand::Object(command)) => object::handle_object_command(command),
         Some(CliCommand::Report(command)) => report::handle_report_command(command),
         Some(CliCommand::Sim(command)) => handle_sim_command(command),
+        Some(CliCommand::Store(command)) => store::handle_store_command(command),
         Some(CliCommand::Validate(command)) => handle_validate_command(command),
         Some(CliCommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
