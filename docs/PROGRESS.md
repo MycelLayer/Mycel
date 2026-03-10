@@ -72,4 +72,5 @@ Legend:
 
 1. Read [`ROADMAP.md`](../ROADMAP.md) for build order and milestone intent.
 2. Read [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md) for section-by-section closure items.
-3. Use [`progress.html`](./progress.html) for the public visual summary.
+3. Read [`DEV-SETUP.md`](./DEV-SETUP.md) if you are starting from a fresh environment or onboarding a new agent.
+4. Use [`progress.html`](./progress.html) for the public visual summary.
