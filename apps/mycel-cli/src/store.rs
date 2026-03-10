@@ -2,8 +2,10 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use mycel_core::store::{
-    ingest_store_from_path, rebuild_store_from_path, StoreIngestSummary, StoreRebuildSummary,
+    ingest_store_from_path, load_store_index_manifest, rebuild_store_from_path, StoreIndexManifest,
+    StoreIngestSummary, StoreRebuildSummary, ViewGovernanceRecord,
 };
+use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
 
@@ -17,6 +19,8 @@ pub(crate) struct StoreCliArgs {
 enum StoreSubcommand {
     #[command(about = "Verify and ingest objects into a local object store")]
     Ingest(StoreIngestCliArgs),
+    #[command(about = "Query persisted local object-store indexes")]
+    Index(StoreIndexCliArgs),
     #[command(about = "Rebuild local object-store indexes from stored objects")]
     Rebuild(StoreRebuildCliArgs),
     #[command(external_subcommand)]
@@ -58,6 +62,53 @@ struct StoreIngestCliArgs {
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
+}
+
+#[derive(Args)]
+struct StoreIndexCliArgs {
+    #[arg(
+        value_name = "STORE_ROOT",
+        help = "Store root directory to read indexes from",
+        required = true,
+        allow_hyphen_values = true
+    )]
+    store_root: String,
+    #[arg(long, help = "Only return revision indexes for one document ID")]
+    doc_id: Option<String>,
+    #[arg(long, help = "Only return patch indexes for one author ID")]
+    author: Option<String>,
+    #[arg(long, help = "Only return head indexes for one profile ID")]
+    profile_id: Option<String>,
+    #[arg(long, help = "Only return object IDs for one stored object type")]
+    object_type: Option<String>,
+    #[arg(long, help = "Emit machine-readable store-index output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct StoreIndexQuerySummary {
+    store_root: PathBuf,
+    manifest_path: PathBuf,
+    status: String,
+    stored_object_count: usize,
+    object_ids_by_type: std::collections::BTreeMap<String, Vec<String>>,
+    doc_revisions: std::collections::BTreeMap<String, Vec<String>>,
+    revision_parents: std::collections::BTreeMap<String, Vec<String>>,
+    author_patches: std::collections::BTreeMap<String, Vec<String>>,
+    view_governance: Vec<ViewGovernanceRecord>,
+    profile_heads:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<String>>>,
+    filters: StoreIndexQueryFilters,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct StoreIndexQueryFilters {
+    doc_id: Option<String>,
+    author: Option<String>,
+    profile_id: Option<String>,
+    object_type: Option<String>,
 }
 
 fn print_store_rebuild_text(summary: &StoreRebuildSummary) -> i32 {
@@ -154,6 +205,151 @@ fn print_store_ingest_json(summary: &StoreIngestSummary) -> Result<i32, CliError
     }
 }
 
+fn filter_single_map<T: Clone>(
+    map: &std::collections::BTreeMap<String, T>,
+    key: &Option<String>,
+) -> std::collections::BTreeMap<String, T> {
+    match key {
+        Some(key) => map
+            .get(key)
+            .cloned()
+            .map(|value| [(key.clone(), value)].into_iter().collect())
+            .unwrap_or_default(),
+        None => map.clone(),
+    }
+}
+
+fn filtered_revision_parents(
+    manifest: &StoreIndexManifest,
+    doc_revisions: &std::collections::BTreeMap<String, Vec<String>>,
+) -> std::collections::BTreeMap<String, Vec<String>> {
+    let revision_ids = doc_revisions
+        .values()
+        .flat_map(|values| values.iter().cloned())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    if revision_ids.is_empty() {
+        return std::collections::BTreeMap::new();
+    }
+
+    manifest
+        .revision_parents
+        .iter()
+        .filter(|(revision_id, _)| revision_ids.contains(*revision_id))
+        .map(|(revision_id, parents)| (revision_id.clone(), parents.clone()))
+        .collect()
+}
+
+fn filtered_profile_heads(
+    manifest: &StoreIndexManifest,
+    profile_id: &Option<String>,
+    doc_id: &Option<String>,
+) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<String>>> {
+    let mut filtered = filter_single_map(&manifest.profile_heads, profile_id);
+    if let Some(doc_id) = doc_id {
+        for documents in filtered.values_mut() {
+            documents.retain(|current_doc_id, _| current_doc_id == doc_id);
+        }
+        filtered.retain(|_, documents| !documents.is_empty());
+    }
+    filtered
+}
+
+fn filtered_view_governance(
+    manifest: &StoreIndexManifest,
+    profile_id: &Option<String>,
+    doc_id: &Option<String>,
+) -> Vec<ViewGovernanceRecord> {
+    manifest
+        .view_governance
+        .iter()
+        .filter(|record| {
+            profile_id
+                .as_ref()
+                .is_none_or(|requested| requested == &record.profile_id)
+        })
+        .filter_map(|record| {
+            let mut filtered = record.clone();
+            if let Some(doc_id) = doc_id {
+                filtered
+                    .documents
+                    .retain(|current_doc_id, _| current_doc_id == doc_id);
+                if filtered.documents.is_empty() {
+                    return None;
+                }
+            }
+            Some(filtered)
+        })
+        .collect()
+}
+
+fn build_store_index_query_summary(
+    store_root: PathBuf,
+    manifest: StoreIndexManifest,
+    filters: StoreIndexQueryFilters,
+) -> StoreIndexQuerySummary {
+    let doc_revisions = filter_single_map(&manifest.doc_revisions, &filters.doc_id);
+    let author_patches = filter_single_map(&manifest.author_patches, &filters.author);
+    let object_ids_by_type = filter_single_map(&manifest.object_ids_by_type, &filters.object_type);
+    let revision_parents = filtered_revision_parents(&manifest, &doc_revisions);
+    let profile_heads = filtered_profile_heads(&manifest, &filters.profile_id, &filters.doc_id);
+    let view_governance = filtered_view_governance(&manifest, &filters.profile_id, &filters.doc_id);
+
+    StoreIndexQuerySummary {
+        manifest_path: store_root.join("indexes").join("manifest.json"),
+        store_root,
+        status: "ok".to_string(),
+        stored_object_count: manifest.stored_object_count,
+        object_ids_by_type,
+        doc_revisions,
+        revision_parents,
+        author_patches,
+        view_governance,
+        profile_heads,
+        filters,
+    }
+}
+
+fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
+    println!("store root: {}", summary.store_root.display());
+    println!("manifest path: {}", summary.manifest_path.display());
+    println!("status: {}", summary.status);
+    println!("stored objects: {}", summary.stored_object_count);
+    println!("object type indexes: {}", summary.object_ids_by_type.len());
+    println!("document revision indexes: {}", summary.doc_revisions.len());
+    println!(
+        "revision parent indexes: {}",
+        summary.revision_parents.len()
+    );
+    println!("author patch indexes: {}", summary.author_patches.len());
+    println!("view governance records: {}", summary.view_governance.len());
+    println!("profile head indexes: {}", summary.profile_heads.len());
+    if let Some(doc_id) = &summary.filters.doc_id {
+        println!("filter doc_id: {doc_id}");
+    }
+    if let Some(author) = &summary.filters.author {
+        println!("filter author: {author}");
+    }
+    if let Some(profile_id) = &summary.filters.profile_id {
+        println!("filter profile_id: {profile_id}");
+    }
+    if let Some(object_type) = &summary.filters.object_type {
+        println!("filter object_type: {object_type}");
+    }
+    println!("store index: ok");
+    0
+}
+
+fn print_store_index_json(summary: &StoreIndexQuerySummary) -> Result<i32, CliError> {
+    match serde_json::to_string_pretty(summary) {
+        Ok(json) => {
+            println!("{json}");
+            Ok(0)
+        }
+        Err(source) => Err(CliError::serialization("store index summary", source)),
+    }
+}
+
 fn store_rebuild(target: PathBuf, json: bool) -> Result<i32, CliError> {
     match rebuild_store_from_path(&target) {
         Ok(summary) => {
@@ -180,6 +376,28 @@ fn store_ingest(source: PathBuf, store_root: PathBuf, json: bool) -> Result<i32,
     }
 }
 
+fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
+    let store_root = PathBuf::from(args.store_root);
+    let manifest = load_store_index_manifest(&store_root)
+        .map_err(|error| CliError::usage(error.to_string()))?;
+    let summary = build_store_index_query_summary(
+        store_root,
+        manifest,
+        StoreIndexQueryFilters {
+            doc_id: args.doc_id,
+            author: args.author,
+            profile_id: args.profile_id,
+            object_type: args.object_type,
+        },
+    );
+
+    if args.json {
+        print_store_index_json(&summary)
+    } else {
+        Ok(print_store_index_text(&summary))
+    }
+}
+
 fn unexpected_extra(extra: &[String], context: &str) -> Option<String> {
     extra
         .first()
@@ -198,6 +416,13 @@ pub(crate) fn handle_store_command(command: StoreCliArgs) -> Result<i32, CliErro
                 PathBuf::from(args.into),
                 args.json,
             )
+        }
+        Some(StoreSubcommand::Index(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "store index") {
+                return Err(CliError::usage(message));
+            }
+
+            store_index(args)
         }
         Some(StoreSubcommand::Rebuild(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "store rebuild") {

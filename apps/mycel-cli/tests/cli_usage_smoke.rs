@@ -143,6 +143,22 @@ fn store_ingest_help_prints_structured_clap_help() {
 }
 
 #[test]
+fn store_index_help_prints_structured_clap_help() {
+    let output = run_mycel(&["store", "index", "--help"]);
+
+    assert_exit_code(&output, 0);
+    assert_empty_stderr(&output);
+    let stdout = stdout_text(&output);
+    assert!(stdout.contains("Query persisted local object-store indexes"));
+    assert!(stdout.contains("Usage: mycel store index [OPTIONS] <STORE_ROOT>"));
+    assert!(stdout.contains("--doc-id <DOC_ID>"));
+    assert!(stdout.contains("--author <AUTHOR>"));
+    assert!(stdout.contains("--profile-id <PROFILE_ID>"));
+    assert!(stdout.contains("--object-type <OBJECT_TYPE>"));
+    assert!(stdout.contains("--json"));
+}
+
+#[test]
 fn validate_help_prints_structured_clap_help() {
     let output = run_mycel(&["validate", "--help"]);
 
