@@ -10,6 +10,16 @@ Use it together with:
 - [`.github/labels.yml`](./.github/labels.yml) for the repo-tracked bot/task label set
 - [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) to apply tracked labels back to GitHub
 
+## Bot Setup
+
+If you are bootstrapping bot-facing GitHub workflow for this repo:
+
+1. review [`.github/labels.yml`](./.github/labels.yml) as the source of truth for tracked labels
+2. run [`scripts/sync-labels.sh`](./scripts/sync-labels.sh) to sync that label set to GitHub before creating or triaging bot-ready issues
+3. then use the issue template and progress views after labels are in sync
+
+This keeps `ai-ready` and related workflow labels reproducible across new repos, test repos, or drifted environments.
+
 ## What Kind of Work Fits This Repo Best
 
 Mycel is easiest to contribute to when the work is:
