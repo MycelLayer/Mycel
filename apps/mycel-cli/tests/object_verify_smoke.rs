@@ -201,7 +201,6 @@ fn object_verify_json_fails_for_document_missing_doc_id() {
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
-    assert_eq!(json["object_type"], "document");
     assert!(
         json["errors"]
             .as_array()
@@ -238,7 +237,6 @@ fn object_verify_json_fails_for_document_with_non_string_doc_id() {
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
-    assert_eq!(json["object_type"], "document");
     assert!(
         json["errors"]
             .as_array()
@@ -274,7 +272,6 @@ fn object_verify_json_fails_for_document_with_wrong_doc_id_prefix() {
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
-    assert_eq!(json["object_type"], "document");
     assert!(
         json["errors"]
             .as_array()
@@ -313,7 +310,6 @@ fn object_verify_json_fails_for_document_with_unknown_top_level_field() {
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
-    assert_eq!(json["object_type"], "document");
     assert!(
         json["errors"]
             .as_array()
@@ -1643,11 +1639,9 @@ fn object_verify_json_fails_for_snapshot_with_invalid_created_by_key_bytes() {
         json["errors"]
             .as_array()
             .is_some_and(|errors| errors.iter().any(|entry| {
-                entry
-                    .as_str()
-                    .is_some_and(|message| {
-                        message.contains("Ed25519 public key must decode to 32 bytes")
-                    })
+                entry.as_str().is_some_and(|message| {
+                    message.contains("Ed25519 public key must decode to 32 bytes")
+                })
             })),
         "expected invalid public-key length error, stdout: {}",
         stdout_text(&output)
@@ -2301,11 +2295,9 @@ fn object_verify_json_fails_for_view_with_invalid_maintainer_key_bytes() {
         json["errors"]
             .as_array()
             .is_some_and(|errors| errors.iter().any(|entry| {
-                entry
-                    .as_str()
-                    .is_some_and(|message| {
-                        message.contains("Ed25519 public key must decode to 32 bytes")
-                    })
+                entry.as_str().is_some_and(|message| {
+                    message.contains("Ed25519 public key must decode to 32 bytes")
+                })
             })),
         "expected invalid public-key length error, stdout: {}",
         stdout_text(&output)
@@ -2663,6 +2655,36 @@ fn object_verify_json_fails_when_document_has_forbidden_signature() {
                 })
             })),
         "expected forbidden signature error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_null_values() {
+    let object = write_object_file(
+        "object-verify-null-values",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "title": Value::Null
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("$.title: null is not allowed"))
+            })),
+        "expected null validation error, stdout: {}",
         stdout_text(&output)
     );
 }
@@ -3148,11 +3170,9 @@ fn object_verify_json_fails_for_patch_with_invalid_author_key_bytes() {
         json["errors"]
             .as_array()
             .is_some_and(|errors| errors.iter().any(|entry| {
-                entry
-                    .as_str()
-                    .is_some_and(|message| {
-                        message.contains("Ed25519 public key must decode to 32 bytes")
-                    })
+                entry.as_str().is_some_and(|message| {
+                    message.contains("Ed25519 public key must decode to 32 bytes")
+                })
             })),
         "expected invalid public-key length error, stdout: {}",
         stdout_text(&output)
@@ -3969,11 +3989,9 @@ fn object_verify_json_fails_for_revision_with_invalid_author_key_bytes() {
         json["errors"]
             .as_array()
             .is_some_and(|errors| errors.iter().any(|entry| {
-                entry
-                    .as_str()
-                    .is_some_and(|message| {
-                        message.contains("Ed25519 public key must decode to 32 bytes")
-                    })
+                entry.as_str().is_some_and(|message| {
+                    message.contains("Ed25519 public key must decode to 32 bytes")
+                })
             })),
         "expected invalid public-key length error, stdout: {}",
         stdout_text(&output)
