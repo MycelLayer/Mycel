@@ -30,6 +30,22 @@ If you are starting fresh in this repo, use this order:
 
 This keeps scope, labels, and task shape aligned before implementation work starts.
 
+If you need a machine-readable environment gate before starting work, use:
+
+```bash
+scripts/check-dev-env.sh --json
+```
+
+The JSON output includes:
+
+- `status`
+- `mode`
+- `repo_root`
+- `required_toolchain_channel`
+- `minimum_rust`
+- `checks[]`
+- `error` when the check fails
+
 ## What Kind of Work Fits This Repo Best
 
 Mycel is easiest to contribute to when the work is:
