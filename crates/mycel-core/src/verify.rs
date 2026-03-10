@@ -1977,6 +1977,45 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_patch_mixes_set_metadata_forms() {
+        let path = write_test_file(
+            "patch-mixed-set-metadata-forms-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:test",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "ops": [
+                    {
+                        "op": "set_metadata",
+                        "metadata": {
+                            "title": "Hello"
+                        },
+                        "key": "extra"
+                    }
+                ],
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level 'ops[0]': patch op contains unexpected field 'key'")
+            }),
+            "expected mixed set_metadata warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_revision_state_hash_prefix_is_wrong() {
         let path = write_test_file(
             "revision-wrong-state-hash-prefix-inspect",
@@ -2010,6 +2049,40 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_genesis_revision_has_merge_strategy() {
+        let path = write_test_file(
+            "revision-genesis-merge-strategy-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": [],
+                "patches": [],
+                "merge_strategy": "semantic-block-merge",
+                "state_hash": "hash:test",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message
+                    .contains("top-level 'merge_strategy' is not allowed when 'parents' is empty")
+            }),
+            "expected genesis merge_strategy warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_revision_contains_duplicate_parent_ids() {
         let path = write_test_file(
             "revision-duplicate-parents-inspect",
@@ -2037,6 +2110,40 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("top-level 'parents[1]' duplicates 'parents[0]'")),
             "expected duplicate parents warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_revision_contains_unknown_top_level_field() {
+        let path = write_test_file(
+            "revision-unknown-top-level-field-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": ["rev:base"],
+                "patches": [],
+                "state_hash": "hash:test",
+                "author": "pk:ed25519:test",
+                "unexpected": true,
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level contains unexpected field 'unexpected'")),
+            "expected unknown top-level field warning, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);
