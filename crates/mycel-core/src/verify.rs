@@ -1903,6 +1903,80 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_patch_move_block_has_no_destination() {
+        let path = write_test_file(
+            "patch-move-without-destination-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:test",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "ops": [
+                    {
+                        "op": "move_block",
+                        "block_id": "blk:001"
+                    }
+                ],
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains(
+                    "top-level 'ops[0]': move_block requires at least one destination reference",
+                )
+            }),
+            "expected move_block destination warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_patch_metadata_entries_are_empty() {
+        let path = write_test_file(
+            "patch-empty-metadata-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:test",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "ops": [
+                    {
+                        "op": "set_metadata",
+                        "metadata": {}
+                    }
+                ],
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary.notes.iter().any(|message| {
+                message.contains("top-level 'ops[0]': top-level 'metadata' must not be empty")
+            }),
+            "expected empty metadata warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_revision_state_hash_prefix_is_wrong() {
         let path = write_test_file(
             "revision-wrong-state-hash-prefix-inspect",
@@ -1936,6 +2010,39 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_revision_contains_duplicate_parent_ids() {
+        let path = write_test_file(
+            "revision-duplicate-parents-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": ["rev:base", "rev:base"],
+                "patches": [],
+                "state_hash": "hash:test",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'parents[1]' duplicates 'parents[0]'")),
+            "expected duplicate parents warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_revision_parent_prefix_is_wrong() {
         let path = write_test_file(
             "revision-wrong-parent-prefix-inspect",
@@ -1963,6 +2070,39 @@ mod tests {
                 .iter()
                 .any(|message| message.contains("top-level 'parents[0]' must use 'rev:' prefix")),
             "expected parent prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inspect_warns_when_revision_contains_duplicate_patch_ids() {
+        let path = write_test_file(
+            "revision-duplicate-patches-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:test",
+                "doc_id": "doc:test",
+                "parents": ["rev:base"],
+                "patches": ["patch:test", "patch:test"],
+                "state_hash": "hash:test",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'patches[1]' duplicates 'patches[0]'")),
+            "expected duplicate patches warning, got {summary:?}"
         );
 
         let _ = std::fs::remove_file(path);

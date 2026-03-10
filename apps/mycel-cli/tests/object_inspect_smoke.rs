@@ -370,6 +370,81 @@ fn object_inspect_json_warns_for_patch_with_unknown_top_level_field() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_patch_move_without_destination() {
+    let object = write_object_file(
+        "object-inspect-patch-move-without-destination",
+        "patch.json",
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [
+                {
+                    "op": "move_block",
+                    "block_id": "blk:001"
+                }
+            ],
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(|entry| entry.as_str().is_some_and(
+            |message| message.contains("top-level 'ops[0]': move_block requires at least one destination reference")
+        ))),
+        "expected move_block destination warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_patch_with_empty_metadata_entries() {
+    let object = write_object_file(
+        "object-inspect-patch-empty-metadata",
+        "patch.json",
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [
+                {
+                    "op": "set_metadata",
+                    "metadata": {}
+                }
+            ],
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes
+            .iter()
+            .any(|entry| entry.as_str().is_some_and(|message| message
+                .contains("top-level 'ops[0]': top-level 'metadata' must not be empty")))),
+        "expected empty metadata warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_revision_with_wrong_state_hash_prefix() {
     let object = write_object_file(
         "object-inspect-revision-wrong-state-hash-prefix",
@@ -408,6 +483,44 @@ fn object_inspect_json_warns_for_revision_with_wrong_state_hash_prefix() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_revision_with_duplicate_parent_ids() {
+    let object = write_object_file(
+        "object-inspect-revision-duplicate-parents",
+        "revision.json",
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base", "rev:base"],
+            "patches": [],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry
+                    .as_str()
+                    .is_some_and(|message| message
+                        .contains("top-level 'parents[1]' duplicates 'parents[0]'")))),
+        "expected duplicate parent warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_revision_with_wrong_parent_prefix() {
     let object = write_object_file(
         "object-inspect-revision-wrong-parent-prefix",
@@ -440,6 +553,44 @@ fn object_inspect_json_warns_for_revision_with_wrong_parent_prefix() {
                     |message| message.contains("top-level 'parents[0]' must use 'rev:' prefix")
                 ))),
         "expected parent prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_revision_with_duplicate_patch_ids() {
+    let object = write_object_file(
+        "object-inspect-revision-duplicate-patches",
+        "revision.json",
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:test", "patch:test"],
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry
+                    .as_str()
+                    .is_some_and(|message| message
+                        .contains("top-level 'patches[1]' duplicates 'patches[0]'")))),
+        "expected duplicate patch warning, stdout: {}",
         stdout_text(&output)
     );
 }
