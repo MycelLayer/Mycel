@@ -322,6 +322,105 @@ fn store_rebuild_store_root_persists_index_manifest() {
 }
 
 #[test]
+fn store_rebuild_json_fails_for_duplicate_declared_object_ids() {
+    let dir = create_temp_dir("store-rebuild-duplicate-ids");
+    let patch = signed_object(
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:duplicate",
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1u64,
+            "ops": []
+        }),
+        "author",
+        "patch_id",
+        "patch",
+    );
+    fs::write(
+        dir.path().join("patch-a.json"),
+        serde_json::to_string_pretty(&patch).expect("patch should serialize"),
+    )
+    .expect("first patch should write");
+    fs::write(
+        dir.path().join("patch-b.json"),
+        serde_json::to_string_pretty(&patch).expect("patch should serialize"),
+    )
+    .expect("second patch should write");
+
+    let output = run_mycel(&[
+        "store",
+        "rebuild",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("duplicate declared object ID")
+                        && message.contains(patch["patch_id"].as_str().unwrap())
+                })
+            })),
+        "expected duplicate object ID error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn store_rebuild_json_fails_for_missing_revision_patch_dependency() {
+    let dir = create_temp_dir("store-rebuild-missing-patch");
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:missing-patch",
+            "parents": [],
+            "patches": ["patch:missing"],
+            "state_hash": "hash:missing",
+            "timestamp": 2u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        dir.path().join("revision.json"),
+        serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+    )
+    .expect("revision should write");
+
+    let output = run_mycel(&[
+        "store",
+        "rebuild",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["verified_object_count"], 0);
+    assert_eq!(json["stored_object_count"], 0);
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "revision replay failed: missing patch 'patch:missing' for replay",
+                    )
+                })
+            })),
+        "expected missing patch replay error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn store_rebuild_missing_target_fails_cleanly() {
     let output = run_mycel(&["store", "rebuild"]);
 

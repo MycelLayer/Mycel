@@ -1081,6 +1081,85 @@ mod tests {
     }
 
     #[test]
+    fn rebuild_store_reports_duplicate_declared_object_ids() {
+        let dir = write_temp_dir("rebuild-duplicate-ids");
+        let patch = signed_object(
+            json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "doc_id": "doc:duplicate",
+                "base_revision": "rev:genesis-null",
+                "timestamp": 1u64,
+                "ops": []
+            }),
+            "author",
+            "patch_id",
+            "patch",
+        );
+        fs::write(
+            dir.join("patch-a.json"),
+            serde_json::to_string_pretty(&patch).expect("patch should serialize"),
+        )
+        .expect("first patch should write");
+        fs::write(
+            dir.join("patch-b.json"),
+            serde_json::to_string_pretty(&patch).expect("patch should serialize"),
+        )
+        .expect("second patch should write");
+
+        let summary = rebuild_store_from_path(&dir).expect("store rebuild should complete");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("duplicate declared object ID")
+                    && message.contains(patch["patch_id"].as_str().unwrap())
+            }),
+            "expected duplicate object ID error, got {summary:?}"
+        );
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn rebuild_store_reports_missing_revision_patch_dependency() {
+        let dir = write_temp_dir("rebuild-missing-patch");
+        let revision = signed_object(
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "doc_id": "doc:missing-patch",
+                "parents": [],
+                "patches": ["patch:missing"],
+                "state_hash": "hash:missing",
+                "timestamp": 2u64
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        fs::write(
+            dir.join("revision.json"),
+            serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+        )
+        .expect("revision should write");
+
+        let summary = rebuild_store_from_path(&dir).expect("store rebuild should complete");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("revision replay failed: missing patch 'patch:missing' for replay")
+            }),
+            "expected missing patch replay error, got {summary:?}"
+        );
+        assert_eq!(summary.verified_object_count, 0);
+        assert_eq!(summary.stored_object_count, 0);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn ingest_store_writes_verified_objects_to_content_addressed_layout() {
         let source_dir = write_temp_dir("ingest-source");
         let store_dir = write_temp_dir("ingest-store");
