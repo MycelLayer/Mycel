@@ -2,113 +2,120 @@
 
 語言：繁體中文 | [English](./README.md)
 
-Mycel 是一個中立、技術導向的文本協議棧，用於可驗證歷史、受治理的閱讀狀態，以及去中心化複製。
+Mycel 是一個以 Rust 實作為主的協議棧，用於可驗證的文本歷史、受治理的閱讀狀態，以及去中心化複製。
 
-## 概覽
+它面向的是需要以下能力的 text-first 系統：
 
-Mycel 以文字與參考文本系統為優先，針對分散式環境設計：
+- 可重播驗證的歷史
+- 可驗證的簽章治理訊號
+- 多個有效分支並存，而不要求全域強制共識
+- 由固定 profile 規則決定 accepted reading，而不是任意本地偏好
 
-- 可驗證的變更歷史
-- P2P 複製
-- 數位簽章驗證
-- 多分支並存，且不要求全域單一共識
-- 由 profile 約束的 accepted reading 與狀態選擇
-- 建立在穩定 protocol core 之上的可擴充 app-layer models
+## 為什麼是 Mycel
 
-## 中立原則
+多數協作工具通常落在兩種形態：
 
-Mycel 可以承載各種內容領域；協議本身保持中立且純技術化。
+- 由中心化平台維護可變狀態
+- 為程式碼協作或全域共識最佳化的分散式系統
 
-## 目前狀態
+Mycel 走的是另一條路。它把文本歷史、accepted reading、以及 replication 視為彼此分離但可互通的層次。
 
-- 協議階段：`v0.1` 概念規格，並已延伸出逐漸成形的 profile 與 design-note 層
-- 目前重點：first-client 範圍收斂、實作準備度、以及把成熟設計逐步收成具體 profiles
-- 目前 Rust CLI 狀態：可用於內部 validation 與可決定 simulator harness 工作流，但還不是 production 等級的 Mycel client 或 node
-- 目前 head inspection 輸出邊界：`decision_trace` 是給人讀的高階摘要；`effective_weights[]`、`maintainer_support[]`、`critical_violations[]` 這類 typed arrays 才承載穩定的機器可消費細節
-- 目前 object verification 輸出邊界：文字輸出主要給人檢查；`--json` 則提供穩定欄位，例如 `status`、`object_type`、`signature_rule`、`signature_verification`、`declared_id`、`recomputed_id`、`notes`、`errors`
-- 目前 validation 輸出邊界：`--json` 會提供穩定的 status、scope counts、warnings、errors；`--strict` 則會把只有 warning 的驗證結果轉成失敗 exit，方便 CI 工作流
-- 目前 topology validation 範圍：`validate sim/topologies --json` 會把 topology 集合作為 repo 範圍輸入來驗證，並在 topology counts 之外一併帶出相關 peer、test case 與 report counts
-- 目前 peer validation 關聯載入邊界：以 peer 為目標的驗證現在會自動載入同 repo 內引用所選 peer node ID 的 topologies、test cases 與 reports，因此 `validate sim/peers --json` 預設不再把 peer fixture 視為完全孤立的輸入
-- 目前 simulator run 輸出邊界：`sim run --json` 提供穩定的執行摘要介面；`report_path` 則指向包含詳細 events、failures 與 runtime metadata 的完整報告
-- 目前 info/help 輸出邊界：`info` 會輸出穩定的 workspace/scaffold 路徑區段給人閱讀；`help` 與無參數呼叫會印出頂層 usage 契約，而未知命令會在印出 usage 後以錯誤退出
+因此，它特別適合長期文本、評註系統、受治理的參考文本集合，以及其他以文字為核心的分散式工作流。
 
-## 文件導覽
+## 它的差異點
 
-### Specs
+- 可驗證歷史：revision 預期要能被 replay 與檢查，而不是只靠信任。
+- 受治理的閱讀狀態：accepted head 來自固定 profile 規則與已驗證的 View objects。
+- 容許分叉：多個 head 可以並存，而不假設整個網路必須只有一個全域真相。
+- 中立的 protocol core：領域語義應放在 profiles 與 app layers，不應寫死進 core protocol。
 
-- [PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)：完整協議規格
-- [WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)：wire protocol 草案
-- [ROADMAP.md](./ROADMAP.md)：first client 與後續擴展的 repo 分階段路線圖
-- [IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)：最小 v0.1 client 實作檢查清單
-- [PROFILE.fund-auto-disbursement-v0.1.zh-TW.md](./PROFILE.fund-auto-disbursement-v0.1.zh-TW.md)：採用 m-of-n custody 的 fund auto-disbursement v0.1 profile 草案
-- [PROFILE.mycel-over-tor-v0.1.zh-TW.md](./PROFILE.mycel-over-tor-v0.1.zh-TW.md)：Mycel over Tor v0.1 profile 草案
-
-### Design Notes
-
-- [docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md](./docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md)：client-non-discretionary multi-view 設計草案
-- [docs/design-notes/DESIGN-NOTES.two-maintainer-role.zh-TW.md](./docs/design-notes/DESIGN-NOTES.two-maintainer-role.zh-TW.md)：two-maintainer-role 設計草案
-- [docs/design-notes/DESIGN-NOTES.maintainer-conflict-flow.zh-TW.md](./docs/design-notes/DESIGN-NOTES.maintainer-conflict-flow.zh-TW.md)：如何保留並治理 maintainer 對 rival document ideas 之衝突的設計草案
-- [docs/design-notes/DESIGN-NOTES.mycel-app-layer.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-app-layer.zh-TW.md)：Mycel App Layer 設計草案
-- [docs/design-notes/DESIGN-NOTES.qa-app-layer.zh-TW.md](./docs/design-notes/DESIGN-NOTES.qa-app-layer.zh-TW.md)：Q&A App Layer 設計草案
-- [docs/design-notes/DESIGN-NOTES.qa-minimal-schema.zh-TW.md](./docs/design-notes/DESIGN-NOTES.qa-minimal-schema.zh-TW.md)：Q&A 最小 schema 草案
-- [docs/design-notes/DESIGN-NOTES.commentary-citation-schema.zh-TW.md](./docs/design-notes/DESIGN-NOTES.commentary-citation-schema.zh-TW.md)：maintainer 評註文件大量引用原文時的 schema 草案
-- [docs/design-notes/DESIGN-NOTES.app-signing-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.app-signing-model.zh-TW.md)：區分 object signing、release signing 與 execution-evidence signing 的設計草案
-- [docs/design-notes/DESIGN-NOTES.signature-priority.zh-TW.md](./docs/design-notes/DESIGN-NOTES.signature-priority.zh-TW.md)：整理哪些 Mycel objects 應優先要求簽章的設計草案
-- [docs/design-notes/DESIGN-NOTES.signature-role-matrix.zh-TW.md](./docs/design-notes/DESIGN-NOTES.signature-role-matrix.zh-TW.md)：把目前 object families 對到預設 signing roles 的設計草案
-- [docs/design-notes/DESIGN-NOTES.donation-app-layer.zh-TW.md](./docs/design-notes/DESIGN-NOTES.donation-app-layer.zh-TW.md)：Donation App Layer 設計草案
-- [docs/design-notes/DESIGN-NOTES.canonical-text-profile.zh-TW.md](./docs/design-notes/DESIGN-NOTES.canonical-text-profile.zh-TW.md)：Canonical Text Profile 設計草案
-- [docs/design-notes/DESIGN-NOTES.interpretation-dispute-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.interpretation-dispute-model.zh-TW.md)：Interpretation Dispute Model 設計草案
-- [docs/design-notes/DESIGN-NOTES.auto-signer-consent-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.auto-signer-consent-model.zh-TW.md)：auto-signer consent model 設計草案
-- [docs/design-notes/DESIGN-NOTES.blind-address-threat-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.blind-address-threat-model.zh-TW.md)：blind-address custody threat model 設計草案
-- [docs/design-notes/DESIGN-NOTES.signer-availability-emergency-response.zh-TW.md](./docs/design-notes/DESIGN-NOTES.signer-availability-emergency-response.zh-TW.md)：針對 signer availability 下降的 warning / critical / emergency 應對設計草案
-- [docs/design-notes/DESIGN-NOTES.signer-activity-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.signer-activity-model.zh-TW.md)：評估 signer readiness 與 effective signer capacity 的設計草案
-- [docs/design-notes/DESIGN-NOTES.policy-driven-threshold-custody.zh-TW.md](./docs/design-notes/DESIGN-NOTES.policy-driven-threshold-custody.zh-TW.md)：policy-driven m-of-n custody 設計草案
-- [docs/design-notes/DESIGN-NOTES.mycel-anonymity-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-anonymity-model.zh-TW.md)：Mycel anonymity model 設計草案
-- [docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md)：first-client scope v0.1 設計草案
-- [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md)：Mycel full-stack map 設計草案
-- [docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md)：Mycel protocol upgrade philosophy 設計草案
-- [docs/design-notes/DESIGN-NOTES.peer-discovery-model.zh-TW.md](./docs/design-notes/DESIGN-NOTES.peer-discovery-model.zh-TW.md)：peer discovery model 設計草案
-- [docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md](./docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md)：early multi-peer simulator 與 test harness 設計草案
-- [docs/design-notes/DESIGN-NOTES.sensor-triggered-donation.zh-TW.md](./docs/design-notes/DESIGN-NOTES.sensor-triggered-donation.zh-TW.md)：Sensor-triggered Donation 設計草案
-- [docs/design-notes/DESIGN-NOTES.governance-history-security.zh-TW.md](./docs/design-notes/DESIGN-NOTES.governance-history-security.zh-TW.md)：Governance History Security 設計草案
-
-### Meta
-
-- [PROJECT-INTENT.zh-TW.md](./PROJECT-INTENT.zh-TW.md)：專案意圖與協議邊界說明
-- [CONTRIBUTING.md](./CONTRIBUTING.md)：貢獻時的範圍、文件、測試與授權預期
-- [AGENTS.md](./AGENTS.md)：repo 協作規則
-
-### Implementation Scaffold
-
-- [fixtures/README.md](./fixtures/README.md)：供 simulator 與 verification 測試使用的語言中立 fixture sets
-- [sim/README.md](./sim/README.md)：peer simulator 結構、topologies、tests 與 reports 的語言中立骨架
-- [sim/SCHEMA-CROSS-CHECK.zh-TW.md](./sim/SCHEMA-CROSS-CHECK.zh-TW.md)：說明 simulator schemas 與各種 IDs 應如何彼此對上的 cross-check 規則
-- [RUST-WORKSPACE.md](./RUST-WORKSPACE.md)：Rust core、simulator library 與 CLI 的初始 workspace 佈局
-
-### CI
-
-- [.github/workflows/ci.yml](./.github/workflows/ci.yml)：GitHub Actions workflow，負責 Rust 檢查與 negative validation smoke coverage
-
-## 近期優先事項
-
-1. 先做一個狹窄的 first client，聚焦在 sync、verification、accepted-head selection 與 reader-first 文本閱讀
-2. 持續把成熟的 design areas 收成明確的 profiles 或 schemas，而不是過快擴大 protocol core
-3. 採逐層往上擴的方式：先 canonical-text reading，再選擇性加入 app-layer 支援
-
-## 專案定位
+## 它不是什麼
 
 Mycel 不是：
 
-- 追求全域強制共識的區塊鏈
-- 單純的檔案傳輸系統
+- 要求全域強制共識的區塊鏈
 - Git 複製品
+- 泛用檔案傳輸層
 
-Mycel 是一個可驗證、可演進、去中心化的文本歷史與受治理文本系統之協議棧。
+## 60 秒內可以試什麼
+
+目前的 Rust CLI 是內部驗證與 simulator 工具鏈，還不是 production 等級的 Mycel client 或 node。
+
+在 repo 根目錄執行：
+
+```bash
+cargo run -p mycel-cli -- info
+cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json
+cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
+```
+
+這三個命令分別可以看到：
+
+- `info`：repo 內部 workspace 與 scaffold 路徑
+- `validate`：對已提交 fixtures 的穩定 validation 輸出
+- `sim run`：可決定的 simulator harness 執行摘要，以及產生出的 report 路徑
+
+## 目前狀態
+
+- 協議階段：`v0.1` 概念規格，並持續擴充 profile 與 design-note 層
+- 目前實作重點：收斂 first-client 範圍、加強 replay 與 verification、以及穩定 deterministic simulator workflows
+- 目前 CLI 邊界：適合在本 repo 內做 validation、object inspection、object verification、accepted-head inspection、report inspection 與 simulator runs
+- 尚未交付：production node 行為、公開網路 wire sync、或完整的終端使用者 client
+
+## 依目的閱讀
+
+如果你想走最短理解路徑：
+
+- 先看 protocol core：[PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)
+- 再看 transport 規則：[WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)
+- 看實作順序：[ROADMAP.md](./ROADMAP.md)
+- 看 build checklist：[IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)
+
+如果你想理解目前的 Rust 實作：
+
+- Workspace 地圖：[RUST-WORKSPACE.md](./RUST-WORKSPACE.md)
+- Simulator scaffold：[sim/README.md](./sim/README.md)
+- Fixture 佈局：[fixtures/README.md](./fixtures/README.md)
+
+如果你想理解目前決策背後的設計層：
+
+- First-client 邊界：[docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md)
+- Full-stack 地圖：[docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md)
+- Protocol 升級哲學：[docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md)
+
+## 主要文件
+
+### Specs
+
+- [PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)：core protocol 規格
+- [WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)：transport message format 與 sync flow 草案
+- [ROADMAP.md](./ROADMAP.md)：從 first client 到後續擴展的分階段建置順序
+- [IMPLEMENTATION-CHECKLIST.zh-TW.md](./IMPLEMENTATION-CHECKLIST.zh-TW.md)：窄版可互通 client 的實作檢查清單
+- [PROFILE.fund-auto-disbursement-v0.1.zh-TW.md](./PROFILE.fund-auto-disbursement-v0.1.zh-TW.md)：窄版 app-layer custody profile 草案
+- [PROFILE.mycel-over-tor-v0.1.zh-TW.md](./PROFILE.mycel-over-tor-v0.1.zh-TW.md)：窄版 Tor 導向部署 profile 草案
+
+### Design Notes
+
+- [docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md)：first client 現階段該做什麼、刻意延後什麼
+- [docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md](./docs/design-notes/DESIGN-NOTES.client-non-discretionary-multi-view.zh-TW.md)：受 protocol 約束的 reader model
+- [docs/design-notes/DESIGN-NOTES.two-maintainer-role.zh-TW.md](./docs/design-notes/DESIGN-NOTES.two-maintainer-role.zh-TW.md)：editor 與 view maintainer 權責拆分
+- [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md)：目前文件集的分層地圖
+- [docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md](./docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md)：早期 simulator 與 harness 方向
+
+### Meta
+
+- [PROJECT-INTENT.zh-TW.md](./PROJECT-INTENT.zh-TW.md)：專案意圖邊界說明
+- [CONTRIBUTING.md](./CONTRIBUTING.md)：貢獻預期
+- [AGENTS.md](./AGENTS.md)：repo 協作規則
+
+## 近期優先事項
+
+1. 完成窄版 first-client core，聚焦 verification、replay、storage 與 accepted-head inspection。
+2. 在擴大 protocol-core 範圍之前，先把成熟想法落成明確的 profiles、schemas、fixtures 與 tests。
+3. 採逐層上推的方式擴展：先 canonical-text reading，再逐步加入選擇性的 app-layer 支援。
 
 ## 授權
 
-本 repo 目前採用 [MIT License](./LICENSE)；除非未來有個別檔案或目錄另行標示，否則以此為準。
+本 repository 採用 [MIT License](./LICENSE)，除非未來有個別檔案或目錄另有標示。
 
-## Contributing 與授權預期
-
-請參考 [CONTRIBUTING.md](./CONTRIBUTING.md)。除非該指南未來另有明確說明，否則提交到本 repo 的貢獻，預設應以和本 repo 其餘內容相同的 MIT 條款提供。
+關於貢獻與授權預期，請參考 [CONTRIBUTING.md](./CONTRIBUTING.md)。
