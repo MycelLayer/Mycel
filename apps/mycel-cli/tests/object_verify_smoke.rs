@@ -467,6 +467,41 @@ fn object_verify_json_fails_for_duplicate_object_keys() {
 }
 
 #[test]
+fn object_verify_json_fails_for_document_missing_title() {
+    let object = write_object_file(
+        "object-verify-document-missing-title",
+        "document.json",
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1u64,
+            "created_by": "pk:ed25519:test",
+            "genesis_revision": "rev:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "document");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry
+                    .as_str()
+                    .is_some_and(|message| message.contains("missing string field 'title'"))
+            })),
+        "expected missing title error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_block_missing_block_id() {
     let object = write_object_file(
         "object-verify-block-missing-block-id",
