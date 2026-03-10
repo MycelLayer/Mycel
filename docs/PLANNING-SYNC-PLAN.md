@@ -4,7 +4,7 @@ Status: active working agreement for keeping planning surfaces aligned
 
 This document defines how Mycel keeps these surfaces in sync:
 
-- repo-level planning Markdown, especially `ROADMAP.md` and `IMPLEMENTATION-CHECKLIST.*`
+- repo-level planning Markdown, especially `ROADMAP.md`, `ROADMAP.zh-TW.md`, and `IMPLEMENTATION-CHECKLIST.*`
 - GitHub Issues
 - GitHub Pages planning summaries
 
@@ -15,6 +15,7 @@ It exists to prevent drift between the authoritative build plan, the open task q
 This plan applies to:
 
 - [`ROADMAP.md`](../ROADMAP.md)
+- [`ROADMAP.zh-TW.md`](../ROADMAP.zh-TW.md)
 - [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md)
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)
@@ -31,7 +32,7 @@ It does not apply to:
 
 Use this source-of-truth order whenever surfaces disagree:
 
-1. `ROADMAP.md`
+1. `ROADMAP.md` and `ROADMAP.zh-TW.md`
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. GitHub Issues
 4. `docs/PROGRESS.md`
@@ -40,23 +41,23 @@ Use this source-of-truth order whenever surfaces disagree:
 
 Interpretation:
 
-- `ROADMAP.md` owns milestone order, phase boundaries, and build sequence.
+- `ROADMAP.md` and `ROADMAP.zh-TW.md` jointly own milestone order, phase boundaries, and build sequence.
 - `IMPLEMENTATION-CHECKLIST.*` owns section-level closure state and concrete implementation gates.
 - GitHub Issues represent executable slices of the remaining gaps.
 - `docs/PROGRESS.md` and `docs/progress.html` are derived summaries and must not invent project state.
 
 ## 3. Surface Roles
 
-### 3.1 `ROADMAP.md`
+### 3.1 `ROADMAP.*`
 
-Use `ROADMAP.md` to answer:
+Use `ROADMAP.md` and `ROADMAP.zh-TW.md` to answer:
 
 - what phase we are in now
 - what comes next
 - what the milestone sequence is
 - what the current lane excludes on purpose
 
-`ROADMAP.md` should change when:
+`ROADMAP.*` should change when:
 
 - milestone emphasis changes
 - the repo moves from one phase boundary to another

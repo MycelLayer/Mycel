@@ -32,7 +32,7 @@
 
 當不同介面彼此不一致時，採用以下權威順序：
 
-1. `ROADMAP.md`
+1. `ROADMAP.md` 與 `ROADMAP.zh-TW.md`
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. GitHub Issues
 4. `docs/PROGRESS.md`
@@ -41,23 +41,23 @@
 
 解讀方式：
 
-- `ROADMAP.md` 擁有 milestone 順序、phase 邊界、以及 build sequence 的權威性。
+- `ROADMAP.md` 與 `ROADMAP.zh-TW.md` 共同擁有 milestone 順序、phase 邊界、以及 build sequence 的權威性。
 - `IMPLEMENTATION-CHECKLIST.*` 擁有 section-level closure 狀態與 readiness gate 的權威性。
 - GitHub Issues 代表剩餘缺口的可執行切片。
 - `docs/PROGRESS.md` 與 `docs/progress.html` 是衍生摘要，不得自行發明專案狀態。
 
 ## 3. 各表面的角色
 
-### 3.1 `ROADMAP.md`
+### 3.1 `ROADMAP.*`
 
-用 `ROADMAP.md` 回答：
+用 `ROADMAP.md` 與 `ROADMAP.zh-TW.md` 回答：
 
 - 我們現在在哪個 phase
 - 下一個 lane 是什麼
 - milestone 順序是什麼
 - 目前 lane 刻意排除哪些東西
 
-以下情況應更新 `ROADMAP.md`：
+以下情況應更新 `ROADMAP.*`：
 
 - milestone 重心改變
 - repo 從一個 phase 邊界移動到另一個
