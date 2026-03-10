@@ -1751,6 +1751,46 @@ mod tests {
     }
 
     #[test]
+    fn parse_patch_object_rejects_wrong_base_revision_prefix() {
+        let error = parse_patch_object(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "hash:base",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": []
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'base_revision' must use 'rev:' prefix"
+        );
+    }
+
+    #[test]
+    fn parse_patch_object_rejects_wrong_author_prefix() {
+        let error = parse_patch_object(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:base",
+            "author": "author:test",
+            "timestamp": 1u64,
+            "ops": []
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'author' must use 'pk:' prefix"
+        );
+    }
+
+    #[test]
     fn parse_patch_object_rejects_unknown_top_level_field() {
         let error = parse_patch_object(&json!({
             "type": "patch",
@@ -1988,6 +2028,48 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level 'parents[0]' must use 'rev:' prefix"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_wrong_state_hash_prefix() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:test"],
+            "state_hash": "rev:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'state_hash' must use 'hash:' prefix"
+        );
+    }
+
+    #[test]
+    fn parse_revision_object_rejects_wrong_author_prefix() {
+        let error = parse_revision_object(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base"],
+            "patches": ["patch:test"],
+            "state_hash": "hash:test",
+            "author": "author:test",
+            "timestamp": 2u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'author' must use 'pk:' prefix"
         );
     }
 
