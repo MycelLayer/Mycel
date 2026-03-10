@@ -514,10 +514,10 @@ Mycel 節點可同時兼任多種角色。
 在 v0.1，與 maintainer 有關的角色拆分如下：
 
 1. **Author Node**：產生一般 patch / revision 物件
-2. **Editor-Maintainer Node**：發布 maintainer-grade patch / revision 物件，可建立新的 candidate heads
-3. **View-Maintainer Node**：發布會影響 accepted-head selection 的 View objects
+2. **Editor-Maintainer Node**：發布維護者級 patch / revision 物件，可建立新的 candidate heads
+3. **View-Maintainer Node**：發布會影響 accepted-head selection 的 View 物件
 4. **Mirror Node**：保存與提供內容
-5. **Relay Node**：轉發 metadata 與 objects
+5. **Relay Node**：轉發中繼資料與物件
 6. **Archivist Node**：保存完整歷史
 
 同一把 key 或同一個 node MAY 同時持有 editor-maintainer 與 view-maintainer 角色。
@@ -549,7 +549,7 @@ Mycel 不要求全節點同步全部資料，支援 partial replication。
 
 第一次加入：
 
-1. 節點取得 bootstrap peers
+1. 節點取得初始 peers
 2. 取得 manifest
 3. 拉最近 snapshot
 4. 補差額 patch / revision
@@ -561,7 +561,7 @@ Mycel 不要求全節點同步全部資料，支援 partial replication。
 2. 檢查本地是否缺物件
 3. 以 canonical object ID 拉取缺失
 4. 驗 hash、驗簽章
-5. 存入本地 store
+5. 存入本地儲存
 6. 依固定 profile 規則重算 accepted heads
 
 ### 8.3 交換訊息類型
@@ -577,7 +577,7 @@ v0.1 最小訊息集：
 - `VIEW_ANNOUNCE`
 - `BYE`
 
-這些訊息的 transport 格式以 `WIRE-PROTOCOL.zh-TW.md` 為規範性定義。
+這些訊息的傳輸格式以 `WIRE-PROTOCOL.zh-TW.md` 為規範性定義。
 本核心協議文件只描述概念性的同步流程與被複製物件的語義。
 
 ## 9. 衝突與合併
@@ -708,11 +708,11 @@ Mycel 不定義全域唯一 accepted head。
 
 為了在保留 multi-view 的前提下，盡量降低 client 的自由裁量影響：
 
-1. 合規的 reader client MUST 將每個顯示中的文件家族綁定到一個固定的 View profile。
+1. 合規的閱讀客戶端 MUST 將每個顯示中的文件家族綁定到一個固定的 View profile。
 2. 在 v0.1，accepted-head selection 的 profile 識別值為 `policy_hash`。
-3. 合規的 reader client MUST 只依已驗證的 protocol objects 與該固定 profile 導出 active accepted head。
-4. 合規的 reader client MUST NOT 提供會改變 active accepted head 的自由裁量本地 policy controls。
-5. 合規的 reader client MAY 為了審計而顯示 raw heads、branch graphs、或其他 profile 的結果，但除非另有有效固定 profile 治理該結果，否則 MUST NOT 將其顯示為 active accepted head。
+3. 合規的閱讀客戶端 MUST 只依已驗證的協定物件與該固定 profile 導出 active accepted head。
+4. 合規的閱讀客戶端 MUST NOT 提供會改變 active accepted head 的自由裁量本地 policy controls。
+5. 合規的閱讀客戶端 MAY 為了審計而顯示 raw heads、branch graphs、或其他 profile 的結果，但除非另有有效固定 profile 治理該結果，否則 MUST NOT 將其顯示為 active accepted head。
 
 ### 10.0.1 兩種 Maintainer 角色（規範）
 
@@ -744,7 +744,7 @@ Selector 的輸入 tuple（輸入組）為：
 - `effective_selection_time`
 
 在 v0.1，`profile_id` 就是 active View profile 的固定 `policy_hash`。
-若 client 支援多個固定 profiles，MUST 以明確列舉方式提供；它 MUST NOT 為 active accepted-head 路徑臨時構造 ad hoc local policies。
+若 client 支援多個固定 profiles，MUST 以明確列舉方式提供；它 MUST NOT 為 active accepted-head 路徑臨時構造 ad hoc 本地 policies。
 
 `effective_selection_time` 定義如下：
 
