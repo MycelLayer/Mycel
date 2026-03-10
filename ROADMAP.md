@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: late partial progress, refreshed after the recent M1 validation batch
+Status: late partial progress, refreshed after the recent M1 strictness and fixture-isolation batch
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -17,6 +17,7 @@ The repository already has:
 - a growing v0.1 protocol and wire-spec document set
 - a Rust CLI suitable for internal validation and deterministic simulator workflows
 - `mycel-core` support for object schema metadata, object-envelope parsing, replay-based revision verification, local object-store ingest/rebuild, persisted store indexes, and accepted-head inspection
+- broader strictness-surface coverage for `document`, `block`, `patch`, `revision`, `view`, and `snapshot` validation paths, plus isolated validate-peer fixtures
 - simulator fixtures, topologies, tests, and reports for regression coverage
 
 The repository does not yet have:
@@ -135,7 +136,7 @@ Completion gate:
 
 Current read:
 
-Nearly complete. The shared parsing, canonical helper, negative-validation base, and canonical reproducibility coverage now exist; the remaining work is mostly strictness closure and a few milestone-close proof points.
+Nearly complete. The shared parsing, canonical helper, broad strictness-surface coverage, isolated validate-peer fixtures, and canonical reproducibility coverage now exist; the remaining work is mostly malformed-field depth and semantic-edge closure plus a few milestone-close proof points.
 
 Already visible in the repo:
 

@@ -250,6 +250,8 @@ If it reports `due`, refresh:
 - `ROADMAP.md`
 - `IMPLEMENTATION-CHECKLIST.en.md`
 - `IMPLEMENTATION-CHECKLIST.zh-TW.md`
+- aligned GitHub Issues
+- GitHub Pages planning summary surfaces such as `docs/PROGRESS.md` and `docs/progress.html`
 
 in the next docs-sync batch, even if no single change forced an update.
 
@@ -272,6 +274,7 @@ For a docs-only planning refresh:
 3. realign issues
 4. regenerate or manually update `docs/PROGRESS.md`
 5. update `docs/progress.html`
+6. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 
 ## 9. Anti-Drift Rules
 

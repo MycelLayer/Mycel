@@ -328,7 +328,7 @@
           app-layer surface.
         </p>
         <ol class="lane-list">
-          <li>Close <code>M1</code> parsing and canonicalization debt.</li>
+          <li>Close <code>M1</code> malformed-field depth and canonicalization debt.</li>
           <li>Finish <code>M2</code> replay, rebuild, and narrow write-path closure.</li>
           <li>Delay <code>M3+</code> expansion until the shared core is stable.</li>
         </ol>
@@ -348,7 +348,7 @@
             <ul>
               <li>Shared parsing and schema layer</li>
               <li>Canonical validation utilities</li>
-              <li>Verification test depth</li>
+              <li>Strictness and fixture coverage</li>
             </ul>
           </article>
           <article class="card">
@@ -420,13 +420,13 @@
               <td data-label="Area">2. Object Types and IDs</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">Several families are typed; logical-ID and stricter field-shape closure remain.</td>
+              <td data-label="Current read">All required v0.1 families are typed; malformed field-shape depth, semantic-edge closure, and role modeling remain.</td>
             </tr>
             <tr>
               <td data-label="Area">3. Canonical Serialization and Hashing</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">Core rules exist, but duplicate-key rejection and shared reuse are still open.</td>
+              <td data-label="Current read">Core rules and reproducibility coverage exist; shared canonical utility reuse for <code>state_hash</code> and wire remains open.</td>
             </tr>
             <tr>
               <td data-label="Area">4. Signature Verification</td>
@@ -480,7 +480,7 @@
               <td data-label="Area">12. Interop Test Minimum</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1 / M2</td>
-              <td data-label="Current read">Fixtures and smoke coverage exist, but several normative and round-trip checks remain.</td>
+              <td data-label="Current read">Fixture isolation, reproducibility, and smoke coverage exist, but several normative wire and replay checks remain.</td>
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>

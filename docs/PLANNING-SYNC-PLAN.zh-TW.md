@@ -251,6 +251,8 @@ scripts/check-doc-refresh.sh
 - `ROADMAP.md`
 - `IMPLEMENTATION-CHECKLIST.en.md`
 - `IMPLEMENTATION-CHECKLIST.zh-TW.md`
+- 對齊的 GitHub Issues
+- GitHub Pages 上的 planning 摘要層，例如 `docs/PROGRESS.md` 與 `docs/progress.html`
 
 即使沒有任何單一 commit 強迫你更新，也要做這次 refresh。
 
@@ -273,6 +275,7 @@ scripts/check-doc-refresh.sh
 3. 對齊 issues
 4. 再更新 `docs/PROGRESS.md`
 5. 再更新 `docs/progress.html`
+6. 確認 GitHub Pages 上的 planning 摘要與刷新後的 roadmap/checklist/issues 狀態一致
 
 ## 9. Anti-Drift 規則
 

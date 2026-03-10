@@ -327,7 +327,7 @@
           replay 與 rebuild，再往 reader、sync 與 app-layer 擴張。
         </p>
         <ol class="lane-list">
-          <li>收掉 <code>M1</code> 的 parsing 與 canonicalization debt。</li>
+          <li>收掉 <code>M1</code> 的 malformed-field depth 與 canonicalization debt。</li>
           <li>完成 <code>M2</code> 的 replay、rebuild 與 narrow write-path closure。</li>
           <li>在 shared core 穩定前，延後 <code>M3+</code> 的擴張。</li>
         </ol>
@@ -347,7 +347,7 @@
             <ul>
               <li>Shared parsing 與 schema layer</li>
               <li>Canonical validation utilities</li>
-              <li>Verification test depth</li>
+              <li>Strictness 與 fixture coverage</li>
             </ul>
           </article>
           <article class="card">
@@ -418,13 +418,13 @@
               <td data-label="Area">2. Object Types and IDs</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">多個 families 已 typed，但 logical-ID 與更嚴格 field-shape closure 仍未完成。</td>
+              <td data-label="Current read">所有必要 v0.1 families 都已 typed；剩餘工作是 malformed field-shape depth、semantic-edge closure 與角色建模。</td>
             </tr>
             <tr>
               <td data-label="Area">3. Canonical Serialization and Hashing</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">核心規則已存在，但 duplicate-key rejection 的 reuse 與 shared reuse 仍未完成。</td>
+              <td data-label="Current read">核心規則與 reproducibility coverage 已存在；`state_hash` 與 wire 仍缺 shared canonical utility reuse。</td>
             </tr>
             <tr>
               <td data-label="Area">4. Signature Verification</td>
@@ -478,7 +478,7 @@
               <td data-label="Area">12. Interop Test Minimum</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1 / M2</td>
-              <td data-label="Current read">Fixtures 與 smoke coverage 已存在，但多條 normative 與 round-trip checks 尚未完成。</td>
+              <td data-label="Current read">Fixture isolation、reproducibility 與 smoke coverage 已存在，但多條 normative wire 與 replay checks 尚未完成。</td>
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>

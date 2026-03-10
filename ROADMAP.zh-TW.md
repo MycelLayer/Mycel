@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：late partial progress，已在最近一批 M1 validation 工作後刷新
+狀態：late partial progress，已在最近一批 M1 strictness 與 fixture isolation 工作後刷新
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -17,6 +17,7 @@
 - 持續成長中的 v0.1 protocol 與 wire-spec 文件集
 - 適合做內部 validation 與 deterministic simulator workflows 的 Rust CLI
 - `mycel-core` 對 object schema metadata、object-envelope parsing、replay-based revision verification、local object-store ingest/rebuild、persisted store indexes，以及 accepted-head inspection 的支援
+- `document`、`block`、`patch`、`revision`、`view`、`snapshot` 驗證路徑更廣的 strictness-surface coverage，以及 isolate 過的 validate-peer fixtures
 - simulator fixtures、topologies、tests 與 reports，作為 regression coverage
 
 目前 repository 尚未具備：
@@ -135,7 +136,7 @@
 
 目前判讀：
 
-接近完成。shared parsing、canonical helper、negative-validation base 與 canonical reproducibility coverage 都已存在，剩餘工作大多是 strictness 收尾與少數 milestone-close proof points。
+接近完成。shared parsing、canonical helper、更廣的 strictness-surface coverage、isolate 過的 validate-peer fixtures，以及 canonical reproducibility coverage 都已存在；剩餘工作大多是 malformed-field depth 與 semantic-edge 的收尾，加上一些 milestone-close proof points。
 
 目前 repo 已可見：
 
