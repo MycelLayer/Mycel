@@ -8,8 +8,9 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::protocol::{
-    parse_object_envelope, recompute_object_id, signed_payload_bytes, ParseObjectEnvelopeError,
-    StringFieldError,
+    parse_block_object, parse_document_object, parse_object_envelope, parse_patch_object,
+    parse_revision_object, parse_snapshot_object, parse_view_object, recompute_object_id,
+    signed_payload_bytes, ParseObjectEnvelopeError, StringFieldError,
 };
 use crate::replay::replay_revision_from_index;
 
@@ -326,6 +327,10 @@ fn verify_object_value_with_summary(
         }
     }
 
+    if summary.errors.is_empty() {
+        validate_typed_object_shape(object_type, &value, &mut summary);
+    }
+
     if object_type == "revision"
         && summary.errors.is_empty()
         && (path != Path::new("<inline-object>") || object_index.is_some())
@@ -343,6 +348,26 @@ fn verify_object_value_with_summary(
     }
 
     finalize_signed_summary(summary)
+}
+
+fn validate_typed_object_shape(
+    object_type: &str,
+    value: &Value,
+    summary: &mut ObjectVerificationSummary,
+) {
+    let result = match object_type {
+        "document" => parse_document_object(value).map(|_| ()),
+        "block" => parse_block_object(value).map(|_| ()),
+        "patch" => parse_patch_object(value).map(|_| ()),
+        "revision" => parse_revision_object(value).map(|_| ()),
+        "view" => parse_view_object(value).map(|_| ()),
+        "snapshot" => parse_snapshot_object(value).map(|_| ()),
+        _ => return,
+    };
+
+    if let Err(error) = result {
+        summary.push_error(error.to_string());
+    }
 }
 
 fn inspect_object_value_with_summary(
@@ -786,6 +811,37 @@ mod tests {
     }
 
     #[test]
+    fn document_missing_baseline_fields_is_rejected_by_typed_validation() {
+        let path = write_test_file(
+            "document-missing-title",
+            &serde_json::to_string_pretty(&json!({
+                "type": "document",
+                "version": "mycel/0.1",
+                "doc_id": "doc:test",
+                "language": "zh-Hant",
+                "content_model": "block-tree",
+                "created_at": 1u64,
+                "created_by": "pk:ed25519:test",
+                "genesis_revision": "rev:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("missing string field 'title'")),
+            "expected typed document parse error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_block_logical_id_has_wrong_type() {
         let path = write_test_file(
             "block-wrong-block-id-type",
@@ -808,6 +864,72 @@ mod tests {
                 .any(|message| message.contains("top-level 'block_id' should be a string")),
             "expected logical ID warning, got {summary:?}"
         );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn snapshot_missing_documents_is_rejected_by_typed_validation() {
+        let (signing_key, public_key) = signer_material();
+        let mut snapshot = json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "included_objects": ["rev:test"],
+            "root_hash": "hash:test",
+            "created_by": public_key,
+            "timestamp": 9u64
+        });
+        let snapshot_id = super::recompute_object_id(&snapshot, "snapshot_id", "snap")
+            .expect("snapshot ID should recompute");
+        snapshot["snapshot_id"] = Value::String(snapshot_id);
+        snapshot["signature"] = Value::String(sign_value(&signing_key, &snapshot));
+        let path = write_test_file(
+            "snapshot-missing-documents",
+            &serde_json::to_string_pretty(&snapshot).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|message| message.contains("missing object field 'documents'")),
+            "expected typed snapshot parse error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn valid_snapshot_verifies_signature_and_typed_shape() {
+        let (signing_key, public_key) = signer_material();
+        let mut snapshot = json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "created_by": public_key,
+            "timestamp": 9u64
+        });
+        let snapshot_id = super::recompute_object_id(&snapshot, "snapshot_id", "snap")
+            .expect("snapshot ID should recompute");
+        snapshot["snapshot_id"] = Value::String(snapshot_id.clone());
+        snapshot["signature"] = Value::String(sign_value(&signing_key, &snapshot));
+        let path = write_test_file(
+            "snapshot-valid",
+            &serde_json::to_string_pretty(&snapshot).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(summary.is_ok(), "expected success, got {summary:?}");
+        assert_eq!(summary.signature_verification.as_deref(), Some("verified"));
+        assert_eq!(summary.recomputed_id.as_deref(), Some(snapshot_id.as_str()));
 
         let _ = std::fs::remove_file(path);
     }

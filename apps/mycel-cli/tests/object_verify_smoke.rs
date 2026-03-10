@@ -160,7 +160,12 @@ fn object_verify_text_reports_ok_for_document_without_signature() {
             "type": "document",
             "version": "mycel/0.1",
             "doc_id": "doc:test",
-            "title": "Plain document"
+            "title": "Plain document",
+            "language": "en",
+            "content_model": "block-tree",
+            "created_at": 1777777777u64,
+            "created_by": "pk:authorA",
+            "genesis_revision": "rev:genesis"
         }),
     );
     let path = path_arg(&object.path);
