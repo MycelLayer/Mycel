@@ -22,6 +22,8 @@ Mycel takes a different path. It treats text history, accepted reading, and repl
 
 The result is a protocol stack for long-lived texts, commentary systems, governed reference corpora, and other text-first distributed workflows.
 
+It fills the gap between centralized collaboration platforms and global-consensus blockchains by providing verifiable history, rule-derived default reading, and decentralized replication without forcing the whole network into a single canonical truth.
+
 ## What Makes It Different
 
 - Verifiable history: revisions are meant to be replayed and checked, not merely trusted.

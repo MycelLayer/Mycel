@@ -18,6 +18,8 @@ Mycel addresses a gap not well served by existing tools. Centralized collaborati
 
 Mycel proposes a different model: history, accepted reading, and replication should remain interoperable, but should not be collapsed into a single consensus mechanism.
 
+In that sense, Mycel fills the gap between centralized collaboration platforms and global-consensus blockchains. It offers verifiable history, rule-derived default reading, and decentralized replication without forcing the whole network into one canonical truth.
+
 ## Problem Statement
 
 Many important text systems need more than document editing and less than blockchain consensus.
