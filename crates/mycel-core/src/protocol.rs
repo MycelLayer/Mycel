@@ -491,12 +491,19 @@ pub fn parse_document_object(value: &Value) -> Result<DocumentObject, TypedObjec
 }
 
 pub fn parse_block_object(value: &Value) -> Result<BlockObject, TypedObjectError> {
+    parse_block_object_with_context(value, "top-level")
+}
+
+fn parse_block_object_with_context(
+    value: &Value,
+    context: &str,
+) -> Result<BlockObject, TypedObjectError> {
     let object = value
         .as_object()
-        .ok_or_else(|| TypedObjectError::new("block must be a JSON object"))?;
+        .ok_or_else(|| TypedObjectError::new(format!("{context} must be a JSON object")))?;
     reject_unknown_fields(
         object,
-        "top-level",
+        context,
         &[
             "type",
             "version",
@@ -517,7 +524,10 @@ pub fn parse_block_object(value: &Value) -> Result<BlockObject, TypedObjectError
         attrs: required_object(object, "attrs")?,
         children: required_array(object, "children")?
             .iter()
-            .map(parse_block_object)
+            .enumerate()
+            .map(|(index, child)| {
+                parse_block_object_with_context(child, &format!("{context} 'children[{index}]'"))
+            })
             .collect::<Result<Vec<_>, _>>()?,
     })
 }
@@ -556,7 +566,11 @@ pub fn parse_patch_object(value: &Value) -> Result<PatchObject, TypedObjectError
         timestamp: required_u64(object, "timestamp")?,
         ops: required_array(object, "ops")?
             .iter()
-            .map(parse_patch_operation)
+            .enumerate()
+            .map(|(index, operation)| {
+                parse_patch_operation(operation)
+                    .map_err(|error| prepend_context(error, &format!("top-level 'ops[{index}]'")))
+            })
             .collect::<Result<Vec<_>, _>>()?,
     })
 }
@@ -1052,7 +1066,11 @@ fn parse_block_field(
     let value = object
         .get(field)
         .ok_or_else(|| TypedObjectError::new(format!("missing object field '{field}'")))?;
-    parse_block_object(value)
+    parse_block_object(value).map_err(|error| prepend_context(error, &format!("top-level '{field}'")))
+}
+
+fn prepend_context(error: TypedObjectError, context: &str) -> TypedObjectError {
+    TypedObjectError::new(format!("{context}: {error}"))
 }
 
 fn parse_metadata_entries(
@@ -1638,7 +1656,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "move_block requires at least one destination reference"
+            "top-level 'ops[0]': move_block requires at least one destination reference"
         );
     }
 
@@ -1661,7 +1679,10 @@ mod tests {
         }))
         .unwrap_err();
 
-        assert_eq!(error.to_string(), "top-level 'metadata' must not be empty");
+        assert_eq!(
+            error.to_string(),
+            "top-level 'ops[0]': top-level 'metadata' must not be empty"
+        );
     }
 
     #[test]
@@ -1686,7 +1707,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "top-level 'block_id' must use 'blk:' prefix"
+            "top-level 'ops[0]': top-level 'block_id' must use 'blk:' prefix"
         );
     }
 
@@ -1733,7 +1754,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "patch op contains unexpected field 'new_content'"
+            "top-level 'ops[0]': patch op contains unexpected field 'new_content'"
         );
     }
 
@@ -1761,7 +1782,7 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "patch op contains unexpected field 'key'"
+            "top-level 'ops[0]': patch op contains unexpected field 'key'"
         );
     }
 
@@ -1982,6 +2003,32 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level contains unexpected field 'unexpected'"
+        );
+    }
+
+    #[test]
+    fn parse_block_object_rejects_unknown_nested_child_field_with_path() {
+        let error = parse_block_object(&json!({
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": [
+                {
+                    "block_id": "blk:002",
+                    "block_type": "paragraph",
+                    "content": "Child",
+                    "attrs": {},
+                    "children": [],
+                    "unexpected": true
+                }
+            ]
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'children[0]' contains unexpected field 'unexpected'"
         );
     }
 

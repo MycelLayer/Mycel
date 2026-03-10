@@ -625,6 +625,55 @@ fn object_verify_json_fails_for_patch_op_unknown_field() {
 }
 
 #[test]
+fn object_verify_json_fails_for_patch_nested_block_shape_with_path() {
+    let patch = signed_object(
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "timestamp": 1777778888u64,
+            "ops": [
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:001",
+                        "block_type": "paragraph",
+                        "content": "Hello"
+                    }
+                }
+            ]
+        }),
+        "author",
+        "patch_id",
+        "patch",
+    );
+    let object = write_object_file(
+        "object-verify-patch-nested-block-shape",
+        "patch.json",
+        patch,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'ops[0]': top-level 'new_block'")
+                        && message.contains("missing object field 'attrs'")
+                })
+            })),
+        "expected nested block shape error with path, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_reports_ok_for_revision_with_replayed_state_hash() {
     let dir = create_temp_dir("object-verify-revision-replay");
     let patch_path = dir.path().join("patch.json");
