@@ -504,6 +504,68 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
 }
 
 #[test]
+fn store_index_head_only_json_prunes_non_head_sections() {
+    let fixture = build_store_with_view();
+    let output = run_mycel(&[
+        "store",
+        "index",
+        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        "--head-only",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["projection"], "head-only");
+    assert_eq!(
+        json["profile_heads"].as_object().map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["author_patches"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["view_governance"]
+            .as_array()
+            .map(|values| values.len()),
+        Some(0)
+    );
+}
+
+#[test]
+fn store_index_patches_only_json_prunes_non_patch_sections() {
+    let fixture = build_store_with_view();
+    let output = run_mycel(&[
+        "store",
+        "index",
+        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        "--patches-only",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["projection"], "patches-only");
+    assert_eq!(
+        json["author_patches"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["profile_heads"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["doc_revisions"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+}
+
+#[test]
 fn store_index_parents_only_text_reports_projection() {
     let fixture = build_store_with_view();
     let output = run_mycel(&[
@@ -535,6 +597,47 @@ fn store_index_parents_only_text_reports_projection() {
 }
 
 #[test]
+fn store_index_empty_query_fails_without_empty_ok() {
+    let fixture = build_store_with_view();
+    let output = run_mycel(&[
+        "store",
+        "index",
+        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        "--doc-id",
+        "doc:missing",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "empty");
+    assert_eq!(
+        json["doc_revisions"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+}
+
+#[test]
+fn store_index_empty_query_succeeds_with_empty_ok() {
+    let fixture = build_store_with_view();
+    let output = run_mycel(&[
+        "store",
+        "index",
+        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        "--doc-id",
+        "doc:missing",
+        "--empty-ok",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(
+        json["doc_revisions"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+}
+
+#[test]
 fn store_index_rejects_multiple_projection_flags() {
     let fixture = build_store_with_view();
     let output = run_mycel(&[
@@ -542,6 +645,7 @@ fn store_index_rejects_multiple_projection_flags() {
         "index",
         &path_arg(&fixture.store_dir.path().to_path_buf()),
         "--doc-only",
+        "--head-only",
         "--governance-only",
     ]);
 

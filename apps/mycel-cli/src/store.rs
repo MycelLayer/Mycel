@@ -89,10 +89,16 @@ struct StoreIndexCliArgs {
     json: bool,
     #[arg(long, help = "Print only the persisted manifest path")]
     path_only: bool,
+    #[arg(long, help = "Treat an empty query result as success")]
+    empty_ok: bool,
     #[arg(long, help = "Only emit document revision indexes")]
     doc_only: bool,
+    #[arg(long, help = "Only emit profile head indexes")]
+    head_only: bool,
     #[arg(long, help = "Only emit governance-related indexes")]
     governance_only: bool,
+    #[arg(long, help = "Only emit author patch indexes")]
+    patches_only: bool,
     #[arg(long, help = "Only emit revision parent indexes")]
     parents_only: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -129,7 +135,9 @@ struct StoreIndexQueryFilters {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StoreIndexProjection {
     DocOnly,
+    HeadOnly,
     GovernanceOnly,
+    PatchesOnly,
     ParentsOnly,
 }
 
@@ -392,12 +400,28 @@ fn apply_projection(
             summary.profile_heads.clear();
             summary.projection = Some("doc-only".to_string());
         }
+        Some(StoreIndexProjection::HeadOnly) => {
+            summary.object_ids_by_type.clear();
+            summary.doc_revisions.clear();
+            summary.revision_parents.clear();
+            summary.author_patches.clear();
+            summary.view_governance.clear();
+            summary.projection = Some("head-only".to_string());
+        }
         Some(StoreIndexProjection::GovernanceOnly) => {
             summary.object_ids_by_type.clear();
             summary.doc_revisions.clear();
             summary.revision_parents.clear();
             summary.author_patches.clear();
             summary.projection = Some("governance-only".to_string());
+        }
+        Some(StoreIndexProjection::PatchesOnly) => {
+            summary.object_ids_by_type.clear();
+            summary.doc_revisions.clear();
+            summary.revision_parents.clear();
+            summary.view_governance.clear();
+            summary.profile_heads.clear();
+            summary.projection = Some("patches-only".to_string());
         }
         Some(StoreIndexProjection::ParentsOnly) => {
             summary.object_ids_by_type.clear();
@@ -409,6 +433,46 @@ fn apply_projection(
         }
         None => {}
     }
+}
+
+fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
+    let filters = &summary.filters;
+    let has_explicit_filter = filters.doc_id.is_some()
+        || filters.author.is_some()
+        || filters.revision_id.is_some()
+        || filters.view_id.is_some()
+        || filters.profile_id.is_some()
+        || filters.object_type.is_some();
+
+    if !has_explicit_filter {
+        return summary.object_ids_by_type.is_empty()
+            && summary.doc_revisions.is_empty()
+            && summary.revision_parents.is_empty()
+            && summary.author_patches.is_empty()
+            && summary.view_governance.is_empty()
+            && summary.profile_heads.is_empty();
+    }
+
+    let mut has_match = false;
+    if filters.object_type.is_some() && !summary.object_ids_by_type.is_empty() {
+        has_match = true;
+    }
+    if filters.author.is_some() && !summary.author_patches.is_empty() {
+        has_match = true;
+    }
+    if (filters.doc_id.is_some() || filters.revision_id.is_some()) && !summary.doc_revisions.is_empty() {
+        has_match = true;
+    }
+    if filters.revision_id.is_some() && !summary.revision_parents.is_empty() {
+        has_match = true;
+    }
+    if (filters.view_id.is_some() || filters.profile_id.is_some() || filters.doc_id.is_some() || filters.revision_id.is_some())
+        && (!summary.view_governance.is_empty() || !summary.profile_heads.is_empty())
+    {
+        has_match = true;
+    }
+
+    !has_match
 }
 
 fn build_store_index_query_summary(
@@ -489,15 +553,19 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
     if let Some(projection) = &summary.projection {
         println!("projection: {projection}");
     }
-    println!("store index: ok");
-    0
+    println!("store index: {}", summary.status);
+    if summary.status == "ok" {
+        0
+    } else {
+        1
+    }
 }
 
 fn print_store_index_json(summary: &StoreIndexQuerySummary) -> Result<i32, CliError> {
     match serde_json::to_string_pretty(summary) {
         Ok(json) => {
             println!("{json}");
-            Ok(0)
+            Ok(if summary.status == "ok" { 0 } else { 1 })
         }
         Err(source) => Err(CliError::serialization("store index summary", source)),
     }
@@ -516,8 +584,14 @@ fn selected_projection(args: &StoreIndexCliArgs) -> Result<Option<StoreIndexProj
     if args.doc_only {
         selected.push(StoreIndexProjection::DocOnly);
     }
+    if args.head_only {
+        selected.push(StoreIndexProjection::HeadOnly);
+    }
     if args.governance_only {
         selected.push(StoreIndexProjection::GovernanceOnly);
+    }
+    if args.patches_only {
+        selected.push(StoreIndexProjection::PatchesOnly);
     }
     if args.parents_only {
         selected.push(StoreIndexProjection::ParentsOnly);
@@ -571,7 +645,7 @@ fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
         }
         return Ok(print_store_index_path_only(&store_root));
     }
-    let summary = build_store_index_query_summary(
+    let mut summary = build_store_index_query_summary(
         store_root,
         manifest,
         StoreIndexQueryFilters {
@@ -584,6 +658,9 @@ fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
         },
         projection,
     );
+    if is_store_index_query_empty(&summary) && !args.empty_ok {
+        summary.status = "empty".to_string();
+    }
 
     if args.json {
         print_store_index_json(&summary)
