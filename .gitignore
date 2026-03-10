@@ -1,4 +1,4 @@
-AGENTS-MYCEL.md
+AGENTS-LOCAL.md
 target/
 sim/runtime/*
 !sim/runtime/README.md
