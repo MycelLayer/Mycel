@@ -4,6 +4,7 @@
 - Commit after every code change.
 - Push to `origin main` after every code change.
 - Multiple chats may work on the same project at the same time; each chat agent should just push its own commits to `origin/main`.
+- Commit and push must run serially; only push after the commit has completed successfully, and do not run commit/push in parallel.
 - After each completed code change and push, proactively check the latest CI workflow status and report any failures, but do not wait for CI to finish unless explicitly asked.
 - Before starting any new work, first re-check the latest CI workflow status from the previous push and report any failures.
 
