@@ -1,0 +1,62 @@
+name: Feature request
+description: Propose a new capability, workflow, or documentation improvement.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep requests narrow and explicit. For new features, assume no backward compatibility is required unless you can explain why it matters now.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete problem are we trying to solve?
+      placeholder: Describe the current limitation or friction.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change?
+      placeholder: Describe the new command, behavior, schema, or documentation change.
+    validations:
+      required: true
+  - type: textarea
+    id: why_now
+    attributes:
+      label: Why now
+      description: Why is this worth doing at the current stage of the project?
+      placeholder: Explain why this belongs in the current roadmap instead of later.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Protocol spec
+        - Wire protocol
+        - Rust core
+        - CLI
+        - Simulator
+        - Fixtures
+        - Documentation
+        - Governance/profile design
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Tradeoffs
+      description: What cost, risk, or complexity does this add?
+      placeholder: Note implementation cost, maintenance burden, compatibility impact, or scope risk.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: List any narrower or simpler alternatives.
+    validations:
+      required: false
