@@ -1288,7 +1288,20 @@ fn required_canonical_object_id_array(
     for (index, value) in values.iter().enumerate() {
         validate_canonical_object_id(value, &format!("{field}[{index}]"))?;
     }
+    reject_duplicate_strings(&values, field)?;
     Ok(values)
+}
+
+fn reject_duplicate_strings(values: &[String], field: &str) -> Result<(), TypedObjectError> {
+    let mut first_seen = BTreeMap::new();
+    for (index, value) in values.iter().enumerate() {
+        if let Some(first_index) = first_seen.insert(value.as_str(), index) {
+            return Err(TypedObjectError::new(format!(
+                "top-level '{field}[{index}]' duplicates '{field}[{first_index}]'"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn required_string_map(
@@ -2267,6 +2280,28 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level 'included_objects[0]' must use a canonical object ID prefix"
+        );
+    }
+
+    #[test]
+    fn parse_snapshot_object_rejects_duplicate_included_object_ids() {
+        let error = parse_snapshot_object(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "rev:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64
+        }))
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "top-level 'included_objects[1]' duplicates 'included_objects[0]'"
         );
     }
 

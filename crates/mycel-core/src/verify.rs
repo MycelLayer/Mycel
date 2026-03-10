@@ -1003,6 +1003,42 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_duplicate_included_objects_are_rejected() {
+        let (signing_key, public_key) = signer_material();
+        let mut snapshot = json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "rev:test"],
+            "root_hash": "hash:test",
+            "created_by": public_key,
+            "timestamp": 9u64
+        });
+        let snapshot_id = super::recompute_object_id(&snapshot, "snapshot_id", "snap")
+            .expect("snapshot ID should recompute");
+        snapshot["snapshot_id"] = Value::String(snapshot_id);
+        snapshot["signature"] = Value::String(sign_value(&signing_key, &snapshot));
+        let path = write_test_file(
+            "snapshot-duplicate-included-objects",
+            &serde_json::to_string_pretty(&snapshot).expect("test JSON should serialize"),
+        );
+
+        let summary = verify_object_path(&path);
+
+        assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+        assert!(
+            summary.errors.iter().any(|message| {
+                message.contains("top-level 'included_objects[1]' duplicates 'included_objects[0]'")
+            }),
+            "expected duplicate included_objects error, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn snapshot_mismatched_derived_id_is_rejected() {
         let (signing_key, public_key) = signer_material();
         let mut snapshot = json!({
