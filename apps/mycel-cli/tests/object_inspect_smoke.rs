@@ -576,6 +576,42 @@ fn object_inspect_json_warns_for_patch_with_wrong_block_reference_prefix() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_patch_with_wrong_author_prefix() {
+    let object = write_object_file(
+        "object-inspect-patch-wrong-author-prefix",
+        "patch.json",
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "author:test",
+            "timestamp": 1u64,
+            "ops": [],
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'author' must use 'pk:' prefix")
+                })
+            })),
+        "expected patch author warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_patch_with_unknown_top_level_field() {
     let object = write_object_file(
         "object-inspect-patch-unknown-top-level-field",

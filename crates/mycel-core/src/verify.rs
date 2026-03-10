@@ -2072,6 +2072,38 @@ mod tests {
     }
 
     #[test]
+    fn inspect_warns_when_patch_author_prefix_is_wrong() {
+        let path = write_test_file(
+            "patch-wrong-author-prefix-inspect",
+            &serde_json::to_string_pretty(&json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:test",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "author:test",
+                "timestamp": 1u64,
+                "ops": [],
+                "signature": "sig:ed25519:test"
+            }))
+            .expect("test JSON should serialize"),
+        );
+
+        let summary = inspect_object_path(&path);
+
+        assert_eq!(summary.status, "warning");
+        assert!(
+            summary
+                .notes
+                .iter()
+                .any(|message| message.contains("top-level 'author' must use 'pk:' prefix")),
+            "expected author prefix warning, got {summary:?}"
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn inspect_warns_when_patch_contains_unknown_top_level_field() {
         let path = write_test_file(
             "patch-unknown-top-level-field-inspect",
