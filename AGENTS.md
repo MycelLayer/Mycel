@@ -28,6 +28,7 @@
 - When the user asks for a solution or recommendation, provide multiple viable options by default, not just a single “best” answer.
 - For each option, include a one-line tradeoff (cost/time/risk/complexity) so the user can choose.
 - As the project grows, proactively suggest mature modules, libraries, or frameworks at the right time when they would clearly reduce maintenance risk or simplify the design. Do not wait for the user to ask if the need is becoming obvious (for example, suggesting `clap` once CLI argument parsing becomes complex).
+- When code or tests start showing large repeated patterns, actively consider whether a mature module or tool should replace the repetition with a clearer structure (for example, `rstest` cases for repeated validation matrices).
 - When suggesting a mature module, library, or framework, explain why now is the right time, what problem it solves, and the main tradeoff of adopting it.
 - After completing a piece of work, end with a short evaluation of valuable next-stage work and let the user choose from multiple concrete options by default.
 - In final next-stage recommendations, put the highest-value option first by default.
