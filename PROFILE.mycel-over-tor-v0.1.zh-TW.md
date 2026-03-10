@@ -1,10 +1,10 @@
 # Mycel over Tor Profile v0.1
 
-狀態：profile draft
+狀態：profile 草案
 
 這份 profile 定義一個收斂的 Mycel over Tor 傳輸部署模型。
 
-這份 profile 聚焦在 transport。
+這份 profile 聚焦在傳輸層。
 
 它不聲稱單靠自己就能提供完整匿名性。
 
@@ -12,7 +12,7 @@
 
 - transport expectations（傳輸預期）
 - peer addressing rules（節點位址規則）
-- peer discovery behavior（節點發現行為）
+- peer discovery behavior（節點探索行為）
 - metadata handling（中繼資料處理）
 - role-separation expectations（角色分離預期）
 
@@ -22,12 +22,12 @@
 
 - Mycel core protocol
 - v0.1 wire protocol
-- 可代理的 outbound transport
-- 可配置的 peer addressing
+- 可代理的對外傳輸
+- 可設定的 peer addressing
 
 這份 profile 適用於：
 
-- 經 Tor 路由的 peer transport
+- 經 Tor 路由的 peer 傳輸
 - onion-first 的 peer addressing
 - 想要先採用狹窄且明確匿名部署設定的第一版系統
 
@@ -36,15 +36,15 @@
 目標如下：
 
 1. 降低直接 IP 暴露
-2. 降低 peer-address 洩漏
-3. 讓 transport 假設保持明確
+2. 降低 peer 位址洩漏
+3. 讓傳輸假設保持明確
 4. 讓匿名性的限制被看見，而不是被暗示
 
 ## 2. Transport Requirements
 
 合規節點必須滿足以下條件：
 
-1. 所有 outbound peer traffic MUST 經由 Tor 或同等的本地 Tor proxy
+1. 所有對外 peer traffic MUST 經由 Tor 或同等的本地 Tor proxy
 2. direct clearnet peer dialing MUST 預設停用
 3. 若存在 onion endpoint，peer addresses SHOULD 優先使用 onion endpoints
 4. transport failure 時 MUST NOT 靜默回退到 direct clearnet transport
@@ -75,7 +75,7 @@
 
 允許的 discovery sources：
 
-- 明確的本地 bootstrap list
+- 明確的本地啟動清單
 - 經由 Tor-routed transport 取得的 accepted peer manifests
 - out-of-band trusted peer introductions（帶外可信節點介紹）
 
@@ -85,11 +85,11 @@
 - opportunistic direct-network scanning
 - silent clearnet fallback discovery
 
-實作仍可支援 manual peer addition，但合規運作應保持 discovery 有邊界且明確。
+實作仍可支援手動加入 peer，但合規運作應保持 discovery 有邊界且明確。
 
 ## 5. Message Metadata Handling
 
-只有 Tor transport 並不夠。
+只有 Tor 傳輸並不夠。
 
 合規實作也應降低不必要且可關聯的 metadata。
 
@@ -104,7 +104,7 @@
 
 ## 6. Local Logging and Caching
 
-本地行為很容易破壞 transport anonymity。
+本地行為很容易破壞傳輸匿名性。
 
 合規實作應：
 
@@ -123,7 +123,7 @@
 
 - anonymous reader nodes 與 governance-maintainer nodes 分開
 - governance-maintainer nodes 與 signer nodes 分開
-- signer nodes 與 effect 或 payment runtimes 分開
+- signer nodes 與 effect 或 payment 執行環境分開
 
 這不會讓 public governance activity 自動變匿名，但可以減少不必要的跨角色關聯。
 
@@ -149,7 +149,7 @@
 建議控制方式：
 
 - 只抓取 active role 真正需要的 object families
-- 在 reader nodes 上避免對所有敏感 app-layer records 做 universal mirroring
+- 在 reader nodes 上避免對所有敏感 app-layer records 做全面鏡像
 - 保留 accepted-state verification，而不要求所有 artifacts 都在每個節點完整複製
 
 這份 profile 偏好 bounded replication（有邊界的複製），而不是最大可見性。
@@ -158,7 +158,7 @@
 
 這份 profile 應明確顯示以下警告：
 
-- Tor transport 不會隱藏穩定的 governance keys
+- Tor 傳輸不會隱藏穩定的 governance keys
 - public signing activity 仍然可被關聯
 - payment 或 effect runtimes 可能讓相關活動去匿名化
 - 在同一本地環境中混用 anonymous reading 與 identified operations 會削弱匿名性
@@ -167,8 +167,8 @@
 
 最小合規流程如下：
 
-1. 載入 onion-first bootstrap list
-2. 僅透過 Tor-routed transport 建立 outbound sessions
+1. 載入 onion-first 啟動清單
+2. 僅透過 Tor-routed transport 建立對外 sessions
 3. 交換正常的 v0.1 wire messages
 4. 只抓取本地角色需要的 objects
 5. 不做 clearnet fallback
@@ -186,12 +186,12 @@
 
 ## 13. Minimal First-client Requirements
 
-對第一個可互通 client，我建議：
+對第一個可互通客戶端，我建議：
 
-- 一條明確的 Tor proxy configuration path
+- 一條明確的 Tor proxy 設定路徑
 - 支援 onion-first peer list
 - 不做 automatic clearnet fallback
-- 當使用非本 profile transport 時給出明確 UI 警告
+- 當使用非本 profile transport 時給出明確介面警告
 - 將 anonymous reading 與 identified operations 分離為不同本地 profiles
 
 ## 14. Open Questions
