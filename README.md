@@ -104,6 +104,7 @@ If you want the design layer behind current decisions:
 - First-client boundary: [docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.en.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.en.md)
 - Full-stack map: [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md)
 - Protocol upgrade philosophy: [docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md)
+- Feature design checklist: [docs/FEATURE-REVIEW-CHECKLIST.md](./docs/FEATURE-REVIEW-CHECKLIST.md)
 
 ## Key Documents
 
