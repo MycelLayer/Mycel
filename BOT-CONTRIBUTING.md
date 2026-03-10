@@ -7,6 +7,7 @@ Use it together with:
 - [README.md](./README.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [AGENTS.md](./AGENTS.md)
+- [`.github/labels.yml`](./.github/labels.yml) for the repo-tracked bot/task label set
 
 ## What Kind of Work Fits This Repo Best
 

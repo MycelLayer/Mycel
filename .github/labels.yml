@@ -1,0 +1,22 @@
+labels:
+  - name: ai-ready
+    color: "0e8a16"
+    description: Well-scoped task with clear acceptance criteria and verification commands.
+  - name: well-scoped
+    color: "1d76db"
+    description: Narrow scope with clear file boundaries and limited side effects.
+  - name: heavy-lift
+    color: "b60205"
+    description: Substantial implementation work suitable for longer autonomous sessions.
+  - name: spec-follow-up
+    color: "fbca04"
+    description: Depends on or directly closes a protocol, profile, or design-note gap.
+  - name: tests-needed
+    color: "5319e7"
+    description: Needs direct test, fixture, or regression coverage as part of completion.
+  - name: fixture-backed
+    color: "0052cc"
+    description: Task should be driven or validated by checked-in fixtures.
+  - name: blocked-by-spec
+    color: "d93f0b"
+    description: Implementation should wait for a clearer spec or design decision.
