@@ -177,6 +177,18 @@ fn validate_from_target(
 
     let input = load_all(root, &mut summary);
     let mut scoped = scope_input(root, &input, target);
+    if matches!(target, ValidationTarget::Peer(_)) && scoped.peers.is_empty() {
+        if let Some(value) = load_json::<Peer>(target_path, &mut summary) {
+            scoped = scope_for_peers(
+                root,
+                &input,
+                vec![NamedPeer {
+                    path: target_path.to_path_buf(),
+                    value,
+                }],
+            );
+        }
+    }
     if matches!(target, ValidationTarget::Report(_)) && scoped.reports.is_empty() {
         if let Some(value) = load_relaxed_json::<Report>(target_path, &mut summary) {
             scoped = scope_for_direct_report(root, &input, target_path, value);

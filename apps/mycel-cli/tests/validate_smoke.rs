@@ -22,7 +22,9 @@ impl TempRepoJsonFile {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
-        let path = repo_root().join(format!("sim/peers/{prefix}-{unique}.json"));
+        let temp_dir = repo_root().join("sim/peers/.tmp");
+        fs::create_dir_all(&temp_dir).expect("temporary peer fixture directory should exist");
+        let path = temp_dir.join(format!("{prefix}-{unique}.json"));
         fs::write(&path, content).expect("temporary validate fixture should write");
         Self { path }
     }
@@ -31,6 +33,9 @@ impl TempRepoJsonFile {
 impl Drop for TempRepoJsonFile {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.path);
+        if let Some(parent) = self.path.parent() {
+            let _ = fs::remove_dir(parent);
+        }
     }
 }
 
