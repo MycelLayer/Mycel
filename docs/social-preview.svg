@@ -45,25 +45,22 @@
 
   <g>
     <rect x="84" y="390" width="314" height="142" rx="22" fill="#f8f3ea" stroke="#1d2a26" stroke-opacity="0.1" />
-    <text x="112" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">REPLAY-VERIFIABLE HISTORY</text>
-    <text x="112" y="476" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">Revisions are meant to be</text>
-    <text x="112" y="506" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">replayed, checked, and</text>
-    <text x="112" y="536" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">rebuilt.</text>
+    <text x="112" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">REPLAYABLE HISTORY</text>
+    <text x="112" y="484" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">Replay from canonical</text>
+    <text x="112" y="516" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">objects.</text>
   </g>
 
   <g>
     <rect x="442" y="390" width="314" height="142" rx="22" fill="#f8f3ea" stroke="#1d2a26" stroke-opacity="0.1" />
-    <text x="470" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">GOVERNED READING STATE</text>
-    <text x="470" y="476" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">Accepted heads come from fixed</text>
-    <text x="470" y="506" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">profile rules and verified</text>
-    <text x="470" y="536" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">Views.</text>
+    <text x="470" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">FIXED HEAD SELECTION</text>
+    <text x="470" y="484" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">Accepted heads follow</text>
+    <text x="470" y="516" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">verified profile rules.</text>
   </g>
 
   <g>
     <rect x="800" y="390" width="314" height="142" rx="22" fill="#f8f3ea" stroke="#1d2a26" stroke-opacity="0.1" />
-    <text x="828" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">FORK-TOLERANT REPLICATION</text>
-    <text x="828" y="476" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">Multiple valid heads can coexist</text>
-    <text x="828" y="506" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">without mandatory global</text>
-    <text x="828" y="536" font-family="'DejaVu Sans', sans-serif" font-size="21" fill="#40524b">consensus.</text>
+    <text x="828" y="434" font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#084d3f" letter-spacing="0.05em">FORK-TOLERANT MODEL</text>
+    <text x="828" y="484" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">Multiple valid heads</text>
+    <text x="828" y="516" font-family="'DejaVu Sans', sans-serif" font-size="22" fill="#40524b">can coexist.</text>
   </g>
 </svg>
