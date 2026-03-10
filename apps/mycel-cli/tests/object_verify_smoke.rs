@@ -4081,6 +4081,57 @@ fn object_verify_json_fails_when_sibling_object_has_invalid_declared_id() {
 }
 
 #[test]
+fn object_verify_json_fails_when_sibling_json_entry_is_unreadable() {
+    let dir = create_temp_dir("object-verify-unreadable-sibling-entry");
+    let sibling_dir_path = dir.path().join("patch-dir.json");
+    let revision_path = dir.path().join("revision.json");
+
+    fs::create_dir(&sibling_dir_path).expect("sibling .json directory should be created");
+
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": state_hash(&json!({
+                "doc_id": "doc:test",
+                "blocks": [],
+                "metadata": {}
+            })),
+            "timestamp": 1777778891u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        &revision_path,
+        serde_json::to_string_pretty(&revision).expect("revision JSON should serialize"),
+    )
+    .expect("revision JSON should be written");
+
+    let output = run_mycel(&["object", "verify", &path_arg(&revision_path), "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("failed to read sibling object")
+                        && message.contains("patch-dir.json")
+                })
+            })),
+        "expected unreadable sibling object error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_revision_with_invalid_move_cycle() {
     let dir = create_temp_dir("object-verify-revision-move-cycle");
     let parent_patch_path = dir.path().join("patch-parent.json");
