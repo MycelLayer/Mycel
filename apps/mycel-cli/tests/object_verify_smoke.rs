@@ -1577,6 +1577,43 @@ fn object_verify_json_fails_for_snapshot_missing_created_by() {
 }
 
 #[test]
+fn object_verify_json_fails_for_snapshot_missing_signature() {
+    let object = write_object_file(
+        "object-verify-snapshot-missing-signature",
+        "snapshot.json",
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:placeholder",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", "patch:test"],
+            "root_hash": "hash:test",
+            "created_by": signer_id(&signing_key()),
+            "timestamp": 1777778890u64
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "snapshot");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("snapshot object is missing required top-level 'signature'")
+                })
+            })),
+        "expected missing signature error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_snapshot_with_non_string_snapshot_id() {
     let mut snapshot = json!({
         "type": "snapshot",
@@ -1687,6 +1724,44 @@ fn object_verify_text_fails_when_signed_object_is_missing_signature() {
     assert_stderr_contains(
         &output,
         "view object is missing required top-level 'signature'",
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_missing_signature() {
+    let object = write_object_file(
+        "object-verify-view-missing-signature-json",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "maintainer": signer_id(&signing_key()),
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64,
+            "view_id": "view:placeholder"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("view object is missing required top-level 'signature'")
+                })
+            })),
+        "expected missing signature error, stdout: {}",
+        stdout_text(&output)
     );
 }
 
@@ -2397,6 +2472,41 @@ fn object_verify_json_fails_for_patch_missing_author() {
 }
 
 #[test]
+fn object_verify_json_fails_for_patch_missing_signature() {
+    let object = write_object_file(
+        "object-verify-patch-missing-signature",
+        "patch.json",
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:placeholder",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": signer_id(&signing_key()),
+            "timestamp": 1777778888u64,
+            "ops": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "patch");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("patch object is missing required top-level 'signature'")
+                })
+            })),
+        "expected missing signature error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_patch_with_wrong_patch_id_prefix() {
     let mut patch = signed_object(
         json!({
@@ -3070,6 +3180,42 @@ fn object_verify_json_fails_for_revision_missing_author() {
                 })
             })),
         "expected missing author signer-field error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_revision_missing_signature() {
+    let object = write_object_file(
+        "object-verify-revision-missing-signature",
+        "revision.json",
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:placeholder",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": [],
+            "state_hash": "hash:test-state",
+            "author": signer_id(&signing_key()),
+            "timestamp": 1777778890u64
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "revision");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("revision object is missing required top-level 'signature'")
+                })
+            })),
+        "expected missing signature error, stdout: {}",
         stdout_text(&output)
     );
 }
