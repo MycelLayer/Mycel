@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
+use assert_cmd::assert::Assert;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use serde_json::Value;
@@ -33,10 +34,18 @@ pub fn run_mycel(args: &[&str]) -> Output {
     run_mycel_in_dir(&repo_root(), args)
 }
 
+pub fn mycel_command(args: &[&str]) -> Command {
+    mycel_command_in_dir(&repo_root(), args)
+}
+
+pub fn mycel_command_in_dir(current_dir: &Path, args: &[&str]) -> Command {
+    let mut command = Command::new(mycel_bin());
+    command.current_dir(current_dir).args(args);
+    command
+}
+
 pub fn run_mycel_in_dir(current_dir: &Path, args: &[&str]) -> Output {
-    Command::new(mycel_bin())
-        .current_dir(current_dir)
-        .args(args)
+    mycel_command_in_dir(current_dir, args)
         .output()
         .expect("mycel command should run")
 }
@@ -135,6 +144,14 @@ pub fn stderr_text(output: &Output) -> String {
 
 pub fn stdout_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+pub fn assert_stdout_text(assert: &Assert) -> String {
+    String::from_utf8_lossy(&assert.get_output().stdout).into_owned()
+}
+
+pub fn assert_stderr_text(assert: &Assert) -> String {
+    String::from_utf8_lossy(&assert.get_output().stderr).into_owned()
 }
 
 pub fn assert_exit_code(output: &Output, expected: i32) {
