@@ -51,6 +51,15 @@ Startup order:
 
 Do not run `claim`, `start`, and `status` in parallel.
 
+Interrupted chat recovery:
+
+1. `scripts/agent-status.sh`
+2. read the stale agent mailbox
+3. `scripts/agent-stop.sh <old-agent-id>`
+4. `scripts/agent-claim.sh <role>`
+5. `scripts/agent-start.sh <new-agent-id>`
+6. leave a takeover note
+
 ## 10-Line Rule Set
 
 1. Default to hybrid mode, not issue-for-everything.

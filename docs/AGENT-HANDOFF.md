@@ -43,6 +43,10 @@ Keep the newest entry at the top of each mailbox file.
 
 If the file does not exist yet, create it locally when the first message is needed.
 
+If a chat is interrupted and another agent takes over, add one short takeover line near the top of the replacement mailbox, for example:
+
+- `taking over from coding-2 after interrupted chat`
+
 ## Workflow
 
 1. `coding` finishes one issue slice or chat-first implementation slice.

@@ -252,6 +252,21 @@ If an issue runs into unclear protocol or profile semantics:
 
 Do not let one agent silently invent behavior that another agent will later have to unwind.
 
+## Interrupted Chat Recovery
+
+If a chat stops unexpectedly, use the local registry and mailbox files as the recovery surface instead of relying on the lost chat state.
+
+Recovery sequence:
+
+1. inspect `.agent-local/agents.json`
+2. run `scripts/agent-status.sh`
+3. read the stale agent's mailbox
+4. if the chat is clearly gone, run `scripts/agent-stop.sh <agent-id>` and mark it `paused`
+5. claim and start a new agent id for the replacement chat
+6. leave a takeover note in the new mailbox before resuming tracked work
+
+Do not silently reuse the old agent id for a new chat after an interruption.
+
 ## Handoff Rule
 
 When an agent stops or finishes, leave a short handoff:

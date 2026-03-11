@@ -210,6 +210,32 @@ Keep this startup output narrow:
 - do not omit the startup self-label line
 - keep the CI line about the latest completed workflow, not a possibly in-progress run
 
+## Interrupted Chat Recovery
+
+Treat the local registry and mailbox files as the source of truth if a chat stops unexpectedly because of an OpenAI or Codespaces issue.
+
+Recovery rules:
+
+1. do not assume an `active` agent is still reachable just because the registry says `active`
+2. read `.agent-local/agents.json` and the relevant mailbox file first
+3. preserve the old agent entry for auditability; do not overwrite its `id`
+4. if the old chat is clearly gone, mark that agent `paused` with `scripts/agent-stop.sh <agent-id>`
+5. claim a new id for the replacement chat and continue from the mailbox handoff
+
+Recommended recovery sequence:
+
+1. run `scripts/agent-status.sh`
+2. identify the stale `active` agent
+3. read `.agent-local/<agent-id>.md`
+4. run `scripts/agent-stop.sh <old-agent-id>`
+5. run `scripts/agent-claim.sh <role> [--scope <scope>]`
+6. run `scripts/agent-start.sh <new-agent-id>`
+7. append a takeover note in the new mailbox
+
+Recommended takeover note:
+
+- `taking over from coding-2 after interrupted chat`
+
 ## Mailbox Rule
 
 The registry tells agents who exists. Mailboxes carry the actual messages.
