@@ -17,6 +17,7 @@ See also:
 - [`DESIGN-NOTES.mycel-app-layer.en.md`](./DESIGN-NOTES.mycel-app-layer.en.md) for the client/runtime/effect split
 - [`DESIGN-NOTES.canonical-text-profile.en.md`](./DESIGN-NOTES.canonical-text-profile.en.md) for a likely reading-oriented profile family
 - [`DESIGN-NOTES.commentary-citation-schema.en.md`](./DESIGN-NOTES.commentary-citation-schema.en.md) for commentary and annotation-related structures
+- [`DESIGN-NOTES.text-worker-editor-implementation.en.md`](./DESIGN-NOTES.text-worker-editor-implementation.en.md) for a concrete implementation sketch
 
 ## 0. Goal
 
