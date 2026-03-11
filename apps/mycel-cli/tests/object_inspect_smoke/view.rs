@@ -1,0 +1,226 @@
+use super::*;
+
+#[test]
+fn object_inspect_json_warns_for_view_with_wrong_document_key_prefix() {
+    let object = write_object_file(
+        "object-inspect-view-wrong-document-key-prefix",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "patch:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes
+            .iter()
+            .any(|entry| entry.as_str().is_some_and(|message| message
+                .contains("top-level 'documents.patch:test key' must use 'doc:' prefix")))),
+        "expected view documents key-prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_view_with_non_object_policy() {
+    let object = write_object_file(
+        "object-inspect-view-non-object-policy",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": "manual-reviewed",
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("top-level 'policy' must be an object")))),
+        "expected non-object policy warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_view_with_wrong_maintainer_prefix() {
+    let object = write_object_file(
+        "object-inspect-view-wrong-maintainer-prefix",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "maintainer:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(
+                    |message| message.contains("top-level 'maintainer' must use 'pk:' prefix")
+                ))),
+        "expected maintainer prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_view_with_empty_documents() {
+    let object = write_object_file(
+        "object-inspect-view-empty-documents",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {},
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(
+                    |message| message.contains("top-level 'documents' must not be empty")
+                ))),
+        "expected empty documents warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_view_with_wrong_document_value_prefix() {
+    let object = write_object_file(
+        "object-inspect-view-wrong-document-value-prefix",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "patch:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry.as_str().is_some_and(|message| message
+                    .contains("top-level 'documents.doc:test' must use 'rev:' prefix")))),
+        "expected document value prefix warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_inspect_json_warns_for_view_with_unknown_top_level_field() {
+    let object = write_object_file(
+        "object-inspect-view-unknown-top-level-field",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "unexpected": true,
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes
+                .iter()
+                .any(|entry| entry
+                    .as_str()
+                    .is_some_and(|message| message
+                        .contains("top-level contains unexpected field 'unexpected'")))),
+        "expected unknown top-level field warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
