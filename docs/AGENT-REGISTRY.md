@@ -12,6 +12,7 @@ Recommended startup gate:
 
 - `scripts/agent-claim.sh <role> [--scope <scope>]`
 - `scripts/agent-start.sh <agent-id>`
+- `scripts/agent-stop.sh <agent-id> [--status paused|done]`
 
 Recommended status command:
 
@@ -156,7 +157,7 @@ Recommended enforcement:
 6. Only after confirmation may the agent start tracked work.
 7. The agent uses its own `mailbox` file for peer coordination and handoff traffic.
 8. When scope changes, the agent updates its registry entry.
-9. When work is finished or paused, the agent updates `status`.
+9. When work is finished or paused, the agent updates `status`, preferably with `scripts/agent-stop.sh <agent-id> [--status paused|done]`.
 
 If two `coding` agents would touch the same primary file or issue, one must pause or choose a narrower scope before proceeding.
 

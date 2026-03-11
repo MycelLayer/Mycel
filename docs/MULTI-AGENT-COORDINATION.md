@@ -59,6 +59,7 @@ Recommended startup command:
 - `scripts/agent-claim.sh <role> [--scope <scope>]`
 - `scripts/agent-start.sh <agent-id>`
 - `scripts/agent-status.sh [<agent-id>]`
+- `scripts/agent-stop.sh <agent-id> [--status paused|done]`
 
 ## Hybrid Issue Mode
 
