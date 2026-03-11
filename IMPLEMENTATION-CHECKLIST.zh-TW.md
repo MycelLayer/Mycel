@@ -165,8 +165,8 @@
 
 ## 12. Interop Test 最低門檻
 
-- [ ] 載入所有規範性 example objects，並確認可解析。
-- [ ] 對 example `patch`、`revision`、`view`、`snapshot` 重算 derived IDs。
+- [x] 載入所有規範性 example objects，並確認可解析。
+- [x] 對 example `patch`、`revision`、`view`、`snapshot` 重算 derived IDs。
 - [x] 至少對一個 single-parent revision 與一個 merge revision 重算 `state_hash`。
 - [ ] 驗證 example wire envelopes 與 `OBJECT` 驗證行為。
 - [x] 加入 hash mismatch、signature mismatch、invalid parent ordering 的 negative tests。

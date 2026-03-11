@@ -1515,6 +1515,133 @@ mod tests {
         error.to_string()
     }
 
+    fn protocol_spec_document_example() -> Value {
+        json!({
+            "type": "document",
+            "version": "mycel/0.1",
+            "doc_id": "doc:origin-text",
+            "title": "Origin Text",
+            "language": "zh-Hant",
+            "content_model": "block-tree",
+            "created_at": 1777777777u64,
+            "created_by": "pk:authorA",
+            "genesis_revision": "rev:0ab1"
+        })
+    }
+
+    fn protocol_spec_block_example() -> Value {
+        json!({
+            "type": "block",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "At first there was no final draft, only transmission.",
+            "attrs": {},
+            "children": []
+        })
+    }
+
+    fn protocol_spec_patch_example() -> Value {
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:91ac",
+            "doc_id": "doc:origin-text",
+            "base_revision": "rev:0ab1",
+            "author": "pk:authorA",
+            "timestamp": 1777778888u64,
+            "ops": [
+                {
+                    "op": "replace_block",
+                    "block_id": "blk:001",
+                    "new_content": "At first there was no final draft, only transmission and rewriting."
+                },
+                {
+                    "op": "insert_block_after",
+                    "after_block_id": "blk:001",
+                    "new_block": {
+                        "block_id": "blk:002",
+                        "block_type": "paragraph",
+                        "content": "Whatever is written can be rewritten.",
+                        "attrs": {},
+                        "children": []
+                    }
+                }
+            ],
+            "signature": "sig:..."
+        })
+    }
+
+    fn protocol_spec_revision_example() -> Value {
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:8fd2",
+            "doc_id": "doc:origin-text",
+            "parents": ["rev:0ab1"],
+            "patches": ["patch:91ac"],
+            "state_hash": "hash:state001",
+            "author": "pk:authorA",
+            "timestamp": 1777778890u64,
+            "signature": "sig:..."
+        })
+    }
+
+    fn protocol_spec_merge_revision_example() -> Value {
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:c7d4",
+            "doc_id": "doc:origin-text",
+            "parents": ["rev:8fd2", "rev:b351"],
+            "patches": ["patch:a12f"],
+            "state_hash": "hash:merged-state",
+            "author": "pk:curator1",
+            "timestamp": 1777780000u64,
+            "merge_strategy": "semantic-block-merge",
+            "signature": "sig:..."
+        })
+    }
+
+    fn protocol_spec_view_example() -> Value {
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:9aa0",
+            "maintainer": "pk:community-curator",
+            "documents": {
+                "doc:origin-text": "rev:c7d4",
+                "doc:governance-rules": "rev:91de"
+            },
+            "policy": {
+                "preferred_branches": ["community-mainline"],
+                "accept_keys": ["pk:community-curator", "pk:reviewerB"],
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777781000u64,
+            "signature": "sig:..."
+        })
+    }
+
+    fn protocol_spec_snapshot_example() -> Value {
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:44cc",
+            "documents": {
+                "doc:origin-text": "rev:c7d4"
+            },
+            "included_objects": [
+                "rev:c7d4",
+                "patch:91ac",
+                "patch:a12f"
+            ],
+            "root_hash": "hash:snapshot-root",
+            "created_by": "pk:mirrorA",
+            "timestamp": 1777782000u64,
+            "signature": "sig:..."
+        })
+    }
+
     #[test]
     fn object_kind_round_trips_from_strings() {
         let kind = "revision"
@@ -2795,6 +2922,44 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "top-level contains unexpected field 'unexpected'"
+        );
+    }
+
+    #[test]
+    fn protocol_spec_examples_parse() {
+        parse_document_object(&protocol_spec_document_example())
+            .expect("document example should parse");
+        parse_block_object(&protocol_spec_block_example()).expect("block example should parse");
+        parse_patch_object(&protocol_spec_patch_example()).expect("patch example should parse");
+        parse_revision_object(&protocol_spec_revision_example())
+            .expect("revision example should parse");
+        parse_revision_object(&protocol_spec_merge_revision_example())
+            .expect("merge revision example should parse");
+        parse_view_object(&protocol_spec_view_example()).expect("view example should parse");
+        parse_snapshot_object(&protocol_spec_snapshot_example())
+            .expect("snapshot example should parse");
+    }
+
+    #[rstest]
+    #[case(protocol_spec_patch_example(), "patch_id", "patch")]
+    #[case(protocol_spec_revision_example(), "revision_id", "rev")]
+    #[case(protocol_spec_merge_revision_example(), "revision_id", "rev")]
+    #[case(protocol_spec_view_example(), "view_id", "view")]
+    #[case(protocol_spec_snapshot_example(), "snapshot_id", "snap")]
+    fn protocol_spec_examples_recompute_derived_ids(
+        #[case] value: Value,
+        #[case] id_field: &str,
+        #[case] prefix: &str,
+    ) {
+        let recomputed =
+            recompute_object_id(&value, id_field, prefix).expect("derived ID should recompute");
+
+        assert!(recomputed.starts_with(&format!("{prefix}:")));
+        assert_ne!(
+            recomputed,
+            value[id_field]
+                .as_str()
+                .expect("example derived ID should be present"),
         );
     }
 

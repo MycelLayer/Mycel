@@ -165,8 +165,8 @@ Defer if needed:
 
 ## 12. Interop Test Minimum
 
-- [ ] Load all normative example objects and ensure they parse.
-- [ ] Recompute derived IDs for example `patch`, `revision`, `view`, and `snapshot` objects.
+- [x] Load all normative example objects and ensure they parse.
+- [x] Recompute derived IDs for example `patch`, `revision`, `view`, and `snapshot` objects.
 - [x] Recompute `state_hash` for at least one single-parent revision and one merge revision.
 - [ ] Verify example wire envelopes and `OBJECT` validation behavior.
 - [x] Add negative tests for hash mismatch, signature mismatch, and invalid parent ordering.
