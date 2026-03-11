@@ -148,7 +148,6 @@ struct MergeAssessment {
 struct BlockPlacement {
     block: BlockObject,
     parent_block_id: Option<String>,
-    index: usize,
     depth: usize,
 }
 
@@ -540,15 +539,13 @@ fn assess_merge_resolution(
         .collect::<BTreeSet<_>>();
 
     for block_id in block_ids {
-        let primary_variant =
-            block_variant(primary_blocks.get(&block_id).map(|entry| &entry.block))?;
-        let resolved_variant =
-            block_variant(resolved_blocks.get(&block_id).map(|entry| &entry.block))?;
+        let primary_variant = block_variant(primary_blocks.get(&block_id))?;
+        let resolved_variant = block_variant(resolved_blocks.get(&block_id))?;
         let alternative_variants = parent_states
             .iter()
             .skip(1)
             .map(|(_, state)| flatten_blocks(&state.blocks))
-            .map(|blocks| block_variant(blocks.get(&block_id).map(|entry| &entry.block)))
+            .map(|blocks| block_variant(blocks.get(&block_id)))
             .collect::<Result<BTreeSet<_>, _>>()?
             .into_iter()
             .filter(|variant| variant != &primary_variant)
@@ -641,14 +638,26 @@ fn assess_merge_resolution(
     Ok(MergeAssessment { outcome, reasons })
 }
 
-fn block_variant(block: Option<&BlockObject>) -> Result<String, StoreRebuildError> {
+fn block_variant(block: Option<&BlockPlacement>) -> Result<String, StoreRebuildError> {
     match block {
-        Some(block) => canonical_json(&serde_json::to_value(block).map_err(|error| {
-            StoreRebuildError::new(format!("failed to serialize block variant: {error}"))
-        })?)
-        .map_err(|error| {
-            StoreRebuildError::new(format!("failed to canonicalize block variant: {error}"))
-        }),
+        Some(placement) => {
+            let mut object = serde_json::Map::new();
+            object.insert(
+                "block".to_string(),
+                serde_json::to_value(&placement.block).map_err(|error| {
+                    StoreRebuildError::new(format!("failed to serialize block variant: {error}"))
+                })?,
+            );
+            if let Some(parent_block_id) = &placement.parent_block_id {
+                object.insert(
+                    "parent_block_id".to_string(),
+                    Value::String(parent_block_id.clone()),
+                );
+            }
+            canonical_json(&Value::Object(object)).map_err(|error| {
+                StoreRebuildError::new(format!("failed to canonicalize block variant: {error}"))
+            })
+        }
         None => Ok("<absent>".to_string()),
     }
 }
@@ -679,6 +688,7 @@ fn build_conservative_merge_ops(
         .cloned()
         .collect::<BTreeSet<_>>();
     let mut ops = Vec::new();
+    let mut simulated = primary_state.clone();
 
     for key in primary_state.metadata.keys() {
         if !resolved_state.metadata.contains_key(key) {
@@ -695,9 +705,11 @@ fn build_conservative_merge_ops(
         .map(|(key, value)| (key.clone(), value.clone()))
         .collect::<serde_json::Map<_, _>>();
     if !changed_metadata.is_empty() {
-        ops.push(PatchOperation::SetMetadata {
+        let op = PatchOperation::SetMetadata {
             entries: changed_metadata,
-        });
+        };
+        apply_generated_op(&mut simulated, &op)?;
+        ops.push(op);
     }
 
     let mut deletions = deleted_ids
@@ -713,63 +725,19 @@ fn build_conservative_merge_ops(
         .collect::<Vec<_>>();
     deletions.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
     for (_, block_id) in deletions {
-        ops.push(PatchOperation::DeleteBlock { block_id });
+        let op = PatchOperation::DeleteBlock { block_id };
+        apply_generated_op(&mut simulated, &op)?;
+        ops.push(op);
     }
 
-    let mut insertions = new_ids
-        .iter()
-        .filter_map(|block_id| {
-            let placement = resolved_blocks.get(block_id)?;
-            let parent_is_new = placement
-                .parent_block_id
-                .as_ref()
-                .is_some_and(|parent_id| new_ids.contains(parent_id));
-            (!parent_is_new).then_some(placement.clone())
-        })
-        .collect::<Vec<_>>();
-    insertions.sort_by(|left, right| {
-        left.depth
-            .cmp(&right.depth)
-            .then_with(|| left.parent_block_id.cmp(&right.parent_block_id))
-            .then_with(|| left.index.cmp(&right.index))
-    });
-    for placement in insertions {
-        ops.push(PatchOperation::InsertBlock {
-            parent_block_id: placement.parent_block_id.clone(),
-            index: Some(placement.index),
-            new_block: placement.block.clone(),
-        });
-    }
+    sync_child_list(
+        &mut simulated,
+        None,
+        &resolved_state.blocks,
+        &new_ids,
+        &mut ops,
+    )?;
 
-    for block_id in primary_ids.intersection(&resolved_ids) {
-        let primary = primary_blocks
-            .get(block_id)
-            .expect("existing primary block should be indexed");
-        let resolved = resolved_blocks
-            .get(block_id)
-            .expect("existing resolved block should be indexed");
-        if primary.block.content != resolved.block.content {
-            ops.push(PatchOperation::ReplaceBlock {
-                block_id: block_id.clone(),
-                new_content: resolved.block.content.clone(),
-            });
-        }
-    }
-
-    let mut simulated = primary_state.clone();
-    let patch = PatchObject {
-        patch_id: "patch:pending".to_string(),
-        doc_id: primary_state.doc_id.clone(),
-        base_revision: "rev:pending".to_string(),
-        author: "pk:pending".to_string(),
-        timestamp: 0,
-        ops: ops.clone(),
-    };
-    apply_patch_ops(&mut simulated, &patch).map_err(|error| {
-        StoreRebuildError::new(format!(
-            "manual-curation-required: generated merge patch did not apply cleanly: {error}"
-        ))
-    })?;
     if simulated != *resolved_state {
         return Err(StoreRebuildError::new(
             "manual-curation-required: resolved state requires unsupported structural edits"
@@ -778,6 +746,206 @@ fn build_conservative_merge_ops(
     }
 
     Ok(ops)
+}
+
+fn sync_child_list(
+    simulated: &mut DocumentState,
+    parent_block_id: Option<&str>,
+    resolved_children: &[BlockObject],
+    new_ids: &BTreeSet<String>,
+    ops: &mut Vec<PatchOperation>,
+) -> Result<(), StoreRebuildError> {
+    let mut previous_sibling_id: Option<String> = None;
+
+    for resolved_block in resolved_children {
+        let current_blocks = flatten_blocks(&simulated.blocks);
+        if let Some(current) = current_blocks.get(&resolved_block.block_id) {
+            if current.block.block_type != resolved_block.block_type {
+                return Err(StoreRebuildError::new(format!(
+                    "manual-curation-required: block '{}' changes block_type from '{}' to '{}'",
+                    resolved_block.block_id, current.block.block_type, resolved_block.block_type
+                )));
+            }
+            if current.block.attrs != resolved_block.attrs {
+                return Err(StoreRebuildError::new(format!(
+                    "manual-curation-required: block '{}' changes attrs in an unsupported way",
+                    resolved_block.block_id
+                )));
+            }
+
+            let desired_parent = parent_block_id.map(str::to_string);
+            if !block_is_in_desired_position(
+                simulated,
+                &resolved_block.block_id,
+                parent_block_id,
+                previous_sibling_id.as_deref(),
+            ) {
+                let maybe_move = match previous_sibling_id.as_ref() {
+                    Some(after_block_id) => Some(PatchOperation::MoveBlock {
+                        block_id: resolved_block.block_id.clone(),
+                        parent_block_id: desired_parent.clone(),
+                        after_block_id: Some(after_block_id.clone()),
+                    }),
+                    None if current.parent_block_id != desired_parent => {
+                        Some(PatchOperation::MoveBlock {
+                            block_id: resolved_block.block_id.clone(),
+                            parent_block_id: desired_parent.clone(),
+                            after_block_id: None,
+                        })
+                    }
+                    None => None,
+                };
+                if let Some(op) = maybe_move {
+                    apply_generated_op(simulated, &op)?;
+                    ops.push(op);
+                }
+            }
+
+            let current_content = flatten_blocks(&simulated.blocks)
+                .get(&resolved_block.block_id)
+                .expect("existing block should remain indexed after move")
+                .block
+                .content
+                .clone();
+            if current_content != resolved_block.content {
+                let op = PatchOperation::ReplaceBlock {
+                    block_id: resolved_block.block_id.clone(),
+                    new_content: resolved_block.content.clone(),
+                };
+                apply_generated_op(simulated, &op)?;
+                ops.push(op);
+            }
+
+            sync_child_list(
+                simulated,
+                Some(&resolved_block.block_id),
+                &resolved_block.children,
+                new_ids,
+                ops,
+            )?;
+        } else {
+            let op = match previous_sibling_id.as_ref() {
+                Some(after_block_id) => PatchOperation::InsertBlockAfter {
+                    after_block_id: after_block_id.clone(),
+                    new_block: resolved_block.clone(),
+                },
+                None => PatchOperation::InsertBlock {
+                    parent_block_id: parent_block_id.map(str::to_string),
+                    index: Some(0),
+                    new_block: resolved_block.clone(),
+                },
+            };
+            apply_generated_op(simulated, &op)?;
+            ops.push(op);
+
+            if !new_ids.contains(&resolved_block.block_id) {
+                return Err(StoreRebuildError::new(format!(
+                    "manual-curation-required: block '{}' is missing from the primary state without appearing as a new resolved block",
+                    resolved_block.block_id
+                )));
+            }
+        }
+
+        previous_sibling_id = Some(resolved_block.block_id.clone());
+    }
+
+    let resolved_ids = resolved_children
+        .iter()
+        .map(|block| block.block_id.as_str())
+        .collect::<BTreeSet<_>>();
+    for current_id in sibling_block_ids(simulated, parent_block_id)? {
+        if !resolved_ids.contains(current_id.as_str()) {
+            return Err(StoreRebuildError::new(format!(
+                "manual-curation-required: unresolved extra block '{}' remained under '{}'",
+                current_id,
+                parent_block_id.unwrap_or("<root>")
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn apply_generated_op(
+    simulated: &mut DocumentState,
+    op: &PatchOperation,
+) -> Result<(), StoreRebuildError> {
+    let patch = PatchObject {
+        patch_id: "patch:pending".to_string(),
+        doc_id: simulated.doc_id.clone(),
+        base_revision: "rev:pending".to_string(),
+        author: "pk:pending".to_string(),
+        timestamp: 0,
+        ops: vec![op.clone()],
+    };
+    apply_patch_ops(simulated, &patch).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "manual-curation-required: generated merge patch did not apply cleanly: {error}"
+        ))
+    })
+}
+
+fn block_is_in_desired_position(
+    simulated: &DocumentState,
+    block_id: &str,
+    parent_block_id: Option<&str>,
+    previous_sibling_id: Option<&str>,
+) -> bool {
+    let sibling_ids = match sibling_block_ids(simulated, parent_block_id) {
+        Ok(sibling_ids) => sibling_ids,
+        Err(_) => return false,
+    };
+    let Some(index) = sibling_ids
+        .iter()
+        .position(|candidate| candidate == block_id)
+    else {
+        return false;
+    };
+
+    match previous_sibling_id {
+        Some(previous_sibling_id) => index > 0 && sibling_ids[index - 1] == previous_sibling_id,
+        None => index == 0,
+    }
+}
+
+fn sibling_block_ids(
+    state: &DocumentState,
+    parent_block_id: Option<&str>,
+) -> Result<Vec<String>, StoreRebuildError> {
+    match parent_block_id {
+        Some(parent_block_id) => find_children(&state.blocks, parent_block_id)
+            .map(|children| {
+                children
+                    .iter()
+                    .map(|block| block.block_id.clone())
+                    .collect()
+            })
+            .ok_or_else(|| {
+                StoreRebuildError::new(format!(
+                    "manual-curation-required: parent block '{}' was not found during merge sync",
+                    parent_block_id
+                ))
+            }),
+        None => Ok(state
+            .blocks
+            .iter()
+            .map(|block| block.block_id.clone())
+            .collect()),
+    }
+}
+
+fn find_children<'a>(
+    blocks: &'a [BlockObject],
+    parent_block_id: &str,
+) -> Option<&'a [BlockObject]> {
+    for block in blocks {
+        if block.block_id == parent_block_id {
+            return Some(&block.children);
+        }
+        if let Some(children) = find_children(&block.children, parent_block_id) {
+            return Some(children);
+        }
+    }
+    None
 }
 
 fn flatten_blocks(blocks: &[BlockObject]) -> HashMap<String, BlockPlacement> {
@@ -792,13 +960,12 @@ fn flatten_blocks_into(
     depth: usize,
     placements: &mut HashMap<String, BlockPlacement>,
 ) {
-    for (index, block) in blocks.iter().enumerate() {
+    for block in blocks {
         placements.insert(
             block.block_id.clone(),
             BlockPlacement {
                 block: block.clone(),
                 parent_block_id: parent_block_id.map(str::to_string),
-                index,
                 depth,
             },
         );
@@ -914,6 +1081,7 @@ mod tests {
         create_patch_in_store, parse_signing_key_seed, signer_id, DocumentCreateParams,
         MergeOutcome, MergeRevisionCreateParams, PatchCreateParams, RevisionCommitParams,
     };
+    use crate::protocol::{parse_patch_object, PatchOperation};
     use crate::replay::replay_revision_from_index;
     use crate::store::{load_store_index_manifest, load_stored_object_value};
 
@@ -1162,6 +1330,195 @@ mod tests {
                 .any(|reason| reason.contains("selected a non-primary parent variant")),
             "expected multi-variant reason, got {summary:?}"
         );
+
+        let _ = fs::remove_dir_all(store_root);
+    }
+
+    #[test]
+    fn merge_authoring_supports_structural_move_and_insert_ops() {
+        let store_root = temp_dir("merge-structural");
+        let signing_key = signing_key();
+        let document = create_document_in_store(
+            &store_root,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:merge-structural".to_string(),
+                title: "Merge Structural".to_string(),
+                language: "en".to_string(),
+                timestamp: 20,
+            },
+        )
+        .expect("document should be created");
+
+        let base_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-structural".to_string(),
+                base_revision: document.genesis_revision_id.clone(),
+                timestamp: 21,
+                ops: json!([
+                    {
+                        "op": "insert_block",
+                        "new_block": {
+                            "block_id": "blk:merge-a",
+                            "block_type": "paragraph",
+                            "content": "A",
+                            "attrs": {},
+                            "children": []
+                        }
+                    },
+                    {
+                        "op": "insert_block",
+                        "new_block": {
+                            "block_id": "blk:merge-b",
+                            "block_type": "paragraph",
+                            "content": "B",
+                            "attrs": {},
+                            "children": []
+                        }
+                    }
+                ]),
+            },
+        )
+        .expect("base patch should be created");
+        let base_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-structural".to_string(),
+                parents: vec![document.genesis_revision_id.clone()],
+                patches: vec![base_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 22,
+            },
+        )
+        .expect("base revision should be committed");
+
+        let move_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-structural".to_string(),
+                base_revision: base_revision.revision_id.clone(),
+                timestamp: 23,
+                ops: json!([
+                    {
+                        "op": "move_block",
+                        "block_id": "blk:merge-a",
+                        "after_block_id": "blk:merge-b"
+                    }
+                ]),
+            },
+        )
+        .expect("move patch should be created");
+        let move_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-structural".to_string(),
+                parents: vec![base_revision.revision_id.clone()],
+                patches: vec![move_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 24,
+            },
+        )
+        .expect("move revision should be committed");
+
+        let insert_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-structural".to_string(),
+                base_revision: base_revision.revision_id.clone(),
+                timestamp: 25,
+                ops: json!([
+                    {
+                        "op": "insert_block",
+                        "new_block": {
+                            "block_id": "blk:merge-c",
+                            "block_type": "paragraph",
+                            "content": "C",
+                            "attrs": {},
+                            "children": []
+                        }
+                    }
+                ]),
+            },
+        )
+        .expect("insert patch should be created");
+        let insert_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-structural".to_string(),
+                parents: vec![base_revision.revision_id.clone()],
+                patches: vec![insert_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 26,
+            },
+        )
+        .expect("insert revision should be committed");
+
+        let summary = create_merge_revision_in_store(
+            &store_root,
+            &signing_key,
+            &MergeRevisionCreateParams {
+                doc_id: "doc:merge-structural".to_string(),
+                parents: vec![
+                    base_revision.revision_id.clone(),
+                    move_revision.revision_id.clone(),
+                    insert_revision.revision_id.clone(),
+                ],
+                resolved_state: crate::replay::DocumentState {
+                    doc_id: "doc:merge-structural".to_string(),
+                    blocks: vec![
+                        crate::protocol::BlockObject {
+                            block_id: "blk:merge-b".to_string(),
+                            block_type: "paragraph".to_string(),
+                            content: "B".to_string(),
+                            attrs: serde_json::Map::new(),
+                            children: Vec::new(),
+                        },
+                        crate::protocol::BlockObject {
+                            block_id: "blk:merge-a".to_string(),
+                            block_type: "paragraph".to_string(),
+                            content: "A".to_string(),
+                            attrs: serde_json::Map::new(),
+                            children: Vec::new(),
+                        },
+                        crate::protocol::BlockObject {
+                            block_id: "blk:merge-c".to_string(),
+                            block_type: "paragraph".to_string(),
+                            content: "C".to_string(),
+                            attrs: serde_json::Map::new(),
+                            children: Vec::new(),
+                        },
+                    ],
+                    metadata: serde_json::Map::new(),
+                },
+                merge_strategy: "semantic-block-merge".to_string(),
+                timestamp: 27,
+            },
+        )
+        .expect("merge revision should be created");
+
+        assert_eq!(summary.merge_outcome, MergeOutcome::AutoMerged);
+        assert_eq!(summary.patch_op_count, 2);
+        let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+            .expect("generated merge patch should be stored");
+        let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+        assert_eq!(patch.ops.len(), 2);
+        assert!(patch.ops.iter().any(|op| matches!(
+            op,
+            PatchOperation::MoveBlock { block_id, after_block_id: Some(after_block_id), .. }
+            if block_id == "blk:merge-a" && after_block_id == "blk:merge-b"
+        )));
+        assert!(patch.ops.iter().any(|op| matches!(
+            op,
+            PatchOperation::InsertBlockAfter { after_block_id, new_block }
+            if after_block_id == "blk:merge-a" && new_block.block_id == "blk:merge-c"
+        )));
 
         let _ = fs::remove_dir_all(store_root);
     }
