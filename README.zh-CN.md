@@ -112,13 +112,15 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - [IMPLEMENTATION-CHECKLIST.zh-CN.md](./IMPLEMENTATION-CHECKLIST.zh-CN.md)
 - [PROTOCOL.zh-CN.md](./PROTOCOL.zh-CN.md)
 - [WIRE-PROTOCOL.zh-CN.md](./WIRE-PROTOCOL.zh-CN.md)
+- [PROJECT-INTENT.zh-CN.md](./PROJECT-INTENT.zh-CN.md)
+- [docs/PLANNING-SYNC-PLAN.zh-CN.md](./docs/PLANNING-SYNC-PLAN.zh-CN.md)
 
 后续如果继续扩展，优先顺序应该是：
 
-1. `PROJECT-INTENT.zh-CN.md`
-2. `docs/PLANNING-SYNC-PLAN.zh-CN.md`
-3. `docs/FEATURE-REVIEW-CHECKLIST.zh-CN.md`
-4. `docs/MYCEL-GRANT-CONCEPT-NOTE.zh-CN.md`
+1. `docs/FEATURE-REVIEW-CHECKLIST.zh-CN.md`
+2. `docs/MYCEL-GRANT-CONCEPT-NOTE.zh-CN.md`
+3. `docs/PROGRESS.zh-CN.md`
+4. `PROJECT-INTENT` 相关公开入口联动
 
 ## 许可证
 
