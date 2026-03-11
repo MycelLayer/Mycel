@@ -69,6 +69,12 @@ The recommended shape is:
 
 This is closer to a post-centric forum than a document-centric forum.
 
+For text-worker deployments, this note should be read together with the text-worker editor note:
+
+- the forum app carries the discussion layer
+- the editor carries the authoring, annotation, and accepted-reading layer
+- promotion records are the bridge between the two
+
 Why this shape is preferred:
 
 - a single reply can replicate independently

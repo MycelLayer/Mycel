@@ -17,6 +17,7 @@ See also:
 - [`DESIGN-NOTES.mycel-app-layer.en.md`](./DESIGN-NOTES.mycel-app-layer.en.md) for the client/runtime/effect split
 - [`DESIGN-NOTES.canonical-text-profile.en.md`](./DESIGN-NOTES.canonical-text-profile.en.md) for a likely reading-oriented profile family
 - [`DESIGN-NOTES.commentary-citation-schema.en.md`](./DESIGN-NOTES.commentary-citation-schema.en.md) for commentary and annotation-related structures
+- [`DESIGN-NOTES.forum-app-layer.en.md`](./DESIGN-NOTES.forum-app-layer.en.md) for document-anchored discussion that can promote debate outcomes into text-facing candidates
 - [`DESIGN-NOTES.text-worker-editor-implementation.en.md`](./DESIGN-NOTES.text-worker-editor-implementation.en.md) for a concrete implementation sketch
 
 ## 0. Goal
@@ -35,6 +36,11 @@ The target user is a text worker such as:
 
 The goal is not to clone one existing word processor.
 The goal is to identify what those users actually need, and how that should map onto Mycel objects, history, governance, and accepted reading.
+
+This editor note should be read together with the forum app note:
+
+- the editor is the main authoring and review surface for text workers
+- the forum app is the discussion surface for document-anchored debate, review, and promotion into candidate text-facing records
 
 ## 1. Why This May Become the First Major App-layer Demand
 
