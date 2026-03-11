@@ -75,14 +75,14 @@ cd Mycel
 开始改任何东西之前，建议按这个顺序先读：
 
 1. [`README.zh-CN.md`](../README.zh-CN.md)
-2. [`README.md`](../README.md)
-3. [`ROADMAP.md`](../ROADMAP.md)
-4. [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md)
-5. [`PROTOCOL.en.md`](../PROTOCOL.en.md)
-6. [`WIRE-PROTOCOL.en.md`](../WIRE-PROTOCOL.en.md)
+2. [`ROADMAP.zh-CN.md`](../ROADMAP.zh-CN.md)
+3. [`IMPLEMENTATION-CHECKLIST.zh-CN.md`](../IMPLEMENTATION-CHECKLIST.zh-CN.md)
+4. [`PROTOCOL.zh-CN.md`](../PROTOCOL.zh-CN.md)
+5. [`WIRE-PROTOCOL.zh-CN.md`](../WIRE-PROTOCOL.zh-CN.md)
+6. [`README.md`](../README.md)
 7. 如果你是 AI coding agent，再读 [`BOT-CONTRIBUTING.md`](../BOT-CONTRIBUTING.md)
 
-当前 `zh-CN` 文档还是第一批入口覆盖，协议和路线类文档暂时以英文版为主参考面。
+当前 `zh-CN` 文档已经覆盖 README、roadmap、implementation checklist、protocol 和 wire-spec 这几类主要入口；如果你需要对照最原始的规范措辞或补看尚未本地化的设计说明，再回看英文版。
 
 ## 4. 第一次应该运行的命令
 

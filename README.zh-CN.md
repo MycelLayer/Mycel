@@ -72,7 +72,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 ## 按目标阅读
 
-当前 `zh-CN` 文档支持还是第一批入口覆盖，不是全量三语同步。
+当前 `zh-CN` 支持已经覆盖主要入口文件，但还不是全量三语同步。
 
 如果你想用简体中文先建立整体理解，建议按这个顺序读：
 
@@ -104,7 +104,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 ## 第一批简体中文支持包含什么
 
-当前先覆盖这些入口：
+当前已经覆盖这些简体中文入口：
 
 - [README.zh-CN.md](./README.zh-CN.md)
 - [docs/MYCEL-GAP.zh-CN.md](./docs/MYCEL-GAP.zh-CN.md)
@@ -116,14 +116,14 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - [WIRE-PROTOCOL.zh-CN.md](./WIRE-PROTOCOL.zh-CN.md)
 - [PROJECT-INTENT.zh-CN.md](./PROJECT-INTENT.zh-CN.md)
 - [docs/PLANNING-SYNC-PLAN.zh-CN.md](./docs/PLANNING-SYNC-PLAN.zh-CN.md)
-- [docs/PROJECT-NAMING.md](./docs/PROJECT-NAMING.md)
 
 后续如果继续扩展，优先顺序应该是：
 
 1. `docs/FEATURE-REVIEW-CHECKLIST.zh-CN.md`
 2. `docs/MYCEL-GRANT-CONCEPT-NOTE.zh-CN.md`
 3. `docs/PROGRESS.zh-CN.md`
-4. `PROJECT-INTENT` 相关公开入口联动
+4. `docs/PROJECT-NAMING.zh-CN.md`
+5. `PROJECT-INTENT` 相关公开入口联动
 
 ## 许可证
 

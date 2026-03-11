@@ -4,9 +4,9 @@
 
 这份文档定义 Mycel 如何同步以下几类表面：
 
-- 仓库级 planning Markdown，尤其是 `ROADMAP.md`、`ROADMAP.zh-TW.md` 和 `IMPLEMENTATION-CHECKLIST.*`
+- 仓库级 planning Markdown，尤其是 `ROADMAP.*`、`IMPLEMENTATION-CHECKLIST.*`，以及各语言 README 中承担 contributor 入口角色的 planning 摘要
 - GitHub Issues
-- GitHub Pages 上的 planning 摘要页面
+- GitHub Pages 上的 planning 摘要页面，包括各语言入口页
 
 它的目的，是避免权威构建顺序、可执行任务池和公开进度页之间发生漂移。
 
@@ -15,13 +15,15 @@
 这份计划适用于：
 
 - [`ROADMAP.md`](../ROADMAP.md)
+- [`ROADMAP.zh-CN.md`](../ROADMAP.zh-CN.md)
 - [`ROADMAP.zh-TW.md`](../ROADMAP.zh-TW.md)
 - [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md)
+- [`IMPLEMENTATION-CHECKLIST.zh-CN.md`](../IMPLEMENTATION-CHECKLIST.zh-CN.md)
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)
 - [`docs/progress.html`](./progress.html)
-- [`README.md`](../README.md) 和 [`README.zh-TW.md`](../README.zh-TW.md) 中精选的 contributor-entry issue 链接
-- [`docs/index.html`](./index.html) 和 [`docs/zh-TW/index.html`](./zh-TW/index.html) 中精选的 contributor-entry issue 链接
+- [`README.md`](../README.md)、[`README.zh-CN.md`](../README.zh-CN.md) 和 [`README.zh-TW.md`](../README.zh-TW.md) 中精选的 contributor-entry issue 链接
+- [`docs/index.html`](./index.html)、[`docs/zh-CN/index.html`](./zh-CN/index.html) 和 [`docs/zh-TW/index.html`](./zh-TW/index.html) 中精选的 contributor-entry issue 链接
 - GitHub Issues，尤其是 `ai-ready` 类型任务
 
 这份计划不适用于：
@@ -34,7 +36,7 @@
 
 当不同表面彼此不一致时，采用以下权威顺序：
 
-1. `ROADMAP.md` 和 `ROADMAP.zh-TW.md`
+1. `ROADMAP.md`、`ROADMAP.zh-CN.md` 和 `ROADMAP.zh-TW.md`
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. GitHub Issues
 4. `docs/PROGRESS.md`
@@ -45,18 +47,18 @@
 
 解释方式：
 
-- `ROADMAP.md` 和 `ROADMAP.zh-TW.md` 共同拥有 milestone 顺序、phase 边界和 build sequence 的权威性。
+- `ROADMAP.md`、`ROADMAP.zh-CN.md` 和 `ROADMAP.zh-TW.md` 共同拥有 milestone 顺序、phase 边界和 build sequence 的权威性；如果三者暂时不同步，以英文版为最终校对基准，并应尽快补齐其余语言。
 - `IMPLEMENTATION-CHECKLIST.*` 拥有 section-level closure 状态和 readiness gate 的权威性。
 - GitHub Issues 代表剩余缺口的可执行切片。
 - `docs/PROGRESS.md` 和 `docs/progress.html` 是派生摘要，不得自行发明项目状态。
 - `README.*` 中精选的 issue 链接也是面向 contributor 的派生摘要，必须指向当前仍然有效的 `ai-ready` 任务。
-- `docs/index.html` 和 `docs/zh-TW/index.html` 中精选的 issue 链接也是公开 contributor 入口摘要，必须指向当前仍然有效的 `ai-ready` 任务。
+- `docs/index.html`、`docs/zh-CN/index.html` 和 `docs/zh-TW/index.html` 中精选的 issue 链接也是公开 contributor 入口摘要，必须指向当前仍然有效的 `ai-ready` 任务。
 
 ## 3. 各表面的角色
 
 ### 3.1 `ROADMAP.*`
 
-用 `ROADMAP.md` 和 `ROADMAP.zh-TW.md` 回答：
+用 `ROADMAP.md`、`ROADMAP.zh-CN.md` 和 `ROADMAP.zh-TW.md` 回答：
 
 - 我们现在在哪个 phase
 - 下一条 lane 是什么
