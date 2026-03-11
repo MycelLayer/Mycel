@@ -12,6 +12,10 @@ Recommended startup gate:
 
 - `scripts/agent-start.sh <agent-id>`
 
+Recommended status command:
+
+- `scripts/agent-status.sh [<agent-id>]`
+
 Agents should read `.agent-local/agents.json` at the start of work to discover:
 
 - how many agents are currently active

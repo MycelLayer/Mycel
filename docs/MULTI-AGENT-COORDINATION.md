@@ -57,6 +57,7 @@ No agent may start tracked work until it has confirmed its own assigned role in 
 Recommended startup command:
 
 - `scripts/agent-start.sh <agent-id>`
+- `scripts/agent-status.sh [<agent-id>]`
 
 ## Hybrid Issue Mode
 

@@ -34,6 +34,7 @@ No tracked work starts until the agent confirms its own entry in `.agent-local/a
 Startup command:
 
 - `scripts/agent-start.sh <agent-id>`
+- `scripts/agent-status.sh [<agent-id>]`
 
 ## 10-Line Rule Set
 
