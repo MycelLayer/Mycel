@@ -129,3 +129,49 @@ Example `coding` to `doc` message in `.agent-local/coding-to-doc.md`:
 - Planning impact: `checklist`
 - Remaining follow-up: update the checklist after the batch lands
 ```
+
+## Due Planning Sync Example
+
+Use this pattern when `coding` finishes implementation work and `scripts/check-doc-refresh.sh` reports that planning sync is due.
+
+Sequence:
+
+1. `coding` finishes the implementation slice in `file A`.
+2. `coding` runs the relevant local verification.
+3. `coding` appends an open entry to `.agent-local/coding-to-doc.md` with `planning impact` set to the affected planning surfaces.
+4. `coding` commits and pushes the tracked implementation change.
+5. `coding` checks the latest CI status after the push.
+6. `doc` reads the mailbox entry and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
+7. `doc` updates only the planning files justified by the landed change.
+8. `doc` appends a reply or resolution entry to `.agent-local/doc-to-coding.md`.
+9. `doc` commits and pushes the planning-sync docs change.
+
+Example `coding` mailbox entry:
+
+```md
+## 2026-03-11 - coding - file A landed, planning sync due
+
+- Status: open
+- Files touched: `path/to/fileA`
+- Behavior change: implemented the remaining accepted-head filter branch for file A
+- Protocol/schema/CLI/fixture impact: CLI behavior changed
+- Verify commands: `cargo test -p mycel-cli`
+- Docs impacted: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
+- Planning impact: `roadmap + checklist`
+- Remaining follow-up: `scripts/check-doc-refresh.sh` reported due; sync planning surfaces for the landed behavior
+```
+
+Example `doc` reply entry:
+
+```md
+## 2026-03-11 - doc - file A planning sync
+
+- Status: resolved
+- Files touched: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
+- Behavior change: none
+- Protocol/schema/CLI/fixture impact: none
+- Verify commands: `not run`
+- Docs impacted: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
+- Planning impact: `roadmap + checklist`
+- Remaining follow-up: none
+```
