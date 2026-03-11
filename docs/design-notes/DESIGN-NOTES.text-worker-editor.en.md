@@ -410,7 +410,92 @@ Recommended rule:
 
 This keeps annotation durable, addressable, and auditable.
 
-## 13. Offline and Local-first Behavior
+## 13. Macro-style Actions vs Add-in Extensions
+
+The editor should distinguish between two different extension models:
+
+- macro-style actions
+- add-in extensions
+
+These are not interchangeable.
+They serve different trust models, distribution models, and implementation phases.
+
+### 13.1 Macro-style Actions
+
+Macro-style actions are the narrower and earlier model.
+
+They are appropriate when a user:
+
+- selects a range or block
+- invokes a known command
+- expects a bounded transformation, annotation, or editorial helper
+
+Examples:
+
+- normalize a citation form
+- convert a selected span into a quote or note anchor
+- attach commentary to the current selection
+- generate a draft summary or label for the selection
+
+Recommended characteristics:
+
+- local or built-in by default
+- explicit invocation by the user
+- bounded input and bounded output
+- no direct authority over protocol persistence
+- results surfaced as draft edits, commentary objects, or candidate revisions
+
+Macro-style actions are useful because they let the editor support real text-work automation before a full extension platform exists.
+
+### 13.2 Add-in Extensions
+
+Add-in extensions are the broader and later model.
+
+They are appropriate when a third-party capability needs structured integration with the editor, for example:
+
+- legal or scriptural source databases
+- citation providers
+- import and export adapters
+- AI-assisted review or suggestion systems
+- domain-specific textual analysis tools
+
+Recommended characteristics:
+
+- explicit capability boundaries
+- permissioned access to selection, document projection, commentary, and publish intents
+- versioned interfaces
+- isolatable failure behavior
+- stronger distribution and trust controls than local macro hooks
+
+An add-in system should be treated as platform architecture, not just editor convenience.
+
+### 13.3 Why Macro-style Actions Should Come First
+
+Macro-style actions should arrive earlier because they solve immediate authoring needs with lower architectural risk.
+
+They allow the project to validate:
+
+- selection-driven editorial actions
+- action-to-draft mapping
+- action-to-commentary mapping
+- how transformed output should remain inspectable
+
+without committing too early to a full ecosystem API.
+
+### 13.4 Non-negotiable Rule for Both Models
+
+Neither macros nor add-ins should be allowed to silently redefine canonical state.
+
+The system should avoid:
+
+- direct opaque writes to protocol storage
+- hidden mutation of accepted text
+- extension-specific merge rules that bypass profile-governed derivation
+- uninspectable transformations that cannot be reviewed as edits, commentary, or revision candidates
+
+In Mycel, an extension mechanism is acceptable only if its output stays visible inside the history, branch, and governance model.
+
+## 14. Offline and Local-first Behavior
 
 The editor should assume intermittent connectivity and delayed publication.
 
@@ -427,7 +512,7 @@ The editor should avoid:
 - silently rewriting local authoring history after sync
 - hiding failed publication or signature checks
 
-## 14. Import and Export
+## 15. Import and Export
 
 A serious editor should not trap users in a purely internal format.
 
@@ -446,7 +531,7 @@ The preferred direction is:
 
 Mycel should not treat arbitrary external word-processor markup as canonical truth.
 
-## 15. Explicit Non-goals
+## 16. Explicit Non-goals
 
 The first version of a text-worker editor should not attempt all of the following at once:
 
@@ -459,7 +544,7 @@ The first version of a text-worker editor should not attempt all of the followin
 
 The first serious editor should be text-first, structure-first, and history-first.
 
-## 16. Recommended Build Sequence
+## 17. Recommended Build Sequence
 
 The text-worker editor should be built only after the reader-first core is stable.
 
@@ -474,7 +559,7 @@ Recommended phases:
 This sequence matters.
 If the project starts with surface polish before accepted-state clarity, the editor will look powerful while hiding the protocol's real model.
 
-## 17. Minimal Success Criteria
+## 18. Minimal Success Criteria
 
 A first serious text-worker editor is successful if an editor can:
 
@@ -488,7 +573,7 @@ A first serious text-worker editor is successful if an editor can:
 
 If those seven things work, Mycel has moved from protocol-only credibility to real text-work usability.
 
-## 18. Open Questions
+## 19. Open Questions
 
 - Should comments and annotations be separate commentary objects by default, or may some profiles allow inline note objects inside the main text flow?
 - How much presentation freedom should the editor allow before it begins to undermine canonical-text stability?
