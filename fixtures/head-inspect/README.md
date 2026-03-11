@@ -11,3 +11,7 @@ Recommended contents:
 Current example bundles:
 
 - `minimal-head-selection/bundle.json`: selects one accepted head from two eligible revisions using three signed View objects
+
+Optional bundle fields:
+
+- `objects`: additional verified replay objects, such as `patch` objects, that `mycel head render` can use when rendering without `--store-root`

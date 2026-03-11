@@ -275,7 +275,7 @@ pub fn assert_head_render_help(stdout: &str) {
     );
     assert!(
         stdout.contains("--store-root <STORE_ROOT>"),
-        "expected required store-root flag in help, stdout: {stdout}"
+        "expected store-root flag in help, stdout: {stdout}"
     );
 }
 

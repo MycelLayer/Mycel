@@ -337,14 +337,14 @@
         <div class="eyebrow">Visual progress summary</div>
         <h1>Roadmap order and implementation status in one view.</h1>
         <p class="lead">
-          Mycel is still in the narrow first-client lane. The immediate goal is to close shared-core
-          parsing, canonicalization, replay, and rebuild work before widening the reader, sync, and
-          app-layer surface.
+          Mycel is still in the narrow first-client lane. The immediate goal is to finish the last
+          shared-core closure work while widening the reader surface only through deterministic,
+          replay-backed accepted-head inspection and rendering.
         </p>
         <ol class="lane-list">
           <li>Close <code>M1</code> malformed-field depth and canonicalization debt.</li>
-          <li>Finish <code>M2</code> replay, rebuild, and narrow write-path closure.</li>
-          <li>Delay <code>M3+</code> expansion until the shared core is stable.</li>
+          <li>Finish <code>M2</code> replay, rebuild, and merge-authoring closure.</li>
+          <li>Expand <code>M3</code> reader workflows carefully on top of the accepted-head inspection and render base.</li>
         </ol>
       </header>
 
@@ -378,11 +378,11 @@
           <article class="card">
             <div class="stage">Reader-plus-governance</div>
             <h3>M3</h3>
-            <div class="status partial">Planned next</div>
+            <div class="status partial">Early partial</div>
             <ul>
               <li>Accepted-head reader workflows</li>
+              <li>Bundle and store rendering</li>
               <li>Fixed-profile reading</li>
-              <li>Reader-first text inspection</li>
             </ul>
           </article>
           <article class="card">
@@ -488,7 +488,7 @@
               <td data-label="Area">11. CLI or API Surface</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2 / M3</td>
-              <td data-label="Current read">Verification and inspection exist; authoring, sync, and workflow split remain.</td>
+              <td data-label="Current read">Verification, authoring, inspection, and accepted-head render exist; sync and workflow split remain.</td>
             </tr>
             <tr>
               <td data-label="Area">12. Interop Test Minimum</td>

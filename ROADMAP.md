@@ -280,21 +280,22 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, but no longer limited to fixture-only head inspection.
+Early partial progress, now with initial accepted-head rendering on top of the deterministic selector path.
 
 Already in progress or partially implemented:
 
 1. Accepted-head inspection
 2. Structured decision output with typed machine-readable arrays
 3. Store-backed accepted-head inspection using persisted store indexes
-4. Early simulator workflows around peer and topology validation
+4. Accepted-head render output from persisted store state or explicit bundle objects
+5. Early simulator workflows around peer and topology validation
 
 Still missing or incomplete:
 
-1. Full reader rendering path
+1. Stable reader-facing profile selection surface
 2. View publication workflow
-3. Stable reader-facing profile selection surface
-4. Standalone governance retrieval and inspection surfaces beyond head inspection
+3. Standalone governance retrieval and inspection surfaces beyond head inspection
+4. Broader governance-state persistence beyond selector and replay inputs
 
 ### Milestones in This Phase
 
@@ -316,21 +317,22 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with an initial bridge from persisted store state into reader inspection.
+Early partial progress, now with initial accepted-head render support from persisted stores and explicit replay bundles.
 
 Already visible in the repo:
 
 1. accepted-head inspection
 2. structured decision detail in typed arrays
 3. store-backed selector object loading for accepted-head inspection
-4. simulator and validation workflows around peer, topology, test, and report scopes
+4. accepted-head rendering from persisted store state or explicit bundle objects
+5. simulator and validation workflows around peer, topology, test, and report scopes
 
 Main remaining gaps:
 
-1. reader text rendering path
-2. fixed-profile reading workflow
-3. governance publication workflow
-4. broader governance-state persistence and dedicated inspection surfaces
+1. fixed-profile reading workflow
+2. governance publication workflow
+3. broader governance-state persistence and dedicated inspection surfaces
+4. stronger dedicated governance inspection surfaces beyond accepted-head workflows
 
 Implementation anchors:
 
@@ -344,6 +346,7 @@ Implementation anchors:
    `fixtures/head-inspect/README.md`
 3. Useful commands:
    `cargo run -p mycel-cli -- head inspect <doc-id> --input <path-or-fixture> --json`
+   `cargo run -p mycel-cli -- head render <doc-id> --input <path-or-fixture> --json`
    `cargo test -p mycel-cli head_inspect`
 
 ## Phase 3: Full-Stack

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use mycel_core::head::{
-    inspect_heads_from_path, inspect_heads_from_store_path, render_head_from_store_path,
-    HeadInspectSummary, HeadRenderSummary,
+    inspect_heads_from_path, inspect_heads_from_store_path, render_head_from_path,
+    render_head_from_store_path, HeadInspectSummary, HeadRenderSummary,
 };
 
 use crate::{emit_error_line, CliError};
@@ -71,10 +71,9 @@ struct HeadRenderCliArgs {
     #[arg(
         long,
         value_name = "STORE_ROOT",
-        help = "Load selector and replay objects from a persisted store index",
-        required = true
+        help = "Load selector and replay objects from a persisted store index"
     )]
-    store_root: String,
+    store_root: Option<String>,
     #[arg(long, help = "Emit machine-readable accepted-head render output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -145,7 +144,9 @@ fn print_head_inspect_json(summary: &HeadInspectSummary) -> Result<i32, CliError
 
 fn print_head_render_text(summary: &HeadRenderSummary) -> i32 {
     println!("input path: {}", summary.input_path.display());
-    println!("store root: {}", summary.store_root.display());
+    if let Some(store_root) = &summary.store_root {
+        println!("store root: {}", store_root.display());
+    }
     println!("doc id: {}", summary.doc_id);
     if let Some(profile_id) = &summary.profile_id {
         println!("profile id: {profile_id}");
@@ -214,10 +215,13 @@ fn head_inspect(
 fn head_render(
     doc_id: String,
     input_path: PathBuf,
-    store_root: PathBuf,
+    store_root: Option<PathBuf>,
     json: bool,
 ) -> Result<i32, CliError> {
-    let summary = render_head_from_store_path(&input_path, &store_root, &doc_id);
+    let summary = match store_root {
+        Some(store_root) => render_head_from_store_path(&input_path, &store_root, &doc_id),
+        None => render_head_from_path(&input_path, &doc_id),
+    };
     if json {
         print_head_render_json(&summary)
     } else {
@@ -253,7 +257,7 @@ pub(crate) fn handle_head_command(command: HeadCliArgs) -> Result<i32, CliError>
             head_render(
                 args.doc_id,
                 PathBuf::from(args.input),
-                PathBuf::from(args.store_root),
+                args.store_root.map(PathBuf::from),
                 args.json,
             )
         }

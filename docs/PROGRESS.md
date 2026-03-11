@@ -1,6 +1,6 @@
 # Mycel Progress View
 
-Status: draft, refreshed after the recent M1 strictness, signature-edge verify smoke, and fixture-isolation batch
+Status: draft, refreshed after the recent M2 authoring and M3 accepted-head render batch
 
 This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md) into one quick progress view.
 
@@ -9,8 +9,8 @@ This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.
 The current build lane is:
 
 1. close `M1` parsing and canonicalization debt
-2. finish `M2` replay, rebuild, and narrow write-path closure
-3. delay `M3+` reader, wire, and app-layer expansion until the shared core is stable
+2. finish `M2` replay, rebuild, and merge-authoring closure
+3. expand `M3` reader workflows carefully on top of the now-usable accepted-head inspection and render base
 
 ## Milestone Timeline
 
@@ -22,7 +22,7 @@ flowchart LR
   end
 
   subgraph ReaderPlusGovernance["Reader-plus-governance"]
-    M3["M3<br/>Reader and Governance Surface<br/>Planned next"]
+    M3["M3<br/>Reader and Governance Surface<br/>Early partial"]
   end
 
   subgraph FullStack["Full-stack"]
@@ -38,8 +38,8 @@ flowchart LR
 | Milestone | Status | Main focus now | Main gaps |
 |---|---|---|---|
 | `M1` | Mostly complete | shared parsing, canonical helpers, strictness/fixture coverage | malformed field-shape depth closure, shared canonical utility reuse, milestone-close proof points |
-| `M2` | Substantially underway | replay, `state_hash`, store rebuild, persisted indexes | narrow authoring/write path, broader reader reuse, stronger replay/store fixtures |
-| `M3` | Planned next | accepted-head reader workflows, profile-locked reading, text inspection | depends on stable `M1/M2` shared core |
+| `M2` | Substantially underway | replay, `state_hash`, store rebuild, persisted indexes, narrow write path | merge authoring, stronger replay/store fixtures, broader core reuse |
+| `M3` | Early partial | accepted-head reader workflows, bundle/store rendering, profile-locked reading | fixed-profile surfaces, governance publication, dedicated governance inspection |
 | `M4` | Later | wire envelope, sync workflow, peer interop | depends on stable reader and store model |
 | `M5` | Later | selective app-layer growth | depends on stable protocol core and sync |
 
@@ -64,7 +64,7 @@ Legend:
 | 8. Sync Workflow | Not started | `M4` | first-time and incremental sync remain future work |
 | 9. Views and Head Selection | Mostly done | `M3` | deterministic selector core exists; multi-profile and dual-role closure remain |
 | 10. Merge Generation | Partial | `M2` | verification is replay-based, but local merge authoring is not built |
-| 11. CLI or API Surface | Partial | `M2` / `M3` | verification and inspection exist; authoring, sync, and workflow split remain |
+| 11. CLI or API Surface | Partial | `M2` / `M3` | verification, authoring, inspection, and accepted-head render exist; sync and workflow split remain |
 | 12. Interop Test Minimum | Partial | `M1` / `M2` | fixture isolation, reproducibility, and smoke coverage exist, but several normative wire and replay checks remain |
 | 13. Ready-to-Build Gate | Partial | whole plan | replay, head selection, and rebuild are green; parse, wire sync, and merge generation are not |
 

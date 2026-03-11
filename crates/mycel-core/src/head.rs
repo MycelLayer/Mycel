@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::protocol::{canonical_json, hex_encode, parse_json_strict, BlockObject};
+use crate::protocol::{
+    canonical_json, hex_encode, parse_json_strict, parse_object_envelope, BlockObject,
+    StringFieldError,
+};
 use crate::replay::{replay_revision_from_index, DocumentState};
 use crate::store::{load_store_index_manifest, load_store_object_index, load_stored_object_value};
 use crate::verify::verify_object_value;
@@ -81,7 +84,7 @@ pub struct EligibleHeadSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct HeadRenderSummary {
     pub input_path: PathBuf,
-    pub store_root: PathBuf,
+    pub store_root: Option<PathBuf>,
     pub status: String,
     pub doc_id: String,
     pub profile_id: Option<String>,
@@ -108,6 +111,8 @@ pub struct RenderedBlockSummary {
 struct HeadInspectInput {
     profile: HeadInspectProfile,
     revisions: Vec<Value>,
+    #[serde(default)]
+    objects: Vec<Value>,
     #[serde(default)]
     views: Vec<Value>,
     #[serde(default)]
@@ -197,10 +202,10 @@ impl HeadInspectSummary {
 }
 
 impl HeadRenderSummary {
-    fn new(input_path: &Path, store_root: &Path, doc_id: &str) -> Self {
+    fn new(input_path: &Path, store_root: Option<&Path>, doc_id: &str) -> Self {
         Self {
             input_path: input_path.to_path_buf(),
-            store_root: store_root.to_path_buf(),
+            store_root: store_root.map(Path::to_path_buf),
             status: "ok".to_string(),
             doc_id: doc_id.to_string(),
             profile_id: None,
@@ -253,7 +258,7 @@ pub fn render_head_from_store_path(
     doc_id: &str,
 ) -> HeadRenderSummary {
     let inspect_summary = inspect_heads_from_store_path(input_path, store_root, doc_id);
-    let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, store_root, doc_id);
+    let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, Some(store_root), doc_id);
     summary.profile_id = inspect_summary.profile_id.clone();
     summary.effective_selection_time = inspect_summary.effective_selection_time;
     summary.selected_head = inspect_summary.selected_head.clone();
@@ -308,6 +313,72 @@ pub fn render_head_from_store_path(
     summary
 }
 
+pub fn render_head_from_path(input_path: &Path, doc_id: &str) -> HeadRenderSummary {
+    let inspect_summary = inspect_heads_from_path(input_path, doc_id);
+    let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, None, doc_id);
+    summary.profile_id = inspect_summary.profile_id.clone();
+    summary.effective_selection_time = inspect_summary.effective_selection_time;
+    summary.selected_head = inspect_summary.selected_head.clone();
+    summary.notes = inspect_summary.notes.clone();
+
+    if !inspect_summary.is_ok() {
+        summary.status = "failed".to_string();
+        summary.errors = inspect_summary.errors.clone();
+        return summary;
+    }
+
+    let Some(selected_head) = &inspect_summary.selected_head else {
+        summary.push_error("accepted-head inspection did not select a head");
+        return summary;
+    };
+
+    let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
+        Ok(loaded) => loaded,
+        Err(inspect_failure) => {
+            summary.status = "failed".to_string();
+            summary.errors = inspect_failure.errors;
+            return summary;
+        }
+    };
+    summary.input_path = resolved_input_path;
+
+    let object_index = match build_bundle_object_index(&input.revisions, &input.objects) {
+        Ok(index) => index,
+        Err(error) => {
+            summary.push_error(error);
+            return summary;
+        }
+    };
+    let Some(revision_value) = object_index.get(selected_head) else {
+        summary.push_error(format!(
+            "selected head '{}' is not available in the bundle replay object set",
+            selected_head
+        ));
+        return summary;
+    };
+    let replay = match replay_revision_from_index(revision_value, &object_index) {
+        Ok(replay) => replay,
+        Err(error) => {
+            summary.push_error(format!(
+                "failed to replay selected head '{}' from bundle objects: {error}",
+                selected_head
+            ));
+            return summary;
+        }
+    };
+
+    summary.recomputed_state_hash = Some(replay.recomputed_state_hash);
+    summary.rendered_blocks = summarize_rendered_blocks(&replay.state);
+    summary.rendered_block_count = summary.rendered_blocks.len();
+    summary.rendered_text = render_document_text(&replay.state);
+    summary.notes.push(format!(
+        "rendered accepted head '{}' from bundle-backed replay objects",
+        selected_head
+    ));
+
+    summary
+}
+
 fn load_head_inspect_input(
     input_path: &Path,
     doc_id: &str,
@@ -351,6 +422,7 @@ fn inspect_heads_from_loaded_input(
     let HeadInspectInput {
         profile,
         revisions,
+        objects: _,
         views,
         critical_violations,
     } = input;
@@ -595,6 +667,59 @@ fn load_store_backed_selector_objects(
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok((revisions, views))
+}
+
+fn build_bundle_object_index(
+    revisions: &[Value],
+    objects: &[Value],
+) -> Result<HashMap<String, Value>, String> {
+    let mut object_index = HashMap::new();
+
+    for value in revisions.iter().chain(objects.iter()) {
+        let verification = verify_object_value(value);
+        if !verification.is_ok() {
+            return Err(format!(
+                "bundle replay object failed verification: {}",
+                verification.errors.join("; ")
+            ));
+        }
+
+        let object_id = bundle_object_id(value)?;
+        if let Some(existing) = object_index.insert(object_id.clone(), value.clone()) {
+            let _ = existing;
+            return Err(format!(
+                "duplicate bundle replay object ID '{}' found while building render object index",
+                object_id
+            ));
+        }
+    }
+
+    Ok(object_index)
+}
+
+fn bundle_object_id(value: &Value) -> Result<String, String> {
+    let envelope = parse_object_envelope(value).map_err(|error| error.to_string())?;
+    match envelope.declared_id() {
+        Ok(Some(object_id)) => Ok(object_id.to_string()),
+        Ok(None) => match envelope.logical_id() {
+            Ok(Some(object_id)) => Ok(object_id.to_string()),
+            Ok(None) => {
+                Err("bundle replay object does not expose a declared or logical ID".to_string())
+            }
+            Err(StringFieldError::Missing) => {
+                Err("bundle replay object is missing its logical ID field".to_string())
+            }
+            Err(StringFieldError::WrongType) => {
+                Err("bundle replay object logical ID field must be a string".to_string())
+            }
+        },
+        Err(StringFieldError::Missing) => {
+            Err("bundle replay object is missing its derived ID field".to_string())
+        }
+        Err(StringFieldError::WrongType) => {
+            Err("bundle replay object derived ID field must be a string".to_string())
+        }
+    }
 }
 
 fn resolve_head_inspect_input_path(input_path: &Path) -> Result<PathBuf, String> {

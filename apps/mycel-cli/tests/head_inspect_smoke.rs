@@ -743,6 +743,200 @@ fn head_render_text_reports_rendered_text() {
 }
 
 #[test]
+fn head_render_json_replays_selected_head_from_bundle_objects() {
+    let doc_id = "doc:render-bundle";
+    let revision_author = signing_key(83);
+    let maintainer = signing_key(94);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let genesis_hash = empty_document_state_hash(doc_id);
+    let revision_a = signed_revision(&revision_author, doc_id, vec![], 1000, &genesis_hash);
+    let patch = signed_patch(
+        &revision_author,
+        doc_id,
+        revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist"),
+        1010,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:render-bundle-001",
+                    "block_type": "paragraph",
+                    "content": "Bundle line",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+    let revision_b = signed_revision_with_patches(
+        &revision_author,
+        doc_id,
+        vec![revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string()],
+        vec![patch["patch_id"]
+            .as_str()
+            .expect("patch id should exist")
+            .to_string()],
+        1020,
+        &document_state_hash(
+            doc_id,
+            vec![json!({
+                "block_id": "blk:render-bundle-001",
+                "block_type": "paragraph",
+                "content": "Bundle line",
+                "attrs": {},
+                "children": []
+            })],
+        ),
+    );
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(doc_id, &revision_b["revision_id"]),
+        1100,
+    );
+    let input = write_input_file(
+        "head-render-bundle-backed",
+        "input.json",
+        json!({
+            "profile": head_profile(hash_json(&policy), 1200),
+            "revisions": [revision_a, revision_b.clone()],
+            "objects": [patch],
+            "views": [view],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "render",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["selected_head"], revision_b["revision_id"]);
+    assert_eq!(json["rendered_text"], "Bundle line");
+    assert_eq!(json["store_root"], Value::Null);
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("bundle-backed replay objects")))),
+        "expected bundle-backed render note, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_render_bundle_reports_missing_replay_objects() {
+    let doc_id = "doc:render-missing-objects";
+    let revision_author = signing_key(84);
+    let maintainer = signing_key(95);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let genesis_hash = empty_document_state_hash(doc_id);
+    let revision_a = signed_revision(&revision_author, doc_id, vec![], 1000, &genesis_hash);
+    let patch = signed_patch(
+        &revision_author,
+        doc_id,
+        revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist"),
+        1010,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:render-missing-001",
+                    "block_type": "paragraph",
+                    "content": "Missing patch payload",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+    let revision_b = signed_revision_with_patches(
+        &revision_author,
+        doc_id,
+        vec![revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string()],
+        vec![patch["patch_id"]
+            .as_str()
+            .expect("patch id should exist")
+            .to_string()],
+        1020,
+        &document_state_hash(
+            doc_id,
+            vec![json!({
+                "block_id": "blk:render-missing-001",
+                "block_type": "paragraph",
+                "content": "Missing patch payload",
+                "attrs": {},
+                "children": []
+            })],
+        ),
+    );
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(doc_id, &revision_b["revision_id"]),
+        1100,
+    );
+    let input = write_input_file(
+        "head-render-bundle-missing-object",
+        "input.json",
+        json!({
+            "profile": head_profile(hash_json(&policy), 1200),
+            "revisions": [revision_a, revision_b],
+            "views": [view],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "render",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains("missing patch")))),
+        "expected missing patch error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn head_inspect_text_fails_when_no_eligible_head_exists() {
     let author_key = signing_key(11);
     let revision = signed_revision(&author_key, "doc:other", vec![], 1000, "hash:state-a");

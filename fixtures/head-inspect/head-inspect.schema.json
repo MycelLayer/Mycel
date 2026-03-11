@@ -33,6 +33,12 @@
         "type": "object"
       }
     },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "views": {
       "type": "array",
       "items": {

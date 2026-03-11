@@ -280,21 +280,22 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，但已不再只是 fixture-only 的 head inspection。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備初步的 accepted-head rendering。
 
 已在進行中或部分完成：
 
 1. Accepted-head inspection
 2. 以 typed arrays 呈現的 structured decision detail
 3. accepted-head inspection 的 store-backed selector object loading
-4. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+4. 可從 persisted store state 或 explicit bundle objects 產生 accepted-head render output
+5. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
 
 主要剩餘缺口：
 
-1. reader text rendering path
-2. fixed-profile reading workflow
-3. governance publication workflow
-4. 更廣泛的 governance-state persistence 與專用 inspection surfaces
+1. fixed-profile reading workflow
+2. governance publication workflow
+3. 更廣泛的 governance-state persistence
+4. 超出 accepted-head workflow 的專用 governance inspection surfaces
 
 Implementation anchors：
 
@@ -308,6 +309,7 @@ Implementation anchors：
    `fixtures/head-inspect/README.md`
 3. Useful commands:
    `cargo run -p mycel-cli -- head inspect <doc-id> --input <path-or-fixture> --json`
+   `cargo run -p mycel-cli -- head render <doc-id> --input <path-or-fixture> --json`
    `cargo test -p mycel-cli head_inspect`
 
 ## Phase 3: Full-Stack
