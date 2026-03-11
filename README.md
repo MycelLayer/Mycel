@@ -72,6 +72,7 @@ What those commands show:
 
 If you want the shortest useful path:
 
+- Start by understanding the gap Mycel is trying to fill: [docs/MYCEL-GAP.md](./docs/MYCEL-GAP.md)
 - Start here for the protocol core: [PROTOCOL.en.md](./PROTOCOL.en.md)
 - Read transport rules next: [WIRE-PROTOCOL.en.md](./WIRE-PROTOCOL.en.md)
 - See implementation order: [ROADMAP.md](./ROADMAP.md)
