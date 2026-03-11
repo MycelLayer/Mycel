@@ -402,6 +402,180 @@ fn view_list_json_filters_governance_records() {
 }
 
 #[test]
+fn view_list_json_supports_sorting_time_windows_and_grouped_summaries() {
+    let store_dir = create_temp_dir("view-list-summary-store");
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(61);
+    let maintainer_b = signing_key(62);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a1 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        documents_value(
+            "doc:alpha",
+            "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ),
+        20,
+    );
+    let view_b1 = signed_view(
+        &maintainer_b,
+        &policy_b,
+        documents_value(
+            "doc:gamma",
+            "rev:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        ),
+        30,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-list-summary-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-list-summary-a2", "view-a2.json", &view_a2);
+    let (_dir_b1, path_b1) = write_json_file("view-list-summary-b1", "view-b1.json", &view_b1);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_b1 = publish_view(&path_b1, &store_root);
+    let _publish_a2 = publish_view(&path_a2, &store_root);
+
+    let output = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--timestamp-min",
+        "15",
+        "--timestamp-max",
+        "30",
+        "--sort",
+        "timestamp-desc",
+        "--group-by",
+        "profile-id",
+        "--group-by",
+        "maintainer",
+        "--group-by",
+        "doc-id",
+        "--json",
+    ]);
+    assert_success(&output);
+
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["sort"], "timestamp-desc");
+    assert_eq!(json["record_count"], 2);
+    assert_eq!(json["filters"]["timestamp_min"], 15);
+    assert_eq!(json["filters"]["timestamp_max"], 30);
+    assert_eq!(json["records"][0]["timestamp"], 30);
+    assert_eq!(json["records"][1]["timestamp"], 20);
+    assert_eq!(json["records"][0]["view_id"], view_b1["view_id"]);
+    assert_eq!(json["records"][1]["view_id"], view_a2["view_id"]);
+
+    let groups = json["groups"]
+        .as_array()
+        .expect("groups should be an array");
+    assert_eq!(groups.len(), 3);
+
+    let by_profile = groups
+        .iter()
+        .find(|group| group["group_by"] == "profile-id")
+        .expect("expected profile-id grouping");
+    assert_eq!(
+        by_profile["groups"]
+            .as_array()
+            .expect("profile groups")
+            .len(),
+        2
+    );
+    assert_eq!(by_profile["groups"][0]["record_count"], 1);
+    assert_eq!(by_profile["groups"][1]["record_count"], 1);
+
+    let by_maintainer = groups
+        .iter()
+        .find(|group| group["group_by"] == "maintainer")
+        .expect("expected maintainer grouping");
+    assert_eq!(
+        by_maintainer["groups"]
+            .as_array()
+            .expect("maintainer groups")
+            .len(),
+        2
+    );
+    assert_eq!(by_maintainer["groups"][0]["latest_timestamp"], 30);
+    assert_eq!(by_maintainer["groups"][1]["latest_timestamp"], 20);
+
+    let by_doc = groups
+        .iter()
+        .find(|group| group["group_by"] == "doc-id")
+        .expect("expected doc-id grouping");
+    let doc_groups = by_doc["groups"].as_array().expect("doc groups");
+    assert_eq!(doc_groups.len(), 2);
+    let alpha_group = doc_groups
+        .iter()
+        .find(|group| group["key"] == "doc:alpha")
+        .expect("expected doc:alpha group");
+    assert_eq!(alpha_group["record_count"], 1);
+    let gamma_group = doc_groups
+        .iter()
+        .find(|group| group["key"] == "doc:gamma")
+        .expect("expected doc:gamma group");
+    assert_eq!(gamma_group["latest_timestamp"], 30);
+
+    let by_profile_only = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        publish_a1["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--sort",
+        "profile-id",
+        "--json",
+    ]);
+    assert_success(&by_profile_only);
+    let by_profile_only_json = parse_json_stdout(&by_profile_only);
+    assert_eq!(by_profile_only_json["record_count"], 2);
+    assert_eq!(by_profile_only_json["records"][0]["timestamp"], 20);
+    assert_eq!(by_profile_only_json["records"][1]["timestamp"], 10);
+
+    let by_view_id = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--view-id",
+        publish_b1["view_id"]
+            .as_str()
+            .expect("view id should exist"),
+        "--timestamp-min",
+        "31",
+    ]);
+    assert_exit_code(&by_view_id, 0);
+    assert_stdout_contains(&by_view_id, "record count: 0");
+    assert_stdout_contains(&by_view_id, "view list: ok");
+}
+
+#[test]
 fn view_publish_rejects_non_view_object() {
     let store_dir = create_temp_dir("view-publish-invalid-store");
     let store_root = path_arg(&store_dir.path().to_path_buf());
@@ -423,6 +597,31 @@ fn view_publish_rejects_non_view_object() {
     assert_exit_code(&output, 1);
     assert_stdout_contains(&output, "view publish: failed");
     assert_stderr_contains(&output, "view publish source is not a valid view object");
+}
+
+#[test]
+fn view_list_rejects_inverted_timestamp_window() {
+    let store_dir = create_temp_dir("view-list-bad-window-store");
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let output = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--timestamp-min",
+        "20",
+        "--timestamp-max",
+        "10",
+    ]);
+
+    assert_exit_code(&output, 2);
+    assert_stderr_contains(
+        &output,
+        "view list timestamp-min cannot be greater than timestamp-max",
+    );
 }
 
 #[test]

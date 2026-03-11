@@ -344,6 +344,22 @@ pub fn assert_view_list_help(stdout: &str) {
         "expected revision-id flag in help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--timestamp-min <TIMESTAMP>"),
+        "expected timestamp-min flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--timestamp-max <TIMESTAMP>"),
+        "expected timestamp-max flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--sort <SORT>"),
+        "expected sort flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--group-by <GROUP_BY>"),
+        "expected group-by flag in help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("--json"),
         "expected json flag in help, stdout: {stdout}"
     );

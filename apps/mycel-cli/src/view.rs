@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 use mycel_core::protocol::{parse_json_strict, parse_view_object};
 use mycel_core::store::{
     load_store_index_manifest, load_stored_object_value, write_object_value_to_store,
@@ -81,9 +81,12 @@ struct ViewListSummary {
     store_root: PathBuf,
     manifest_path: PathBuf,
     status: String,
+    sort: ViewListSort,
     record_count: usize,
     filters: ViewListFilters,
+    group_by: Vec<ViewListGroupBy>,
     records: Vec<ViewListRecord>,
+    groups: Vec<ViewListGroupSummary>,
     notes: Vec<String>,
     errors: Vec<String>,
 }
@@ -95,6 +98,8 @@ struct ViewListFilters {
     maintainer: Option<String>,
     doc_id: Option<String>,
     revision_id: Option<String>,
+    timestamp_min: Option<u64>,
+    timestamp_max: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -104,6 +109,60 @@ struct ViewListRecord {
     profile_id: String,
     timestamp: u64,
     documents: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+enum ViewListSort {
+    ViewId,
+    TimestampAsc,
+    TimestampDesc,
+    ProfileId,
+    Maintainer,
+}
+
+impl ViewListSort {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ViewId => "view-id",
+            Self::TimestampAsc => "timestamp-asc",
+            Self::TimestampDesc => "timestamp-desc",
+            Self::ProfileId => "profile-id",
+            Self::Maintainer => "maintainer",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+enum ViewListGroupBy {
+    ProfileId,
+    Maintainer,
+    DocId,
+}
+
+impl ViewListGroupBy {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ProfileId => "profile-id",
+            Self::Maintainer => "maintainer",
+            Self::DocId => "doc-id",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ViewListGroupSummary {
+    group_by: ViewListGroupBy,
+    groups: Vec<ViewListGroupBucket>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ViewListGroupBucket {
+    key: String,
+    record_count: usize,
+    latest_timestamp: u64,
+    view_ids: Vec<String>,
 }
 
 #[derive(Args)]
@@ -125,6 +184,32 @@ struct ViewListCliArgs {
     doc_id: Option<String>,
     #[arg(long, help = "Only return views that mention one revision ID")]
     revision_id: Option<String>,
+    #[arg(
+        long,
+        value_name = "TIMESTAMP",
+        help = "Only return views at or after one timestamp"
+    )]
+    timestamp_min: Option<u64>,
+    #[arg(
+        long,
+        value_name = "TIMESTAMP",
+        help = "Only return views at or before one timestamp"
+    )]
+    timestamp_max: Option<u64>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = ViewListSort::TimestampDesc,
+        help = "Sort listed governance records"
+    )]
+    sort: ViewListSort,
+    #[arg(
+        long,
+        value_name = "GROUP_BY",
+        value_enum,
+        help = "Emit grouped summaries by one governance field"
+    )]
+    group_by: Vec<ViewListGroupBy>,
     #[arg(long, help = "Emit machine-readable view listing output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -190,14 +275,22 @@ impl ViewInspectSummary {
 }
 
 impl ViewListSummary {
-    fn new(store_root: &Path, filters: ViewListFilters) -> Self {
+    fn new(
+        store_root: &Path,
+        filters: ViewListFilters,
+        sort: ViewListSort,
+        group_by: Vec<ViewListGroupBy>,
+    ) -> Self {
         Self {
             store_root: store_root.to_path_buf(),
             manifest_path: store_root.join("indexes").join("manifest.json"),
             status: "ok".to_string(),
+            sort,
             record_count: 0,
             filters,
+            group_by,
             records: Vec::new(),
+            groups: Vec::new(),
             notes: Vec::new(),
             errors: Vec::new(),
         }
@@ -270,6 +363,7 @@ fn load_source_value(source_path: &Path) -> Result<Value, String> {
 fn print_view_list_text(summary: &ViewListSummary) -> i32 {
     println!("store root: {}", summary.store_root.display());
     println!("manifest path: {}", summary.manifest_path.display());
+    println!("sort: {}", summary.sort.as_str());
     println!("record count: {}", summary.record_count);
     if let Some(view_id) = &summary.filters.view_id {
         println!("filter view_id: {view_id}");
@@ -286,6 +380,23 @@ fn print_view_list_text(summary: &ViewListSummary) -> i32 {
     if let Some(revision_id) = &summary.filters.revision_id {
         println!("filter revision_id: {revision_id}");
     }
+    if let Some(timestamp_min) = summary.filters.timestamp_min {
+        println!("filter timestamp_min: {timestamp_min}");
+    }
+    if let Some(timestamp_max) = summary.filters.timestamp_max {
+        println!("filter timestamp_max: {timestamp_max}");
+    }
+    if !summary.group_by.is_empty() {
+        println!(
+            "group by: {}",
+            summary
+                .group_by
+                .iter()
+                .map(|group_by| group_by.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
     for record in &summary.records {
         println!(
             "view: {} maintainer={} profile={} timestamp={} docs={}",
@@ -295,6 +406,18 @@ fn print_view_list_text(summary: &ViewListSummary) -> i32 {
             record.timestamp,
             record.documents.len()
         );
+    }
+    for grouped in &summary.groups {
+        println!("group summary: {}", grouped.group_by.as_str());
+        for bucket in &grouped.groups {
+            println!(
+                "group: {} records={} latest_timestamp={} views={}",
+                bucket.key,
+                bucket.record_count,
+                bucket.latest_timestamp,
+                bucket.view_ids.join(", ")
+            );
+        }
     }
     for note in &summary.notes {
         println!("note: {note}");
@@ -430,7 +553,7 @@ fn print_view_publish_json(summary: &ViewPublishSummary) -> Result<i32, CliError
     }
 }
 
-fn matches_view_filters(record: &ViewGovernanceRecord, filters: &ViewListFilters) -> bool {
+fn matches_manifest_filters(record: &ViewGovernanceRecord, filters: &ViewListFilters) -> bool {
     if filters
         .view_id
         .as_ref()
@@ -470,8 +593,119 @@ fn matches_view_filters(record: &ViewGovernanceRecord, filters: &ViewListFilters
     true
 }
 
-fn view_list(filters: ViewListFilters, store_root: PathBuf, json: bool) -> Result<i32, CliError> {
-    let mut summary = ViewListSummary::new(&store_root, filters);
+fn matches_timestamp_filters(timestamp: u64, filters: &ViewListFilters) -> bool {
+    if filters
+        .timestamp_min
+        .is_some_and(|timestamp_min| timestamp < timestamp_min)
+    {
+        return false;
+    }
+    if filters
+        .timestamp_max
+        .is_some_and(|timestamp_max| timestamp > timestamp_max)
+    {
+        return false;
+    }
+
+    true
+}
+
+fn sort_view_records(records: &mut [ViewListRecord], sort: ViewListSort) {
+    records.sort_by(|left, right| match sort {
+        ViewListSort::ViewId => left
+            .view_id
+            .cmp(&right.view_id)
+            .then_with(|| left.profile_id.cmp(&right.profile_id)),
+        ViewListSort::TimestampAsc => left
+            .timestamp
+            .cmp(&right.timestamp)
+            .then_with(|| left.view_id.cmp(&right.view_id)),
+        ViewListSort::TimestampDesc => right
+            .timestamp
+            .cmp(&left.timestamp)
+            .then_with(|| left.view_id.cmp(&right.view_id)),
+        ViewListSort::ProfileId => left
+            .profile_id
+            .cmp(&right.profile_id)
+            .then_with(|| right.timestamp.cmp(&left.timestamp))
+            .then_with(|| left.view_id.cmp(&right.view_id)),
+        ViewListSort::Maintainer => left
+            .maintainer
+            .cmp(&right.maintainer)
+            .then_with(|| right.timestamp.cmp(&left.timestamp))
+            .then_with(|| left.view_id.cmp(&right.view_id)),
+    });
+}
+
+fn build_view_group_summary(
+    records: &[ViewListRecord],
+    group_by: ViewListGroupBy,
+) -> ViewListGroupSummary {
+    let mut buckets = BTreeMap::<String, Vec<&ViewListRecord>>::new();
+    for record in records {
+        match group_by {
+            ViewListGroupBy::ProfileId => {
+                buckets
+                    .entry(record.profile_id.clone())
+                    .or_default()
+                    .push(record);
+            }
+            ViewListGroupBy::Maintainer => {
+                buckets
+                    .entry(record.maintainer.clone())
+                    .or_default()
+                    .push(record);
+            }
+            ViewListGroupBy::DocId => {
+                for doc_id in record.documents.keys() {
+                    buckets.entry(doc_id.clone()).or_default().push(record);
+                }
+            }
+        }
+    }
+
+    let mut groups = buckets
+        .into_iter()
+        .map(|(key, group_records)| {
+            let latest_timestamp = group_records
+                .iter()
+                .map(|record| record.timestamp)
+                .max()
+                .unwrap_or_default();
+            let mut view_ids = group_records
+                .iter()
+                .map(|record| record.view_id.clone())
+                .collect::<Vec<_>>();
+            view_ids.sort();
+            view_ids.dedup();
+
+            ViewListGroupBucket {
+                key,
+                record_count: group_records.len(),
+                latest_timestamp,
+                view_ids,
+            }
+        })
+        .collect::<Vec<_>>();
+    groups.sort_by(|left, right| {
+        right
+            .record_count
+            .cmp(&left.record_count)
+            .then_with(|| right.latest_timestamp.cmp(&left.latest_timestamp))
+            .then_with(|| left.key.cmp(&right.key))
+    });
+
+    ViewListGroupSummary { group_by, groups }
+}
+
+fn view_list(
+    filters: ViewListFilters,
+    sort: ViewListSort,
+    group_by: Vec<ViewListGroupBy>,
+    store_root: PathBuf,
+    json: bool,
+) -> Result<i32, CliError> {
+    let mut summary = ViewListSummary::new(&store_root, filters, sort, group_by);
     let manifest = match load_store_index_manifest(&store_root) {
         Ok(manifest) => manifest,
         Err(error) => {
@@ -487,7 +721,7 @@ fn view_list(filters: ViewListFilters, store_root: PathBuf, json: bool) -> Resul
     let matching_records = manifest
         .view_governance
         .iter()
-        .filter(|record| matches_view_filters(record, &summary.filters))
+        .filter(|record| matches_manifest_filters(record, &summary.filters))
         .cloned()
         .collect::<Vec<_>>();
 
@@ -520,6 +754,9 @@ fn view_list(filters: ViewListFilters, store_root: PathBuf, json: bool) -> Resul
                 };
             }
         };
+        if !matches_timestamp_filters(view.timestamp, &summary.filters) {
+            continue;
+        }
         summary.records.push(ViewListRecord {
             view_id: record.view_id,
             maintainer: record.maintainer,
@@ -529,12 +766,14 @@ fn view_list(filters: ViewListFilters, store_root: PathBuf, json: bool) -> Resul
         });
     }
 
-    summary.records.sort_by(|left, right| {
-        left.view_id
-            .cmp(&right.view_id)
-            .then_with(|| left.profile_id.cmp(&right.profile_id))
-    });
+    sort_view_records(&mut summary.records, summary.sort);
     summary.record_count = summary.records.len();
+    summary.groups = summary
+        .group_by
+        .iter()
+        .copied()
+        .map(|group_by| build_view_group_summary(&summary.records, group_by))
+        .collect();
     summary.notes.push(
         "governance record listing is separate from reader-facing accepted-head workflows"
             .to_string(),
@@ -729,17 +968,49 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
             if let Some(message) = unexpected_extra(&args.extra, "view list") {
                 return Err(CliError::usage(message));
             }
+            let ViewListCliArgs {
+                store_root,
+                view_id,
+                profile_id,
+                maintainer,
+                doc_id,
+                revision_id,
+                timestamp_min,
+                timestamp_max,
+                sort,
+                group_by: raw_group_by,
+                json,
+                extra: _,
+            } = args;
+
+            if let (Some(timestamp_min), Some(timestamp_max)) = (timestamp_min, timestamp_max) {
+                if timestamp_min > timestamp_max {
+                    return Err(CliError::usage(
+                        "view list timestamp-min cannot be greater than timestamp-max".to_string(),
+                    ));
+                }
+            }
+            let mut group_by = Vec::new();
+            for current in raw_group_by {
+                if !group_by.contains(&current) {
+                    group_by.push(current);
+                }
+            }
 
             view_list(
                 ViewListFilters {
-                    view_id: args.view_id,
-                    profile_id: args.profile_id,
-                    maintainer: args.maintainer,
-                    doc_id: args.doc_id,
-                    revision_id: args.revision_id,
+                    view_id,
+                    profile_id,
+                    maintainer,
+                    doc_id,
+                    revision_id,
+                    timestamp_min,
+                    timestamp_max,
                 },
-                PathBuf::from(args.store_root),
-                args.json,
+                sort,
+                group_by,
+                PathBuf::from(store_root),
+                json,
             )
         }
         Some(ViewSubcommand::Publish(args)) => {
