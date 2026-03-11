@@ -539,37 +539,82 @@ fn assess_merge_resolution(
         .collect::<BTreeSet<_>>();
 
     for block_id in block_ids {
-        let primary_variant = block_variant(primary_blocks.get(&block_id))?;
-        let resolved_variant = block_variant(resolved_blocks.get(&block_id))?;
-        let alternative_variants = parent_states
+        let primary_content_variant =
+            block_content_variant(primary_blocks.get(&block_id).map(|entry| &entry.block))?;
+        let resolved_content_variant =
+            block_content_variant(resolved_blocks.get(&block_id).map(|entry| &entry.block))?;
+        let alternative_content_variants = parent_states
             .iter()
             .skip(1)
             .map(|(_, state)| flatten_blocks(&state.blocks))
-            .map(|blocks| block_variant(blocks.get(&block_id)))
+            .map(|blocks| block_content_variant(blocks.get(&block_id).map(|entry| &entry.block)))
             .collect::<Result<BTreeSet<_>, _>>()?
             .into_iter()
-            .filter(|variant| variant != &primary_variant)
+            .filter(|variant| variant != &primary_content_variant)
             .collect::<BTreeSet<_>>();
 
-        if resolved_variant != primary_variant && !alternative_variants.contains(&resolved_variant)
+        if resolved_content_variant != primary_content_variant
+            && !alternative_content_variants.contains(&resolved_content_variant)
         {
             reasons.push(format!(
                 "resolved block '{}' does not match any parent variant",
                 block_id
             ));
-        } else if primary_variant != "<absent>"
-            && resolved_variant != primary_variant
-            && alternative_variants.contains(&resolved_variant)
+        } else if primary_content_variant != "<absent>"
+            && resolved_content_variant != primary_content_variant
+            && alternative_content_variants.contains(&resolved_content_variant)
         {
             saw_multi_variant = true;
             reasons.push(format!(
                 "block '{}' selected a non-primary parent variant",
                 block_id
             ));
-        } else if alternative_variants.len() > 1 {
+        } else if alternative_content_variants.len() > 1 {
             saw_multi_variant = true;
             reasons.push(format!(
                 "block '{}' has multiple competing parent variants",
+                block_id
+            ));
+        }
+
+        if primary_content_variant == "<absent>"
+            || resolved_content_variant == "<absent>"
+            || resolved_parent_is_new_in_resolved(&block_id, &primary_blocks, &resolved_blocks)
+        {
+            continue;
+        }
+
+        let primary_parent_variant = block_parent_variant(primary_blocks.get(&block_id));
+        let resolved_parent_variant = block_parent_variant(resolved_blocks.get(&block_id));
+        let alternative_parent_variants = parent_states
+            .iter()
+            .skip(1)
+            .map(|(_, state)| flatten_blocks(&state.blocks))
+            .map(|blocks| block_parent_variant(blocks.get(&block_id)))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|variant| variant != &primary_parent_variant)
+            .collect::<BTreeSet<_>>();
+
+        if resolved_parent_variant != primary_parent_variant
+            && !alternative_parent_variants.contains(&resolved_parent_variant)
+        {
+            reasons.push(format!(
+                "resolved block '{}' does not match any parent placement",
+                block_id
+            ));
+        } else if resolved_parent_variant != primary_parent_variant
+            && alternative_parent_variants.contains(&resolved_parent_variant)
+        {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' selected a non-primary parent placement",
+                block_id
+            ));
+        } else if alternative_parent_variants.len() > 1 {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' has multiple competing parent placements",
                 block_id
             ));
         }
@@ -626,7 +671,7 @@ fn assess_merge_resolution(
 
     let outcome = if reasons
         .iter()
-        .any(|reason| reason.contains("does not match any parent variant"))
+        .any(|reason| reason.contains("does not match any parent"))
     {
         MergeOutcome::ManualCurationRequired
     } else if saw_multi_variant {
@@ -638,28 +683,43 @@ fn assess_merge_resolution(
     Ok(MergeAssessment { outcome, reasons })
 }
 
-fn block_variant(block: Option<&BlockPlacement>) -> Result<String, StoreRebuildError> {
+fn block_content_variant(block: Option<&BlockObject>) -> Result<String, StoreRebuildError> {
     match block {
-        Some(placement) => {
-            let mut object = serde_json::Map::new();
-            object.insert(
-                "block".to_string(),
-                serde_json::to_value(&placement.block).map_err(|error| {
-                    StoreRebuildError::new(format!("failed to serialize block variant: {error}"))
-                })?,
-            );
-            if let Some(parent_block_id) = &placement.parent_block_id {
-                object.insert(
-                    "parent_block_id".to_string(),
-                    Value::String(parent_block_id.clone()),
-                );
-            }
-            canonical_json(&Value::Object(object)).map_err(|error| {
-                StoreRebuildError::new(format!("failed to canonicalize block variant: {error}"))
-            })
-        }
+        Some(block) => canonical_json(&json!({
+            "block_id": block.block_id,
+            "block_type": block.block_type,
+            "content": block.content,
+            "attrs": block.attrs
+        }))
+        .map_err(|error| {
+            StoreRebuildError::new(format!("failed to canonicalize block variant: {error}"))
+        }),
         None => Ok("<absent>".to_string()),
     }
+}
+
+fn block_parent_variant(block: Option<&BlockPlacement>) -> String {
+    match block {
+        Some(placement) => placement
+            .parent_block_id
+            .clone()
+            .unwrap_or_else(|| "<root>".to_string()),
+        None => "<absent>".to_string(),
+    }
+}
+
+fn resolved_parent_is_new_in_resolved(
+    block_id: &str,
+    primary_blocks: &HashMap<String, BlockPlacement>,
+    resolved_blocks: &HashMap<String, BlockPlacement>,
+) -> bool {
+    resolved_blocks
+        .get(block_id)
+        .and_then(|placement| placement.parent_block_id.as_ref())
+        .is_some_and(|parent_block_id| {
+            !primary_blocks.contains_key(parent_block_id)
+                && resolved_blocks.contains_key(parent_block_id)
+        })
 }
 
 fn metadata_variant(value: Option<&Value>) -> Result<String, StoreRebuildError> {
@@ -824,26 +884,34 @@ fn sync_child_list(
                 ops,
             )?;
         } else {
-            let op = match previous_sibling_id.as_ref() {
-                Some(after_block_id) => PatchOperation::InsertBlockAfter {
-                    after_block_id: after_block_id.clone(),
-                    new_block: resolved_block.clone(),
-                },
-                None => PatchOperation::InsertBlock {
-                    parent_block_id: parent_block_id.map(str::to_string),
-                    index: Some(0),
-                    new_block: resolved_block.clone(),
-                },
-            };
-            apply_generated_op(simulated, &op)?;
-            ops.push(op);
-
             if !new_ids.contains(&resolved_block.block_id) {
                 return Err(StoreRebuildError::new(format!(
                     "manual-curation-required: block '{}' is missing from the primary state without appearing as a new resolved block",
                     resolved_block.block_id
                 )));
             }
+
+            let insertable_block = build_insertable_block(resolved_block, &current_blocks);
+            let op = match previous_sibling_id.as_ref() {
+                Some(after_block_id) => PatchOperation::InsertBlockAfter {
+                    after_block_id: after_block_id.clone(),
+                    new_block: insertable_block,
+                },
+                None => PatchOperation::InsertBlock {
+                    parent_block_id: parent_block_id.map(str::to_string),
+                    index: Some(0),
+                    new_block: insertable_block,
+                },
+            };
+            apply_generated_op(simulated, &op)?;
+            ops.push(op);
+            sync_child_list(
+                simulated,
+                Some(&resolved_block.block_id),
+                &resolved_block.children,
+                new_ids,
+                ops,
+            )?;
         }
 
         previous_sibling_id = Some(resolved_block.block_id.clone());
@@ -863,6 +931,20 @@ fn sync_child_list(
         }
     }
     Ok(())
+}
+
+fn build_insertable_block(
+    resolved_block: &BlockObject,
+    current_blocks: &HashMap<String, BlockPlacement>,
+) -> BlockObject {
+    let mut insertable = resolved_block.clone();
+    insertable.children = resolved_block
+        .children
+        .iter()
+        .filter(|child| !current_blocks.contains_key(&child.block_id))
+        .map(|child| build_insertable_block(child, current_blocks))
+        .collect();
+    insertable
 }
 
 fn apply_generated_op(
@@ -1591,6 +1673,105 @@ mod tests {
     }
 
     #[test]
+    fn merge_authoring_supports_reparenting_into_a_newly_inserted_parent() {
+        let store_root = temp_dir("merge-reparent-new-parent");
+        let signing_key = signing_key();
+        let document = create_document_in_store(
+            &store_root,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:merge-reparent".to_string(),
+                title: "Merge Reparent".to_string(),
+                language: "en".to_string(),
+                timestamp: 28,
+            },
+        )
+        .expect("document should be created");
+
+        let base_revision_id = commit_ops_revision(
+            &store_root,
+            &signing_key,
+            "doc:merge-reparent",
+            &document.genesis_revision_id,
+            29,
+            30,
+            json!([
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:reparent-leaf",
+                        "block_type": "paragraph",
+                        "content": "Leaf",
+                        "attrs": {},
+                        "children": []
+                    }
+                }
+            ]),
+        );
+
+        let parent_revision_id = commit_ops_revision(
+            &store_root,
+            &signing_key,
+            "doc:merge-reparent",
+            &base_revision_id,
+            31,
+            32,
+            json!([
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:reparent-parent",
+                        "block_type": "paragraph",
+                        "content": "Parent",
+                        "attrs": {},
+                        "children": []
+                    }
+                }
+            ]),
+        );
+
+        let summary = create_merge_revision_in_store(
+            &store_root,
+            &signing_key,
+            &MergeRevisionCreateParams {
+                doc_id: "doc:merge-reparent".to_string(),
+                parents: vec![base_revision_id, parent_revision_id],
+                resolved_state: crate::replay::DocumentState {
+                    doc_id: "doc:merge-reparent".to_string(),
+                    blocks: vec![paragraph_block_with_children(
+                        "blk:reparent-parent",
+                        "Parent",
+                        vec![paragraph_block("blk:reparent-leaf", "Leaf")],
+                    )],
+                    metadata: serde_json::Map::new(),
+                },
+                merge_strategy: "semantic-block-merge".to_string(),
+                timestamp: 33,
+            },
+        )
+        .expect("merge revision should be created");
+
+        assert_eq!(summary.merge_outcome, MergeOutcome::AutoMerged);
+        assert_eq!(summary.patch_op_count, 2);
+        let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+            .expect("generated merge patch should be stored");
+        let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+        assert_eq!(patch.ops.len(), 2);
+        assert!(patch.ops.iter().any(|op| matches!(
+            op,
+            PatchOperation::InsertBlock { new_block, .. }
+            if new_block.block_id == "blk:reparent-parent" && new_block.children.is_empty()
+        )));
+        assert!(patch.ops.iter().any(|op| matches!(
+            op,
+            PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: None }
+            if block_id == "blk:reparent-leaf" && parent_block_id == "blk:reparent-parent"
+        )));
+
+        let _ = fs::remove_dir_all(store_root);
+    }
+
+    #[test]
     fn merge_authoring_marks_non_primary_structural_parent_choice_as_multi_variant() {
         let store_root = temp_dir("merge-parent-choice");
         let signing_key = signing_key();
@@ -1679,7 +1860,7 @@ mod tests {
             summary
                 .merge_reasons
                 .iter()
-                .any(|reason| reason.contains("selected a non-primary parent variant")),
+                .any(|reason| reason.contains("selected a non-primary parent placement")),
             "expected structural multi-variant reason, got {summary:?}"
         );
         let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
