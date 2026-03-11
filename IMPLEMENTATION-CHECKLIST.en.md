@@ -136,7 +136,7 @@ Defer if needed:
 - [x] Implement the normative tie-break order.
 - [x] Emit or persist the minimum decision trace schema.
 - [x] Do not expose discretionary local policy controls that alter the active accepted head.
-- [ ] If multiple fixed profiles are supported, enumerate them explicitly rather than allowing ad hoc local profiles.
+- [x] If multiple fixed profiles are supported, enumerate them explicitly rather than allowing ad hoc local profiles.
 - [x] Ensure editor-maintainer status alone never grants selector weight.
 - [ ] If dual-role keys are supported, validate editor-maintainer and view-maintainer admission separately.
 

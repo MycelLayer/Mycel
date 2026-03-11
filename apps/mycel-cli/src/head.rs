@@ -18,7 +18,7 @@ pub(crate) struct HeadCliArgs {
 enum HeadSubcommand {
     #[command(about = "Inspect one document's accepted head")]
     Inspect(HeadInspectCliArgs),
-    #[command(about = "Render one document's accepted text state from the store")]
+    #[command(about = "Render one document's accepted text state")]
     Render(HeadRenderCliArgs),
     #[command(external_subcommand)]
     External(Vec<String>),
@@ -46,6 +46,12 @@ struct HeadInspectCliArgs {
         help = "Load selector revisions and views from a persisted store index"
     )]
     store_root: Option<String>,
+    #[arg(
+        long,
+        value_name = "PROFILE_ID",
+        help = "Select one named fixed reader profile from the input bundle"
+    )]
+    profile_id: Option<String>,
     #[arg(long, help = "Emit machine-readable head inspection output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -74,6 +80,12 @@ struct HeadRenderCliArgs {
         help = "Load selector and replay objects from a persisted store index"
     )]
     store_root: Option<String>,
+    #[arg(
+        long,
+        value_name = "PROFILE_ID",
+        help = "Select one named fixed reader profile from the input bundle"
+    )]
+    profile_id: Option<String>,
     #[arg(long, help = "Emit machine-readable accepted-head render output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -199,11 +211,14 @@ fn head_inspect(
     doc_id: String,
     input_path: PathBuf,
     store_root: Option<PathBuf>,
+    profile_id: Option<String>,
     json: bool,
 ) -> Result<i32, CliError> {
     let summary = match store_root {
-        Some(store_root) => inspect_heads_from_store_path(&input_path, &store_root, &doc_id),
-        None => inspect_heads_from_path(&input_path, &doc_id),
+        Some(store_root) => {
+            inspect_heads_from_store_path(&input_path, &store_root, &doc_id, profile_id.as_deref())
+        }
+        None => inspect_heads_from_path(&input_path, &doc_id, profile_id.as_deref()),
     };
     if json {
         print_head_inspect_json(&summary)
@@ -216,11 +231,14 @@ fn head_render(
     doc_id: String,
     input_path: PathBuf,
     store_root: Option<PathBuf>,
+    profile_id: Option<String>,
     json: bool,
 ) -> Result<i32, CliError> {
     let summary = match store_root {
-        Some(store_root) => render_head_from_store_path(&input_path, &store_root, &doc_id),
-        None => render_head_from_path(&input_path, &doc_id),
+        Some(store_root) => {
+            render_head_from_store_path(&input_path, &store_root, &doc_id, profile_id.as_deref())
+        }
+        None => render_head_from_path(&input_path, &doc_id, profile_id.as_deref()),
     };
     if json {
         print_head_render_json(&summary)
@@ -246,6 +264,7 @@ pub(crate) fn handle_head_command(command: HeadCliArgs) -> Result<i32, CliError>
                 args.doc_id,
                 PathBuf::from(args.input),
                 args.store_root.map(PathBuf::from),
+                args.profile_id,
                 args.json,
             )
         }
@@ -258,6 +277,7 @@ pub(crate) fn handle_head_command(command: HeadCliArgs) -> Result<i32, CliError>
                 args.doc_id,
                 PathBuf::from(args.input),
                 args.store_root.map(PathBuf::from),
+                args.profile_id,
                 args.json,
             )
         }

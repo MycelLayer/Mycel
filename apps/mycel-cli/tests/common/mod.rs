@@ -251,6 +251,10 @@ pub fn assert_head_inspect_help(stdout: &str) {
         "expected store-root flag in help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--profile-id <PROFILE_ID>"),
+        "expected profile-id flag in help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("PATH_OR_FIXTURE"),
         "expected input value name in help, stdout: {stdout}"
     );
@@ -262,7 +266,7 @@ pub fn assert_head_render_help(stdout: &str) {
         "expected head render usage, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("Render one document's accepted text state from the store"),
+        stdout.contains("Render one document's accepted text state"),
         "expected head render description, stdout: {stdout}"
     );
     assert!(
@@ -276,6 +280,10 @@ pub fn assert_head_render_help(stdout: &str) {
     assert!(
         stdout.contains("--store-root <STORE_ROOT>"),
         "expected store-root flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--profile-id <PROFILE_ID>"),
+        "expected profile-id flag in help, stdout: {stdout}"
     );
 }
 

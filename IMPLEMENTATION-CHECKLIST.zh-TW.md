@@ -136,7 +136,7 @@
 - [x] 實作規範中的 tie-break 順序。
 - [x] 輸出或保存最小 decision trace schema。
 - [x] 不提供會改變 active accepted head 的自由裁量本地 policy controls。
-- [ ] 若支援多個固定 profiles，必須明確列舉，而不是允許 ad hoc local profiles。
+- [x] 若支援多個固定 profiles，必須明確列舉，而不是允許 ad hoc local profiles。
 - [x] 確保僅有 editor-maintainer 身分不會自動取得 selector weight。
 - [ ] 若支援 dual-role keys，必須分別驗證 editor-maintainer 與 view-maintainer 準入。
 

@@ -288,14 +288,15 @@ Already in progress or partially implemented:
 2. Structured decision output with typed machine-readable arrays
 3. Store-backed accepted-head inspection using persisted store indexes
 4. Accepted-head render output from persisted store state or explicit bundle objects
-5. Early simulator workflows around peer and topology validation
+5. Named fixed-profile selection for accepted-head inspection and render workflows
+6. Early simulator workflows around peer and topology validation
 
 Still missing or incomplete:
 
-1. Stable reader-facing profile selection surface
-2. View publication workflow
-3. Standalone governance retrieval and inspection surfaces beyond head inspection
-4. Broader governance-state persistence beyond selector and replay inputs
+1. View publication workflow
+2. Standalone governance retrieval and inspection surfaces beyond head inspection
+3. Broader governance-state persistence beyond selector and replay inputs
+4. Reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 
 ### Milestones in This Phase
 
@@ -325,14 +326,15 @@ Already visible in the repo:
 2. structured decision detail in typed arrays
 3. store-backed selector object loading for accepted-head inspection
 4. accepted-head rendering from persisted store state or explicit bundle objects
-5. simulator and validation workflows around peer, topology, test, and report scopes
+5. named fixed-profile selection for accepted-head inspection and render workflows
+6. simulator and validation workflows around peer, topology, test, and report scopes
 
 Main remaining gaps:
 
-1. fixed-profile reading workflow
-2. governance publication workflow
-3. broader governance-state persistence and dedicated inspection surfaces
-4. stronger dedicated governance inspection surfaces beyond accepted-head workflows
+1. governance publication workflow
+2. broader governance-state persistence and dedicated inspection surfaces
+3. stronger dedicated governance inspection surfaces beyond accepted-head workflows
+4. reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 
 Implementation anchors:
 

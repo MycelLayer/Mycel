@@ -109,7 +109,10 @@ pub struct RenderedBlockSummary {
 
 #[derive(Debug, Deserialize)]
 struct HeadInspectInput {
-    profile: HeadInspectProfile,
+    #[serde(default)]
+    profile: Option<HeadInspectProfile>,
+    #[serde(default)]
+    profiles: BTreeMap<String, HeadInspectProfile>,
     revisions: Vec<Value>,
     #[serde(default)]
     objects: Vec<Value>,
@@ -119,7 +122,7 @@ struct HeadInspectInput {
     critical_violations: Vec<HeadInspectCriticalViolation>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct HeadInspectProfile {
     policy_hash: String,
     effective_selection_time: u64,
@@ -230,34 +233,53 @@ impl HeadRenderSummary {
     }
 }
 
-pub fn inspect_heads_from_path(input_path: &Path, doc_id: &str) -> HeadInspectSummary {
-    let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
-        Ok(loaded) => loaded,
-        Err(summary) => return summary,
-    };
-
-    inspect_heads_from_loaded_input(resolved_input_path, input, doc_id, None)
-}
-
-pub fn inspect_heads_from_store_path(
+pub fn inspect_heads_from_path(
     input_path: &Path,
-    store_root: &Path,
     doc_id: &str,
+    requested_profile_id: Option<&str>,
 ) -> HeadInspectSummary {
     let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
         Ok(loaded) => loaded,
         Err(summary) => return summary,
     };
 
-    inspect_heads_from_loaded_input(resolved_input_path, input, doc_id, Some(store_root))
+    inspect_heads_from_loaded_input(
+        resolved_input_path,
+        input,
+        doc_id,
+        requested_profile_id,
+        None,
+    )
+}
+
+pub fn inspect_heads_from_store_path(
+    input_path: &Path,
+    store_root: &Path,
+    doc_id: &str,
+    requested_profile_id: Option<&str>,
+) -> HeadInspectSummary {
+    let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
+        Ok(loaded) => loaded,
+        Err(summary) => return summary,
+    };
+
+    inspect_heads_from_loaded_input(
+        resolved_input_path,
+        input,
+        doc_id,
+        requested_profile_id,
+        Some(store_root),
+    )
 }
 
 pub fn render_head_from_store_path(
     input_path: &Path,
     store_root: &Path,
     doc_id: &str,
+    requested_profile_id: Option<&str>,
 ) -> HeadRenderSummary {
-    let inspect_summary = inspect_heads_from_store_path(input_path, store_root, doc_id);
+    let inspect_summary =
+        inspect_heads_from_store_path(input_path, store_root, doc_id, requested_profile_id);
     let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, Some(store_root), doc_id);
     summary.profile_id = inspect_summary.profile_id.clone();
     summary.effective_selection_time = inspect_summary.effective_selection_time;
@@ -313,8 +335,12 @@ pub fn render_head_from_store_path(
     summary
 }
 
-pub fn render_head_from_path(input_path: &Path, doc_id: &str) -> HeadRenderSummary {
-    let inspect_summary = inspect_heads_from_path(input_path, doc_id);
+pub fn render_head_from_path(
+    input_path: &Path,
+    doc_id: &str,
+    requested_profile_id: Option<&str>,
+) -> HeadRenderSummary {
+    let inspect_summary = inspect_heads_from_path(input_path, doc_id, requested_profile_id);
     let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, None, doc_id);
     summary.profile_id = inspect_summary.profile_id.clone();
     summary.effective_selection_time = inspect_summary.effective_selection_time;
@@ -416,11 +442,21 @@ fn inspect_heads_from_loaded_input(
     resolved_input_path: PathBuf,
     input: HeadInspectInput,
     doc_id: &str,
+    requested_profile_id: Option<&str>,
     store_root: Option<&Path>,
 ) -> HeadInspectSummary {
     let mut summary = HeadInspectSummary::new(&resolved_input_path, doc_id);
+    let (selected_profile_id, profile) =
+        match resolve_head_inspect_profile(&input, requested_profile_id) {
+            Ok(selected) => selected,
+            Err(message) => {
+                summary.push_error(message);
+                return summary;
+            }
+        };
     let HeadInspectInput {
-        profile,
+        profile: _,
+        profiles: _,
         revisions,
         objects: _,
         views,
@@ -445,8 +481,12 @@ fn inspect_heads_from_loaded_input(
         None => (revisions, views),
     };
 
-    summary.profile_id = Some(profile.policy_hash.clone());
+    summary.profile_id = Some(selected_profile_id.clone());
     summary.effective_selection_time = Some(profile.effective_selection_time);
+    summary.notes.push(format!(
+        "selected reader profile '{}' with policy_hash={}",
+        selected_profile_id, profile.policy_hash
+    ));
     summary.selector_epoch = Some(selector_epoch(
         profile.effective_selection_time,
         profile.epoch_seconds,
@@ -639,7 +679,7 @@ fn inspect_heads_from_loaded_input(
 fn load_store_backed_selector_objects(
     store_root: &Path,
     doc_id: &str,
-    profile_id: &str,
+    policy_hash: &str,
 ) -> Result<(Vec<Value>, Vec<Value>), String> {
     let manifest = load_store_index_manifest(store_root).map_err(|error| error.to_string())?;
     let revision_ids = manifest
@@ -656,7 +696,7 @@ fn load_store_backed_selector_objects(
     let view_ids = manifest
         .view_governance
         .iter()
-        .filter(|record| record.profile_id == profile_id)
+        .filter(|record| record.profile_id == policy_hash)
         .map(|record| record.view_id.clone())
         .collect::<BTreeSet<_>>();
     let views = view_ids
@@ -667,6 +707,64 @@ fn load_store_backed_selector_objects(
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok((revisions, views))
+}
+
+fn resolve_head_inspect_profile(
+    input: &HeadInspectInput,
+    requested_profile_id: Option<&str>,
+) -> Result<(String, HeadInspectProfile), String> {
+    if input.profile.is_some() && !input.profiles.is_empty() {
+        return Err("head-inspect input cannot declare both 'profile' and 'profiles'".to_string());
+    }
+
+    if let Some(requested_profile_id) = requested_profile_id {
+        if let Some(profile) = input.profiles.get(requested_profile_id) {
+            return Ok((requested_profile_id.to_string(), profile.clone()));
+        }
+
+        if input.profile.is_some() {
+            return Err(format!(
+                "head-inspect input does not declare named profiles; remove --profile-id '{}'",
+                requested_profile_id
+            ));
+        }
+
+        if input.profiles.is_empty() {
+            return Err(
+                "head-inspect input must declare either 'profile' or 'profiles'".to_string(),
+            );
+        }
+
+        return Err(format!(
+            "unknown --profile-id '{}' for head-inspect input; available profiles: {}",
+            requested_profile_id,
+            available_profile_ids(&input.profiles)
+        ));
+    }
+
+    if let Some(profile) = &input.profile {
+        return Ok((profile.policy_hash.clone(), profile.clone()));
+    }
+
+    match input.profiles.len() {
+        0 => Err("head-inspect input must declare either 'profile' or 'profiles'".to_string()),
+        1 => {
+            let (profile_id, profile) = input
+                .profiles
+                .iter()
+                .next()
+                .expect("single profile should exist");
+            Ok((profile_id.clone(), profile.clone()))
+        }
+        _ => Err(format!(
+            "head-inspect input declares multiple named profiles; pass --profile-id ({})",
+            available_profile_ids(&input.profiles)
+        )),
+    }
+}
+
+fn available_profile_ids(profiles: &BTreeMap<String, HeadInspectProfile>) -> String {
+    profiles.keys().cloned().collect::<Vec<_>>().join(", ")
 }
 
 fn build_bundle_object_index(

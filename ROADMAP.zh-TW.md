@@ -288,14 +288,15 @@ Implementation anchors：
 2. 以 typed arrays 呈現的 structured decision detail
 3. accepted-head inspection 的 store-backed selector object loading
 4. 可從 persisted store state 或 explicit bundle objects 產生 accepted-head render output
-5. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+5. 為 accepted-head inspection 與 render workflows 提供具名 fixed-profile selection
+6. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
 
 主要剩餘缺口：
 
-1. fixed-profile reading workflow
-2. governance publication workflow
-3. 更廣泛的 governance-state persistence
-4. 超出 accepted-head workflow 的專用 governance inspection surfaces
+1. governance publication workflow
+2. 更廣泛的 governance-state persistence
+3. 超出 accepted-head workflow 的專用 governance inspection surfaces
+4. 超出最小具名 fixed-profile surface 的 reader-facing profile ergonomics
 
 Implementation anchors：
 

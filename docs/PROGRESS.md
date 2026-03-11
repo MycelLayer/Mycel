@@ -1,6 +1,6 @@
 # Mycel Progress View
 
-Status: draft, refreshed after the recent M2 authoring and M3 accepted-head render batch
+Status: draft, refreshed after the recent M2 authoring and M3 accepted-head render/profile-selection batch
 
 This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md) into one quick progress view.
 
@@ -39,7 +39,7 @@ flowchart LR
 |---|---|---|---|
 | `M1` | Mostly complete | shared parsing, canonical helpers, strictness/fixture coverage | malformed field-shape depth closure, shared canonical utility reuse, milestone-close proof points |
 | `M2` | Substantially underway | replay, `state_hash`, store rebuild, persisted indexes, narrow write path | merge authoring, stronger replay/store fixtures, broader core reuse |
-| `M3` | Early partial | accepted-head reader workflows, bundle/store rendering, profile-locked reading | fixed-profile surfaces, governance publication, dedicated governance inspection |
+| `M3` | Early partial | accepted-head reader workflows, bundle/store rendering, named fixed-profile reading | governance publication, dedicated governance inspection, broader governance persistence |
 | `M4` | Later | wire envelope, sync workflow, peer interop | depends on stable reader and store model |
 | `M5` | Later | selective app-layer growth | depends on stable protocol core and sync |
 
@@ -62,7 +62,7 @@ Legend:
 | 6. Local State and Storage | Mostly done | `M2` | store ingest, rebuild, and indexes exist; local transport/safety separation remains |
 | 7. Wire Protocol | Not started | `M4` | canonical wire envelope and message validation are still future work |
 | 8. Sync Workflow | Not started | `M4` | first-time and incremental sync remain future work |
-| 9. Views and Head Selection | Mostly done | `M3` | deterministic selector core exists; multi-profile and dual-role closure remain |
+| 9. Views and Head Selection | Mostly done | `M3` | deterministic selector core and named fixed-profile selection exist; dual-role closure remains |
 | 10. Merge Generation | Partial | `M2` | verification is replay-based, but local merge authoring is not built |
 | 11. CLI or API Surface | Partial | `M2` / `M3` | verification, authoring, inspection, and accepted-head render exist; sync and workflow split remain |
 | 12. Interop Test Minimum | Partial | `M1` / `M2` | fixture isolation, reproducibility, and smoke coverage exist, but several normative wire and replay checks remain |

@@ -15,3 +15,4 @@ Current example bundles:
 Optional bundle fields:
 
 - `objects`: additional verified replay objects, such as `patch` objects, that `mycel head render` can use when rendering without `--store-root`
+- `profiles`: explicit fixed reader profiles keyed by profile id; when a bundle declares more than one, `mycel head inspect` and `mycel head render` require `--profile-id`

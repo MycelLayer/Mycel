@@ -184,6 +184,14 @@ fn head_profile(policy_hash: String, effective_selection_time: u64) -> Value {
     })
 }
 
+fn named_profiles(entries: &[(&str, Value)]) -> Value {
+    let mut profiles = serde_json::Map::new();
+    for (profile_id, profile) in entries {
+        profiles.insert((*profile_id).to_string(), profile.clone());
+    }
+    Value::Object(profiles)
+}
+
 fn signed_view(
     signing_key: &SigningKey,
     policy: &Value,
@@ -382,6 +390,60 @@ fn head_inspect_json_resolves_repo_native_fixture_name() {
 }
 
 #[test]
+fn head_inspect_requires_profile_id_for_multi_profile_bundle() {
+    let doc_id = "doc:multi-profile";
+    let revision_author = signing_key(62);
+    let maintainer = signing_key(74);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let revision_a = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![],
+        10,
+        &empty_document_state_hash(doc_id),
+    );
+    let revision_b = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string()],
+        20,
+        &empty_document_state_hash(doc_id),
+    );
+    let bundle = json!({
+        "profiles": named_profiles(&[
+            ("stable", head_profile(hash_json(&policy), 18)),
+            ("preview", head_profile(hash_json(&policy), 30))
+        ]),
+        "revisions": [revision_a, revision_b.clone()],
+        "views": [
+            signed_view(
+                &maintainer,
+                &policy,
+                documents_value(doc_id, &revision_b["revision_id"]),
+                25
+            )
+        ],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-inspect-multi-profile", "input.json", bundle);
+    let output = run_mycel(&["head", "inspect", doc_id, "--input", &path_arg(&input.path)]);
+
+    assert_exit_code(&output, 1);
+    assert_stdout_contains(&output, "head inspection: failed");
+    assert_stderr_contains(
+        &output,
+        "multiple named profiles; pass --profile-id (preview, stable)",
+    );
+}
+
+#[test]
 fn head_inspect_json_can_source_objects_from_store_index() {
     let doc_id = "doc:sample";
     let revision_author = signing_key(61);
@@ -482,6 +544,69 @@ fn head_inspect_json_can_source_objects_from_store_index() {
         "expected store-backed note, stdout: {}",
         stdout_text(&output)
     );
+}
+
+#[test]
+fn head_inspect_json_selects_requested_named_profile() {
+    let doc_id = "doc:selected-profile";
+    let revision_author = signing_key(63);
+    let maintainer = signing_key(75);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let state_hash = empty_document_state_hash(doc_id);
+    let revision_a = signed_revision(&revision_author, doc_id, vec![], 10, &state_hash);
+    let revision_b = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string()],
+        20,
+        &state_hash,
+    );
+    let bundle = json!({
+        "profiles": named_profiles(&[
+            ("stable", head_profile(hash_json(&policy), 18)),
+            ("preview", head_profile(hash_json(&policy), 30))
+        ]),
+        "revisions": [revision_a.clone(), revision_b.clone()],
+        "views": [
+            signed_view(
+                &maintainer,
+                &policy,
+                documents_value(doc_id, &revision_a["revision_id"]),
+                15
+            ),
+            signed_view(
+                &maintainer,
+                &policy,
+                documents_value(doc_id, &revision_b["revision_id"]),
+                25
+            )
+        ],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-inspect-selected-profile", "input.json", bundle);
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--profile-id",
+        "preview",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["profile_id"], "preview");
+    assert_eq!(json["selected_head"], revision_b["revision_id"]);
+    assert_eq!(json["effective_selection_time"], 30);
 }
 
 #[test]
@@ -839,6 +964,103 @@ fn head_render_json_replays_selected_head_from_bundle_objects() {
         "expected bundle-backed render note, stdout: {}",
         stdout_text(&output)
     );
+}
+
+#[test]
+fn head_render_json_uses_requested_named_profile_from_bundle() {
+    let doc_id = "doc:render-named-profile";
+    let revision_author = signing_key(85);
+    let maintainer = signing_key(96);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let genesis_hash = empty_document_state_hash(doc_id);
+    let revision_a = signed_revision(&revision_author, doc_id, vec![], 1000, &genesis_hash);
+    let patch = signed_patch(
+        &revision_author,
+        doc_id,
+        revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist"),
+        1010,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:render-profile-001",
+                    "block_type": "paragraph",
+                    "content": "Preview line",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+    let revision_b = signed_revision_with_patches(
+        &revision_author,
+        doc_id,
+        vec![revision_a["revision_id"]
+            .as_str()
+            .expect("revision id should exist")
+            .to_string()],
+        vec![patch["patch_id"]
+            .as_str()
+            .expect("patch id should exist")
+            .to_string()],
+        1020,
+        &document_state_hash(
+            doc_id,
+            vec![json!({
+                "block_id": "blk:render-profile-001",
+                "block_type": "paragraph",
+                "content": "Preview line",
+                "attrs": {},
+                "children": []
+            })],
+        ),
+    );
+    let bundle = json!({
+        "profiles": named_profiles(&[
+            ("stable", head_profile(hash_json(&policy), 1005)),
+            ("preview", head_profile(hash_json(&policy), 1200))
+        ]),
+        "revisions": [revision_a.clone(), revision_b.clone()],
+        "objects": [patch],
+        "views": [
+            signed_view(
+                &maintainer,
+                &policy,
+                documents_value(doc_id, &revision_a["revision_id"]),
+                1002
+            ),
+            signed_view(
+                &maintainer,
+                &policy,
+                documents_value(doc_id, &revision_b["revision_id"]),
+                1100
+            )
+        ],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-render-named-profile", "input.json", bundle);
+    let output = run_mycel(&[
+        "head",
+        "render",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--profile-id",
+        "preview",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["profile_id"], "preview");
+    assert_eq!(json["selected_head"], revision_b["revision_id"]);
+    assert_eq!(json["rendered_text"], "Preview line");
 }
 
 #[test]

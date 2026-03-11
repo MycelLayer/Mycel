@@ -8,9 +8,22 @@
   "required": [
     "bundle_id",
     "description",
-    "profile",
     "revisions",
     "views"
+  ],
+  "oneOf": [
+    {
+      "required": ["profile"],
+      "not": {
+        "required": ["profiles"]
+      }
+    },
+    {
+      "required": ["profiles"],
+      "not": {
+        "required": ["profile"]
+      }
+    }
   ],
   "properties": {
     "$schema": {
@@ -26,6 +39,17 @@
     },
     "profile": {
       "$ref": "#/$defs/profile"
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/profile"
+      }
     },
     "revisions": {
       "type": "array",
