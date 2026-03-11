@@ -20,6 +20,7 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 
 ## 2. README
 
+- [ ] [`docs/PROJECT-NAMING.md`](./PROJECT-NAMING.md) still matches the current `Mycel` / `MycelLayer` naming boundary.
 - [ ] [`README.md`](../README.md) opens with the current one-sentence positioning.
 - [ ] [`README.zh-TW.md`](../README.zh-TW.md) stays aligned with the English landing message.
 - [ ] The quickstart commands still exist and still demonstrate the intended first impression.
@@ -28,6 +29,7 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 
 ## 3. Homepage
 
+- [ ] Homepage naming still follows [`docs/PROJECT-NAMING.md`](./PROJECT-NAMING.md).
 - [ ] [`docs/index.html`](./index.html) still reflects the same positioning as the README.
 - [ ] The main CTA links still point to the intended GitHub and spec pages.
 - [ ] `og:title`, `og:description`, and `og:image` still match the current landing message.

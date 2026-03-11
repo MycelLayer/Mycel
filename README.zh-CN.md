@@ -114,6 +114,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - [WIRE-PROTOCOL.zh-CN.md](./WIRE-PROTOCOL.zh-CN.md)
 - [PROJECT-INTENT.zh-CN.md](./PROJECT-INTENT.zh-CN.md)
 - [docs/PLANNING-SYNC-PLAN.zh-CN.md](./docs/PLANNING-SYNC-PLAN.zh-CN.md)
+- [docs/PROJECT-NAMING.md](./docs/PROJECT-NAMING.md)
 
 后续如果继续扩展，优先顺序应该是：
 

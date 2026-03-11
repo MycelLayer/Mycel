@@ -131,6 +131,7 @@ If you want the design layer behind current decisions:
 ### Meta
 
 - [PROJECT-INTENT.md](./PROJECT-INTENT.md): project-intent boundary notes
+- [docs/PROJECT-NAMING.md](./docs/PROJECT-NAMING.md): naming boundary between `Mycel` and the public-facing `MycelLayer`
 - [CONTRIBUTING.md](./CONTRIBUTING.md): contribution expectations
 - [docs/DEV-SETUP.md](./docs/DEV-SETUP.md): shortest path from fresh checkout to a usable dev environment
 - [BOT-CONTRIBUTING.md](./BOT-CONTRIBUTING.md): bot-oriented contribution guide for narrow, verifiable work
