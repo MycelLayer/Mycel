@@ -31,6 +31,10 @@ Multiple agents may share the same role. Read `.agent-local/agents.json` first t
 
 No tracked work starts until the agent confirms its own entry in `.agent-local/agents.json`.
 
+Startup command:
+
+- `scripts/agent-start.sh <agent-id>`
+
 ## 10-Line Rule Set
 
 1. Default to hybrid mode, not issue-for-everything.

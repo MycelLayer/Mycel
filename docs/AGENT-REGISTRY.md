@@ -8,6 +8,10 @@ The live registry file is local and gitignored:
 
 - `.agent-local/agents.json`
 
+Recommended startup gate:
+
+- `scripts/agent-start.sh <agent-id>`
+
 Agents should read `.agent-local/agents.json` at the start of work to discover:
 
 - how many agents are currently active
@@ -128,12 +132,19 @@ No agent may start tracked work until all of the following are true in `.agent-l
 
 If any of those checks fail, the agent must stop before editing tracked files and request a corrected assignment.
 
+Recommended enforcement:
+
+1. a maintainer or coordinator writes the assignment entry
+2. the agent runs `scripts/agent-start.sh <agent-id>`
+3. the script confirms the role, sets `confirmed_by_agent: true`, stamps `confirmed_at`, and creates the mailbox if needed
+4. only then may tracked work begin
+
 ## Workflow
 
 1. Before starting work, an agent reads `.agent-local/agents.json`.
 2. The agent confirms the current agent count and scans the existing scopes and file sets.
 3. A maintainer or coordinator writes the agent entry with `role`, `assigned_by`, `assigned_at`, `scope`, and `mailbox`.
-4. The agent confirms its own assignment by setting `confirmed_by_agent: true` and filling `confirmed_at`.
+4. The agent confirms its own assignment by running `scripts/agent-start.sh <agent-id>`.
 5. Only after confirmation may the agent start tracked work.
 6. The agent uses its own `mailbox` file for peer coordination and handoff traffic.
 7. When scope changes, the agent updates its registry entry.

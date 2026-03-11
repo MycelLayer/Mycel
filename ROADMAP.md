@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: late partial progress, refreshed after the recent forum/Q&A design-note clarification and store CLI maintenance batch; milestone state unchanged
+Status: late partial progress, refreshed after the recent multi-agent registry and startup-gate coordination batch; milestone state unchanged
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 

@@ -54,6 +54,10 @@ Use `.agent-local/agents.json` as the local registry file for active agent count
 
 No agent may start tracked work until it has confirmed its own assigned role in `.agent-local/agents.json`.
 
+Recommended startup command:
+
+- `scripts/agent-start.sh <agent-id>`
+
 ## Hybrid Issue Mode
 
 Do not force every coding action through a GitHub issue first.
@@ -90,7 +94,7 @@ Before an agent starts:
 
 1. read `.agent-local/agents.json`
 2. confirm the entry has `role`, `assigned_by`, and `assigned_at`
-3. set `confirmed_by_agent: true` and `confirmed_at` for the current agent entry
+3. run `scripts/agent-start.sh <agent-id>`
 4. only then decide whether the task is issue-first or chat-first
 5. if it is issue-first, choose one open issue
 6. check whether another agent or human is already working on it
