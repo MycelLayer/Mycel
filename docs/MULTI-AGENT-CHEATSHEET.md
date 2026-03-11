@@ -4,12 +4,19 @@ Status: draft
 
 Use this as the short maintainer view of [MULTI-AGENT-COORDINATION.md](./MULTI-AGENT-COORDINATION.md).
 
+Tracked registry spec: [AGENT-REGISTRY.md](./AGENT-REGISTRY.md)
+
 Tracked mailbox spec: [AGENT-HANDOFF.md](./AGENT-HANDOFF.md)
+
+Local registry file:
+
+- `.agent-local/agents.json`
 
 Local mailbox files:
 
-- `.agent-local/coding-to-doc.md`
-- `.agent-local/doc-to-coding.md`
+- `.agent-local/<agent-id>.md`
+- fallback: `.agent-local/coding-to-doc.md`
+- fallback: `.agent-local/doc-to-coding.md`
 
 ## Agent Roles
 
@@ -19,6 +26,8 @@ Local mailbox files:
 Use `coding` when the main output is behavior, tests, fixtures, parser/verifier work, or CLI changes.
 
 Use `doc` when the main output is syncing planning or explanatory docs after behavior is already settled.
+
+Multiple agents may share the same role. Read `.agent-local/agents.json` first to see how many agents are active and which role each one owns.
 
 ## 10-Line Rule Set
 
@@ -106,4 +115,4 @@ For `coding` to `doc` handoff, prefer:
 - `Finished #12. Touched verify.rs and object_verify_smoke.rs. Behavior change: reject duplicate revision parents earlier. Protocol/schema impact: none. Verify: cargo test -p mycel-core and cargo test -p mycel-cli. Docs impacted: none. Planning impact: checklist. Remaining follow-up: update IMPLEMENTATION-CHECKLIST after the batch lands.`
 - `Finished file A. Touched path/to/fileA. Behavior change: implemented the missing branch. Protocol/schema impact: CLI behavior changed. Verify: cargo test -p mycel-cli. Docs impacted: ROADMAP.md and IMPLEMENTATION-CHECKLIST.*. Planning impact: roadmap + checklist. Remaining follow-up: planning sync due.`
 
-If there is no active issue comment thread, append the same content to `.agent-local/coding-to-doc.md`.
+If there is no active issue comment thread, append the same content to the mailbox path declared for that agent in `.agent-local/agents.json`.

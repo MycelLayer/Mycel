@@ -2,7 +2,7 @@
 
 Status: draft
 
-This note describes how the `coding` and `doc` agent modes should work in parallel in the Mycel repository without colliding on scope, files, push order, or handoff flow.
+This note describes how multiple agents with `coding` or `doc` roles should work in parallel in the Mycel repository without colliding on scope, files, push order, or handoff flow.
 
 For the higher-level operating model that connects planning, issue intake, execution, verification, and human control, see [AI-CO-WORKING-MODEL.md](./AI-CO-WORKING-MODEL.md).
 
@@ -10,6 +10,7 @@ For the short maintainer version, see [MULTI-AGENT-CHEATSHEET.md](./MULTI-AGENT-
 
 Use it together with:
 
+- [AGENT-REGISTRY.md](./AGENT-REGISTRY.md)
 - [AI-CO-WORKING-MODEL.md](./AI-CO-WORKING-MODEL.md)
 - [AGENT-HANDOFF.md](./AGENT-HANDOFF.md)
 - [BOT-CONTRIBUTING.md](../BOT-CONTRIBUTING.md)
@@ -36,7 +37,7 @@ If a task cannot stay mostly inside one issue boundary, split the task instead o
 
 ## Agent Roles
 
-Use two explicit agent modes:
+Use role-based agent modes:
 
 - `coding`
   owns issue resolution, feature work, local verification, commit and push flow, and CI checks after each push
@@ -48,6 +49,8 @@ Use `coding` when the main output is behavior, tests, fixtures, parser or verifi
 Use `doc` when the main output is syncing planning surfaces or explanatory docs after code or design work has already clarified the intended behavior.
 
 If a task starts as doc-only but requires new implementation decisions, stop and hand the open question back to `coding` or a maintainer instead of inventing behavior in docs.
+
+Use `.agent-local/agents.json` as the local registry file for active agent count and role assignment. The tracked definition for that file lives in [AGENT-REGISTRY.md](./AGENT-REGISTRY.md).
 
 ## Hybrid Issue Mode
 
@@ -83,11 +86,13 @@ Practical default:
 
 Before an agent starts:
 
-1. decide whether the task is issue-first or chat-first
-2. if it is issue-first, choose one open issue
-3. check whether another agent or human is already working on it
-4. leave a short claim note in the issue or team channel
-5. confirm the likely file set before editing
+1. read `.agent-local/agents.json`
+2. decide whether the task is issue-first or chat-first
+3. if it is issue-first, choose one open issue
+4. check whether another agent or human is already working on it
+5. leave a short claim note in the issue or team channel
+6. confirm the likely file set before editing
+7. add or update the local registry entry for the current agent
 
 Recommended claim format:
 
@@ -250,8 +255,8 @@ When `coding` hands work to `doc`, use a real-time handoff that is structured en
 
 Default repo-local handoff surface:
 
-- write `coding` messages to the local gitignored file `.agent-local/coding-to-doc.md`
-- write `doc` replies or follow-up requests to the local gitignored file `.agent-local/doc-to-coding.md`
+- use per-agent mailbox files declared in `.agent-local/agents.json`, preferably `.agent-local/<agent-id>.md`
+- shared directional files such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` are fallback paths only
 - use [AGENT-HANDOFF.md](./AGENT-HANDOFF.md) only as the tracked protocol and template reference
 - if the work is issue-first, mirror the same summary in the issue comment when useful
 

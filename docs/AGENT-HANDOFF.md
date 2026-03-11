@@ -1,19 +1,18 @@
 # Agent Handoff Protocol
 
-Status: active local-mailbox protocol for `coding` and `doc` modes
+Status: active local-mailbox protocol for multi-agent coordination
 
-Use this file as the tracked specification for how the two agent modes communicate through local gitignored files.
+Use this file as the tracked specification for how agents communicate through local gitignored mailboxes.
 
-The active mailbox files are not committed:
+For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.md) and the local `.agent-local/agents.json` file first.
 
-- `.agent-local/coding-to-doc.md`
-- `.agent-local/doc-to-coding.md`
+Mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
 The directory is ignored by git through `.gitignore`, so agents can exchange local state without polluting repo history.
 
 ## Modes
 
-Use exactly two execution modes:
+Use role-based execution modes:
 
 - `coding`
   resolves issues, implements features, runs local verification, commits and pushes, and checks CI after each push
@@ -24,27 +23,34 @@ Use `coding` when the main output is behavior, tests, fixtures, parser/verifier 
 
 Use `doc` when the main output is document sync after implementation or accepted design direction already exists.
 
+Multiple agents may use the same role if their scopes and file ownership do not overlap.
+
 ## Mailbox Files
 
-Use one mailbox file in each direction:
+Default pattern:
+
+- `.agent-local/<agent-id>.md`
+  one mailbox per agent, with peer-to-peer handoff entries addressed by scope and agent id
+
+Shared fallback pattern:
 
 - `.agent-local/coding-to-doc.md`
   implementation handoff, doc-impact notes, planning-surface follow-up, and unresolved doc requests
 - `.agent-local/doc-to-coding.md`
   clarification requests, ambiguity reports, missing-source warnings, and doc-triggered follow-up requests
 
-Keep the newest entry at the top of each file.
+Keep the newest entry at the top of each mailbox file.
 
 If the file does not exist yet, create it locally when the first message is needed.
 
 ## Workflow
 
 1. `coding` finishes one issue slice or chat-first implementation slice.
-2. `coding` appends a new entry to `.agent-local/coding-to-doc.md`.
+2. `coding` appends a new entry to its mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
 3. `coding` commits and pushes the tracked code or doc changes.
-4. `doc` reads the newest open entry in `.agent-local/coding-to-doc.md`.
+4. `doc` reads the newest open entry addressed to its scope or mailbox.
 5. `doc` updates only the docs justified by that message.
-6. `doc` appends any follow-up or blocking question to `.agent-local/doc-to-coding.md`.
+6. `doc` appends any follow-up or blocking question to its own mailbox or the relevant peer mailbox.
 7. `doc` marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
 
 If the work is issue-first, the same summary can also be mirrored into the issue comment, but the local mailbox remains the default agent-to-agent transport.
@@ -83,7 +89,7 @@ Suggested `planning impact` values:
 
 ## Entry Template
 
-Copy this block into either mailbox file and keep the newest entries first.
+Copy this block into the relevant mailbox file and keep the newest entries first.
 
 ```md
 ## 2026-03-11 - coding - <scope>
@@ -98,7 +104,7 @@ Copy this block into either mailbox file and keep the newest entries first.
 - Remaining follow-up: <one short sentence>
 ```
 
-When `doc` resolves or responds, either update the original entry status or append a reply entry in `.agent-local/doc-to-coding.md`:
+When `doc` resolves or responds, either update the original entry status or append a reply entry in the relevant mailbox file:
 
 ```md
 ## 2026-03-11 - doc - <scope>
@@ -115,7 +121,7 @@ When `doc` resolves or responds, either update the original entry status or appe
 
 ## Example
 
-Example `coding` to `doc` message in `.agent-local/coding-to-doc.md`:
+Example `coding` to `doc` message in `.agent-local/coding-1.md`:
 
 ```md
 ## 2026-03-11 - coding - #12 duplicate revision parent strictness
@@ -138,12 +144,12 @@ Sequence:
 
 1. `coding` finishes the implementation slice in `file A`.
 2. `coding` runs the relevant local verification.
-3. `coding` appends an open entry to `.agent-local/coding-to-doc.md` with `planning impact` set to the affected planning surfaces.
+3. `coding` appends an open entry to its mailbox or the relevant peer mailbox with `planning impact` set to the affected planning surfaces.
 4. `coding` commits and pushes the tracked implementation change.
 5. `coding` checks the latest CI status after the push.
 6. `doc` reads the mailbox entry and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
 7. `doc` updates only the planning files justified by the landed change.
-8. `doc` appends a reply or resolution entry to `.agent-local/doc-to-coding.md`.
+8. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox.
 9. `doc` commits and pushes the planning-sync docs change.
 
 Example `coding` mailbox entry:
