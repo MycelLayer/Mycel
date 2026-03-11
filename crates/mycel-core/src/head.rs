@@ -5,10 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::protocol::{
-    canonical_json, hex_encode, parse_json_strict, parse_object_envelope, BlockObject,
+    parse_json_strict, parse_object_envelope, prefixed_canonical_hash, BlockObject,
     StringFieldError,
 };
 use crate::replay::{replay_revision_from_index, DocumentState};
@@ -1391,11 +1390,7 @@ fn selector_epoch_for_view(timestamp: u64, epoch_seconds: u64, epoch_zero_timest
 }
 
 fn hash_json(value: &Value) -> Result<String, String> {
-    let canonical = canonical_json(value)?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    let digest = hasher.finalize();
-    Ok(format!("hash:{}", hex_encode(&digest)))
+    prefixed_canonical_hash(value, "hash")
 }
 
 fn summarize_rendered_blocks(state: &DocumentState) -> Vec<RenderedBlockSummary> {

@@ -5,11 +5,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 use crate::protocol::{
-    canonical_json, hex_encode, parse_json_strict, parse_json_value_strict, parse_patch_object,
-    parse_revision_object, parse_view_object,
+    parse_json_strict, parse_json_value_strict, parse_patch_object, parse_revision_object,
+    parse_view_object, prefixed_canonical_hash,
 };
 use crate::verify::{verify_object_path, verify_object_value_with_object_index};
 
@@ -934,12 +933,8 @@ fn index_loaded_object(
 }
 
 fn hash_value(value: &Value) -> Result<String, StoreRebuildError> {
-    let canonical = canonical_json(value).map_err(|error| {
-        StoreRebuildError::new(format!("failed to canonicalize value: {error}"))
-    })?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    Ok(format!("hash:{}", hex_encode(&hasher.finalize())))
+    prefixed_canonical_hash(value, "hash")
+        .map_err(|error| StoreRebuildError::new(format!("failed to canonicalize value: {error}")))
 }
 
 fn sort_string_map_values(index: &mut BTreeMap<String, Vec<String>>) {

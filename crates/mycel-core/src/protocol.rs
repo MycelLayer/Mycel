@@ -742,12 +742,7 @@ pub fn recompute_object_id(
         .ok_or_else(|| "top-level JSON value must be an object".to_string())?;
     object.remove(derived_id_field);
     object.remove("signature");
-
-    let canonical = canonical_json(&Value::Object(object))?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    let digest = hasher.finalize();
-    Ok(format!("{prefix}:{}", hex_encode(&digest)))
+    prefixed_canonical_hash(&Value::Object(object), prefix)
 }
 
 pub fn signed_payload_bytes(value: &Value) -> Result<Vec<u8>, String> {
@@ -817,6 +812,19 @@ pub fn canonical_json(value: &Value) -> Result<String, String> {
     let mut output = String::new();
     write_canonical_json(value, &mut output)?;
     Ok(output)
+}
+
+pub fn canonical_sha256_hex(value: &Value) -> Result<String, String> {
+    let canonical = canonical_json(value)?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.as_bytes());
+    let digest = hasher.finalize();
+    Ok(hex_encode(&digest))
+}
+
+pub fn prefixed_canonical_hash(value: &Value, prefix: &str) -> Result<String, String> {
+    let digest = canonical_sha256_hex(value)?;
+    Ok(format!("{prefix}:{digest}"))
 }
 
 #[derive(Debug)]
@@ -1426,14 +1434,14 @@ mod tests {
     use serde_json::{json, Map, Value};
 
     use super::{
-        canonical_json, ensure_supported_json_values, object_schema, parse_block_object,
-        parse_document_object, parse_json_strict, parse_json_value_strict, parse_object_envelope,
-        parse_patch_object, parse_revision_object, parse_snapshot_object, parse_view_object,
-        recompute_object_id, reject_duplicate_strings, reject_unknown_fields,
-        required_non_empty_string_array, required_object, required_prefixed_string_map,
-        required_string_field, signed_payload_bytes, validate_canonical_object_id,
-        validate_prefixed_string, ObjectKind, ParseObjectEnvelopeError, SignatureRule,
-        StringFieldError, WIRE_PROTOCOL_VERSION,
+        canonical_json, canonical_sha256_hex, ensure_supported_json_values, object_schema,
+        parse_block_object, parse_document_object, parse_json_strict, parse_json_value_strict,
+        parse_object_envelope, parse_patch_object, parse_revision_object, parse_snapshot_object,
+        parse_view_object, prefixed_canonical_hash, recompute_object_id, reject_duplicate_strings,
+        reject_unknown_fields, required_non_empty_string_array, required_object,
+        required_prefixed_string_map, required_string_field, signed_payload_bytes,
+        validate_canonical_object_id, validate_prefixed_string, ObjectKind,
+        ParseObjectEnvelopeError, SignatureRule, StringFieldError, WIRE_PROTOCOL_VERSION,
     };
 
     #[path = "fixtures.rs"]

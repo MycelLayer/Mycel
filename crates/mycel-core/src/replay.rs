@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use sha2::{Digest, Sha256};
 
 use crate::protocol::{
-    canonical_json, hex_encode, parse_patch_object, parse_revision_object, BlockObject,
-    PatchObject, PatchOperation, RevisionObject,
+    parse_patch_object, parse_revision_object, prefixed_canonical_hash, BlockObject, PatchObject,
+    PatchOperation, RevisionObject,
 };
 
 pub const GENESIS_BASE_REVISION: &str = "rev:genesis-null";
@@ -56,12 +55,8 @@ pub fn apply_patch_ops(state: &mut DocumentState, patch: &PatchObject) -> Result
 }
 
 pub fn compute_state_hash(state: &DocumentState) -> Result<String, ReplayError> {
-    let canonical = canonical_json(&state_to_value(state))
-        .map_err(|error| ReplayError::new(format!("failed to canonicalize state: {error}")))?;
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    let digest = hasher.finalize();
-    Ok(format!("hash:{}", hex_encode(&digest)))
+    prefixed_canonical_hash(&state_to_value(state), "hash")
+        .map_err(|error| ReplayError::new(format!("failed to canonicalize state: {error}")))
 }
 
 pub fn replay_revision_from_index(

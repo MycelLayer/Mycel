@@ -73,6 +73,43 @@ fn canonical_json_round_trips_through_strict_parse() {
 }
 
 #[test]
+fn canonical_sha256_hex_is_reproducible_across_object_key_order() {
+    let left = json!({
+        "z": 2,
+        "a": [true, {"b": "x", "a": 1}]
+    });
+    let right = json!({
+        "a": [true, {"a": 1, "b": "x"}],
+        "z": 2
+    });
+
+    let left_hash = canonical_sha256_hex(&left).expect("left hash should compute");
+    let right_hash = canonical_sha256_hex(&right).expect("right hash should compute");
+
+    assert_eq!(left_hash, right_hash);
+}
+
+#[test]
+fn prefixed_canonical_hash_adds_requested_prefix() {
+    let value = json!({
+        "doc_id": "doc:test",
+        "blocks": [],
+        "metadata": {}
+    });
+
+    let prefixed = prefixed_canonical_hash(&value, "hash").expect("hash should compute");
+
+    assert!(prefixed.starts_with("hash:"));
+    assert_eq!(
+        prefixed,
+        format!(
+            "hash:{}",
+            canonical_sha256_hex(&value).expect("digest should compute")
+        )
+    );
+}
+
+#[test]
 fn recompute_object_id_omits_signature_and_derived_id_field() {
     let value = json!({
         "type": "patch",
