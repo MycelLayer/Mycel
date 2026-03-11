@@ -129,6 +129,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md)：目前文件集的分層地圖
 - [docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md](./docs/design-notes/DESIGN-NOTES.peer-simulator-v0.zh-TW.md)：早期 simulator 與 harness 方向
 - [docs/design-notes/DESIGN-NOTES.forum-app-layer.zh-TW.md](./docs/design-notes/DESIGN-NOTES.forum-app-layer.zh-TW.md)：用 board、thread、post 與 moderation objects 建模 forum-style app layer 的草稿
+- [docs/design-notes/DESIGN-NOTES.forum-qa-relationship.zh-TW.md](./docs/design-notes/DESIGN-NOTES.forum-qa-relationship.zh-TW.md)：說明 Forum 與 Q&A 為何相關但不相同的短筆記
 
 ### Meta
 

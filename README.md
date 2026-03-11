@@ -130,6 +130,7 @@ If you want the design layer behind current decisions:
 - [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md): layered map of the current document set
 - [docs/design-notes/DESIGN-NOTES.peer-simulator-v0.en.md](./docs/design-notes/DESIGN-NOTES.peer-simulator-v0.en.md): early simulator and harness direction
 - [docs/design-notes/DESIGN-NOTES.forum-app-layer.en.md](./docs/design-notes/DESIGN-NOTES.forum-app-layer.en.md): forum-style app-layer sketch using board, thread, post, and moderation objects
+- [docs/design-notes/DESIGN-NOTES.forum-qa-relationship.en.md](./docs/design-notes/DESIGN-NOTES.forum-qa-relationship.en.md): why Forum and Q&A are related but not identical app-layer examples
 
 ### Meta
 
