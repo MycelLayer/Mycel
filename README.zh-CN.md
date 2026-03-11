@@ -78,12 +78,17 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - 再看本地化术语约定：[docs/TERMINOLOGY.zh-CN.md](./docs/TERMINOLOGY.zh-CN.md)
 - 从全新环境开始时看：[docs/DEV-SETUP.zh-CN.md](./docs/DEV-SETUP.zh-CN.md)
 
-如果你接下来要深入协议和实现，当前建议回到英文或繁体中文版：
+如果你接下来要深入协议和实现，当前建议按这个顺序继续读：
 
-- 协议核心：[PROTOCOL.en.md](./PROTOCOL.en.md)
-- 传输规则：[WIRE-PROTOCOL.en.md](./WIRE-PROTOCOL.en.md)
+- 协议核心：[PROTOCOL.zh-CN.md](./PROTOCOL.zh-CN.md)
+- 传输规则：[WIRE-PROTOCOL.zh-CN.md](./WIRE-PROTOCOL.zh-CN.md)
 - 实现顺序：[ROADMAP.zh-CN.md](./ROADMAP.zh-CN.md)
 - 实现检查清单：[IMPLEMENTATION-CHECKLIST.zh-CN.md](./IMPLEMENTATION-CHECKLIST.zh-CN.md)
+
+如果你需要对照当前最原始的规范表述，再回看英文版：
+
+- [PROTOCOL.en.md](./PROTOCOL.en.md)
+- [WIRE-PROTOCOL.en.md](./WIRE-PROTOCOL.en.md)
 
 ## 从这里开始参与贡献
 
@@ -105,13 +110,15 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - [docs/TERMINOLOGY.zh-CN.md](./docs/TERMINOLOGY.zh-CN.md)
 - [ROADMAP.zh-CN.md](./ROADMAP.zh-CN.md)
 - [IMPLEMENTATION-CHECKLIST.zh-CN.md](./IMPLEMENTATION-CHECKLIST.zh-CN.md)
+- [PROTOCOL.zh-CN.md](./PROTOCOL.zh-CN.md)
+- [WIRE-PROTOCOL.zh-CN.md](./WIRE-PROTOCOL.zh-CN.md)
 
 后续如果继续扩展，优先顺序应该是：
 
-1. `PROTOCOL.zh-CN.md`
-2. `WIRE-PROTOCOL.zh-CN.md`
-3. `PROJECT-INTENT.zh-CN.md`
-4. `docs/PLANNING-SYNC-PLAN.zh-CN.md`
+1. `PROJECT-INTENT.zh-CN.md`
+2. `docs/PLANNING-SYNC-PLAN.zh-CN.md`
+3. `docs/FEATURE-REVIEW-CHECKLIST.zh-CN.md`
+4. `docs/MYCEL-GRANT-CONCEPT-NOTE.zh-CN.md`
 
 ## 许可证
 
