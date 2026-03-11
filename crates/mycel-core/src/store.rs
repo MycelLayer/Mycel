@@ -77,13 +77,30 @@ pub struct StoreRebuildSummary {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct StoreInitSummary {
+    pub store_root: PathBuf,
+    pub status: String,
+    pub index_manifest_path: PathBuf,
+    pub notes: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StoreWriteSummary {
+    pub store_root: PathBuf,
+    pub record: StoredObjectRecord,
+    pub created: bool,
+    pub index_manifest_path: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoreRebuildError {
     message: String,
 }
 
 impl StoreRebuildError {
-    fn new(message: impl Into<String>) -> Self {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
@@ -170,6 +187,12 @@ impl StoreIngestSummary {
         if self.status != "failed" {
             self.status = "warning".to_string();
         }
+    }
+}
+
+impl StoreInitSummary {
+    pub fn is_ok(&self) -> bool {
+        self.errors.is_empty()
     }
 }
 
@@ -313,12 +336,98 @@ pub fn ingest_store_from_path(
     Ok(summary)
 }
 
+pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, StoreRebuildError> {
+    let store_root = normalize_path(store_root);
+    ensure_store_root(&store_root)?;
+
+    let objects_dir = objects_root(&store_root);
+    fs::create_dir_all(&objects_dir).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "failed to create store objects directory {}: {error}",
+            objects_dir.display()
+        ))
+    })?;
+
+    let indexes_dir = indexes_root(&store_root);
+    fs::create_dir_all(&indexes_dir).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "failed to create store index directory {}: {error}",
+            indexes_dir.display()
+        ))
+    })?;
+
+    let manifest = StoreIndexManifest {
+        version: "mycel-store-index/0.1".to_string(),
+        stored_object_count: 0,
+        object_ids_by_type: BTreeMap::new(),
+        doc_revisions: BTreeMap::new(),
+        revision_parents: BTreeMap::new(),
+        author_patches: BTreeMap::new(),
+        view_governance: Vec::new(),
+        profile_heads: BTreeMap::new(),
+    };
+    let manifest_path = write_store_index_manifest(&store_root, &manifest)?;
+
+    Ok(StoreInitSummary {
+        store_root,
+        status: "ok".to_string(),
+        index_manifest_path: manifest_path,
+        notes: Vec::new(),
+        errors: Vec::new(),
+    })
+}
+
+pub fn load_store_object_index(
+    store_root: &Path,
+) -> Result<HashMap<String, Value>, StoreRebuildError> {
+    let store_root = normalize_path(store_root);
+    load_object_index_from_store(&store_root)
+}
+
+pub fn write_object_value_to_store(
+    store_root: &Path,
+    value: &Value,
+) -> Result<StoreWriteSummary, StoreRebuildError> {
+    let store_root = normalize_path(store_root);
+    ensure_store_root(&store_root)?;
+
+    let loaded_object = loaded_object_from_inline_value(value)?;
+    let object_index = load_object_index_from_store(&store_root)?;
+    let verification = verify_object_value_with_object_index(value, Some(&object_index));
+    if !verification.is_ok() {
+        return Err(StoreRebuildError::new(verification.errors.join("; ")));
+    }
+
+    let record = stored_record_from_loaded(&loaded_object)?.ok_or_else(|| {
+        StoreRebuildError::new(format!(
+            "object '{}' does not expose a storable object ID",
+            loaded_object.object_type
+        ))
+    })?;
+
+    let created = match write_stored_object(&store_root, &loaded_object, &record)? {
+        WriteOutcome::Written(_) => true,
+        WriteOutcome::AlreadyPresent(_) => false,
+    };
+    let rebuilt = rebuild_store_from_path(&store_root)?;
+
+    Ok(StoreWriteSummary {
+        store_root: store_root.clone(),
+        record: StoredObjectRecord {
+            path: store_path_for_record(&store_root, &record)?,
+            ..record
+        },
+        created,
+        index_manifest_path: rebuilt.index_manifest_path,
+    })
+}
+
 #[derive(Debug, Clone)]
 struct LoadedObject {
     path: PathBuf,
     value: Value,
     object_type: String,
-    declared_id: Option<String>,
+    object_id: Option<String>,
 }
 
 enum SummaryAdapter<'a> {
@@ -380,6 +489,27 @@ fn store_index_manifest_path(store_root: &Path) -> PathBuf {
     indexes_root(store_root).join("manifest.json")
 }
 
+fn write_store_index_manifest(
+    store_root: &Path,
+    manifest: &StoreIndexManifest,
+) -> Result<PathBuf, StoreRebuildError> {
+    let manifest_path = store_index_manifest_path(store_root);
+    let rendered = serde_json::to_string_pretty(manifest).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "failed to serialize store index manifest {}: {error}",
+            manifest_path.display()
+        ))
+    })?;
+    fs::write(&manifest_path, rendered).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "failed to write store index manifest {}: {error}",
+            manifest_path.display()
+        ))
+    })?;
+
+    Ok(manifest_path)
+}
+
 fn store_path_for_record(
     store_root: &Path,
     record: &StoredObjectRecord,
@@ -398,6 +528,42 @@ fn store_path_for_record(
 enum WriteOutcome {
     Written(PathBuf),
     AlreadyPresent(PathBuf),
+}
+
+fn loaded_object_from_inline_value(value: &Value) -> Result<LoadedObject, StoreRebuildError> {
+    let object_type = crate::protocol::parse_object_envelope(value)
+        .map_err(|error| {
+            StoreRebuildError::new(format!("failed to parse object envelope: {error}"))
+        })?
+        .object_type()
+        .to_string();
+    let object_id = object_id_from_value(value)
+        .map_err(|error| StoreRebuildError::new(format!("failed to resolve object ID: {error}")))?;
+
+    Ok(LoadedObject {
+        path: PathBuf::from("<inline-object>"),
+        value: value.clone(),
+        object_type,
+        object_id,
+    })
+}
+
+fn object_id_from_value(value: &Value) -> Result<Option<String>, String> {
+    let envelope =
+        crate::protocol::parse_object_envelope(value).map_err(|error| error.to_string())?;
+    if let Some(derived_id) = envelope
+        .declared_id()
+        .map_err(|error| format!("{error:?}"))?
+    {
+        return Ok(Some(derived_id.to_string()));
+    }
+    if let Some(logical_id) = envelope
+        .logical_id()
+        .map_err(|error| format!("{error:?}"))?
+    {
+        return Ok(Some(logical_id.to_string()));
+    }
+    Ok(None)
 }
 
 fn write_stored_object(
@@ -553,6 +719,31 @@ fn collect_json_paths_recursive(
     Ok(())
 }
 
+fn load_object_index_from_store(
+    store_root: &Path,
+) -> Result<HashMap<String, Value>, StoreRebuildError> {
+    let discovery = discover_store_paths(store_root, "store root")?;
+    let mut summary = StoreRebuildSummary::new(store_root);
+    let loaded = load_objects(&discovery.json_paths, SummaryAdapter::Rebuild(&mut summary))?;
+    let mut object_index = HashMap::new();
+
+    for loaded_object in loaded {
+        if let Some(object_id) = loaded_object.object_id {
+            if object_index
+                .insert(object_id.clone(), loaded_object.value.clone())
+                .is_some()
+            {
+                return Err(StoreRebuildError::new(format!(
+                    "duplicate stored object ID '{}' found while loading store object index",
+                    object_id
+                )));
+            }
+        }
+    }
+
+    Ok(object_index)
+}
+
 fn load_objects(
     paths: &[PathBuf],
     mut summary: SummaryAdapter<'_>,
@@ -573,28 +764,25 @@ fn load_objects(
             ))
         })?;
         let (object_type, declared_id) = {
+            let object_id = object_id_from_value(&value).map_err(|error| {
+                StoreRebuildError::new(format!(
+                    "{}: failed to resolve object ID: {error}",
+                    path.display()
+                ))
+            })?;
             let envelope = crate::protocol::parse_object_envelope(&value).map_err(|error| {
                 StoreRebuildError::new(format!(
                     "failed to parse object envelope {}: {error}",
                     path.display()
                 ))
             })?;
-            let declared_id = envelope
-                .declared_id()
-                .map_err(|error| {
-                    StoreRebuildError::new(format!(
-                        "{}: failed to read declared object ID: {error:?}",
-                        path.display()
-                    ))
-                })?
-                .map(str::to_string);
-            (envelope.object_type().to_string(), declared_id)
+            (envelope.object_type().to_string(), object_id)
         };
         loaded.push(LoadedObject {
             path: path.clone(),
             value,
             object_type,
-            declared_id,
+            object_id: declared_id,
         });
     }
 
@@ -612,7 +800,7 @@ fn build_object_index(
     let mut object_index = HashMap::new();
 
     for loaded_object in loaded {
-        if let Some(object_id) = &loaded_object.declared_id {
+        if let Some(object_id) = &loaded_object.object_id {
             if let Some(existing) =
                 object_index.insert(object_id.clone(), loaded_object.value.clone())
             {
@@ -631,7 +819,7 @@ fn build_object_index(
 fn stored_record_from_loaded(
     loaded_object: &LoadedObject,
 ) -> Result<Option<StoredObjectRecord>, StoreRebuildError> {
-    let Some(object_id) = &loaded_object.declared_id else {
+    let Some(object_id) = &loaded_object.object_id else {
         return Ok(None);
     };
 
@@ -774,21 +962,7 @@ fn persist_store_index_manifest(
     })?;
 
     let manifest = StoreIndexManifest::from_rebuild_summary(summary);
-    let manifest_path = store_index_manifest_path(store_root);
-    let rendered = serde_json::to_string_pretty(&manifest).map_err(|error| {
-        StoreRebuildError::new(format!(
-            "failed to serialize store index manifest {}: {error}",
-            manifest_path.display()
-        ))
-    })?;
-    fs::write(&manifest_path, rendered).map_err(|error| {
-        StoreRebuildError::new(format!(
-            "failed to write store index manifest {}: {error}",
-            manifest_path.display()
-        ))
-    })?;
-
-    Ok(manifest_path)
+    write_store_index_manifest(store_root, &manifest)
 }
 
 pub fn load_store_index_manifest(

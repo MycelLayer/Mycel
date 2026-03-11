@@ -81,6 +81,14 @@ pub fn replay_revision_from_index(
     })
 }
 
+pub fn replay_revision(
+    revision: &RevisionObject,
+    object_values_by_id: &HashMap<String, Value>,
+) -> Result<DocumentState, ReplayError> {
+    let mut cache = HashMap::new();
+    replay_revision_object(revision, object_values_by_id, &mut cache)
+}
+
 fn replay_revision_object(
     revision: &RevisionObject,
     object_values_by_id: &HashMap<String, Value>,

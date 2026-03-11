@@ -1,4 +1,13 @@
-use super::*;
+use std::path::PathBuf;
+
+use clap::Args;
+use mycel_core::store::{
+    ingest_store_from_path, load_store_index_manifest, rebuild_store_from_path, StoreIndexManifest,
+    StoreIngestSummary, StoreRebuildSummary, ViewGovernanceRecord,
+};
+use serde::Serialize;
+
+use crate::{emit_error_line, CliError};
 
 #[derive(Args)]
 pub(super) struct StoreIndexCliArgs {
