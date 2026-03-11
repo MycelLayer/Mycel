@@ -53,6 +53,7 @@
 | profile-governed | 由 profile 決定 | 強調結果來自固定規則，而不是自由裁量。 |
 | policy | policy / 政策約束 | 可以是 profile 內的一部分，也可以是一組更具體的執行條件。 |
 | policy bundle | policy bundle / 政策包 | 一組共同生效的政策條件。 |
+| governance | 治理 | 指依固定 profile，從已驗證物件與治理訊號中導出 accepted head 與 accepted reading 的規則系統。 |
 | accepted-state derivation | accepted-state 推導 | 從已驗證物件與固定規則導出可採用狀態。 |
 | governance signal | 治理訊號 | 例如 View 的簽章聲明。 |
 | non-discretionary | 非自由裁量 | 指 client 不應依本地偏好任意選 accepted head。 |
