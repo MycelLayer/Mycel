@@ -143,10 +143,10 @@ Defer if needed:
 ## 10. Merge Generation
 
 - [x] Keep revision verification replay-based; do not require receivers to rerun merge generation.
-- [ ] Implement the conservative merge generation profile for local authoring tools.
-- [ ] Distinguish `Auto-merged`, `Multi-variant`, and `Manual-curation-required`.
-- [ ] Materialize merge results as ordinary patch operations.
-- [ ] Reject hidden merge metadata as a substitute for explicit state changes.
+- [x] Implement the conservative merge generation profile for local authoring tools.
+- [x] Distinguish `Auto-merged`, `Multi-variant`, and `Manual-curation-required`.
+- [x] Materialize merge results as ordinary patch operations.
+- [x] Reject hidden merge metadata as a substitute for explicit state changes.
 
 ## 11. CLI or API Surface
 
@@ -183,5 +183,5 @@ Treat the client as ready for a first interoperable build when all of the follow
 - [x] revision replay and `state_hash` verification pass
 - [ ] minimal wire sync succeeds end-to-end
 - [x] deterministic head selection produces stable output
-- [ ] merge generation can emit valid replayable patch operations
+- [x] merge generation can emit valid replayable patch operations
 - [x] the local store can be rebuilt from canonical objects alone

@@ -38,7 +38,7 @@ flowchart LR
 | Milestone | Status | Main focus now | Main gaps |
 |---|---|---|---|
 | `M1` | Mostly complete | shared parsing, canonical helpers, strictness/fixture coverage | malformed field-shape depth closure, shared canonical utility reuse, milestone-close proof points |
-| `M2` | Substantially underway | replay, `state_hash`, store rebuild, persisted indexes, narrow write path | merge authoring, stronger replay/store fixtures, broader core reuse |
+| `M2` | Substantially underway | replay, `state_hash`, store rebuild, persisted indexes, narrow write path, conservative merge authoring | stronger replay/store fixtures, broader core reuse, richer structural merge coverage |
 | `M3` | Early partial | accepted-head reader workflows, bundle/store rendering, named fixed-profile reading, initial filtered/sorted/projected `view` governance inspect/list/publish workflows, and persisted reverse governance indexes | broader governance persistence, richer governance tooling, reader profile ergonomics |
 | `M4` | Later | wire envelope, sync workflow, peer interop | depends on stable reader and store model |
 | `M5` | Later | selective app-layer growth | depends on stable protocol core and sync |
@@ -63,10 +63,10 @@ Legend:
 | 7. Wire Protocol | Not started | `M4` | canonical wire envelope and message validation are still future work |
 | 8. Sync Workflow | Not started | `M4` | first-time and incremental sync remain future work |
 | 9. Views and Head Selection | Mostly done | `M3` | deterministic selector core and named fixed-profile selection exist; dual-role closure remains |
-| 10. Merge Generation | Partial | `M2` | verification is replay-based, but local merge authoring is not built |
-| 11. CLI or API Surface | Partial | `M2` / `M3` | verification, authoring, reader inspection/render, governance inspect/list/publish, and persisted governance index query surfaces exist; sync remains open |
+| 10. Merge Generation | Partial | `M2` | replay verification and a conservative local merge-authoring profile exist, but richer structural merges still fall back to manual curation |
+| 11. CLI or API Surface | Partial | `M2` / `M3` | verification, authoring, conservative merge authoring, reader inspection/render, governance inspect/list/publish, and persisted governance index query surfaces exist; sync remains open |
 | 12. Interop Test Minimum | Partial | `M1` / `M2` | fixture isolation, reproducibility, and smoke coverage exist, but several normative wire and replay checks remain |
-| 13. Ready-to-Build Gate | Partial | whole plan | replay, head selection, and rebuild are green; parse, wire sync, and merge generation are not |
+| 13. Ready-to-Build Gate | Partial | whole plan | replay, head selection, rebuild, and conservative merge authoring are green; parse closure and wire sync are not |
 
 ## Suggested Reading Path
 

@@ -17,6 +17,8 @@ enum StoreSubcommand {
     CreateDocument(StoreCreateDocumentCliArgs),
     #[command(about = "Create a signed patch object in the store")]
     CreatePatch(StoreCreatePatchCliArgs),
+    #[command(about = "Create a conservative merge patch and revision in the store")]
+    CreateMergeRevision(StoreCreateMergeRevisionCliArgs),
     #[command(about = "Commit a signed revision object in the store")]
     CommitRevision(StoreCommitRevisionCliArgs),
     #[command(about = "Verify and ingest objects into a local object store")]
@@ -158,6 +160,37 @@ struct StoreCommitRevisionCliArgs {
     extra: Vec<String>,
 }
 
+#[derive(Args)]
+struct StoreCreateMergeRevisionCliArgs {
+    #[arg(
+        value_name = "STORE_ROOT",
+        help = "Store root directory to write into",
+        required = true,
+        allow_hyphen_values = true
+    )]
+    store_root: String,
+    #[arg(long, value_name = "DOC_ID", required = true)]
+    doc_id: String,
+    #[arg(long = "parent", value_name = "REVISION_ID", required = true)]
+    parents: Vec<String>,
+    #[arg(long, value_name = "STATE_FILE", required = true)]
+    resolved_state: String,
+    #[arg(
+        long,
+        value_name = "MERGE_STRATEGY",
+        default_value = "semantic-block-merge"
+    )]
+    merge_strategy: String,
+    #[arg(long, value_name = "KEY_FILE", required = true)]
+    signing_key: String,
+    #[arg(long, value_name = "UNIX_SECS")]
+    timestamp: Option<u64>,
+    #[arg(long, help = "Emit machine-readable merge-authoring output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
 #[path = "store/index.rs"]
 mod index;
 #[path = "store/write.rs"]
@@ -191,6 +224,13 @@ pub(crate) fn handle_store_command(command: StoreCliArgs) -> Result<i32, CliErro
             }
 
             write::store_create_patch(args)
+        }
+        Some(StoreSubcommand::CreateMergeRevision(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "store create-merge-revision") {
+                return Err(CliError::usage(message));
+            }
+
+            write::store_create_merge_revision(args)
         }
         Some(StoreSubcommand::CommitRevision(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "store commit-revision") {

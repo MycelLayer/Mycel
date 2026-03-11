@@ -3,18 +3,23 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use mycel_core::author::{
-    commit_revision_to_store, create_document_in_store, create_patch_in_store,
-    parse_signing_key_seed, DocumentCreateParams, DocumentCreateSummary, PatchCreateParams,
-    PatchCreateSummary, RevisionCommitParams, RevisionCommitSummary,
+    commit_revision_to_store, create_document_in_store, create_merge_revision_in_store,
+    create_patch_in_store, parse_signing_key_seed, DocumentCreateParams, DocumentCreateSummary,
+    MergeRevisionCreateParams, MergeRevisionCreateSummary, PatchCreateParams, PatchCreateSummary,
+    RevisionCommitParams, RevisionCommitSummary,
 };
 use mycel_core::protocol::parse_json_value_strict;
+use mycel_core::replay::DocumentState;
 use mycel_core::store::{initialize_store_root, StoreInitSummary};
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::CliError;
 
-use super::{StoreCommitRevisionCliArgs, StoreCreateDocumentCliArgs, StoreCreatePatchCliArgs};
+use super::{
+    StoreCommitRevisionCliArgs, StoreCreateDocumentCliArgs, StoreCreateMergeRevisionCliArgs,
+    StoreCreatePatchCliArgs,
+};
 
 pub(super) fn store_init(store_root: PathBuf, json: bool) -> Result<i32, CliError> {
     match initialize_store_root(&store_root) {
@@ -100,6 +105,31 @@ pub(super) fn store_commit_revision(args: StoreCommitRevisionCliArgs) -> Result<
     }
 }
 
+pub(super) fn store_create_merge_revision(
+    args: StoreCreateMergeRevisionCliArgs,
+) -> Result<i32, CliError> {
+    let signing_key = load_signing_key(&args.signing_key)?;
+    let resolved_state = load_resolved_state(&args.resolved_state)?;
+    let params = MergeRevisionCreateParams {
+        doc_id: args.doc_id,
+        parents: args.parents,
+        resolved_state,
+        merge_strategy: args.merge_strategy,
+        timestamp: resolve_timestamp(args.timestamp)?,
+    };
+
+    match create_merge_revision_in_store(Path::new(&args.store_root), &signing_key, &params) {
+        Ok(summary) => {
+            if args.json {
+                print_json(&summary, "merge revision create summary")
+            } else {
+                Ok(print_merge_revision_create_text(&summary))
+            }
+        }
+        Err(error) => Err(CliError::usage(error.to_string())),
+    }
+}
+
 fn load_signing_key(path: &str) -> Result<ed25519_dalek::SigningKey, CliError> {
     let content = fs::read_to_string(path).map_err(|error| {
         CliError::usage(format!("failed to read signing key file {path}: {error}"))
@@ -113,6 +143,24 @@ fn load_ops_value(path: &str) -> Result<Value, CliError> {
     })?;
     parse_json_value_strict(&content)
         .map_err(|error| CliError::usage(format!("failed to parse patch ops file {path}: {error}")))
+}
+
+fn load_resolved_state(path: &str) -> Result<DocumentState, CliError> {
+    let content = fs::read_to_string(path).map_err(|error| {
+        CliError::usage(format!(
+            "failed to read resolved state file {path}: {error}"
+        ))
+    })?;
+    let value = parse_json_value_strict(&content).map_err(|error| {
+        CliError::usage(format!(
+            "failed to parse resolved state file {path}: {error}"
+        ))
+    })?;
+    serde_json::from_value(value).map_err(|error| {
+        CliError::usage(format!(
+            "failed to decode resolved state file {path} as DocumentState: {error}"
+        ))
+    })
 }
 
 fn resolve_timestamp(timestamp: Option<u64>) -> Result<u64, CliError> {
@@ -169,6 +217,26 @@ fn print_revision_commit_text(summary: &RevisionCommitSummary) -> i32 {
     println!("state_hash: {}", summary.recomputed_state_hash);
     println!("written objects: {}", summary.written_object_count);
     println!("existing objects: {}", summary.existing_object_count);
+    if let Some(path) = &summary.index_manifest_path {
+        println!("index manifest: {}", path.display());
+    }
+    0
+}
+
+fn print_merge_revision_create_text(summary: &MergeRevisionCreateSummary) -> i32 {
+    println!("merge revision create: {}", summary.status);
+    println!("store root: {}", summary.store_root.display());
+    println!("doc_id: {}", summary.doc_id);
+    println!("merge outcome: {}", summary.merge_outcome.as_str());
+    println!("patch: {}", summary.patch_id);
+    println!("patch ops: {}", summary.patch_op_count);
+    println!("revision: {}", summary.revision_id);
+    println!("state_hash: {}", summary.recomputed_state_hash);
+    println!("written objects: {}", summary.written_object_count);
+    println!("existing objects: {}", summary.existing_object_count);
+    if !summary.merge_reasons.is_empty() {
+        println!("merge reasons: {}", summary.merge_reasons.join("; "));
+    }
     if let Some(path) = &summary.index_manifest_path {
         println!("index manifest: {}", path.display());
     }

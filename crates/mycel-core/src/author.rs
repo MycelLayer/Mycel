@@ -1,3 +1,4 @@
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -6,9 +7,13 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::protocol::{
-    recompute_object_id, signed_payload_bytes, RevisionObject, CORE_PROTOCOL_VERSION,
+    canonical_json, recompute_object_id, signed_payload_bytes, BlockObject, PatchObject,
+    PatchOperation, RevisionObject, CORE_PROTOCOL_VERSION,
 };
-use crate::replay::{compute_state_hash, replay_revision, DocumentState, GENESIS_BASE_REVISION};
+use crate::replay::{
+    apply_patch_ops, compute_state_hash, replay_revision, replay_revision_from_index,
+    DocumentState, GENESIS_BASE_REVISION,
+};
 use crate::store::{
     load_store_object_index, load_stored_object_value, write_object_value_to_store,
     StoreRebuildError, StoredObjectRecord,
@@ -37,6 +42,33 @@ pub struct RevisionCommitParams {
     pub patches: Vec<String>,
     pub merge_strategy: Option<String>,
     pub timestamp: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct MergeRevisionCreateParams {
+    pub doc_id: String,
+    pub parents: Vec<String>,
+    pub resolved_state: DocumentState,
+    pub merge_strategy: String,
+    pub timestamp: u64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeOutcome {
+    AutoMerged,
+    MultiVariant,
+    ManualCurationRequired,
+}
+
+impl MergeOutcome {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AutoMerged => "auto-merged",
+            Self::MultiVariant => "multi-variant",
+            Self::ManualCurationRequired => "manual-curation-required",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -84,6 +116,40 @@ pub struct RevisionCommitSummary {
     pub index_manifest_path: Option<PathBuf>,
     pub notes: Vec<String>,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MergeRevisionCreateSummary {
+    pub store_root: PathBuf,
+    pub status: String,
+    pub doc_id: String,
+    pub merge_outcome: MergeOutcome,
+    pub merge_reasons: Vec<String>,
+    pub parent_revision_ids: Vec<String>,
+    pub patch_id: String,
+    pub patch_op_count: usize,
+    pub revision_id: String,
+    pub recomputed_state_hash: String,
+    pub written_object_count: usize,
+    pub existing_object_count: usize,
+    pub stored_objects: Vec<StoredObjectRecord>,
+    pub index_manifest_path: Option<PathBuf>,
+    pub notes: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct MergeAssessment {
+    outcome: MergeOutcome,
+    reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct BlockPlacement {
+    block: BlockObject,
+    parent_block_id: Option<String>,
+    index: usize,
+    depth: usize,
 }
 
 pub fn parse_signing_key_seed(seed: &str) -> Result<SigningKey, String> {
@@ -301,6 +367,123 @@ pub fn commit_revision_to_store(
     })
 }
 
+pub fn create_merge_revision_in_store(
+    store_root: &Path,
+    signing_key: &SigningKey,
+    params: &MergeRevisionCreateParams,
+) -> Result<MergeRevisionCreateSummary, StoreRebuildError> {
+    ensure_document_exists(store_root, &params.doc_id)?;
+    if params.parents.len() < 2 {
+        return Err(StoreRebuildError::new(
+            "merge authoring requires at least two parent revisions",
+        ));
+    }
+    if params.merge_strategy.is_empty() {
+        return Err(StoreRebuildError::new(
+            "merge_strategy must not be empty for merge authoring",
+        ));
+    }
+    if params.resolved_state.doc_id != params.doc_id {
+        return Err(StoreRebuildError::new(format!(
+            "resolved state doc_id '{}' does not match requested '{}'",
+            params.resolved_state.doc_id, params.doc_id
+        )));
+    }
+
+    let object_index = load_store_object_index(store_root)?;
+    let mut parent_states = Vec::new();
+    for parent_id in &params.parents {
+        ensure_object_exists(store_root, parent_id, "parent revision")?;
+        let parent_value = object_index.get(parent_id).ok_or_else(|| {
+            StoreRebuildError::new(format!(
+                "parent revision '{}' was not found in the store object index",
+                parent_id
+            ))
+        })?;
+        let replay = replay_revision_from_index(parent_value, &object_index).map_err(|error| {
+            StoreRebuildError::new(format!(
+                "failed to replay parent revision '{parent_id}': {error}"
+            ))
+        })?;
+        if replay.state.doc_id != params.doc_id {
+            return Err(StoreRebuildError::new(format!(
+                "parent revision '{}' belongs to '{}' instead of '{}'",
+                parent_id, replay.state.doc_id, params.doc_id
+            )));
+        }
+        parent_states.push((parent_id.clone(), replay.state));
+    }
+
+    let primary_parent_id = params
+        .parents
+        .first()
+        .expect("merge parents should contain at least one parent")
+        .clone();
+    let primary_state = parent_states
+        .first()
+        .expect("merge parent states should contain the primary parent")
+        .1
+        .clone();
+    let assessment = assess_merge_resolution(&parent_states, &params.resolved_state)?;
+    if assessment.outcome == MergeOutcome::ManualCurationRequired {
+        return Err(StoreRebuildError::new(format!(
+            "merge resolution is manual-curation-required: {}",
+            assessment.reasons.join("; ")
+        )));
+    }
+
+    let ops = build_conservative_merge_ops(&primary_state, &params.resolved_state)?;
+    let patch_summary = create_patch_in_store(
+        store_root,
+        signing_key,
+        &PatchCreateParams {
+            doc_id: params.doc_id.clone(),
+            base_revision: primary_parent_id,
+            timestamp: params.timestamp,
+            ops: patch_ops_to_value(&ops),
+        },
+    )?;
+    let revision_summary = commit_revision_to_store(
+        store_root,
+        signing_key,
+        &RevisionCommitParams {
+            doc_id: params.doc_id.clone(),
+            parents: params.parents.clone(),
+            patches: vec![patch_summary.patch_id.clone()],
+            merge_strategy: Some(params.merge_strategy.clone()),
+            timestamp: params.timestamp,
+        },
+    )?;
+
+    let written_object_count =
+        patch_summary.written_object_count + revision_summary.written_object_count;
+    let existing_object_count =
+        patch_summary.existing_object_count + revision_summary.existing_object_count;
+    let index_manifest_path = revision_summary
+        .index_manifest_path
+        .clone()
+        .or_else(|| patch_summary.index_manifest_path.clone());
+
+    Ok(MergeRevisionCreateSummary {
+        store_root: store_root.to_path_buf(),
+        status: "ok".to_string(),
+        doc_id: params.doc_id.clone(),
+        merge_outcome: assessment.outcome,
+        merge_reasons: assessment.reasons,
+        parent_revision_ids: params.parents.clone(),
+        patch_id: patch_summary.patch_id,
+        patch_op_count: ops.len(),
+        revision_id: revision_summary.revision_id,
+        recomputed_state_hash: revision_summary.recomputed_state_hash,
+        written_object_count,
+        existing_object_count,
+        stored_objects: vec![patch_summary.stored_object, revision_summary.stored_object],
+        index_manifest_path,
+        notes: Vec::new(),
+        errors: Vec::new(),
+    })
+}
+
 fn ensure_document_exists(store_root: &Path, doc_id: &str) -> Result<(), StoreRebuildError> {
     ensure_object_exists(store_root, doc_id, "document")
 }
@@ -331,6 +514,392 @@ fn sign_object_value(signing_key: &SigningKey, value: &Value) -> Result<String, 
     ))
 }
 
+fn assess_merge_resolution(
+    parent_states: &[(String, DocumentState)],
+    resolved_state: &DocumentState,
+) -> Result<MergeAssessment, StoreRebuildError> {
+    let primary_state = &parent_states
+        .first()
+        .expect("merge parent states should not be empty")
+        .1;
+    let primary_blocks = flatten_blocks(&primary_state.blocks);
+    let resolved_blocks = flatten_blocks(&resolved_state.blocks);
+    let mut reasons = Vec::new();
+    let mut saw_multi_variant = false;
+
+    let block_ids = primary_blocks
+        .keys()
+        .cloned()
+        .chain(
+            parent_states
+                .iter()
+                .skip(1)
+                .flat_map(|(_, state)| flatten_blocks(&state.blocks).into_keys()),
+        )
+        .chain(resolved_blocks.keys().cloned())
+        .collect::<BTreeSet<_>>();
+
+    for block_id in block_ids {
+        let primary_variant =
+            block_variant(primary_blocks.get(&block_id).map(|entry| &entry.block))?;
+        let resolved_variant =
+            block_variant(resolved_blocks.get(&block_id).map(|entry| &entry.block))?;
+        let alternative_variants = parent_states
+            .iter()
+            .skip(1)
+            .map(|(_, state)| flatten_blocks(&state.blocks))
+            .map(|blocks| block_variant(blocks.get(&block_id).map(|entry| &entry.block)))
+            .collect::<Result<BTreeSet<_>, _>>()?
+            .into_iter()
+            .filter(|variant| variant != &primary_variant)
+            .collect::<BTreeSet<_>>();
+
+        if resolved_variant != primary_variant && !alternative_variants.contains(&resolved_variant)
+        {
+            reasons.push(format!(
+                "resolved block '{}' does not match any parent variant",
+                block_id
+            ));
+        } else if primary_variant != "<absent>"
+            && resolved_variant != primary_variant
+            && alternative_variants.contains(&resolved_variant)
+        {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' selected a non-primary parent variant",
+                block_id
+            ));
+        } else if alternative_variants.len() > 1 {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' has multiple competing parent variants",
+                block_id
+            ));
+        }
+    }
+
+    let metadata_keys = primary_state
+        .metadata
+        .keys()
+        .cloned()
+        .chain(
+            parent_states
+                .iter()
+                .skip(1)
+                .flat_map(|(_, state)| state.metadata.keys().cloned()),
+        )
+        .chain(resolved_state.metadata.keys().cloned())
+        .collect::<BTreeSet<_>>();
+
+    for key in metadata_keys {
+        let primary_variant = metadata_variant(primary_state.metadata.get(&key))?;
+        let resolved_variant = metadata_variant(resolved_state.metadata.get(&key))?;
+        let alternative_variants = parent_states
+            .iter()
+            .skip(1)
+            .map(|(_, state)| metadata_variant(state.metadata.get(&key)))
+            .collect::<Result<BTreeSet<_>, _>>()?
+            .into_iter()
+            .filter(|variant| variant != &primary_variant)
+            .collect::<BTreeSet<_>>();
+
+        if resolved_variant != primary_variant && !alternative_variants.contains(&resolved_variant)
+        {
+            reasons.push(format!(
+                "resolved metadata key '{}' does not match any parent variant",
+                key
+            ));
+        } else if primary_variant != "<absent>"
+            && resolved_variant != primary_variant
+            && alternative_variants.contains(&resolved_variant)
+        {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "metadata key '{}' selected a non-primary parent variant",
+                key
+            ));
+        } else if alternative_variants.len() > 1 {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "metadata key '{}' has multiple competing parent variants",
+                key
+            ));
+        }
+    }
+
+    let outcome = if reasons
+        .iter()
+        .any(|reason| reason.contains("does not match any parent variant"))
+    {
+        MergeOutcome::ManualCurationRequired
+    } else if saw_multi_variant {
+        MergeOutcome::MultiVariant
+    } else {
+        MergeOutcome::AutoMerged
+    };
+
+    Ok(MergeAssessment { outcome, reasons })
+}
+
+fn block_variant(block: Option<&BlockObject>) -> Result<String, StoreRebuildError> {
+    match block {
+        Some(block) => canonical_json(&serde_json::to_value(block).map_err(|error| {
+            StoreRebuildError::new(format!("failed to serialize block variant: {error}"))
+        })?)
+        .map_err(|error| {
+            StoreRebuildError::new(format!("failed to canonicalize block variant: {error}"))
+        }),
+        None => Ok("<absent>".to_string()),
+    }
+}
+
+fn metadata_variant(value: Option<&Value>) -> Result<String, StoreRebuildError> {
+    match value {
+        Some(value) => canonical_json(value).map_err(|error| {
+            StoreRebuildError::new(format!("failed to canonicalize metadata variant: {error}"))
+        }),
+        None => Ok("<absent>".to_string()),
+    }
+}
+
+fn build_conservative_merge_ops(
+    primary_state: &DocumentState,
+    resolved_state: &DocumentState,
+) -> Result<Vec<PatchOperation>, StoreRebuildError> {
+    let primary_blocks = flatten_blocks(&primary_state.blocks);
+    let resolved_blocks = flatten_blocks(&resolved_state.blocks);
+    let primary_ids = primary_blocks.keys().cloned().collect::<BTreeSet<_>>();
+    let resolved_ids = resolved_blocks.keys().cloned().collect::<BTreeSet<_>>();
+    let deleted_ids = primary_ids
+        .difference(&resolved_ids)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let new_ids = resolved_ids
+        .difference(&primary_ids)
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut ops = Vec::new();
+
+    for key in primary_state.metadata.keys() {
+        if !resolved_state.metadata.contains_key(key) {
+            return Err(StoreRebuildError::new(format!(
+                "manual-curation-required: resolved state removes metadata key '{}'",
+                key
+            )));
+        }
+    }
+    let changed_metadata = resolved_state
+        .metadata
+        .iter()
+        .filter(|(key, value)| primary_state.metadata.get(*key) != Some(*value))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect::<serde_json::Map<_, _>>();
+    if !changed_metadata.is_empty() {
+        ops.push(PatchOperation::SetMetadata {
+            entries: changed_metadata,
+        });
+    }
+
+    let mut deletions = deleted_ids
+        .iter()
+        .filter_map(|block_id| {
+            let placement = primary_blocks.get(block_id)?;
+            let parent_is_deleted = placement
+                .parent_block_id
+                .as_ref()
+                .is_some_and(|parent_id| deleted_ids.contains(parent_id));
+            (!parent_is_deleted).then(|| (placement.depth, block_id.clone()))
+        })
+        .collect::<Vec<_>>();
+    deletions.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(&right.1)));
+    for (_, block_id) in deletions {
+        ops.push(PatchOperation::DeleteBlock { block_id });
+    }
+
+    let mut insertions = new_ids
+        .iter()
+        .filter_map(|block_id| {
+            let placement = resolved_blocks.get(block_id)?;
+            let parent_is_new = placement
+                .parent_block_id
+                .as_ref()
+                .is_some_and(|parent_id| new_ids.contains(parent_id));
+            (!parent_is_new).then_some(placement.clone())
+        })
+        .collect::<Vec<_>>();
+    insertions.sort_by(|left, right| {
+        left.depth
+            .cmp(&right.depth)
+            .then_with(|| left.parent_block_id.cmp(&right.parent_block_id))
+            .then_with(|| left.index.cmp(&right.index))
+    });
+    for placement in insertions {
+        ops.push(PatchOperation::InsertBlock {
+            parent_block_id: placement.parent_block_id.clone(),
+            index: Some(placement.index),
+            new_block: placement.block.clone(),
+        });
+    }
+
+    for block_id in primary_ids.intersection(&resolved_ids) {
+        let primary = primary_blocks
+            .get(block_id)
+            .expect("existing primary block should be indexed");
+        let resolved = resolved_blocks
+            .get(block_id)
+            .expect("existing resolved block should be indexed");
+        if primary.block.content != resolved.block.content {
+            ops.push(PatchOperation::ReplaceBlock {
+                block_id: block_id.clone(),
+                new_content: resolved.block.content.clone(),
+            });
+        }
+    }
+
+    let mut simulated = primary_state.clone();
+    let patch = PatchObject {
+        patch_id: "patch:pending".to_string(),
+        doc_id: primary_state.doc_id.clone(),
+        base_revision: "rev:pending".to_string(),
+        author: "pk:pending".to_string(),
+        timestamp: 0,
+        ops: ops.clone(),
+    };
+    apply_patch_ops(&mut simulated, &patch).map_err(|error| {
+        StoreRebuildError::new(format!(
+            "manual-curation-required: generated merge patch did not apply cleanly: {error}"
+        ))
+    })?;
+    if simulated != *resolved_state {
+        return Err(StoreRebuildError::new(
+            "manual-curation-required: resolved state requires unsupported structural edits"
+                .to_string(),
+        ));
+    }
+
+    Ok(ops)
+}
+
+fn flatten_blocks(blocks: &[BlockObject]) -> HashMap<String, BlockPlacement> {
+    let mut placements = HashMap::new();
+    flatten_blocks_into(blocks, None, 0, &mut placements);
+    placements
+}
+
+fn flatten_blocks_into(
+    blocks: &[BlockObject],
+    parent_block_id: Option<&str>,
+    depth: usize,
+    placements: &mut HashMap<String, BlockPlacement>,
+) {
+    for (index, block) in blocks.iter().enumerate() {
+        placements.insert(
+            block.block_id.clone(),
+            BlockPlacement {
+                block: block.clone(),
+                parent_block_id: parent_block_id.map(str::to_string),
+                index,
+                depth,
+            },
+        );
+        flatten_blocks_into(
+            &block.children,
+            Some(&block.block_id),
+            depth + 1,
+            placements,
+        );
+    }
+}
+
+fn patch_ops_to_value(ops: &[PatchOperation]) -> Value {
+    Value::Array(
+        ops.iter()
+            .map(|op| match op {
+                PatchOperation::InsertBlock {
+                    parent_block_id,
+                    index,
+                    new_block,
+                } => {
+                    let mut object = serde_json::Map::new();
+                    object.insert("op".to_string(), Value::String("insert_block".to_string()));
+                    if let Some(parent_block_id) = parent_block_id {
+                        object.insert(
+                            "parent_block_id".to_string(),
+                            Value::String(parent_block_id.clone()),
+                        );
+                    }
+                    if let Some(index) = index {
+                        object.insert(
+                            "index".to_string(),
+                            Value::Number(serde_json::Number::from(*index)),
+                        );
+                    }
+                    object.insert(
+                        "new_block".to_string(),
+                        serde_json::to_value(new_block)
+                            .expect("generated new_block should serialize"),
+                    );
+                    Value::Object(object)
+                }
+                PatchOperation::DeleteBlock { block_id } => json!({
+                    "op": "delete_block",
+                    "block_id": block_id
+                }),
+                PatchOperation::ReplaceBlock {
+                    block_id,
+                    new_content,
+                } => json!({
+                    "op": "replace_block",
+                    "block_id": block_id,
+                    "new_content": new_content
+                }),
+                PatchOperation::SetMetadata { entries } => json!({
+                    "op": "set_metadata",
+                    "entries": entries
+                }),
+                PatchOperation::InsertBlockAfter {
+                    after_block_id,
+                    new_block,
+                } => json!({
+                    "op": "insert_block_after",
+                    "after_block_id": after_block_id,
+                    "new_block": new_block
+                }),
+                PatchOperation::MoveBlock {
+                    block_id,
+                    parent_block_id,
+                    after_block_id,
+                } => {
+                    let mut object = serde_json::Map::new();
+                    object.insert("op".to_string(), Value::String("move_block".to_string()));
+                    object.insert("block_id".to_string(), Value::String(block_id.clone()));
+                    if let Some(parent_block_id) = parent_block_id {
+                        object.insert(
+                            "parent_block_id".to_string(),
+                            Value::String(parent_block_id.clone()),
+                        );
+                    }
+                    if let Some(after_block_id) = after_block_id {
+                        object.insert(
+                            "after_block_id".to_string(),
+                            Value::String(after_block_id.clone()),
+                        );
+                    }
+                    Value::Object(object)
+                }
+                PatchOperation::AnnotateBlock {
+                    block_id,
+                    annotation,
+                } => json!({
+                    "op": "annotate_block",
+                    "block_id": block_id,
+                    "annotation": annotation
+                }),
+            })
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -341,9 +910,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        commit_revision_to_store, create_document_in_store, create_patch_in_store,
-        parse_signing_key_seed, signer_id, DocumentCreateParams, PatchCreateParams,
-        RevisionCommitParams,
+        commit_revision_to_store, create_document_in_store, create_merge_revision_in_store,
+        create_patch_in_store, parse_signing_key_seed, signer_id, DocumentCreateParams,
+        MergeOutcome, MergeRevisionCreateParams, PatchCreateParams, RevisionCommitParams,
     };
     use crate::replay::replay_revision_from_index;
     use crate::store::{load_store_index_manifest, load_stored_object_value};
@@ -446,6 +1015,153 @@ mod tests {
         assert_eq!(replay.revision_id, revision.revision_id);
         assert_eq!(replay.state.doc_id, "doc:author-flow");
         assert_eq!(replay.state.blocks.len(), 1);
+
+        let _ = fs::remove_dir_all(store_root);
+    }
+
+    #[test]
+    fn merge_authoring_reports_multi_variant_when_parents_disagree() {
+        let store_root = temp_dir("merge-multi-variant");
+        let signing_key = signing_key();
+        let document = create_document_in_store(
+            &store_root,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:merge-variant".to_string(),
+                title: "Merge Variant".to_string(),
+                language: "en".to_string(),
+                timestamp: 10,
+            },
+        )
+        .expect("document should be created");
+
+        let base_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-variant".to_string(),
+                base_revision: document.genesis_revision_id.clone(),
+                timestamp: 11,
+                ops: json!([
+                    {
+                        "op": "insert_block",
+                        "new_block": {
+                            "block_id": "blk:merge-001",
+                            "block_type": "paragraph",
+                            "content": "Base",
+                            "attrs": {},
+                            "children": []
+                        }
+                    }
+                ]),
+            },
+        )
+        .expect("base patch should be created");
+        let base_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-variant".to_string(),
+                parents: vec![document.genesis_revision_id.clone()],
+                patches: vec![base_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 12,
+            },
+        )
+        .expect("base revision should be committed");
+
+        let left_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-variant".to_string(),
+                base_revision: base_revision.revision_id.clone(),
+                timestamp: 13,
+                ops: json!([
+                    {
+                        "op": "replace_block",
+                        "block_id": "blk:merge-001",
+                        "new_content": "Left variant"
+                    }
+                ]),
+            },
+        )
+        .expect("left patch should be created");
+        let left_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-variant".to_string(),
+                parents: vec![base_revision.revision_id.clone()],
+                patches: vec![left_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 14,
+            },
+        )
+        .expect("left revision should be committed");
+
+        let right_patch = create_patch_in_store(
+            &store_root,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:merge-variant".to_string(),
+                base_revision: base_revision.revision_id.clone(),
+                timestamp: 15,
+                ops: json!([
+                    {
+                        "op": "replace_block",
+                        "block_id": "blk:merge-001",
+                        "new_content": "Right variant"
+                    }
+                ]),
+            },
+        )
+        .expect("right patch should be created");
+        let right_revision = commit_revision_to_store(
+            &store_root,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:merge-variant".to_string(),
+                parents: vec![base_revision.revision_id.clone()],
+                patches: vec![right_patch.patch_id],
+                merge_strategy: None,
+                timestamp: 16,
+            },
+        )
+        .expect("right revision should be committed");
+
+        let summary = create_merge_revision_in_store(
+            &store_root,
+            &signing_key,
+            &MergeRevisionCreateParams {
+                doc_id: "doc:merge-variant".to_string(),
+                parents: vec![left_revision.revision_id, right_revision.revision_id],
+                resolved_state: crate::replay::DocumentState {
+                    doc_id: "doc:merge-variant".to_string(),
+                    blocks: vec![crate::protocol::BlockObject {
+                        block_id: "blk:merge-001".to_string(),
+                        block_type: "paragraph".to_string(),
+                        content: "Right variant".to_string(),
+                        attrs: serde_json::Map::new(),
+                        children: Vec::new(),
+                    }],
+                    metadata: serde_json::Map::new(),
+                },
+                merge_strategy: "semantic-block-merge".to_string(),
+                timestamp: 17,
+            },
+        )
+        .expect("merge revision should be created");
+
+        assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+        assert_eq!(summary.patch_op_count, 1);
+        assert!(
+            summary
+                .merge_reasons
+                .iter()
+                .any(|reason| reason.contains("selected a non-primary parent variant")),
+            "expected multi-variant reason, got {summary:?}"
+        );
 
         let _ = fs::remove_dir_all(store_root);
     }

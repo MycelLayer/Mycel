@@ -225,14 +225,14 @@ Completion gate:
 
 Current read:
 
-Substantially underway. Replay-based verification, store rebuild, persisted indexes, and a direct store-backed replay proof point now exist, but the milestone is still not closeable.
+Substantially underway. Replay-based verification, store rebuild, persisted indexes, a narrow store write path, and an initial conservative merge-authoring workflow now exist, but the milestone is still not closeable.
 
 Main remaining gaps:
 
-1. narrow object-authoring and builder path
-2. broader reuse of persisted store indexes across reader workflows
-3. broader replay and store reconstruction coverage tied to more realistic fixture sets beyond the current direct store-backed replay proof point
-4. documentation cleanup so roadmap and checklist reflect the implemented store/replay baseline
+1. broader reuse of persisted store indexes across reader workflows
+2. broader replay and store reconstruction coverage tied to more realistic fixture sets beyond the current direct store-backed replay proof point
+3. conservative merge authoring only covers a narrow resolved-state profile; richer structural merges still require manual curation
+4. broader core reuse so authoring and replay helpers do not remain disproportionately CLI-driven
 
 Implementation anchors:
 
@@ -387,6 +387,7 @@ Already in progress or partially implemented:
 
 1. Simulator topology and report scaffolding
 2. CLI workflows for report inspection, listing, stats, and diffing
+3. A conservative local merge-authoring workflow that emits replayable patch operations for narrow resolved-state merges
 
 Still missing or incomplete:
 

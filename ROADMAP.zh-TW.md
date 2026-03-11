@@ -225,14 +225,14 @@ Implementation anchors：
 
 目前判讀：
 
-已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes，以及直接的 store-backed replay proof point 都已存在，但這個 milestone 仍未到可關閉狀態。
+已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path，以及初始的保守型 merge-authoring workflow 都已存在，但這個 milestone 仍未到可關閉狀態。
 
 主要剩餘缺口：
 
-1. 窄版 object-authoring 與 builder path
-2. 持久化 store indexes 在 reader workflows 中的更廣 reuse
-3. 在目前直接 store-backed replay proof point 之外，進一步補強與更真實 fixture sets 綁定的 replay 與 store reconstruction coverage
-4. 文件清理，讓 roadmap 與 checklist 正確反映目前 store/replay baseline
+1. 持久化 store indexes 在 reader workflows 中的更廣 reuse
+2. 在目前直接 store-backed replay proof point 之外，進一步補強與更真實 fixture sets 綁定的 replay 與 store reconstruction coverage
+3. 保守型 merge authoring 目前只覆蓋窄版 resolved-state profile；更豐富的結構性 merge 仍需 manual curation
+4. 擴大 shared core reuse，避免 authoring 與 replay helpers 過度停留在 CLI-driven glue
 
 Implementation anchors：
 
@@ -347,6 +347,7 @@ Implementation anchors：
 
 1. Simulator topology 與 report scaffolding
 2. 用於 report inspection、listing、stats 與 diffing 的 CLI workflows
+3. 可為窄版 resolved-state merges 產出可 replay patch operations 的保守型 local merge-authoring workflow
 
 仍缺少或未完成：
 

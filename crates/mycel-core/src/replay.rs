@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
@@ -11,11 +11,11 @@ use crate::protocol::{
 
 pub const GENESIS_BASE_REVISION: &str = "rev:genesis-null";
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentState {
     pub doc_id: String,
     pub blocks: Vec<BlockObject>,
-    #[serde(skip_serializing_if = "Map::is_empty")]
+    #[serde(default, skip_serializing_if = "Map::is_empty")]
     pub metadata: Map<String, Value>,
 }
 
