@@ -36,6 +36,7 @@ Startup command:
 - `scripts/agent-claim.sh <role> [--scope <scope>]`
 - `scripts/agent-start.sh <agent-id>`
 - `scripts/agent-status.sh [<agent-id>]`
+- `scripts/agent-resume-check.sh <agent-id>`
 - `scripts/agent-stop.sh <agent-id> [--status paused|done]`
 - `scripts/agent-recover.sh <stale-agent-id> [--scope <scope>]`
 
@@ -72,6 +73,7 @@ Role note:
 
 - `coding` usually reports the latest completed CI result after recovery
 - `doc` usually skips CI unless explicitly asked
+- if an old forgotten chat is reopened, run `scripts/agent-resume-check.sh <agent-id>` before doing any tracked work
 
 ## 10-Line Rule Set
 
