@@ -332,6 +332,7 @@ fn head_inspect_json_selects_highest_supported_head() {
             "verified_inputs",
             "critical_violations",
             "eligible_heads",
+            "editor_admission",
             "effective_weight",
             "maintainer_support",
             "selector_scores",
@@ -1543,6 +1544,187 @@ fn head_inspect_penalizes_critical_violations() {
                         .is_some_and(|detail| detail == "count=1 affected_maintainers=1")
             })),
         "expected critical_violations trace summary, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_inspect_admitted_only_editor_policy_filters_non_admitted_candidate_heads() {
+    let doc_id = "doc:editor-admitted-only";
+    let admitted_author = signing_key(61);
+    let non_admitted_author = signing_key(62);
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let admitted_revision =
+        signed_revision(&admitted_author, doc_id, vec![], 10, "hash:editor-admitted");
+    let non_admitted_revision = signed_revision(
+        &non_admitted_author,
+        doc_id,
+        vec![],
+        20,
+        "hash:editor-non-admitted",
+    );
+    let mut profile = head_profile(hash_json(&policy), 1200);
+    profile["editor_admission"] = json!({
+        "mode": "admitted-only",
+        "admitted_keys": [signer_id(&admitted_author)]
+    });
+    let bundle = json!({
+        "profile": profile,
+        "revisions": [admitted_revision.clone(), non_admitted_revision.clone()],
+        "views": [],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-inspect-editor-admitted-only", "input.json", bundle);
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
+    let editor_candidates = json["editor_candidates"]
+        .as_array()
+        .expect("editor_candidates should be array");
+    assert!(
+        editor_candidates.iter().any(|entry| {
+            entry["revision_id"] == admitted_revision["revision_id"]
+                && entry["editor_admitted"] == Value::Bool(true)
+                && entry["candidate_eligible"] == Value::Bool(true)
+                && entry["formal_candidate"] == Value::Bool(true)
+        }),
+        "expected admitted editor candidate summary, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        editor_candidates.iter().any(|entry| {
+            entry["revision_id"] == non_admitted_revision["revision_id"]
+                && entry["editor_admitted"] == Value::Bool(false)
+                && entry["candidate_eligible"] == Value::Bool(false)
+                && entry["formal_candidate"] == Value::Bool(false)
+        }),
+        "expected filtered editor candidate summary, stdout: {}",
+        stdout_text(&output)
+    );
+    let eligible_heads = json["eligible_heads"]
+        .as_array()
+        .expect("eligible_heads should be array");
+    assert_eq!(eligible_heads.len(), 1);
+    assert_eq!(
+        eligible_heads[0]["revision_id"],
+        admitted_revision["revision_id"]
+    );
+    assert_eq!(
+        eligible_heads[0]["author"],
+        Value::String(signer_id(&admitted_author))
+    );
+    assert_eq!(eligible_heads[0]["editor_admitted"], Value::Bool(true));
+    assert_eq!(eligible_heads[0]["formal_candidate"], Value::Bool(true));
+    assert!(
+        json["decision_trace"]
+            .as_array()
+            .is_some_and(|trace| trace.iter().any(|entry| {
+                entry["step"].as_str() == Some("editor_admission")
+                    && entry["detail"].as_str().is_some_and(|detail| {
+                        detail.contains("mode=admitted-only")
+                            && detail.contains("structural_heads=2")
+                            && detail.contains("eligible=1")
+                            && detail.contains("formal=1")
+                    })
+            })),
+        "expected editor_admission trace entry, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_inspect_mixed_editor_policy_marks_formal_candidates_without_filtering_selection() {
+    let doc_id = "doc:editor-mixed";
+    let admitted_author = signing_key(71);
+    let non_admitted_author = signing_key(72);
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let admitted_revision = signed_revision(
+        &admitted_author,
+        doc_id,
+        vec![],
+        10,
+        "hash:editor-mixed-admitted",
+    );
+    let non_admitted_revision = signed_revision(
+        &non_admitted_author,
+        doc_id,
+        vec![],
+        20,
+        "hash:editor-mixed-non-admitted",
+    );
+    let mut profile = head_profile(hash_json(&policy), 1200);
+    profile["editor_admission"] = json!({
+        "mode": "mixed",
+        "admitted_keys": [signer_id(&admitted_author)]
+    });
+    let bundle = json!({
+        "profile": profile,
+        "revisions": [admitted_revision.clone(), non_admitted_revision.clone()],
+        "views": [],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-inspect-editor-mixed", "input.json", bundle);
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["selected_head"], non_admitted_revision["revision_id"]);
+    let eligible_heads = json["eligible_heads"]
+        .as_array()
+        .expect("eligible_heads should be array");
+    assert_eq!(eligible_heads.len(), 2);
+    assert!(
+        eligible_heads.iter().any(|entry| {
+            entry["revision_id"] == admitted_revision["revision_id"]
+                && entry["formal_candidate"] == Value::Bool(true)
+        }),
+        "expected admitted formal candidate head, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        eligible_heads.iter().any(|entry| {
+            entry["revision_id"] == non_admitted_revision["revision_id"]
+                && entry["editor_admitted"] == Value::Bool(false)
+                && entry["formal_candidate"] == Value::Bool(false)
+        }),
+        "expected mixed-mode informal candidate head, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        json["decision_trace"]
+            .as_array()
+            .is_some_and(|trace| trace.iter().any(|entry| {
+                entry["step"].as_str() == Some("editor_admission")
+                    && entry["detail"].as_str().is_some_and(|detail| {
+                        detail.contains("mode=mixed")
+                            && detail.contains("structural_heads=2")
+                            && detail.contains("eligible=2")
+                            && detail.contains("formal=1")
+                    })
+            })),
+        "expected mixed editor_admission trace entry, stdout: {}",
         stdout_text(&output)
     );
 }

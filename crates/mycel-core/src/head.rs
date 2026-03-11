@@ -28,6 +28,7 @@ pub struct HeadInspectSummary {
     pub verified_revision_count: usize,
     pub verified_view_count: usize,
     pub critical_violations: Vec<CriticalViolationSummary>,
+    pub editor_candidates: Vec<EditorCandidateSummary>,
     pub effective_weights: Vec<EffectiveWeightSummary>,
     pub maintainer_support: Vec<MaintainerSupportSummary>,
     pub decision_trace: Vec<DecisionTraceEntry>,
@@ -47,6 +48,15 @@ pub struct CriticalViolationSummary {
     pub timestamp: u64,
     pub selector_epoch: i64,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EditorCandidateSummary {
+    pub revision_id: String,
+    pub author: String,
+    pub editor_admitted: bool,
+    pub candidate_eligible: bool,
+    pub formal_candidate: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -74,6 +84,9 @@ pub struct EpochCountSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct EligibleHeadSummary {
     pub revision_id: String,
+    pub author: String,
+    pub editor_admitted: bool,
+    pub formal_candidate: bool,
     pub revision_timestamp: u64,
     pub weighted_support: u64,
     pub supporter_count: u64,
@@ -131,6 +144,25 @@ struct HeadInspectProfile {
     min_valid_views_for_admission: u64,
     min_valid_views_per_epoch: u64,
     weight_cap_per_key: u64,
+    #[serde(default)]
+    editor_admission: EditorAdmissionProfile,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct EditorAdmissionProfile {
+    #[serde(default)]
+    mode: EditorCandidateMode,
+    #[serde(default)]
+    admitted_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+enum EditorCandidateMode {
+    #[default]
+    Open,
+    AdmittedOnly,
+    Mixed,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -145,6 +177,7 @@ struct HeadInspectCriticalViolation {
 struct VerifiedRevision {
     revision_id: String,
     doc_id: String,
+    author: String,
     timestamp: u64,
     parents: Vec<String>,
 }
@@ -178,6 +211,7 @@ impl HeadInspectSummary {
             verified_revision_count: 0,
             verified_view_count: 0,
             critical_violations: Vec::new(),
+            editor_candidates: Vec::new(),
             effective_weights: Vec::new(),
             maintainer_support: Vec::new(),
             decision_trace: Vec::new(),
@@ -561,8 +595,17 @@ fn inspect_heads_from_loaded_input(
         return summary;
     }
 
-    let eligible_heads = compute_eligible_heads(&verified_revisions);
-    summary.push_trace("eligible_heads", format!("count={}", eligible_heads.len()));
+    let structural_heads = compute_eligible_heads(&verified_revisions);
+    let (eligible_heads, editor_candidate_summaries, editor_trace) =
+        apply_editor_admission(&structural_heads, &profile.editor_admission);
+    summary.editor_candidates = editor_candidate_summaries;
+    summary.push_trace(
+        "eligible_heads",
+        format!("count={}", structural_heads.len()),
+    );
+    for entry in editor_trace {
+        summary.push_trace(entry.step, entry.detail);
+    }
     if eligible_heads.is_empty() {
         summary.push_error("NO_ELIGIBLE_HEAD");
         return summary;
@@ -614,6 +657,19 @@ fn inspect_heads_from_loaded_input(
 
             EligibleHeadSummary {
                 revision_id: revision.revision_id.clone(),
+                author: revision.author.clone(),
+                editor_admitted: summary
+                    .editor_candidates
+                    .iter()
+                    .find(|candidate| candidate.revision_id == revision.revision_id)
+                    .map(|candidate| candidate.editor_admitted)
+                    .unwrap_or(false),
+                formal_candidate: summary
+                    .editor_candidates
+                    .iter()
+                    .find(|candidate| candidate.revision_id == revision.revision_id)
+                    .map(|candidate| candidate.formal_candidate)
+                    .unwrap_or(false),
                 revision_timestamp: revision.timestamp,
                 weighted_support,
                 supporter_count,
@@ -937,6 +993,13 @@ fn collect_verified_revisions(
                 continue;
             }
         };
+        let author = match object.get("author").and_then(Value::as_str) {
+            Some(value) => value,
+            None => {
+                summary.push_error("revision is missing string field 'author'");
+                continue;
+            }
+        };
 
         let parents = object
             .get("parents")
@@ -953,6 +1016,7 @@ fn collect_verified_revisions(
         revisions.push(VerifiedRevision {
             revision_id: revision_id.to_string(),
             doc_id: revision_doc_id.to_string(),
+            author: author.to_string(),
             timestamp,
             parents,
         });
@@ -1070,6 +1134,75 @@ fn compute_eligible_heads(revisions: &[VerifiedRevision]) -> Vec<VerifiedRevisio
         })
         .cloned()
         .collect()
+}
+
+fn apply_editor_admission(
+    revisions: &[VerifiedRevision],
+    admission: &EditorAdmissionProfile,
+) -> (
+    Vec<VerifiedRevision>,
+    Vec<EditorCandidateSummary>,
+    Vec<DecisionTraceEntry>,
+) {
+    let admitted_keys = admission
+        .admitted_keys
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    let mut eligible = Vec::new();
+    let mut summaries = revisions
+        .iter()
+        .map(|revision| {
+            let editor_admitted = admitted_keys.contains(revision.author.as_str());
+            let candidate_eligible = match admission.mode {
+                EditorCandidateMode::Open | EditorCandidateMode::Mixed => true,
+                EditorCandidateMode::AdmittedOnly => editor_admitted,
+            };
+            let formal_candidate = match admission.mode {
+                EditorCandidateMode::Open => true,
+                EditorCandidateMode::AdmittedOnly | EditorCandidateMode::Mixed => editor_admitted,
+            };
+            if candidate_eligible {
+                eligible.push(revision.clone());
+            }
+            EditorCandidateSummary {
+                revision_id: revision.revision_id.clone(),
+                author: revision.author.clone(),
+                editor_admitted,
+                candidate_eligible,
+                formal_candidate,
+            }
+        })
+        .collect::<Vec<_>>();
+    summaries.sort_by(|left, right| left.revision_id.cmp(&right.revision_id));
+
+    let mode = match admission.mode {
+        EditorCandidateMode::Open => "open",
+        EditorCandidateMode::AdmittedOnly => "admitted-only",
+        EditorCandidateMode::Mixed => "mixed",
+    };
+    let trace = vec![DecisionTraceEntry {
+        step: "editor_admission".to_string(),
+        detail: format!(
+            "mode={} structural_heads={} eligible={} formal={} admitted={}",
+            mode,
+            revisions.len(),
+            summaries
+                .iter()
+                .filter(|entry| entry.candidate_eligible)
+                .count(),
+            summaries
+                .iter()
+                .filter(|entry| entry.formal_candidate)
+                .count(),
+            summaries
+                .iter()
+                .filter(|entry| entry.editor_admitted)
+                .count(),
+        ),
+    }];
+
+    (eligible, summaries, trace)
 }
 
 fn build_children_map(
