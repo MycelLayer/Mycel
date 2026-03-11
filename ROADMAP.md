@@ -289,14 +289,14 @@ Already in progress or partially implemented:
 3. Store-backed accepted-head inspection using persisted store indexes
 4. Accepted-head render output from persisted store state or explicit bundle objects
 5. Named fixed-profile selection for accepted-head inspection and render workflows
-6. Dedicated `view inspect` / `view publish` governance workflows alongside reader-facing `head` commands
+6. Dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
 7. Early simulator workflows around peer and topology validation
 
 Still missing or incomplete:
 
 1. Broader governance-state persistence beyond selector and replay inputs
 2. Reader-facing profile ergonomics beyond the minimal named fixed-profile surface
-3. Richer governance retrieval and publication surfaces beyond the minimal `view inspect` / `view publish` pair
+3. Richer governance retrieval and publication surfaces beyond the minimal `view` inspection/listing/publication surface
 4. Stronger dedicated governance-state tooling once wire and sync work begin to land
 
 ### Milestones in This Phase
@@ -328,7 +328,7 @@ Already visible in the repo:
 3. store-backed selector object loading for accepted-head inspection
 4. accepted-head rendering from persisted store state or explicit bundle objects
 5. named fixed-profile selection for accepted-head inspection and render workflows
-6. dedicated `view inspect` / `view publish` governance workflows alongside reader-facing `head` commands
+6. dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
 7. simulator and validation workflows around peer, topology, test, and report scopes
 
 Main remaining gaps:
@@ -352,6 +352,7 @@ Implementation anchors:
    `cargo run -p mycel-cli -- head inspect <doc-id> --input <path-or-fixture> --json`
    `cargo run -p mycel-cli -- head render <doc-id> --input <path-or-fixture> --json`
    `cargo run -p mycel-cli -- view inspect <view-id> --store-root <store> --json`
+   `cargo run -p mycel-cli -- view list --store-root <store> --profile-id <profile> --json`
    `cargo run -p mycel-cli -- view publish <path> --into <store> --json`
    `cargo test -p mycel-cli head_inspect`
 

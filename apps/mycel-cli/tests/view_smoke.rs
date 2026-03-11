@@ -10,7 +10,7 @@ mod common;
 
 use common::{
     assert_exit_code, assert_stderr_contains, assert_stdout_contains, assert_success,
-    create_temp_dir, parse_json_stdout, run_mycel, stdout_text,
+    create_temp_dir, parse_json_stdout, run_mycel,
 };
 
 fn path_arg(path: &PathBuf) -> String {
@@ -140,6 +140,19 @@ fn write_json_file(prefix: &str, name: &str, value: &Value) -> (common::TempDir,
     (dir, path)
 }
 
+fn publish_view(source_path: &PathBuf, store_root: &str) -> Value {
+    let output = run_mycel(&[
+        "view",
+        "publish",
+        &path_arg(source_path),
+        "--into",
+        store_root,
+        "--json",
+    ]);
+    assert_success(&output);
+    parse_json_stdout(&output)
+}
+
 #[test]
 fn view_publish_json_writes_verified_view_into_store() {
     let store_dir = create_temp_dir("view-publish-store");
@@ -164,17 +177,7 @@ fn view_publish_json_writes_verified_view_into_store() {
     );
     let (_source_dir, source_path) = write_json_file("view-publish-source", "view.json", &view);
 
-    let output = run_mycel(&[
-        "view",
-        "publish",
-        &path_arg(&source_path),
-        "--into",
-        &store_root,
-        "--json",
-    ]);
-
-    assert_success(&output);
-    let json = parse_json_stdout(&output);
+    let json = publish_view(&source_path, &store_root);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["view_id"], view["view_id"]);
     assert_eq!(json["maintainer"], view["maintainer"]);
@@ -187,8 +190,7 @@ fn view_publish_json_writes_verified_view_into_store() {
         json["profile_id"]
             .as_str()
             .is_some_and(|value| value.starts_with("hash:")),
-        "expected hashed profile id, stdout: {}",
-        stdout_text(&output)
+        "expected hashed profile id, published summary: {json}",
     );
 
     let inspect = run_mycel(&[
@@ -255,6 +257,148 @@ fn view_publish_reports_existing_view_on_repeat_publish() {
     let json = parse_json_stdout(&second);
     assert_eq!(json["status"], "ok");
     assert_eq!(json["created"], Value::Bool(false));
+}
+
+#[test]
+fn view_list_json_filters_governance_records() {
+    let store_dir = create_temp_dir("view-list-store");
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(51);
+    let maintainer_b = signing_key(52);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a1 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        documents_value(
+            "doc:alpha",
+            "rev:1111111111111111111111111111111111111111111111111111111111111111",
+        ),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        documents_value(
+            "doc:beta",
+            "rev:2222222222222222222222222222222222222222222222222222222222222222",
+        ),
+        11,
+    );
+    let view_b1 = signed_view(
+        &maintainer_b,
+        &policy_b,
+        json!({
+            "doc:alpha": "rev:3333333333333333333333333333333333333333333333333333333333333333",
+            "doc:gamma": "rev:4444444444444444444444444444444444444444444444444444444444444444"
+        }),
+        12,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-list-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-list-a2", "view-a2.json", &view_a2);
+    let (_dir_b1, path_b1) = write_json_file("view-list-b1", "view-b1.json", &view_b1);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let _publish_a2 = publish_view(&path_a2, &store_root);
+    let publish_b1 = publish_view(&path_b1, &store_root);
+
+    let all = run_mycel(&["view", "list", "--store-root", &store_root, "--json"]);
+    assert_success(&all);
+    let all_json = parse_json_stdout(&all);
+    assert_eq!(all_json["record_count"], 3);
+
+    let by_profile = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        publish_a1["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--json",
+    ]);
+    assert_success(&by_profile);
+    let by_profile_json = parse_json_stdout(&by_profile);
+    assert_eq!(by_profile_json["record_count"], 2);
+
+    let by_maintainer = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        view_b1["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--json",
+    ]);
+    assert_success(&by_maintainer);
+    let by_maintainer_json = parse_json_stdout(&by_maintainer);
+    assert_eq!(by_maintainer_json["record_count"], 1);
+    assert_eq!(
+        by_maintainer_json["records"][0]["view_id"],
+        view_b1["view_id"]
+    );
+
+    let by_doc = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:alpha",
+        "--json",
+    ]);
+    assert_success(&by_doc);
+    let by_doc_json = parse_json_stdout(&by_doc);
+    assert_eq!(by_doc_json["record_count"], 2);
+
+    let by_revision = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--revision-id",
+        "rev:2222222222222222222222222222222222222222222222222222222222222222",
+        "--json",
+    ]);
+    assert_success(&by_revision);
+    let by_revision_json = parse_json_stdout(&by_revision);
+    assert_eq!(by_revision_json["record_count"], 1);
+    assert_eq!(
+        by_revision_json["records"][0]["view_id"],
+        view_a2["view_id"]
+    );
+
+    let by_view_id = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--view-id",
+        publish_b1["view_id"]
+            .as_str()
+            .expect("view id should exist"),
+        "--json",
+    ]);
+    assert_success(&by_view_id);
+    let by_view_id_json = parse_json_stdout(&by_view_id);
+    assert_eq!(by_view_id_json["record_count"], 1);
+    assert_eq!(by_view_id_json["records"][0]["view_id"], view_b1["view_id"]);
 }
 
 #[test]

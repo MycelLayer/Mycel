@@ -24,6 +24,8 @@ pub(crate) struct ViewCliArgs {
 enum ViewSubcommand {
     #[command(about = "Inspect one persisted governance View object")]
     Inspect(ViewInspectCliArgs),
+    #[command(about = "List persisted governance View records with optional filters")]
+    List(ViewListCliArgs),
     #[command(about = "Verify and publish one governance View object into the store")]
     Publish(ViewPublishCliArgs),
     #[command(external_subcommand)]
@@ -75,6 +77,61 @@ struct ViewPublishCliArgs {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct ViewListSummary {
+    store_root: PathBuf,
+    manifest_path: PathBuf,
+    status: String,
+    record_count: usize,
+    filters: ViewListFilters,
+    records: Vec<ViewListRecord>,
+    notes: Vec<String>,
+    errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ViewListFilters {
+    view_id: Option<String>,
+    profile_id: Option<String>,
+    maintainer: Option<String>,
+    doc_id: Option<String>,
+    revision_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ViewListRecord {
+    view_id: String,
+    maintainer: String,
+    profile_id: String,
+    timestamp: u64,
+    documents: BTreeMap<String, String>,
+}
+
+#[derive(Args)]
+struct ViewListCliArgs {
+    #[arg(
+        long,
+        value_name = "STORE_ROOT",
+        help = "Store root directory to read governance indexes from",
+        required = true
+    )]
+    store_root: String,
+    #[arg(long, help = "Only return one persisted view ID")]
+    view_id: Option<String>,
+    #[arg(long, help = "Only return one governance profile ID")]
+    profile_id: Option<String>,
+    #[arg(long, help = "Only return one governance maintainer key")]
+    maintainer: Option<String>,
+    #[arg(long, help = "Only return views that mention one document ID")]
+    doc_id: Option<String>,
+    #[arg(long, help = "Only return views that mention one revision ID")]
+    revision_id: Option<String>,
+    #[arg(long, help = "Emit machine-readable view listing output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct ViewInspectSummary {
     store_root: PathBuf,
     manifest_path: PathBuf,
@@ -117,6 +174,30 @@ impl ViewInspectSummary {
             timestamp: None,
             documents: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
+            notes: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    fn is_ok(&self) -> bool {
+        self.errors.is_empty()
+    }
+
+    fn push_error(&mut self, message: impl Into<String>) {
+        self.status = "failed".to_string();
+        self.errors.push(message.into());
+    }
+}
+
+impl ViewListSummary {
+    fn new(store_root: &Path, filters: ViewListFilters) -> Self {
+        Self {
+            store_root: store_root.to_path_buf(),
+            manifest_path: store_root.join("indexes").join("manifest.json"),
+            status: "ok".to_string(),
+            record_count: 0,
+            filters,
+            records: Vec::new(),
             notes: Vec::new(),
             errors: Vec::new(),
         }
@@ -184,6 +265,65 @@ fn load_source_value(source_path: &Path) -> Result<Value, String> {
             source_path.display()
         )
     })
+}
+
+fn print_view_list_text(summary: &ViewListSummary) -> i32 {
+    println!("store root: {}", summary.store_root.display());
+    println!("manifest path: {}", summary.manifest_path.display());
+    println!("record count: {}", summary.record_count);
+    if let Some(view_id) = &summary.filters.view_id {
+        println!("filter view_id: {view_id}");
+    }
+    if let Some(profile_id) = &summary.filters.profile_id {
+        println!("filter profile_id: {profile_id}");
+    }
+    if let Some(maintainer) = &summary.filters.maintainer {
+        println!("filter maintainer: {maintainer}");
+    }
+    if let Some(doc_id) = &summary.filters.doc_id {
+        println!("filter doc_id: {doc_id}");
+    }
+    if let Some(revision_id) = &summary.filters.revision_id {
+        println!("filter revision_id: {revision_id}");
+    }
+    for record in &summary.records {
+        println!(
+            "view: {} maintainer={} profile={} timestamp={} docs={}",
+            record.view_id,
+            record.maintainer,
+            record.profile_id,
+            record.timestamp,
+            record.documents.len()
+        );
+    }
+    for note in &summary.notes {
+        println!("note: {note}");
+    }
+
+    if summary.is_ok() {
+        println!("view list: ok");
+        0
+    } else {
+        println!("view list: failed");
+        for error in &summary.errors {
+            emit_error_line(error);
+        }
+        1
+    }
+}
+
+fn print_view_list_json(summary: &ViewListSummary) -> Result<i32, CliError> {
+    match serde_json::to_string_pretty(summary) {
+        Ok(json) => {
+            println!("{json}");
+            if summary.is_ok() {
+                Ok(0)
+            } else {
+                Ok(1)
+            }
+        }
+        Err(source) => Err(CliError::serialization("view list summary", source)),
+    }
 }
 
 fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
@@ -287,6 +427,123 @@ fn print_view_publish_json(summary: &ViewPublishSummary) -> Result<i32, CliError
             }
         }
         Err(source) => Err(CliError::serialization("view publish summary", source)),
+    }
+}
+
+fn matches_view_filters(record: &ViewGovernanceRecord, filters: &ViewListFilters) -> bool {
+    if filters
+        .view_id
+        .as_ref()
+        .is_some_and(|requested| requested != &record.view_id)
+    {
+        return false;
+    }
+    if filters
+        .profile_id
+        .as_ref()
+        .is_some_and(|requested| requested != &record.profile_id)
+    {
+        return false;
+    }
+    if filters
+        .maintainer
+        .as_ref()
+        .is_some_and(|requested| requested != &record.maintainer)
+    {
+        return false;
+    }
+    if let Some(doc_id) = &filters.doc_id {
+        if !record.documents.contains_key(doc_id) {
+            return false;
+        }
+    }
+    if let Some(revision_id) = &filters.revision_id {
+        if !record
+            .documents
+            .values()
+            .any(|current_revision_id| current_revision_id == revision_id)
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn view_list(filters: ViewListFilters, store_root: PathBuf, json: bool) -> Result<i32, CliError> {
+    let mut summary = ViewListSummary::new(&store_root, filters);
+    let manifest = match load_store_index_manifest(&store_root) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            summary.push_error(format!("failed to read store index manifest: {error}"));
+            return if json {
+                print_view_list_json(&summary)
+            } else {
+                Ok(print_view_list_text(&summary))
+            };
+        }
+    };
+
+    let matching_records = manifest
+        .view_governance
+        .iter()
+        .filter(|record| matches_view_filters(record, &summary.filters))
+        .cloned()
+        .collect::<Vec<_>>();
+
+    for record in matching_records {
+        let value = match load_stored_object_value(&store_root, &record.view_id) {
+            Ok(value) => value,
+            Err(error) => {
+                summary.push_error(format!(
+                    "failed to load stored view '{}' while listing governance records: {error}",
+                    record.view_id
+                ));
+                return if json {
+                    print_view_list_json(&summary)
+                } else {
+                    Ok(print_view_list_text(&summary))
+                };
+            }
+        };
+        let view = match parse_view_object(&value) {
+            Ok(view) => view,
+            Err(error) => {
+                summary.push_error(format!(
+                    "failed to parse stored view '{}' while listing governance records: {error}",
+                    record.view_id
+                ));
+                return if json {
+                    print_view_list_json(&summary)
+                } else {
+                    Ok(print_view_list_text(&summary))
+                };
+            }
+        };
+        summary.records.push(ViewListRecord {
+            view_id: record.view_id,
+            maintainer: record.maintainer,
+            profile_id: record.profile_id,
+            timestamp: view.timestamp,
+            documents: record.documents,
+        });
+    }
+
+    summary.records.sort_by(|left, right| {
+        left.view_id
+            .cmp(&right.view_id)
+            .then_with(|| left.profile_id.cmp(&right.profile_id))
+    });
+    summary.record_count = summary.records.len();
+    summary.notes.push(
+        "governance record listing is separate from reader-facing accepted-head workflows"
+            .to_string(),
+    );
+
+    if json {
+        print_view_list_json(&summary)
+    } else {
+        Ok(print_view_list_text(&summary))
     }
 }
 
@@ -467,6 +724,23 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
             }
 
             view_inspect(PathBuf::from(args.store_root), args.view_id, args.json)
+        }
+        Some(ViewSubcommand::List(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "view list") {
+                return Err(CliError::usage(message));
+            }
+
+            view_list(
+                ViewListFilters {
+                    view_id: args.view_id,
+                    profile_id: args.profile_id,
+                    maintainer: args.maintainer,
+                    doc_id: args.doc_id,
+                    revision_id: args.revision_id,
+                },
+                PathBuf::from(args.store_root),
+                args.json,
+            )
         }
         Some(ViewSubcommand::Publish(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "view publish") {

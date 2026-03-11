@@ -314,6 +314,41 @@ pub fn assert_view_inspect_help(stdout: &str) {
     );
 }
 
+pub fn assert_view_list_help(stdout: &str) {
+    assert!(
+        stdout.contains("Usage: mycel view list"),
+        "expected view list usage, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("List persisted governance View records with optional filters"),
+        "expected view list description, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--store-root <STORE_ROOT>"),
+        "expected store-root flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--profile-id <PROFILE_ID>"),
+        "expected profile-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--maintainer <MAINTAINER>"),
+        "expected maintainer flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--doc-id <DOC_ID>"),
+        "expected doc-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--revision-id <REVISION_ID>"),
+        "expected revision-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--json"),
+        "expected json flag in help, stdout: {stdout}"
+    );
+}
+
 pub fn assert_view_publish_help(stdout: &str) {
     assert!(
         stdout.contains("Usage: mycel view publish"),
