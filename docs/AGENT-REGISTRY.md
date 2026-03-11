@@ -2,7 +2,7 @@
 
 Status: active local-registry protocol for multi-agent coordination
 
-Use this file as the tracked specification for the local registry that tells agents how many agents are active and what role each one has.
+Use this file as the tracked specification for the local registry that tells agents how many agents are active, what role each one has, and whether each agent has confirmed that assignment before starting tracked work.
 
 The live registry file is local and gitignored:
 
@@ -13,6 +13,8 @@ Agents should read `.agent-local/agents.json` at the start of work to discover:
 - how many agents are currently active
 - each agent's `id`
 - each agent's `role`
+- who assigned that role
+- whether the agent has already confirmed that assignment
 - each agent's current scope
 - whether a peer agent is active, paused, or done
 
@@ -42,6 +44,10 @@ The local registry file must be valid JSON and use this top-level shape:
     {
       "id": "agent-coding-1",
       "role": "coding",
+      "assigned_by": "maintainer",
+      "assigned_at": "2026-03-11T00:00:00Z",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-11T00:02:00Z",
       "status": "active",
       "scope": "#42 accepted-head strictness",
       "files": [
@@ -53,6 +59,10 @@ The local registry file must be valid JSON and use this top-level shape:
     {
       "id": "agent-doc-1",
       "role": "doc",
+      "assigned_by": "maintainer",
+      "assigned_at": "2026-03-11T00:01:00Z",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-11T00:03:00Z",
       "status": "active",
       "scope": "planning sync for #42",
       "files": [
@@ -78,6 +88,10 @@ Per agent:
 
 - `id`
 - `role`
+- `assigned_by`
+- `assigned_at`
+- `confirmed_by_agent`
+- `confirmed_at`
 - `status`
 - `scope`
 - `files`
@@ -97,14 +111,33 @@ Allowed `status` values:
 
 `agent_count` must equal the number of entries in `agents`.
 
+`confirmed_by_agent` must be `true` before the agent starts tracked work.
+
+`confirmed_at` may be `null` only while the entry is still waiting for agent confirmation.
+
+## Startup Gate
+
+No agent may start tracked work until all of the following are true in `.agent-local/agents.json`:
+
+1. the agent has a matching `id`
+2. the entry has a non-empty `role`
+3. the entry has `assigned_by` and `assigned_at`
+4. the agent has set `confirmed_by_agent` to `true`
+5. the entry has a non-null `confirmed_at`
+6. the intended scope is present
+
+If any of those checks fail, the agent must stop before editing tracked files and request a corrected assignment.
+
 ## Workflow
 
 1. Before starting work, an agent reads `.agent-local/agents.json`.
 2. The agent confirms the current agent count and scans the existing scopes and file sets.
-3. The agent adds or updates its own entry before editing tracked files.
-4. The agent uses its own `mailbox` file for peer coordination and handoff traffic.
-5. When scope changes, the agent updates its registry entry.
-6. When work is finished or paused, the agent updates `status`.
+3. A maintainer or coordinator writes the agent entry with `role`, `assigned_by`, `assigned_at`, `scope`, and `mailbox`.
+4. The agent confirms its own assignment by setting `confirmed_by_agent: true` and filling `confirmed_at`.
+5. Only after confirmation may the agent start tracked work.
+6. The agent uses its own `mailbox` file for peer coordination and handoff traffic.
+7. When scope changes, the agent updates its registry entry.
+8. When work is finished or paused, the agent updates `status`.
 
 If two `coding` agents would touch the same primary file or issue, one must pause or choose a narrower scope before proceeding.
 
@@ -136,6 +169,10 @@ For one `coding` agent and one `doc` agent:
     {
       "id": "coding-1",
       "role": "coding",
+      "assigned_by": "maintainer",
+      "assigned_at": "2026-03-11T00:00:00Z",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-11T00:02:00Z",
       "status": "active",
       "scope": "#17 store refactor",
       "files": [
@@ -147,6 +184,10 @@ For one `coding` agent and one `doc` agent:
     {
       "id": "doc-1",
       "role": "doc",
+      "assigned_by": "maintainer",
+      "assigned_at": "2026-03-11T00:01:00Z",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-11T00:03:00Z",
       "status": "active",
       "scope": "planning sync for #17",
       "files": [

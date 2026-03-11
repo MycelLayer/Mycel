@@ -52,6 +52,8 @@ If a task starts as doc-only but requires new implementation decisions, stop and
 
 Use `.agent-local/agents.json` as the local registry file for active agent count and role assignment. The tracked definition for that file lives in [AGENT-REGISTRY.md](./AGENT-REGISTRY.md).
 
+No agent may start tracked work until it has confirmed its own assigned role in `.agent-local/agents.json`.
+
 ## Hybrid Issue Mode
 
 Do not force every coding action through a GitHub issue first.
@@ -87,12 +89,14 @@ Practical default:
 Before an agent starts:
 
 1. read `.agent-local/agents.json`
-2. decide whether the task is issue-first or chat-first
-3. if it is issue-first, choose one open issue
-4. check whether another agent or human is already working on it
-5. leave a short claim note in the issue or team channel
-6. confirm the likely file set before editing
-7. add or update the local registry entry for the current agent
+2. confirm the entry has `role`, `assigned_by`, and `assigned_at`
+3. set `confirmed_by_agent: true` and `confirmed_at` for the current agent entry
+4. only then decide whether the task is issue-first or chat-first
+5. if it is issue-first, choose one open issue
+6. check whether another agent or human is already working on it
+7. leave a short claim note in the issue or team channel
+8. confirm the likely file set before editing
+9. update the local registry entry when scope or status changes
 
 Recommended claim format:
 

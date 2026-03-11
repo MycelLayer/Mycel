@@ -4,7 +4,7 @@ Status: active local-mailbox protocol for multi-agent coordination
 
 Use this file as the tracked specification for how agents communicate through local gitignored mailboxes.
 
-For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.md) and the local `.agent-local/agents.json` file first.
+For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.md) and the local `.agent-local/agents.json` file first. Do not use mailbox traffic as a substitute for registry assignment confirmation.
 
 Mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 

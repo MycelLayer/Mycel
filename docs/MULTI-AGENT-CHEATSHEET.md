@@ -29,18 +29,20 @@ Use `doc` when the main output is syncing planning or explanatory docs after beh
 
 Multiple agents may share the same role. Read `.agent-local/agents.json` first to see how many agents are active and which role each one owns.
 
+No tracked work starts until the agent confirms its own entry in `.agent-local/agents.json`.
+
 ## 10-Line Rule Set
 
 1. Default to hybrid mode, not issue-for-everything.
-2. Use one agent per issue when the work needs claims, handoff, or more than one commit.
-3. One active issue should map to one chat and one worktree or isolated session.
-4. Small local fixes can stay chat-first, but do not let them widen silently.
-5. Claim the issue before editing, or leave a short local-scope note for chat-first work.
-6. Do not run two agents on the same primary file at the same time.
-7. Split work by file boundary, not by vague subtopic.
-8. Verify with the commands named in the issue or local scope before handoff.
-9. Push serially, never in parallel.
-10. If `origin/main` moved, fetch and rebase before retrying. If the spec is unclear, stop and mark the task `blocked-by-spec`.
+2. Read `.agent-local/agents.json` and confirm your assigned role before editing tracked files.
+3. Use one agent per issue when the work needs claims, handoff, or more than one commit.
+4. One active issue should map to one chat and one worktree or isolated session.
+5. Small local fixes can stay chat-first, but do not let them widen silently.
+6. Claim the issue before editing, or leave a short local-scope note for chat-first work.
+7. Do not run two agents on the same primary file at the same time.
+8. Split work by file boundary, not by vague subtopic.
+9. Verify with the commands named in the issue or local scope before handoff.
+10. Push serially, never in parallel. If `origin/main` moved, fetch and rebase before retrying. If the spec is unclear, stop and mark the task `blocked-by-spec`.
 
 ## Hybrid Rule
 
