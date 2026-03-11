@@ -290,11 +290,12 @@ Already in progress or partially implemented:
 4. Accepted-head render output from persisted store state or explicit bundle objects
 5. Named fixed-profile selection for accepted-head inspection and render workflows
 6. Dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
-7. Early simulator workflows around peer and topology validation
+7. Persisted governance reverse indexes for maintainer, profile, and document view lookups
+8. Early simulator workflows around peer and topology validation
 
 Still missing or incomplete:
 
-1. Broader governance-state persistence beyond selector and replay inputs
+1. Broader governance-state persistence beyond selector, reverse view indexes, and replay inputs
 2. Reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 3. Richer governance retrieval and publication surfaces beyond the initial filtered/sorted/projected `view` inspection/listing/publication surface
 4. Stronger dedicated governance-state tooling once wire and sync work begin to land
@@ -329,11 +330,12 @@ Already visible in the repo:
 4. accepted-head rendering from persisted store state or explicit bundle objects
 5. named fixed-profile selection for accepted-head inspection and render workflows
 6. dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands, with filtered listing, sorting, time windows, grouped summaries, and projection modes
-7. simulator and validation workflows around peer, topology, test, and report scopes
+7. persisted governance reverse indexes for maintainer, profile, and document-oriented view lookups
+8. simulator and validation workflows around peer, topology, test, and report scopes
 
 Main remaining gaps:
 
-1. broader governance-state persistence and dedicated inspection surfaces
+1. broader governance-state persistence beyond the current reverse governance indexes, plus dedicated inspection surfaces
 2. stronger dedicated governance inspection and publication surfaces beyond the initial `view` workflow
 3. reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 4. governance-state tooling that can later align with wire/sync transport
@@ -354,6 +356,7 @@ Implementation anchors:
    `cargo run -p mycel-cli -- view inspect <view-id> --store-root <store> --json`
    `cargo run -p mycel-cli -- view list --store-root <store> --latest-per-profile --limit 10 --summary-only --group-by profile-id --json`
    `cargo run -p mycel-cli -- view publish <path> --into <store> --json`
+   `cargo run -p mycel-cli -- store index <store> --governance-only --maintainer <maintainer> --json`
    `cargo test -p mycel-cli head_inspect`
 
 ## Phase 3: Full-Stack

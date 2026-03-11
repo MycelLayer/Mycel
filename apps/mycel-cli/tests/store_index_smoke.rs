@@ -219,6 +219,8 @@ fn build_store_with_view() -> StoreFixtureInfo {
 #[test]
 fn store_index_json_reads_persisted_manifest() {
     let fixture = build_store_with_view();
+    let signer = fixture.signer.clone();
+    let profile_id = fixture.profile_id.clone();
 
     let output = run_mycel(&[
         "store",
@@ -245,14 +247,35 @@ fn store_index_json_reads_persisted_manifest() {
         stdout_text(&output)
     );
     assert!(
-        json["author_patches"][fixture.signer]
+        json["author_patches"][signer.as_str()]
             .as_array()
             .is_some_and(|values| values.len() == 1),
         "expected author patch index, stdout: {}",
         stdout_text(&output)
     );
     assert!(
-        json["profile_heads"][fixture.profile_id]["doc:index"]
+        json["maintainer_views"][signer.as_str()]
+            .as_array()
+            .is_some_and(|values| values.len() == 1),
+        "expected maintainer view index, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        json["profile_views"][profile_id.as_str()]
+            .as_array()
+            .is_some_and(|values| values.len() == 1),
+        "expected profile view index, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        json["document_views"]["doc:index"]
+            .as_array()
+            .is_some_and(|values| values.len() == 1),
+        "expected document view index, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        json["profile_heads"][profile_id.as_str()]["doc:index"]
             .as_array()
             .is_some_and(|values| values.len() == 1),
         "expected profile head index, stdout: {}",
@@ -263,6 +286,8 @@ fn store_index_json_reads_persisted_manifest() {
 #[test]
 fn store_index_json_filters_common_indexes() {
     let fixture = build_store_with_view();
+    let signer = fixture.signer.clone();
+    let profile_id = fixture.profile_id.clone();
 
     let output = run_mycel(&[
         "store",
@@ -271,9 +296,11 @@ fn store_index_json_filters_common_indexes() {
         "--doc-id",
         "doc:index",
         "--author",
-        &fixture.signer,
+        &signer,
+        "--maintainer",
+        &signer,
         "--profile-id",
-        &fixture.profile_id,
+        &profile_id,
         "--object-type",
         "patch",
         "--json",
@@ -282,8 +309,9 @@ fn store_index_json_filters_common_indexes() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["filters"]["doc_id"], "doc:index");
-    assert_eq!(json["filters"]["author"], fixture.signer);
-    assert_eq!(json["filters"]["profile_id"], fixture.profile_id);
+    assert_eq!(json["filters"]["author"], signer);
+    assert_eq!(json["filters"]["maintainer"], fixture.signer);
+    assert_eq!(json["filters"]["profile_id"], profile_id);
     assert_eq!(json["filters"]["object_type"], "patch");
     assert_eq!(
         json["object_ids_by_type"]
@@ -313,6 +341,22 @@ fn store_index_json_filters_common_indexes() {
         Some(1)
     );
     assert_eq!(
+        json["maintainer_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["profile_views"].as_object().map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["document_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
         json["view_governance"]
             .as_array()
             .map(|values| values.len()),
@@ -323,6 +367,8 @@ fn store_index_json_filters_common_indexes() {
 #[test]
 fn store_index_json_filters_by_revision_and_view() {
     let fixture = build_store_with_view();
+    let signer = fixture.signer.clone();
+    let profile_id = fixture.profile_id.clone();
 
     let output = run_mycel(&[
         "store",
@@ -352,9 +398,27 @@ fn store_index_json_filters_by_revision_and_view() {
             .map(|values| values.len()),
         Some(1)
     );
+    assert_eq!(
+        json["maintainer_views"][signer.as_str()]
+            .as_array()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["profile_views"][profile_id.as_str()]
+            .as_array()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["document_views"]["doc:index"]
+            .as_array()
+            .map(|values| values.len()),
+        Some(1)
+    );
     assert_eq!(json["view_governance"][0]["view_id"], fixture.view_id);
     assert!(
-        json["profile_heads"][fixture.profile_id]["doc:index"]
+        json["profile_heads"][profile_id.as_str()]["doc:index"]
             .as_array()
             .is_some_and(|values| values.len() == 1),
         "expected filtered profile head index, stdout: {}",
@@ -486,6 +550,9 @@ fn store_index_counts_only_json_emits_section_counts() {
     assert_eq!(json["revision_parent_index_count"], 1);
     assert_eq!(json["author_patch_index_count"], 1);
     assert_eq!(json["view_governance_record_count"], 1);
+    assert_eq!(json["maintainer_view_index_count"], 1);
+    assert_eq!(json["profile_view_index_count"], 1);
+    assert_eq!(json["document_view_index_count"], 1);
     assert_eq!(json["profile_head_index_count"], 1);
     assert!(
         !object.contains_key("object_ids_by_type"),
@@ -561,6 +628,22 @@ fn store_index_doc_only_json_prunes_other_sections() {
         Some(0)
     );
     assert_eq!(
+        json["maintainer_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["profile_views"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["document_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
         json["profile_heads"].as_object().map(|values| values.len()),
         Some(0)
     );
@@ -583,6 +666,22 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
     assert_eq!(
         json["view_governance"]
             .as_array()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["maintainer_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["profile_views"].as_object().map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["document_views"]
+            .as_object()
             .map(|values| values.len()),
         Some(1)
     );
@@ -629,6 +728,22 @@ fn store_index_head_only_json_prunes_non_head_sections() {
     assert_eq!(
         json["view_governance"]
             .as_array()
+            .map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["maintainer_views"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["profile_views"].as_object().map(|values| values.len()),
+        Some(0)
+    );
+    assert_eq!(
+        json["document_views"]
+            .as_object()
             .map(|values| values.len()),
         Some(0)
     );
@@ -691,6 +806,10 @@ fn store_index_parents_only_text_reports_projection() {
     );
     assert!(
         stdout.contains("view governance records: 0"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("maintainer view indexes: 0"),
         "stdout: {stdout}"
     );
 }

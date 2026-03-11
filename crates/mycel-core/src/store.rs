@@ -37,6 +37,12 @@ pub struct StoreIndexManifest {
     pub revision_parents: BTreeMap<String, Vec<String>>,
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
+    #[serde(default)]
+    pub maintainer_views: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub profile_views: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub document_views: BTreeMap<String, Vec<String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
 }
 
@@ -71,6 +77,9 @@ pub struct StoreRebuildSummary {
     pub revision_parents: BTreeMap<String, Vec<String>>,
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
+    pub maintainer_views: BTreeMap<String, Vec<String>>,
+    pub profile_views: BTreeMap<String, Vec<String>>,
+    pub document_views: BTreeMap<String, Vec<String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub index_manifest_path: Option<PathBuf>,
     pub notes: Vec<String>,
@@ -129,6 +138,9 @@ impl StoreRebuildSummary {
             revision_parents: BTreeMap::new(),
             author_patches: BTreeMap::new(),
             view_governance: Vec::new(),
+            maintainer_views: BTreeMap::new(),
+            profile_views: BTreeMap::new(),
+            document_views: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             index_manifest_path: None,
             notes: Vec::new(),
@@ -246,6 +258,9 @@ pub fn rebuild_store_from_path(target: &Path) -> Result<StoreRebuildSummary, Sto
     sort_string_map_values(&mut summary.doc_revisions);
     sort_string_map_values(&mut summary.revision_parents);
     sort_string_map_values(&mut summary.author_patches);
+    sort_string_map_values(&mut summary.maintainer_views);
+    sort_string_map_values(&mut summary.profile_views);
+    sort_string_map_values(&mut summary.document_views);
     sort_profile_heads(&mut summary.profile_heads);
 
     if summary.is_ok() {
@@ -364,6 +379,9 @@ pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, Stor
         revision_parents: BTreeMap::new(),
         author_patches: BTreeMap::new(),
         view_governance: Vec::new(),
+        maintainer_views: BTreeMap::new(),
+        profile_views: BTreeMap::new(),
+        document_views: BTreeMap::new(),
         profile_heads: BTreeMap::new(),
     };
     let manifest_path = write_store_index_manifest(&store_root, &manifest)?;
@@ -878,7 +896,22 @@ fn index_loaded_object(
                 .iter()
                 .map(|(doc_id, revision_id)| (doc_id.clone(), revision_id.clone()))
                 .collect::<BTreeMap<_, _>>();
+            summary
+                .maintainer_views
+                .entry(view.maintainer.clone())
+                .or_default()
+                .push(view.view_id.clone());
+            summary
+                .profile_views
+                .entry(profile_id.clone())
+                .or_default()
+                .push(view.view_id.clone());
             for (doc_id, revision_id) in &documents {
+                summary
+                    .document_views
+                    .entry(doc_id.clone())
+                    .or_default()
+                    .push(view.view_id.clone());
                 summary
                     .profile_heads
                     .entry(profile_id.clone())
@@ -944,6 +977,9 @@ impl StoreIndexManifest {
             revision_parents: summary.revision_parents.clone(),
             author_patches: summary.author_patches.clone(),
             view_governance: summary.view_governance.clone(),
+            maintainer_views: summary.maintainer_views.clone(),
+            profile_views: summary.profile_views.clone(),
+            document_views: summary.document_views.clone(),
             profile_heads: summary.profile_heads.clone(),
         }
     }
@@ -1263,6 +1299,9 @@ mod tests {
             &vec![patch_id]
         );
         assert_eq!(summary.view_governance.len(), 1);
+        assert_eq!(summary.maintainer_views.len(), 1);
+        assert_eq!(summary.profile_views.len(), 1);
+        assert_eq!(summary.document_views.len(), 1);
         assert_eq!(summary.profile_heads.len(), 1);
 
         let _ = fs::remove_dir_all(dir);

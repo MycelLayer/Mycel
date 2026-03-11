@@ -224,6 +224,7 @@ fn store_index_help_prints_structured_clap_help() {
     assert!(stdout.contains("Usage: mycel store index [OPTIONS] <STORE_ROOT>"));
     assert!(stdout.contains("--doc-id <DOC_ID>"));
     assert!(stdout.contains("--author <AUTHOR>"));
+    assert!(stdout.contains("--maintainer <MAINTAINER>"));
     assert!(stdout.contains("--revision-id <REVISION_ID>"));
     assert!(stdout.contains("--view-id <VIEW_ID>"));
     assert!(stdout.contains("--profile-id <PROFILE_ID>"));

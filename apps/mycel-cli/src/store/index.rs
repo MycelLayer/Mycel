@@ -22,6 +22,8 @@ pub(super) struct StoreIndexCliArgs {
     doc_id: Option<String>,
     #[arg(long, help = "Only return patch indexes for one author ID")]
     author: Option<String>,
+    #[arg(long, help = "Only return governance indexes for one maintainer ID")]
+    maintainer: Option<String>,
     #[arg(long, help = "Only return indexes related to one revision ID")]
     revision_id: Option<String>,
     #[arg(long, help = "Only return governance records for one view ID")]
@@ -67,6 +69,9 @@ struct StoreIndexQuerySummary {
     revision_parents: std::collections::BTreeMap<String, Vec<String>>,
     author_patches: std::collections::BTreeMap<String, Vec<String>>,
     view_governance: Vec<ViewGovernanceRecord>,
+    maintainer_views: std::collections::BTreeMap<String, Vec<String>>,
+    profile_views: std::collections::BTreeMap<String, Vec<String>>,
+    document_views: std::collections::BTreeMap<String, Vec<String>>,
     profile_heads:
         std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<String>>>,
     filters: StoreIndexQueryFilters,
@@ -84,6 +89,9 @@ struct StoreIndexCountsSummary {
     revision_parent_index_count: usize,
     author_patch_index_count: usize,
     view_governance_record_count: usize,
+    maintainer_view_index_count: usize,
+    profile_view_index_count: usize,
+    document_view_index_count: usize,
     profile_head_index_count: usize,
     filters: StoreIndexQueryFilters,
     projection: Option<String>,
@@ -112,6 +120,7 @@ struct StoreIndexManifestOnlySummary {
 struct StoreIndexQueryFilters {
     doc_id: Option<String>,
     author: Option<String>,
+    maintainer: Option<String>,
     revision_id: Option<String>,
     view_id: Option<String>,
     profile_id: Option<String>,
@@ -149,6 +158,12 @@ fn print_store_rebuild_text(summary: &StoreRebuildSummary) -> i32 {
     );
     println!("author patch indexes: {}", summary.author_patches.len());
     println!("view governance records: {}", summary.view_governance.len());
+    println!(
+        "maintainer view indexes: {}",
+        summary.maintainer_views.len()
+    );
+    println!("profile view indexes: {}", summary.profile_views.len());
+    println!("document view indexes: {}", summary.document_views.len());
     println!("profile head indexes: {}", summary.profile_heads.len());
     if let Some(path) = &summary.index_manifest_path {
         println!("index manifest: {}", path.display());
@@ -323,8 +338,31 @@ fn filtered_profile_heads(
     filtered
 }
 
+fn allowed_view_ids(
+    view_governance: &[ViewGovernanceRecord],
+) -> std::collections::BTreeSet<String> {
+    view_governance
+        .iter()
+        .map(|record| record.view_id.clone())
+        .collect()
+}
+
+fn filtered_view_index(
+    index: &std::collections::BTreeMap<String, Vec<String>>,
+    selected_key: &Option<String>,
+    allowed_view_ids: &std::collections::BTreeSet<String>,
+) -> std::collections::BTreeMap<String, Vec<String>> {
+    let mut filtered = filter_single_map(index, selected_key);
+    for view_ids in filtered.values_mut() {
+        view_ids.retain(|view_id| allowed_view_ids.contains(view_id));
+    }
+    filtered.retain(|_, view_ids| !view_ids.is_empty());
+    filtered
+}
+
 fn filtered_view_governance(
     manifest: &StoreIndexManifest,
+    maintainer: &Option<String>,
     view_id: &Option<String>,
     profile_id: &Option<String>,
     doc_id: &Option<String>,
@@ -333,6 +371,11 @@ fn filtered_view_governance(
     manifest
         .view_governance
         .iter()
+        .filter(|record| {
+            maintainer
+                .as_ref()
+                .is_none_or(|requested| requested == &record.maintainer)
+        })
         .filter(|record| {
             view_id
                 .as_ref()
@@ -391,6 +434,9 @@ fn apply_projection(
             summary.revision_parents.clear();
             summary.author_patches.clear();
             summary.view_governance.clear();
+            summary.maintainer_views.clear();
+            summary.profile_views.clear();
+            summary.document_views.clear();
             summary.profile_heads.clear();
             summary.projection = Some("doc-only".to_string());
         }
@@ -400,6 +446,9 @@ fn apply_projection(
             summary.revision_parents.clear();
             summary.author_patches.clear();
             summary.view_governance.clear();
+            summary.maintainer_views.clear();
+            summary.profile_views.clear();
+            summary.document_views.clear();
             summary.projection = Some("head-only".to_string());
         }
         Some(StoreIndexProjection::GovernanceOnly) => {
@@ -414,6 +463,9 @@ fn apply_projection(
             summary.doc_revisions.clear();
             summary.revision_parents.clear();
             summary.view_governance.clear();
+            summary.maintainer_views.clear();
+            summary.profile_views.clear();
+            summary.document_views.clear();
             summary.profile_heads.clear();
             summary.projection = Some("patches-only".to_string());
         }
@@ -422,6 +474,9 @@ fn apply_projection(
             summary.doc_revisions.clear();
             summary.author_patches.clear();
             summary.view_governance.clear();
+            summary.maintainer_views.clear();
+            summary.profile_views.clear();
+            summary.document_views.clear();
             summary.profile_heads.clear();
             summary.projection = Some("parents-only".to_string());
         }
@@ -433,6 +488,7 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
     let filters = &summary.filters;
     let has_explicit_filter = filters.doc_id.is_some()
         || filters.author.is_some()
+        || filters.maintainer.is_some()
         || filters.revision_id.is_some()
         || filters.view_id.is_some()
         || filters.profile_id.is_some()
@@ -444,6 +500,9 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
             && summary.revision_parents.is_empty()
             && summary.author_patches.is_empty()
             && summary.view_governance.is_empty()
+            && summary.maintainer_views.is_empty()
+            && summary.profile_views.is_empty()
+            && summary.document_views.is_empty()
             && summary.profile_heads.is_empty();
     }
 
@@ -452,6 +511,9 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
         has_match = true;
     }
     if filters.author.is_some() && !summary.author_patches.is_empty() {
+        has_match = true;
+    }
+    if filters.maintainer.is_some() && !summary.maintainer_views.is_empty() {
         has_match = true;
     }
     if (filters.doc_id.is_some() || filters.revision_id.is_some())
@@ -463,10 +525,15 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
         has_match = true;
     }
     if (filters.view_id.is_some()
+        || filters.maintainer.is_some()
         || filters.profile_id.is_some()
         || filters.doc_id.is_some()
         || filters.revision_id.is_some())
-        && (!summary.view_governance.is_empty() || !summary.profile_heads.is_empty())
+        && (!summary.view_governance.is_empty()
+            || !summary.maintainer_views.is_empty()
+            || !summary.profile_views.is_empty()
+            || !summary.document_views.is_empty()
+            || !summary.profile_heads.is_empty())
     {
         has_match = true;
     }
@@ -485,11 +552,25 @@ fn build_store_index_query_summary(
     let object_ids_by_type = filter_single_map(&manifest.object_ids_by_type, &filters.object_type);
     let view_governance = filtered_view_governance(
         &manifest,
+        &filters.maintainer,
         &filters.view_id,
         &filters.profile_id,
         &filters.doc_id,
         &filters.revision_id,
     );
+    let allowed_view_ids = allowed_view_ids(&view_governance);
+    let maintainer_views = filtered_view_index(
+        &manifest.maintainer_views,
+        &filters.maintainer,
+        &allowed_view_ids,
+    );
+    let profile_views = filtered_view_index(
+        &manifest.profile_views,
+        &filters.profile_id,
+        &allowed_view_ids,
+    );
+    let document_views =
+        filtered_view_index(&manifest.document_views, &filters.doc_id, &allowed_view_ids);
     let profile_heads = filtered_profile_heads(
         &view_governance,
         &filters.profile_id,
@@ -509,6 +590,9 @@ fn build_store_index_query_summary(
         revision_parents,
         author_patches,
         view_governance,
+        maintainer_views,
+        profile_views,
+        document_views,
         profile_heads,
         filters,
         projection: None,
@@ -530,12 +614,21 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
     );
     println!("author patch indexes: {}", summary.author_patches.len());
     println!("view governance records: {}", summary.view_governance.len());
+    println!(
+        "maintainer view indexes: {}",
+        summary.maintainer_views.len()
+    );
+    println!("profile view indexes: {}", summary.profile_views.len());
+    println!("document view indexes: {}", summary.document_views.len());
     println!("profile head indexes: {}", summary.profile_heads.len());
     if let Some(doc_id) = &summary.filters.doc_id {
         println!("filter doc_id: {doc_id}");
     }
     if let Some(author) = &summary.filters.author {
         println!("filter author: {author}");
+    }
+    if let Some(maintainer) = &summary.filters.maintainer {
+        println!("filter maintainer: {maintainer}");
     }
     if let Some(revision_id) = &summary.filters.revision_id {
         println!("filter revision_id: {revision_id}");
@@ -589,6 +682,9 @@ fn build_store_index_counts_summary(summary: &StoreIndexQuerySummary) -> StoreIn
         revision_parent_index_count: summary.revision_parents.len(),
         author_patch_index_count: summary.author_patches.len(),
         view_governance_record_count: summary.view_governance.len(),
+        maintainer_view_index_count: summary.maintainer_views.len(),
+        profile_view_index_count: summary.profile_views.len(),
+        document_view_index_count: summary.document_views.len(),
         profile_head_index_count: summary.profile_heads.len(),
         filters: summary.filters.clone(),
         projection: summary.projection.clone(),
@@ -641,12 +737,24 @@ fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
         "view governance records: {}",
         summary.view_governance_record_count
     );
+    println!(
+        "maintainer view indexes: {}",
+        summary.maintainer_view_index_count
+    );
+    println!("profile view indexes: {}", summary.profile_view_index_count);
+    println!(
+        "document view indexes: {}",
+        summary.document_view_index_count
+    );
     println!("profile head indexes: {}", summary.profile_head_index_count);
     if let Some(doc_id) = &summary.filters.doc_id {
         println!("filter doc_id: {doc_id}");
     }
     if let Some(author) = &summary.filters.author {
         println!("filter author: {author}");
+    }
+    if let Some(maintainer) = &summary.filters.maintainer {
+        println!("filter maintainer: {maintainer}");
     }
     if let Some(revision_id) = &summary.filters.revision_id {
         println!("filter revision_id: {revision_id}");
@@ -693,6 +801,9 @@ fn print_store_index_filters_only_text(summary: &StoreIndexFiltersOnlySummary) -
     }
     if let Some(author) = &summary.filters.author {
         println!("filter author: {author}");
+    }
+    if let Some(maintainer) = &summary.filters.maintainer {
+        println!("filter maintainer: {maintainer}");
     }
     if let Some(revision_id) = &summary.filters.revision_id {
         println!("filter revision_id: {revision_id}");
@@ -876,6 +987,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
         StoreIndexQueryFilters {
             doc_id: args.doc_id,
             author: args.author,
+            maintainer: args.maintainer,
             revision_id: args.revision_id,
             view_id: args.view_id,
             profile_id: args.profile_id,

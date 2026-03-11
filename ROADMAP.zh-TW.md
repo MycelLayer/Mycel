@@ -290,11 +290,12 @@ Implementation anchors：
 4. 可從 persisted store state 或 explicit bundle objects 產生 accepted-head render output
 5. 為 accepted-head inspection 與 render workflows 提供具名 fixed-profile selection
 6. 提供獨立於 reader-facing `head` commands 的 `view inspect` / `view list` / `view publish` governance workflows，並具備 listing filter、sort、time window、grouped summary 與 projection modes
-7. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+7. persisted governance reverse indexes，支援依 maintainer、profile 與 document 反查 view
+8. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
 
 主要剩餘缺口：
 
-1. 更廣泛的 governance-state persistence
+1. 超出 selector、reverse view indexes 與 replay inputs 的更廣泛 governance-state persistence
 2. 超出目前初始 filtered / sorted / projected `view` inspection / listing / publication workflow 的專用 governance surfaces
 3. 超出最小具名 fixed-profile surface 的 reader-facing profile ergonomics
 4. 後續可與 wire / sync 對齊的 governance-state tooling
@@ -315,6 +316,7 @@ Implementation anchors：
    `cargo run -p mycel-cli -- view inspect <view-id> --store-root <store> --json`
    `cargo run -p mycel-cli -- view list --store-root <store> --latest-per-profile --limit 10 --summary-only --group-by profile-id --json`
    `cargo run -p mycel-cli -- view publish <path> --into <store> --json`
+   `cargo run -p mycel-cli -- store index <store> --governance-only --maintainer <maintainer> --json`
    `cargo test -p mycel-cli head_inspect`
 
 ## Phase 3: Full-Stack
