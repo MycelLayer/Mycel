@@ -191,14 +191,16 @@ coding-1 | pending-user-task
 
 Please read AGENTS.md and operate as the coding agent.
 
-目前已完成啟動流程，接下來我會照 coding agent 規則執行。
+已完成 coding agent 啟動流程，接下來我會照這套規則執行。
 
 目前狀態：
-- repo 狀態乾淨：main...origin/main，沒有未提交變更
-- 最新 CI 狀態正常
+- repo 乾淨：## main...origin/main
 - 已讀取並套用 AGENTS.md、AGENTS-LOCAL.md、docs/AGENT-REGISTRY.md
-- 已註冊為本地 coding agent：coding-1 | pending-user-task
+- 已確認本地 agent registry：這個 chat 是 coding-1，狀態 active，scope 是 pending-user-task
+- 前一次已完成的 CI 正常：latest completed workflow success
 - 後續 commit 會用 `gpt-5:coding-1` 作為 agent identity
+
+把具體任務丟給我，我就直接開始做。
 ```
 
 Keep this startup output narrow:
@@ -206,6 +208,7 @@ Keep this startup output narrow:
 - do not claim file-specific context before the user gives a concrete task
 - do not run `agent-claim`, `agent-start`, and `agent-status` in parallel
 - do not omit the startup self-label line
+- keep the CI line about the latest completed workflow, not a possibly in-progress run
 
 ## Mailbox Rule
 
