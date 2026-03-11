@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：late partial progress，已在最近一批 M1 inspect parity、signature-edge verify smoke、replay/verify smoke、malformed-field 與文件同步工作後刷新
+狀態：late partial progress，已在最近一批 forum/Q&A design-note 釐清與 store CLI 維護工作後刷新；里程碑狀態未變
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 

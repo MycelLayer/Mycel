@@ -33,6 +33,21 @@ Use one agent per issue, and one active issue per agent.
 
 If a task cannot stay mostly inside one issue boundary, split the task instead of expanding the agent scope.
 
+## Agent Roles
+
+Use two explicit agent roles:
+
+- `coding`
+  owns issue resolution, feature work, local verification, commit and push flow, and CI checks after each push
+- `doc`
+  owns document sync, design notes, roadmap or checklist updates, and planning-surface wording; this role does not check CI by default
+
+Use `coding` when the main output is behavior, tests, fixtures, parser or verifier changes, CLI changes, or any landed feature slice.
+
+Use `doc` when the main output is syncing planning surfaces or explanatory docs after code or design work has already clarified the intended behavior.
+
+If a task starts as doc-only but requires new implementation decisions, stop and hand the open question back to `coding` or a maintainer instead of inventing behavior in docs.
+
 ## Hybrid Issue Mode
 
 Do not force every coding action through a GitHub issue first.
@@ -162,6 +177,11 @@ Prefer:
 
 Do not hand off a task as "done" if the acceptance criteria and verify commands in the issue have not been checked.
 
+For role-specific responsibility:
+
+- `coding` runs the relevant local verification and checks the latest CI result from the previous push before starting new work
+- `doc` verifies document coherence locally as needed, but does not own CI monitoring unless a maintainer explicitly asks for it
+
 ## Milestone Batch Completion Gate
 
 Do not treat a milestone batch as complete just because several related issues landed.
@@ -224,6 +244,29 @@ For chat-first work with no issue, still leave the same handoff structure, but r
 Example:
 
 - `Finished local CI-fix follow-up. Touched protocol.rs. Ran cargo fmt --all and cargo test --workspace. Remaining follow-up: none.`
+
+When `coding` hands work to `doc`, use a real-time handoff that is structured enough for doc sync without rereading the full diff.
+
+Required fields:
+
+- scope or issue label
+- files touched
+- user-visible behavior change
+- protocol, schema, CLI, or fixture impact
+- verify commands that passed
+- docs impacted
+- planning impact: `none`, `design-note`, `progress`, `roadmap`, `checklist`, or a short combination
+- remaining follow-up
+
+Recommended `coding` to `doc` example:
+
+- `Finished #12. Touched verify.rs and object_verify_smoke.rs. Behavior change: reject duplicate revision parents earlier in verification. Protocol/schema impact: none. Verify: cargo test -p mycel-core and cargo test -p mycel-cli. Docs impacted: none. Planning impact: checklist. Remaining follow-up: update IMPLEMENTATION-CHECKLIST after the batch lands.`
+
+Recommended `doc` follow-through:
+
+- update only the docs named in the handoff
+- do not restate implementation details that are not confirmed by code or accepted design notes
+- if planning impact is `none`, avoid widening scope into roadmap or checklist edits
 
 ## Maintainer View
 
