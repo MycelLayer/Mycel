@@ -72,6 +72,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 如果你想走最短理解路徑：
 
+- 先理解 Mycel 想補上的空缺：[docs/MYCEL-GAP.zh-TW.md](./docs/MYCEL-GAP.zh-TW.md)
 - 先看協定核心：[PROTOCOL.zh-TW.md](./PROTOCOL.zh-TW.md)
 - 再看 transport 規則：[WIRE-PROTOCOL.zh-TW.md](./WIRE-PROTOCOL.zh-TW.md)
 - 看實作順序：[ROADMAP.zh-TW.md](./ROADMAP.zh-TW.md)
