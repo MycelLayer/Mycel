@@ -606,4 +606,112 @@ mod tests {
             "unexpected manifest for failed pull"
         );
     }
+
+    #[test]
+    fn sync_pull_from_transcript_fails_for_unrequested_object_message() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let revision_object = signed_revision_object_message(
+            &signing_key,
+            sender,
+            &[patch_object["payload"]["object_id"]
+                .as_str()
+                .expect("patch id")],
+        );
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let transcript = SyncPullTranscript {
+            peer: SyncPeer {
+                node_id: sender.to_string(),
+                public_key: sender_public_key(&signing_key),
+            },
+            messages: vec![
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                revision_object,
+            ],
+        };
+        let store_root = temp_dir("pull-unrequested");
+
+        let summary =
+            sync_pull_from_transcript(&transcript, &store_root).expect("sync pull should run");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert_eq!(summary.verified_message_count, 2);
+        assert_eq!(summary.object_message_count, 0);
+        assert_eq!(summary.written_object_count, 0);
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|error| error.contains("was not requested")),
+            "expected unrequested-object failure, got {summary:?}"
+        );
+        assert!(
+            load_store_index_manifest(&store_root).is_err(),
+            "unexpected manifest for failed pull"
+        );
+    }
+
+    #[test]
+    fn sync_pull_from_transcript_reports_pending_requested_objects_at_end() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch id")
+            .to_string();
+        let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let transcript = SyncPullTranscript {
+            peer: SyncPeer {
+                node_id: sender.to_string(),
+                public_key: sender_public_key(&signing_key),
+            },
+            messages: vec![
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                signed_bye_message(&signing_key, sender),
+            ],
+        };
+        let store_root = temp_dir("pull-pending");
+
+        let summary =
+            sync_pull_from_transcript(&transcript, &store_root).expect("sync pull should run");
+
+        assert!(!summary.is_ok(), "expected failed summary, got {summary:?}");
+        assert_eq!(summary.verified_message_count, 4);
+        assert_eq!(summary.object_message_count, 0);
+        assert_eq!(summary.written_object_count, 0);
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|error| error.contains("did not include any OBJECT messages")),
+            "expected missing-object failure, got {summary:?}"
+        );
+        assert!(
+            summary
+                .errors
+                .iter()
+                .any(|error| error.contains("pending requested object(s)")),
+            "expected pending-request failure, got {summary:?}"
+        );
+        assert!(
+            summary.notes.is_empty(),
+            "BYE should suppress end-of-session warning: {summary:?}"
+        );
+        assert!(
+            load_store_index_manifest(&store_root).is_err(),
+            "unexpected manifest for failed pull"
+        );
+    }
 }
