@@ -103,6 +103,16 @@ git clone https://github.com/ctf2090/Mycel.git
 cd Mycel
 ```
 
+## 2.1 Enable Repo-local Hooks
+
+Enable the checked-in git hooks for this clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The current pre-commit hook runs `npm run lint:pages` whenever staged changes touch `pages/`.
+
 ## 3. First Read Order
 
 Before changing anything, read in this order:

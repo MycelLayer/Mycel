@@ -103,6 +103,16 @@ git clone https://github.com/ctf2090/Mycel.git
 cd Mycel
 ```
 
+## 2.1 启用 Repo-local Hooks
+
+先为这个 clone 启用 repo 内建的 git hooks：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+当前的 pre-commit hook 会在 staged 变更触及 `pages/` 时自动执行 `npm run lint:pages`。
+
 ## 3. 第一次阅读顺序
 
 开始改任何东西之前，建议按这个顺序先读：
