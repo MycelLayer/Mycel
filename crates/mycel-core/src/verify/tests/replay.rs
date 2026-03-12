@@ -837,3 +837,68 @@ pub(super) fn revision_replay_rejects_parent_dependency_with_wrong_object_type()
         "expected wrong-type dependency error, got {summary:?}"
     );
 }
+
+#[test]
+pub(super) fn revision_replay_rejects_patch_dependency_with_wrong_object_type() {
+    let (signing_key, public_key) = signer_material();
+    let mut parent_revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 10u64
+    });
+    let parent_revision_id = recompute_object_id(&parent_revision, "revision_id", "rev")
+        .expect("parent revision ID should recompute");
+    parent_revision["revision_id"] = Value::String(parent_revision_id.clone());
+    parent_revision["signature"] = Value::String(sign_value(&signing_key, &parent_revision));
+
+    let mut revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [parent_revision_id.clone()],
+        "patches": ["patch:wrong-patch"],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 11u64
+    });
+    let revision_id =
+        recompute_object_id(&revision, "revision_id", "rev").expect("revision ID should recompute");
+    revision["revision_id"] = Value::String(revision_id);
+    revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+    let mut wrong_type_revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 12u64
+    });
+    let wrong_type_revision_id = recompute_object_id(&wrong_type_revision, "revision_id", "rev")
+        .expect("wrong-type revision ID should recompute");
+    wrong_type_revision["revision_id"] = Value::String(wrong_type_revision_id);
+    wrong_type_revision["signature"] =
+        Value::String(sign_value(&signing_key, &wrong_type_revision));
+
+    let object_index = HashMap::from([
+        (parent_revision_id, parent_revision),
+        ("patch:wrong-patch".to_string(), wrong_type_revision),
+    ]);
+    let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains("patch 'patch:wrong-patch' is a 'revision' object instead of 'patch'")
+        }),
+        "expected wrong-type dependency error, got {summary:?}"
+    );
+}
