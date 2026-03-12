@@ -88,15 +88,11 @@ If you want to contribute from a fresh environment:
 
 ## Start Contributing Here
 
-If you want a narrow first task, start with one of these open issues from the current first-client closure lane:
+If you want a narrow first task, browse the current GitHub issue list:
 
-- [#11 Persist local transport and safety policy outside replicated store indexes](https://github.com/ctf2090/Mycel/issues/11)
-- [#10 Split editor-maintainer and view-maintainer admission for dual-role keys](https://github.com/ctf2090/Mycel/issues/10)
-- [#9 Collapse replay-derived state_hash hashing onto the shared canonical helper](https://github.com/ctf2090/Mycel/issues/9)
+- <https://github.com/ctf2090/Mycel/issues>
 
-These links should be refreshed together with the planning sync process in [`docs/PLANNING-SYNC-PLAN.md`](./docs/PLANNING-SYNC-PLAN.md).
-
-For more structured task intake, browse issues labeled `ai-ready` and `well-scoped`.
+For more structured task intake, start with issues labeled `ai-ready` and `well-scoped`.
 
 If you want to understand the current Rust implementation:
 

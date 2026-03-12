@@ -94,13 +94,11 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 ## 从这里开始参与贡献
 
-如果你想先接一个范围窄的任务，可以先看这几个 issue：
+如果你想先接一个范围窄的任务，请直接浏览当前的 GitHub issue 列表：
 
-- [#1 Reject duplicate JSON object keys in shared object parsing](https://github.com/ctf2090/Mycel/issues/1)
-- [#3 Add malformed logical-ID coverage for document and block objects](https://github.com/ctf2090/Mycel/issues/3)
-- [#4 Add snapshot derived-ID verification smoke coverage](https://github.com/ctf2090/Mycel/issues/4)
+- <https://github.com/ctf2090/Mycel/issues>
 
-如果你想看更结构化的任务入口，可以直接浏览带有 `ai-ready` 和 `well-scoped` 标签的 issues。
+如果你想看更结构化的任务入口，请优先找带有 `ai-ready` 和 `well-scoped` 标签的 issues。
 
 ## 第一批简体中文支持包含什么
 

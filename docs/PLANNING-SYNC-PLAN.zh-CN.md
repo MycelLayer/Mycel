@@ -4,11 +4,20 @@
 
 这份文档定义 Mycel 如何同步以下几类表面：
 
-- 仓库级 planning Markdown，尤其是 `ROADMAP.*`、`IMPLEMENTATION-CHECKLIST.*`，以及各语言 README 中承担 contributor 入口角色的 planning 摘要
+- 仓库级 planning Markdown，尤其是 `ROADMAP.*` 与 `IMPLEMENTATION-CHECKLIST.*`
 - GitHub Issues
 - GitHub Pages 上的 planning 摘要页面，包括各语言入口页
 
 它的目的，是避免权威构建顺序、可执行任务池和公开进度页之间发生漂移。
+
+## 0. Sync 名词定义
+
+请固定使用以下名词：
+
+- `sync doc`：只同步 Markdown。包括 `ROADMAP.*`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md`，以及相关 README 文案。
+- `sync web`：只同步 GitHub Pages。包括 `docs/index.html`、各语言 landing pages 与 `docs/progress.html` 等 HTML 表面。
+- `sync issue`：同步 GitHub Issues，以及 GitHub Pages 入口页上的 contributor-entry issue 链接，例如 `docs/index.html`、`docs/zh-TW/index.html` 和 `docs/zh-CN/index.html`。
+- `sync plan`：完整同步，也就是 `sync doc` + `sync web` + `sync issue`。
 
 ## 1. 适用范围
 
@@ -22,7 +31,6 @@
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)
 - [`docs/progress.html`](./progress.html)
-- [`README.md`](../README.md)、[`README.zh-CN.md`](../README.zh-CN.md) 和 [`README.zh-TW.md`](../README.zh-TW.md) 中精选的 contributor-entry issue 链接
 - [`docs/index.html`](./index.html)、[`docs/zh-CN/index.html`](./zh-CN/index.html) 和 [`docs/zh-TW/index.html`](./zh-TW/index.html) 中精选的 contributor-entry issue 链接
 - GitHub Issues，尤其是 `ai-ready` 类型任务
 
@@ -42,8 +50,7 @@
 4. `docs/PROGRESS.md`
 5. `docs/progress.html`
 6. landing page 或 support page 上的摘要说法
-7. README 中精选的 contributor-entry issue 链接
-8. landing page 中精选的 contributor-entry issue 链接
+7. landing page 中精选的 contributor-entry issue 链接
 
 解释方式：
 
@@ -51,7 +58,6 @@
 - `IMPLEMENTATION-CHECKLIST.*` 拥有 section-level closure 状态和 readiness gate 的权威性。
 - GitHub Issues 代表剩余缺口的可执行切片。
 - `docs/PROGRESS.md` 和 `docs/progress.html` 是派生摘要，不得自行发明项目状态。
-- `README.*` 中精选的 issue 链接也是面向 contributor 的派生摘要，必须指向当前仍然有效的 `ai-ready` 任务。
 - `docs/index.html`、`docs/zh-CN/index.html` 和 `docs/zh-TW/index.html` 中精选的 issue 链接也是公开 contributor 入口摘要，必须指向当前仍然有效的 `ai-ready` 任务。
 
 ## 3. 各表面的角色
@@ -285,8 +291,7 @@ scripts/check-doc-refresh.sh
 4. 再更新 `docs/PROGRESS.md`
 5. 再更新 `docs/progress.html`
 6. 确认 GitHub Pages 上的 planning 摘要与刷新后的 roadmap/checklist/issues 状态一致
-7. 如果当前建议起手的 issue 已变化，同步刷新 `README.*` 中精选的 contributor-entry 链接
-8. 如果当前建议起手的 issue 已变化，同步刷新 `docs/index.html` 和 `docs/zh-TW/index.html` 中精选的 contributor-entry 链接
+7. 如果当前建议起手的 issue 已变化，同步刷新 `docs/index.html` 和各语言 landing pages 中精选的 contributor-entry 链接
 
 ## 9. Anti-Drift 规则
 
@@ -297,8 +302,7 @@ scripts/check-doc-refresh.sh
 3. progress page 说某个区块 mostly done，但 checklist 仍然大多未勾
 4. issue 标题漂移成 roadmap 还不支持的推测性工作
 5. Pages 自己发明 roadmap 或 checklist 里没有的项目状态说法
-6. README 的 contributor-entry 链接指向过期、已关闭或已不具代表性的 issue
-7. landing page 的 contributor-entry 链接指向过期、已关闭或已不具代表性的 issue
+6. landing page 的 contributor-entry 链接指向过期、已关闭或已不具代表性的 issue
 
 ## 10. 最低完成条件
 
@@ -309,8 +313,7 @@ scripts/check-doc-refresh.sh
 - open issues 对应真实剩余缺口
 - `docs/PROGRESS.md` 的摘要与 roadmap/checklist 一致
 - `docs/progress.html` 与 `docs/PROGRESS.md` 一致
-- `README.*` 中精选的 contributor-entry 链接仍然指向具代表性的 open starter issues
-- `docs/index.html` 和 `docs/zh-TW/index.html` 中精选的 contributor-entry 链接仍然指向具代表性的 open starter issues
+- `docs/index.html` 和各语言 landing pages 中精选的 contributor-entry 链接仍然指向具代表性的 open starter issues
 
 ## 11. 当前针对 Mycel 的实务指引
 
@@ -320,7 +323,7 @@ scripts/check-doc-refresh.sh
 2. 把 `IMPLEMENTATION-CHECKLIST.*` 视为 closure 状态的权威来源
 3. 把 open 的 `ai-ready` issues 视为 checklist gaps 的窄执行切片
 4. 把 `docs/PROGRESS.md` 和 `docs/progress.html` 视为公开摘要层
-5. 把 `README.*` 中精选的 contributor issue 链接视为窄的公开入口，并在 planning sync 时一起刷新
-6. 把 `docs/index.html` 和 `docs/zh-TW/index.html` 中精选的 contributor issue 链接也视为同类公开入口，并在 planning sync 时一起刷新
+5. 把 README 中的 contributor 指引视为 Markdown 文案；README 只需要指向 GitHub issue 列表，不在这里精选 starter issues
+6. 把 `docs/index.html` 和各语言 landing pages 中精选的 contributor issue 链接视为公开的 curated issue 入口，并在 planning sync 时一起刷新
 
 这样可以让 roadmap、implementation closure、task queue 和公开进度页保持一致，而不会让任何一个表面承担过多角色。

@@ -115,7 +115,7 @@ Primary surfaces:
 
 - [docs/PROGRESS.md](./PROGRESS.md)
 - [docs/progress.html](./progress.html)
-- curated contributor-entry issue links in README and landing pages
+- README contributor guidance and landing-page contributor-entry issue links
 
 This layer is derived. It must not invent new project state.
 
@@ -313,7 +313,7 @@ Mycel now has four planning-facing surfaces that must not drift apart:
 - roadmap and checklist authority
 - GitHub Issues
 - public progress summaries
-- curated contributor-entry issue links
+- public contributor-entry guidance and curated landing-page issue links
 
 The authoritative sync entry point is:
 
