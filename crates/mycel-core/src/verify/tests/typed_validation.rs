@@ -89,6 +89,77 @@ pub(super) fn null_values_are_rejected() {
 }
 
 #[test]
+pub(super) fn block_nested_attrs_null_is_rejected_with_json_path() {
+    let path = write_test_file(
+        "block-nested-attrs-null",
+        &serde_json::to_string_pretty(&json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "style": {
+                    "tone": null
+                }
+            },
+            "children": []
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary
+            .errors
+            .iter()
+            .any(|message| message.contains("$.attrs.style.tone: null is not allowed")),
+        "expected nested null-path error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+pub(super) fn view_policy_nested_float_is_rejected_with_json_path() {
+    let (_signing_key, public_key) = signer_material();
+    let view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": public_key,
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "threshold": 0.5
+        },
+        "timestamp": 12u64,
+        "signature": "sig:placeholder"
+    });
+    let path = write_test_file(
+        "view-policy-nested-float",
+        &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains(
+                "$.policy.threshold: floating-point numbers are not allowed in canonical objects",
+            )
+        }),
+        "expected nested float-path error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 pub(super) fn invalid_signature_is_rejected() {
     let (_signing_key, public_key) = signer_material();
     let mut value = json!({

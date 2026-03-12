@@ -228,6 +228,40 @@ fn inspect_warns_when_block_logical_id_has_wrong_type() {
 }
 
 #[test]
+fn inspect_fails_when_block_nested_attrs_contains_null() {
+    let path = write_test_file(
+        "block-nested-attrs-null-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "style": {
+                    "tone": null
+                }
+            },
+            "children": []
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| { message.contains("$.attrs.style.tone: null is not allowed") }),
+        "expected nested null warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_block_logical_id_prefix_is_wrong() {
     let path = write_test_file(
         "block-wrong-block-id-prefix-inspect",
@@ -1086,6 +1120,42 @@ fn inspect_warns_when_view_policy_is_not_object() {
             .iter()
             .any(|message| message.contains("top-level 'policy' must be an object")),
         "expected non-object policy warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_fails_when_view_policy_contains_floating_point_value() {
+    let path = write_test_file(
+        "view-policy-nested-float-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "threshold": 0.5
+            },
+            "timestamp": 12u64,
+            "signature": "sig:placeholder"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary.notes.iter().any(|message| {
+            message.contains(
+                "$.policy.threshold: floating-point numbers are not allowed in canonical objects",
+            )
+        }),
+        "expected nested float warning, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);

@@ -403,6 +403,11 @@ fn inspect_object_value_with_summary(
     mut summary: ObjectInspectionSummary,
 ) -> ObjectInspectionSummary {
     summary.path = path.to_path_buf();
+    let mut unsupported_value_notes = Vec::new();
+    collect_unsupported_json_value_errors(&value, "$", &mut unsupported_value_notes);
+    for note in unsupported_value_notes {
+        summary.push_note(note);
+    }
     let object = match value.as_object() {
         Some(object) => object,
         None => {

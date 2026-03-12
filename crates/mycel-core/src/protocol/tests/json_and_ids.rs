@@ -30,12 +30,37 @@ fn ensure_supported_json_values_rejects_null_with_path() {
 }
 
 #[test]
+fn ensure_supported_json_values_rejects_nested_null_with_path() {
+    let error = ensure_supported_json_values(&json!({
+        "type": "block",
+        "attrs": {
+            "style": {
+                "tone": null
+            }
+        }
+    }))
+    .unwrap_err();
+
+    assert_eq!(error, "$.attrs.style.tone: null is not allowed");
+}
+
+#[test]
 fn parse_json_strict_rejects_floating_point_numbers() {
     let error = parse_json_strict::<Value>(r#"{"timeout":1.5}"#).unwrap_err();
 
     assert_eq!(
         error,
         "$.timeout: floating-point numbers are not allowed in canonical objects"
+    );
+}
+
+#[test]
+fn parse_json_strict_rejects_nested_floating_point_numbers_with_path() {
+    let error = parse_json_strict::<Value>(r#"{"policy":{"threshold":0.5}}"#).unwrap_err();
+
+    assert_eq!(
+        error,
+        "$.policy.threshold: floating-point numbers are not allowed in canonical objects"
     );
 }
 
