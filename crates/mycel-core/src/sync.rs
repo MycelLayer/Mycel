@@ -676,6 +676,14 @@ mod tests {
     }
 
     fn signed_hello_message(signing_key: &SigningKey, sender: &str) -> Value {
+        signed_hello_message_with_capabilities(signing_key, sender, json!(["patch-sync"]))
+    }
+
+    fn signed_hello_message_with_capabilities(
+        signing_key: &SigningKey,
+        sender: &str,
+        capabilities: Value,
+    ) -> Value {
         let mut value = json!({
             "type": "HELLO",
             "version": "mycel-wire/0.1",
@@ -684,7 +692,7 @@ mod tests {
             "from": sender,
             "payload": {
                 "node_id": sender,
-                "capabilities": ["patch-sync"],
+                "capabilities": capabilities,
                 "nonce": "n:sync-test"
             },
             "sig": "sig:placeholder"
@@ -694,6 +702,20 @@ mod tests {
     }
 
     fn signed_manifest_message(signing_key: &SigningKey, sender: &str, revision_id: &str) -> Value {
+        signed_manifest_message_with_capabilities(
+            signing_key,
+            sender,
+            revision_id,
+            json!(["patch-sync"]),
+        )
+    }
+
+    fn signed_manifest_message_with_capabilities(
+        signing_key: &SigningKey,
+        sender: &str,
+        revision_id: &str,
+        capabilities: Value,
+    ) -> Value {
         let mut value = json!({
             "type": "MANIFEST",
             "version": "mycel-wire/0.1",
@@ -702,10 +724,32 @@ mod tests {
             "from": sender,
             "payload": {
                 "node_id": sender,
-                "capabilities": ["patch-sync"],
+                "capabilities": capabilities,
                 "heads": {
                     "doc:test": [revision_id]
                 }
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
+    fn signed_snapshot_offer_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        snapshot_id: &str,
+    ) -> Value {
+        let mut value = json!({
+            "type": "SNAPSHOT_OFFER",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:snapshot-offer-sync-001",
+            "timestamp": "2026-03-08T20:00:30+08:00",
+            "from": sender,
+            "payload": {
+                "snapshot_id": snapshot_id,
+                "root_hash": "hash:snapshot-root",
+                "documents": ["doc:test"]
             },
             "sig": "sig:placeholder"
         });
@@ -846,6 +890,55 @@ mod tests {
             "payload": {
                 "object_id": object_id,
                 "object_type": "revision",
+                "encoding": "json",
+                "hash_alg": "sha256",
+                "hash": format!("hash:{object_hash}"),
+                "body": body
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
+    fn signed_snapshot_object_message(signing_key: &SigningKey, sender: &str) -> Value {
+        let body = sign_object_value(
+            signing_key,
+            json!({
+                "type": "snapshot",
+                "version": "mycel/0.1",
+                "snapshot_id": "snap:placeholder",
+                "documents": {
+                    "doc:test": "rev:test"
+                },
+                "included_objects": ["rev:test"],
+                "root_hash": "hash:snapshot-root",
+                "created_by": "pk:ed25519:placeholder",
+                "timestamp": 3u64,
+                "signature": "sig:placeholder"
+            }),
+            "created_by",
+            "snapshot_id",
+            "snap",
+        );
+        let object_id = body["snapshot_id"]
+            .as_str()
+            .expect("signed snapshot body should include snapshot_id")
+            .to_owned();
+        let object_hash = object_id
+            .split_once(':')
+            .map(|(_, hash)| hash.to_string())
+            .expect("wire snapshot ID should contain hash");
+
+        let mut value = json!({
+            "type": "OBJECT",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:object-sync-snapshot-001",
+            "timestamp": "2026-03-08T20:01:14+08:00",
+            "from": sender,
+            "payload": {
+                "object_id": object_id,
+                "object_type": "snapshot",
                 "encoding": "json",
                 "hash_alg": "sha256",
                 "hash": format!("hash:{object_hash}"),
@@ -1280,6 +1373,55 @@ mod tests {
         assert_eq!(revisions.len(), 2);
         assert!(revisions.contains(&base_revision_id));
         assert!(revisions.contains(&follow_revision_id));
+    }
+
+    #[test]
+    fn sync_pull_from_transcript_accepts_snapshot_offer_when_capability_is_advertised() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let snapshot_object = signed_snapshot_object_message(&signing_key, sender);
+        let snapshot_id = snapshot_object["payload"]["object_id"]
+            .as_str()
+            .expect("snapshot object should include object id")
+            .to_string();
+        let transcript = SyncPullTranscript {
+            peer: SyncPeer {
+                node_id: sender.to_string(),
+                public_key: sender_public_key(&signing_key),
+            },
+            messages: vec![
+                signed_hello_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    json!(["patch-sync", "snapshot-sync"]),
+                ),
+                signed_manifest_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    "rev:test",
+                    json!(["patch-sync", "snapshot-sync"]),
+                ),
+                signed_snapshot_offer_message(&signing_key, sender, &snapshot_id),
+                signed_want_message(&signing_key, sender, &[&snapshot_id]),
+                snapshot_object,
+                signed_bye_message(&signing_key, sender),
+            ],
+        };
+        let store_root = temp_dir("pull-snapshot-offer");
+
+        let summary =
+            sync_pull_from_transcript(&transcript, &store_root).expect("sync pull should run");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.message_count, 6);
+        assert_eq!(summary.verified_message_count, 6);
+        assert_eq!(summary.object_message_count, 1);
+        assert_eq!(summary.verified_object_count, 1);
+        assert_eq!(summary.written_object_count, 1);
+
+        let manifest =
+            load_store_index_manifest(&store_root).expect("store manifest should be readable");
+        assert_eq!(manifest.stored_object_count, 1);
     }
 
     #[test]

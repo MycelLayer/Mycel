@@ -212,6 +212,7 @@ impl WirePeerDirectory {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WirePeerSessionState {
     hello_received: bool,
+    advertised_capabilities: BTreeSet<String>,
     advertised_document_heads: BTreeMap<String, BTreeSet<String>>,
     accepted_sync_roots: BTreeSet<String>,
     reachable_object_ids: BTreeSet<String>,
@@ -224,6 +225,10 @@ impl WirePeerSessionState {
         self.advertised_document_heads
             .values()
             .any(|revisions| revisions.contains(revision_id))
+    }
+
+    fn advertises_capability(&self, capability: &str) -> bool {
+        self.advertised_capabilities.contains(capability)
     }
 
     pub fn hello_received(&self) -> bool {
@@ -438,6 +443,22 @@ fn validate_wire_inbound_sequence(
         }
     }
 
+    match envelope.message_type() {
+        WireMessageType::SnapshotOffer => require_advertised_wire_capability(
+            peer_session,
+            "snapshot-sync",
+            envelope.message_type(),
+            envelope.from(),
+        )?,
+        WireMessageType::ViewAnnounce => require_advertised_wire_capability(
+            peer_session,
+            "view-sync",
+            envelope.message_type(),
+            envelope.from(),
+        )?,
+        _ => {}
+    }
+
     Ok(())
 }
 
@@ -448,8 +469,20 @@ fn advance_wire_inbound_sequence(
     match envelope.message_type() {
         WireMessageType::Hello => {
             peer_session.hello_received = true;
+            peer_session
+                .advertised_capabilities
+                .extend(validate_wire_string_array(
+                    envelope.payload(),
+                    "capabilities",
+                )?);
         }
         WireMessageType::Manifest => {
+            peer_session
+                .advertised_capabilities
+                .extend(validate_wire_string_array(
+                    envelope.payload(),
+                    "capabilities",
+                )?);
             peer_session.advertised_document_heads =
                 wire_head_map_to_sets(validate_wire_head_map(envelope.payload(), "heads")?);
         }
@@ -483,11 +516,19 @@ fn advance_wire_inbound_sequence(
             peer_session.pending_object_ids.remove(&object_id);
             extend_reachable_object_ids_from_object(envelope.payload(), peer_session)?;
         }
+        WireMessageType::SnapshotOffer => {
+            let snapshot_id =
+                required_wire_string(envelope.payload(), "snapshot_id", "wire payload")?;
+            peer_session.reachable_object_ids.insert(snapshot_id);
+        }
+        WireMessageType::ViewAnnounce => {
+            let view_id = required_wire_string(envelope.payload(), "view_id", "wire payload")?;
+            peer_session.reachable_object_ids.insert(view_id);
+        }
         WireMessageType::Bye => {
             peer_session.closed = true;
         }
-        WireMessageType::SnapshotOffer | WireMessageType::ViewAnnounce | WireMessageType::Error => {
-        }
+        WireMessageType::Error => {}
     }
 
     Ok(())
@@ -713,6 +754,21 @@ fn required_wire_bool(
         Some(_) => Err(format!("{scope} field '{field}' must be a boolean")),
         None => Err(format!("{scope} is missing boolean field '{field}'")),
     }
+}
+
+fn require_advertised_wire_capability(
+    peer_session: &WirePeerSessionState,
+    capability: &str,
+    message_type: WireMessageType,
+    sender: &str,
+) -> Result<(), String> {
+    if peer_session.advertises_capability(capability) {
+        return Ok(());
+    }
+
+    Err(format!(
+        "wire {message_type} requires advertised capability '{capability}' from '{sender}'"
+    ))
 }
 
 fn wire_head_map_to_sets(
@@ -1010,6 +1066,20 @@ mod tests {
         sender: &str,
         payload_node_id: &str,
     ) -> Value {
+        signed_hello_message_with_capabilities(
+            signing_key,
+            sender,
+            payload_node_id,
+            json!(["patch-sync"]),
+        )
+    }
+
+    fn signed_hello_message_with_capabilities(
+        signing_key: &SigningKey,
+        sender: &str,
+        payload_node_id: &str,
+        capabilities: Value,
+    ) -> Value {
         let mut value = json!({
             "type": "HELLO",
             "version": "mycel-wire/0.1",
@@ -1018,7 +1088,7 @@ mod tests {
             "from": sender,
             "payload": {
                 "node_id": payload_node_id,
-                "capabilities": ["patch-sync"],
+                "capabilities": capabilities,
                 "nonce": "n:test"
             },
             "sig": "sig:placeholder"
@@ -1032,6 +1102,20 @@ mod tests {
         sender: &str,
         payload_node_id: &str,
     ) -> Value {
+        signed_manifest_message_with_capabilities(
+            signing_key,
+            sender,
+            payload_node_id,
+            json!(["patch-sync"]),
+        )
+    }
+
+    fn signed_manifest_message_with_capabilities(
+        signing_key: &SigningKey,
+        sender: &str,
+        payload_node_id: &str,
+        capabilities: Value,
+    ) -> Value {
         let mut value = json!({
             "type": "MANIFEST",
             "version": "mycel-wire/0.1",
@@ -1040,9 +1124,55 @@ mod tests {
             "from": sender,
             "payload": {
                 "node_id": payload_node_id,
-                "capabilities": ["patch-sync"],
+                "capabilities": capabilities,
                 "heads": {
                     "doc:test": ["rev:test"]
+                }
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
+    fn signed_snapshot_offer_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        snapshot_id: &str,
+    ) -> Value {
+        let mut value = json!({
+            "type": "SNAPSHOT_OFFER",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:snapshot-offer-signed-001",
+            "timestamp": "2026-03-08T20:00:40+08:00",
+            "from": sender,
+            "payload": {
+                "snapshot_id": snapshot_id,
+                "root_hash": "hash:snapshot-root",
+                "documents": ["doc:test"]
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
+    fn signed_view_announce_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        view_id: &str,
+    ) -> Value {
+        let mut value = json!({
+            "type": "VIEW_ANNOUNCE",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:view-announce-signed-001",
+            "timestamp": "2026-03-08T20:00:45+08:00",
+            "from": sender,
+            "payload": {
+                "view_id": view_id,
+                "maintainer": sender_public_key(signing_key),
+                "documents": {
+                    "doc:test": "rev:test"
                 }
             },
             "sig": "sig:placeholder"
@@ -1671,6 +1801,140 @@ mod tests {
             .advertised_document_heads
             .get("doc:replacement")
             .is_some_and(|revisions| revisions.contains("rev:replacement")));
+    }
+
+    #[test]
+    fn wire_session_rejects_snapshot_offer_without_snapshot_capability() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+        let snapshot_offer =
+            signed_snapshot_offer_message(&signing_key, "node:alpha", "snap:test-offer");
+
+        session
+            .verify_incoming(&hello)
+            .expect("HELLO should verify");
+        let error = session.verify_incoming(&snapshot_offer).unwrap_err();
+
+        assert_eq!(
+            error,
+            "wire SNAPSHOT_OFFER requires advertised capability 'snapshot-sync' from 'node:alpha'"
+        );
+    }
+
+    #[test]
+    fn wire_session_accepts_snapshot_offer_with_snapshot_capability_and_unlocks_want() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let hello = signed_hello_message_with_capabilities(
+            &signing_key,
+            "node:alpha",
+            "node:alpha",
+            json!(["patch-sync", "snapshot-sync"]),
+        );
+        let manifest = signed_manifest_message_with_capabilities(
+            &signing_key,
+            "node:alpha",
+            "node:alpha",
+            json!(["patch-sync", "snapshot-sync"]),
+        );
+        let snapshot_offer =
+            signed_snapshot_offer_message(&signing_key, "node:alpha", "snap:test-offer");
+        let want = signed_want_message(&signing_key, "node:alpha", &["snap:test-offer"]);
+
+        session
+            .verify_incoming(&hello)
+            .expect("HELLO should verify");
+        session
+            .verify_incoming(&manifest)
+            .expect("MANIFEST should verify");
+        session
+            .verify_incoming(&snapshot_offer)
+            .expect("SNAPSHOT_OFFER should verify");
+        session
+            .verify_incoming(&want)
+            .expect("snapshot WANT should verify after offer");
+
+        let state = session
+            .peer_session("node:alpha")
+            .expect("peer session should exist");
+        assert!(state.reachable_object_ids.contains("snap:test-offer"));
+        assert!(state.pending_object_ids.contains("snap:test-offer"));
+    }
+
+    #[test]
+    fn wire_session_rejects_view_announce_without_view_capability() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+        let view_announce =
+            signed_view_announce_message(&signing_key, "node:alpha", "view:test-announce");
+
+        session
+            .verify_incoming(&hello)
+            .expect("HELLO should verify");
+        let error = session.verify_incoming(&view_announce).unwrap_err();
+
+        assert_eq!(
+            error,
+            "wire VIEW_ANNOUNCE requires advertised capability 'view-sync' from 'node:alpha'"
+        );
+    }
+
+    #[test]
+    fn wire_session_accepts_view_announce_with_view_capability_and_unlocks_want() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let hello = signed_hello_message_with_capabilities(
+            &signing_key,
+            "node:alpha",
+            "node:alpha",
+            json!(["patch-sync", "view-sync"]),
+        );
+        let manifest = signed_manifest_message_with_capabilities(
+            &signing_key,
+            "node:alpha",
+            "node:alpha",
+            json!(["patch-sync", "view-sync"]),
+        );
+        let view_announce =
+            signed_view_announce_message(&signing_key, "node:alpha", "view:test-announce");
+        let want = signed_want_message(&signing_key, "node:alpha", &["view:test-announce"]);
+
+        session
+            .verify_incoming(&hello)
+            .expect("HELLO should verify");
+        session
+            .verify_incoming(&manifest)
+            .expect("MANIFEST should verify");
+        session
+            .verify_incoming(&view_announce)
+            .expect("VIEW_ANNOUNCE should verify");
+        session
+            .verify_incoming(&want)
+            .expect("view WANT should verify after announcement");
+
+        let state = session
+            .peer_session("node:alpha")
+            .expect("peer session should exist");
+        assert!(state.reachable_object_ids.contains("view:test-announce"));
+        assert!(state.pending_object_ids.contains("view:test-announce"));
     }
 
     #[test]

@@ -303,6 +303,8 @@ Field rules:
 - `documents` MUST be a non-empty array of `doc_id`
 - `object_count`, if present, MUST be a non-negative integer
 - `size_bytes`, if present, MUST be a non-negative integer
+- receiver MUST reject `SNAPSHOT_OFFER` unless the peer previously advertised `snapshot-sync` in `HELLO` or `MANIFEST`
+- once accepted, `snapshot_id` becomes eligible for later `WANT`
 - when the receiver later fetches the referenced Snapshot object, its `snapshot_id` and `root_hash` MUST match this offer
 
 ## 10. VIEW_ANNOUNCE
@@ -337,6 +339,8 @@ Field rules:
 
 - `view_id` MUST be a canonical view ID
 - `documents` MUST be a non-empty map of `doc_id -> canonical revision ID`
+- receiver MUST reject `VIEW_ANNOUNCE` unless the peer previously advertised `view-sync` in `HELLO` or `MANIFEST`
+- once accepted, `view_id` becomes eligible for later `WANT`
 - the fetched View object's `view_id`, `maintainer`, and `documents` MUST match the announcement
 
 ## 11. BYE
@@ -409,7 +413,7 @@ Suggested codes:
 3. Receiver sends `WANT` for missing IDs
 4. Sender replies with one or more `OBJECT`
 5. Receiver verifies and stores
-6. Optional `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE`
+6. Optional `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` only after the corresponding capability was advertised
 7. `BYE` on graceful close
 
 ## 14. Security Notes

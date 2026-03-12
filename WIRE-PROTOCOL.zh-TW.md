@@ -303,6 +303,8 @@ v0.1 定義以下訊息種類：
 - `documents` MUST 是非空的 `doc_id` 陣列
 - 若有 `object_count`，其值 MUST 是非負整數
 - 若有 `size_bytes`，其值 MUST 是非負整數
+- 接收端若尚未在先前的 `HELLO` 或 `MANIFEST` 看到 peer 廣告 `snapshot-sync`，MUST 拒絕 `SNAPSHOT_OFFER`
+- 一旦接受，`snapshot_id` 就成為後續 `WANT` 可請求的目標
 - 當接收端之後取得對應的 Snapshot 物件時，其 `snapshot_id` 與 `root_hash` MUST 與此 offer 一致
 
 ## 10. VIEW_ANNOUNCE
@@ -337,6 +339,8 @@ v0.1 定義以下訊息種類：
 
 - `view_id` MUST 是 canonical view ID
 - `documents` MUST 是非空的 `doc_id -> canonical revision ID` map
+- 接收端若尚未在先前的 `HELLO` 或 `MANIFEST` 看到 peer 廣告 `view-sync`，MUST 拒絕 `VIEW_ANNOUNCE`
+- 一旦接受，`view_id` 就成為後續 `WANT` 可請求的目標
 - 取得到的 View 物件之 `view_id`、`maintainer`、`documents` MUST 與此 announcement 一致
 
 ## 11. BYE
@@ -409,7 +413,7 @@ v0.1 定義以下訊息種類：
 3. 接收端以 `WANT` 請求缺少的 ID
 4. 發送端回傳一個或多個 `OBJECT`
 5. 接收端驗證並入庫
-6. 可選擇交換 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE`
+6. 只有在先前廣告對應 capability 後，才可交換 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE`
 7. 正常關閉時傳送 `BYE`
 
 ## 14. 安全備註
