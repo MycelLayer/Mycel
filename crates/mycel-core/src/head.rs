@@ -12,7 +12,7 @@ use crate::protocol::{
 };
 use crate::replay::{replay_revision_from_index, DocumentState};
 use crate::store::{load_store_index_manifest, load_store_object_index, load_stored_object_value};
-use crate::verify::verify_object_value;
+use crate::verify::{verify_object_value, verify_object_value_with_object_index};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HeadInspectSummary {
@@ -346,6 +346,11 @@ pub fn render_head_from_store_path(
             return summary;
         }
     };
+    if let Err(error) = verify_selected_head_for_render(selected_head, &revision_value, &object_index)
+    {
+        summary.push_error(error);
+        return summary;
+    }
     let replay = match replay_revision_from_index(&revision_value, &object_index) {
         Ok(replay) => replay,
         Err(error) => {
@@ -415,6 +420,11 @@ pub fn render_head_from_path(
         ));
         return summary;
     };
+    if let Err(error) = verify_selected_head_for_render(selected_head, revision_value, &object_index)
+    {
+        summary.push_error(error);
+        return summary;
+    }
     let replay = match replay_revision_from_index(revision_value, &object_index) {
         Ok(replay) => replay,
         Err(error) => {
@@ -436,6 +446,22 @@ pub fn render_head_from_path(
     ));
 
     summary
+}
+
+fn verify_selected_head_for_render(
+    selected_head: &str,
+    revision_value: &Value,
+    object_index: &HashMap<String, Value>,
+) -> Result<(), String> {
+    let verification = verify_object_value_with_object_index(revision_value, Some(object_index));
+    if verification.is_ok() {
+        return Ok(());
+    }
+
+    Err(format!(
+        "selected head '{selected_head}' failed verification before render replay: {}",
+        verification.errors.join("; ")
+    ))
 }
 
 fn load_head_inspect_input(

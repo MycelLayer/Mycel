@@ -468,6 +468,82 @@ fn store_rebuild_json_fails_for_missing_parent_revision_dependency() {
 }
 
 #[test]
+fn store_rebuild_json_reports_multi_hop_ancestry_context_for_parent_missing_patch_dependency() {
+    let dir = create_temp_dir("store-rebuild-ancestry-missing-patch");
+    let doc_id = "doc:ancestor-missing-patch";
+    let empty_state_value = json!({
+        "doc_id": doc_id,
+        "blocks": []
+    });
+    let mut empty_state_hasher = Sha256::new();
+    empty_state_hasher.update(canonical_json(&empty_state_value).as_bytes());
+    let empty_state = format!("hash:{:x}", empty_state_hasher.finalize());
+    let parent_revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": doc_id,
+            "parents": [],
+            "patches": ["patch:missing-ancestor"],
+            "state_hash": empty_state,
+            "timestamp": 1u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    let parent_revision_id = parent_revision["revision_id"]
+        .as_str()
+        .expect("parent revision id should exist")
+        .to_string();
+    let revision = signed_object(
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "doc_id": doc_id,
+            "parents": [parent_revision_id.clone()],
+            "patches": [],
+            "state_hash": empty_state,
+            "timestamp": 2u64
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    fs::write(
+        dir.path().join("parent.json"),
+        serde_json::to_string_pretty(&parent_revision).expect("parent revision should serialize"),
+    )
+    .expect("parent revision should write");
+    fs::write(
+        dir.path().join("revision.json"),
+        serde_json::to_string_pretty(&revision).expect("revision should serialize"),
+    )
+    .expect("revision should write");
+
+    let output = run_mycel(&[
+        "store",
+        "rebuild",
+        &path_arg(&dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["errors"].as_array().is_some_and(|errors| errors.iter().any(|entry| {
+            entry.as_str().is_some_and(|message| {
+                message.contains(&format!(
+                    "while verifying ancestry through parent revision '{parent_revision_id}'"
+                )) && message.contains("missing patch 'patch:missing-ancestor' for replay")
+            })
+        })),
+        "expected nested ancestry-context replay error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn store_rebuild_json_fails_for_cross_document_parent_revision_dependency() {
     let dir = create_temp_dir("store-rebuild-cross-doc-parent");
     let parent_state = json!({

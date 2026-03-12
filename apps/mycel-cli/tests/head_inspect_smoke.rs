@@ -930,6 +930,154 @@ fn head_render_json_replays_selected_head_from_store() {
 }
 
 #[test]
+fn head_render_store_backed_reports_multi_hop_ancestry_context() {
+    let doc_id = "doc:render-store-ancestry";
+    let revision_author = signing_key(86);
+    let maintainer = signing_key(97);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let genesis_hash = empty_document_state_hash(doc_id);
+    let parent_revision = signed_revision_with_patches(
+        &revision_author,
+        doc_id,
+        vec![],
+        vec!["patch:missing-ancestor".to_string()],
+        1000,
+        &genesis_hash,
+    );
+    let revision_b = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![parent_revision["revision_id"]
+            .as_str()
+            .expect("parent revision id should exist")
+            .to_string()],
+        1010,
+        &genesis_hash,
+    );
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(doc_id, &revision_b["revision_id"]),
+        1100,
+    );
+    let store_dir = create_temp_dir("head-render-store-ancestry-root");
+    let objects_dir = store_dir.path().join("objects");
+    let indexes_dir = store_dir.path().join("indexes");
+    fs::create_dir_all(objects_dir.join("revision")).expect("revision store dir should exist");
+    fs::create_dir_all(objects_dir.join("view")).expect("view store dir should exist");
+    fs::create_dir_all(&indexes_dir).expect("index dir should exist");
+
+    let write_store_object =
+        |object_type: &str, object_id: &str, value: &Value| -> PathBuf {
+            let (_, object_hash) = object_id
+                .split_once(':')
+                .expect("object id should contain a type prefix");
+            let path = objects_dir
+                .join(object_type)
+                .join(format!("{object_hash}.json"));
+            fs::write(
+                &path,
+                serde_json::to_string_pretty(value).expect("store object should serialize"),
+            )
+            .expect("store object should write");
+            path
+        };
+    let parent_revision_id = parent_revision["revision_id"]
+        .as_str()
+        .expect("parent revision id should exist")
+        .to_string();
+    let revision_b_id = revision_b["revision_id"]
+        .as_str()
+        .expect("selected head id should exist")
+        .to_string();
+    let view_id = view["view_id"]
+        .as_str()
+        .expect("view id should exist")
+        .to_string();
+    write_store_object("revision", &parent_revision_id, &parent_revision);
+    write_store_object("revision", &revision_b_id, &revision_b);
+    write_store_object("view", &view_id, &view);
+    fs::write(
+        indexes_dir.join("manifest.json"),
+        serde_json::to_string_pretty(&json!({
+            "version": "mycel-store-index/0.1",
+            "stored_object_count": 3,
+            "object_ids_by_type": {
+                "revision": [parent_revision_id.clone(), revision_b_id.clone()],
+                "view": [view_id.clone()]
+            },
+            "doc_revisions": {
+                doc_id: [parent_revision_id.clone(), revision_b_id.clone()]
+            },
+            "revision_parents": {
+                revision_b_id.clone(): [parent_revision_id.clone()]
+            },
+            "author_patches": {},
+            "view_governance": [
+                {
+                    "view_id": view_id,
+                    "maintainer": signer_id(&maintainer),
+                    "profile_id": hash_json(&policy),
+                    "documents": {
+                        doc_id: revision_b_id.clone()
+                    }
+                }
+            ],
+            "maintainer_views": {},
+            "profile_views": {},
+            "document_views": {},
+            "profile_heads": {}
+        }))
+        .expect("manifest should serialize"),
+    )
+    .expect("manifest should write");
+    let input = write_input_file(
+        "head-render-store-ancestry",
+        "input.json",
+        json!({
+            "profile": head_profile(hash_json(&policy), 1200),
+            "revisions": [],
+            "views": [],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "render",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--store-root",
+        &path_arg(&store_dir.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("failed verification before render replay")
+                        && message.contains(&format!(
+                            "while verifying ancestry through parent revision '{parent_revision_id}'"
+                        ))
+                        && message.contains("missing patch 'patch:missing-ancestor' for replay")
+                })
+            })),
+        "expected nested ancestry-context render error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn head_render_store_backed_applies_editor_admission_from_profile() {
     let doc_id = "doc:render-store-editor-admission";
     let admitted_author = signing_key(87);
@@ -1558,6 +1706,84 @@ fn head_render_bundle_reports_missing_replay_objects() {
                 .as_str()
                 .is_some_and(|message| message.contains("missing patch")))),
         "expected missing patch error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_render_bundle_reports_multi_hop_ancestry_context() {
+    let doc_id = "doc:render-bundle-ancestry";
+    let revision_author = signing_key(85);
+    let maintainer = signing_key(96);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let genesis_hash = empty_document_state_hash(doc_id);
+    let parent_revision = signed_revision_with_patches(
+        &revision_author,
+        doc_id,
+        vec![],
+        vec!["patch:missing-ancestor".to_string()],
+        1000,
+        &genesis_hash,
+    );
+    let revision_b = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![parent_revision["revision_id"]
+            .as_str()
+            .expect("parent revision id should exist")
+            .to_string()],
+        1010,
+        &genesis_hash,
+    );
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(doc_id, &revision_b["revision_id"]),
+        1100,
+    );
+    let input = write_input_file(
+        "head-render-bundle-ancestry",
+        "input.json",
+        json!({
+            "profile": head_profile(hash_json(&policy), 1200),
+            "revisions": [parent_revision.clone(), revision_b],
+            "views": [view],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "render",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "failed");
+    let parent_revision_id = parent_revision["revision_id"]
+        .as_str()
+        .expect("parent revision id should exist");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("failed verification before render replay")
+                        && message.contains(&format!(
+                            "while verifying ancestry through parent revision '{parent_revision_id}'"
+                        ))
+                        && message.contains("missing patch 'patch:missing-ancestor' for replay")
+                })
+            })),
+        "expected nested ancestry-context render error, stdout: {}",
         stdout_text(&output)
     );
 }
