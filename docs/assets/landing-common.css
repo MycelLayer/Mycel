@@ -49,7 +49,7 @@ body.landing-page .nav-links a {
 }
 
 body.landing-page .nav-links a[aria-current="page"] {
-  color: var(--ink);
+  color: var(--ink, var(--text));
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.18em;
