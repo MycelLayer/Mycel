@@ -193,6 +193,7 @@ Recommended mailbox pattern:
 
 - `.agent-local/mailboxes/<agent_uid>.md`
 - copyable planning-sync example: `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
+- mailbox archive root: `.agent-local/mailboxes/archive/YYYY-MM/`
 
 Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` may still be used if the team explicitly wants them, but the registry remains the source of truth for role assignment.
 
@@ -231,6 +232,17 @@ Minimum handoff quality:
 
 - include enough detail for `doc` to identify the affected files, the likely planning surfaces, whether checklist closure changed, and what verification or evidence supports the claim
 - if an agent wants a ready-made starting point instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
+
+Mailbox retention and archive policy:
+
+- registry cleanup does not delete mailbox files; mailbox history is retained until a mailbox-specific archive step moves it out of the active working set
+- active working-set mailboxes stay in `.agent-local/mailboxes/`
+- the tracked example mailbox stays in place and is never an archive candidate
+- once an agent entry has been removed from `.agent-local/agents.json`, its uid-based mailbox becomes an orphaned mailbox candidate
+- orphaned uid-based mailboxes should be moved into `.agent-local/mailboxes/archive/YYYY-MM/` instead of being deleted
+- use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
+- use `scripts/mailbox_gc.py archive` to move orphaned uid-based mailboxes into the archive tree without deleting their contents
+- shared fallback mailbox files outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`; retire or archive those only with an explicit team decision
 
 ## Startup Gate
 
