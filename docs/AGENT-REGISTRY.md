@@ -10,7 +10,7 @@ The live registry file is local and gitignored:
 
 Recommended startup gate:
 
-- `scripts/agent-claim.sh <role> [--scope <scope>]`
+- `scripts/agent-claim.sh <role|auto> [--scope <scope>]`
 - `scripts/agent-start.sh <agent-id>`
 - `scripts/agent-stop.sh <agent-id> [--status paused|done]`
 - `scripts/agent-recover.sh <stale-agent-id> [--scope <scope>]`
@@ -36,10 +36,11 @@ Agents should read `.agent-local/agents.json` at the start of work to discover:
 
 If a new chat receives only a role declaration such as `you are coding` or `you are doc`, the agent should claim a fresh id with `scripts/agent-claim.sh <role>` before running `scripts/agent-start.sh <agent-id>`.
 
-If the user does not assign any role in a new chat, the agent should inspect `.agent-local/agents.json` and choose a default role before claiming an id:
+If the user does not assign any role in a new chat, the agent should use `scripts/agent-claim.sh auto` to choose the default role from `.agent-local/agents.json` before starting work:
 
 - if there is no active `coding` agent, take `coding` first
-- if an active `coding` agent already exists, take `doc`
+- if active `coding >= 1` and active `doc == 0`, take `doc`
+- if active `coding >= 1` and active `doc >= 1`, take `coding`
 
 This default-role rule is only for chats without a user-assigned role. An explicit user role selection still wins.
 
@@ -160,7 +161,7 @@ If any of those checks fail, the agent must stop before editing tracked files an
 
 Recommended enforcement:
 
-1. either a maintainer writes the assignment entry or the agent claims a new entry with `scripts/agent-claim.sh <role>`
+1. either a maintainer writes the assignment entry or the agent claims a new entry with `scripts/agent-claim.sh <role|auto>`
 2. the agent runs `scripts/agent-start.sh <agent-id>`
 3. the start script confirms the role, sets `confirmed_by_agent: true`, stamps `confirmed_at`, and creates the mailbox if needed
 4. only then may tracked work begin
@@ -169,7 +170,7 @@ Recommended enforcement:
 
 1. Before starting work, an agent reads `.agent-local/agents.json`.
 2. The agent confirms the current agent count and scans the existing scopes and file sets.
-3. If no entry exists yet but the role is known, the agent may claim a new id with `scripts/agent-claim.sh <role>`.
+3. If no entry exists yet but the role is known, the agent may claim a new id with `scripts/agent-claim.sh <role>`; if the role is not user-assigned, the agent may use `scripts/agent-claim.sh auto`.
 4. Otherwise, a maintainer or coordinator writes the agent entry with `role`, `assigned_by`, `assigned_at`, `scope`, and `mailbox`.
 5. The agent confirms its own assignment by running `scripts/agent-start.sh <agent-id>`.
 6. Only after confirmation may the agent start tracked work.
@@ -188,13 +189,12 @@ Use this sequence in order. Do not run the registry commands in parallel.
 3. check `rg` and `gh`
 4. check the latest CI status from the previous push
 5. determine the role for this chat:
-   - if the user explicitly assigned a role, use that role
-   - otherwise inspect `.agent-local/agents.json`; if no active `coding` agent exists, choose `coding`, else choose `doc`
-6. run `scripts/agent-claim.sh <role> [--scope <scope>]`
-7. run `scripts/agent-start.sh <agent-id>`
-8. run `scripts/agent-status.sh <agent-id>`
-9. begin the chat with the startup self-label: `<agent-id> | <scope-label>`
-10. only after that, report repo status and wait for the concrete task
+   - if the user explicitly assigned a role, use that role and run `scripts/agent-claim.sh <role> [--scope <scope>]`
+   - otherwise run `scripts/agent-claim.sh auto [--scope <scope>]`
+6. run `scripts/agent-start.sh <agent-id>`
+7. run `scripts/agent-status.sh <agent-id>`
+8. begin the chat with the startup self-label: `<agent-id> | <scope-label>`
+9. only after that, report repo status and wait for the concrete task
 
 Recommended startup output:
 

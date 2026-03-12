@@ -7,16 +7,21 @@ usage() {
 Claim a new local agent id for a declared role.
 
 Usage:
-  scripts/agent-claim.sh <role> [--scope <scope>] [--assigned-by <source>] [--json]
+  scripts/agent-claim.sh <role|auto> [--scope <scope>] [--assigned-by <source>] [--json]
 
 Examples:
   scripts/agent-claim.sh coding
+  scripts/agent-claim.sh auto
   scripts/agent-claim.sh doc --scope "planning sync for forum notes"
-  scripts/agent-claim.sh coding --assigned-by user --json
+  scripts/agent-claim.sh auto --assigned-by user --json
 
 Behavior:
   - reads or initializes .agent-local/agents.json
   - allocates the next available id for the requested role
+  - when role is auto, chooses a role from active agents:
+      * no active coding agent: coding
+      * active coding >= 1 and active doc == 0: doc
+      * active coding >= 1 and active doc >= 1: coding
   - writes a paused, unconfirmed registry entry
   - creates the mailbox file if missing
 
@@ -104,7 +109,7 @@ registry_path = Path(os.environ["REGISTRY_PATH"])
 root_dir = Path(os.environ["ROOT_DIR"])
 
 allowed_roles = {"coding", "doc"}
-if role not in allowed_roles:
+if role != "auto" and role not in allowed_roles:
     raise SystemExit(f"unsupported role: {role}")
 if not assigned_by:
     raise SystemExit("assigned_by must not be empty")
@@ -138,6 +143,23 @@ if agent_count != len(agents):
     raise SystemExit(
         f"invalid registry: agent_count={agent_count!r} does not match agents length {len(agents)}"
     )
+
+if role == "auto":
+    active_counts = {candidate: 0 for candidate in allowed_roles}
+    for entry in agents:
+        if not isinstance(entry, dict):
+            raise SystemExit("invalid registry: agent entry must be an object")
+        entry_role = entry.get("role")
+        entry_status = entry.get("status")
+        if entry_role in allowed_roles and entry_status == "active":
+            active_counts[entry_role] += 1
+
+    if active_counts["coding"] == 0:
+        role = "coding"
+    elif active_counts["doc"] == 0:
+        role = "doc"
+    else:
+        role = "coding"
 
 max_suffix = 0
 for entry in agents:
