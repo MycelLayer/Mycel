@@ -939,9 +939,9 @@ mod tests {
     use crate::store::write_object_value_to_store;
 
     use super::{
-        parse_wire_envelope, validate_wire_envelope, validate_wire_object_payload_behavior,
-        validate_wire_payload, verify_wire_envelope_signature, WireMessageType, WirePeerDirectory,
-        WireSession,
+        derive_wire_object_payload_identity, parse_wire_envelope, validate_wire_envelope,
+        validate_wire_object_payload_behavior, validate_wire_payload,
+        verify_wire_envelope_signature, WireMessageType, WirePeerDirectory, WireSession,
     };
 
     fn signing_key() -> SigningKey {
@@ -1315,6 +1315,93 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("OBJECT body type 'revision' does not match object_type 'patch'"));
+    }
+
+    #[test]
+    fn derive_wire_object_payload_identity_matches_signed_patch_body() {
+        let signing_key = signing_key();
+        let body = sign_object_value(
+            &signing_key,
+            json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:placeholder",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "pk:ed25519:placeholder",
+                "timestamp": 1u64,
+                "ops": [],
+                "signature": "sig:placeholder"
+            }),
+            "author",
+            "patch_id",
+            "patch",
+        );
+
+        let identity = derive_wire_object_payload_identity(&body)
+            .expect("wire object payload identity should derive");
+
+        assert_eq!(identity.object_type, "patch");
+        assert_eq!(
+            identity.object_id,
+            body["patch_id"]
+                .as_str()
+                .expect("signed patch body should include patch_id")
+        );
+        assert_eq!(
+            identity.hash,
+            format!(
+                "hash:{}",
+                identity
+                    .object_id
+                    .split_once(':')
+                    .map(|(_, digest)| digest)
+                    .expect("object ID should include digest")
+            )
+        );
+    }
+
+    #[test]
+    fn validate_wire_object_payload_behavior_accepts_payload_built_from_shared_identity_helper() {
+        let signing_key = signing_key();
+        let body = sign_object_value(
+            &signing_key,
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:placeholder",
+                "doc_id": "doc:test",
+                "parents": [],
+                "patches": [],
+                "state_hash": empty_state_hash("doc:test"),
+                "author": "pk:ed25519:placeholder",
+                "timestamp": 1u64,
+                "signature": "sig:placeholder"
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        let identity = derive_wire_object_payload_identity(&body)
+            .expect("wire object payload identity should derive");
+        let payload = json!({
+            "object_id": identity.object_id,
+            "object_type": identity.object_type,
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": identity.hash,
+            "body": body
+        });
+
+        validate_wire_payload(
+            WireMessageType::Object,
+            payload.as_object().expect("payload should be object"),
+        )
+        .expect("OBJECT payload shape should validate");
+        validate_wire_object_payload_behavior(
+            payload.as_object().expect("payload should be object"),
+        )
+        .expect("OBJECT payload should match shared identity helper output");
     }
 
     #[test]
