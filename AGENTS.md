@@ -10,6 +10,7 @@
 - Use [`scripts/check-plan-refresh.sh`](scripts/check-plan-refresh.sh) to manage planning cadence: `sync doc` is due after 10 commits, `sync issue` is due after 10 commits, and `sync web` is due after 20 commits.
 - The `doc` role owns `scripts/check-plan-refresh.sh` and should run it after each completed work item while preparing next items; if it reports `due`, include the due planning surfaces in the next items. `coding` agents must not run it.
 - When `coding` work produces roadmap, checklist, progress-page, or issue-triage material that may affect planning sync, hand that material to `doc` through the registry mailbox instead of running `scripts/check-plan-refresh.sh` directly.
+- Before starting `sync doc` or `sync web`, `doc` must scan the relevant handoff mailboxes for recent open or unresolved planning notes and use them as collection input for the sync batch.
 - If `scripts/check-plan-refresh.sh` reports `due`, use [`docs/PLANNING-SYNC-PLAN.md`](docs/PLANNING-SYNC-PLAN.md) as the single entry point for the next planning-sync batch.
 - Do not check CI immediately after each push, since the workflow may still be running.
 - Only the `coding` role checks the latest completed CI status for the previous push before starting the next piece of work and reports any failures.

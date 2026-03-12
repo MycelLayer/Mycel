@@ -291,11 +291,24 @@ scripts/check-plan-refresh.sh
 
 對一個 `sync plan` 批次：
 
-1. run `scripts/check-plan-refresh.sh`
-2. 若 `sync doc` 到門檻，refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
-3. 若 `sync issue` 到門檻，對齊 GitHub Issues 與各語系 landing-page issue 入口
-4. 若 `sync web` 到門檻，再更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
-5. 確認 GitHub Pages 上的 planning 摘要與刷新後的 roadmap/checklist/issues 狀態一致
+1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
+2. run `scripts/check-plan-refresh.sh`
+3. 若 `sync doc` 到門檻，refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
+4. 若 `sync issue` 到門檻，對齊 GitHub Issues 與各語系 landing-page issue 入口
+5. 若 `sync web` 到門檻，再更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
+6. 確認 GitHub Pages 上的 planning 摘要與刷新後的 roadmap/checklist/issues 狀態一致
+
+對一個 `sync doc` 批次：
+
+1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
+2. run `scripts/check-plan-refresh.sh`
+3. refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
+
+對一個 `sync web` 批次：
+
+1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
+2. run `scripts/check-plan-refresh.sh`
+3. 更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
 
 ## 9. Anti-Drift 規則
 

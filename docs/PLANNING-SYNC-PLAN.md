@@ -302,6 +302,18 @@ For a `sync plan` batch:
 5. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
 6. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 
+For a `sync doc` batch:
+
+1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
+2. run `scripts/check-plan-refresh.sh`
+3. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording
+
+For a `sync web` batch:
+
+1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
+2. run `scripts/check-plan-refresh.sh`
+3. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording
+
 ## 9. Anti-Drift Rules
 
 Do not let these situations persist:
