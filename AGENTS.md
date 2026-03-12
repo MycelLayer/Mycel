@@ -2,7 +2,6 @@
 
 ## Git workflow
 - Current repo convention: the shared integration branch is `origin/main`.
-- Commit after every code change.
 - Push to `origin main` after every code change.
 - Multiple chats may work on the same project at the same time; each chat agent should just push its own commits to `origin/main`.
 - Commit and push must run serially; only push after the commit has completed successfully, and do not run commit/push in parallel.
@@ -31,7 +30,7 @@
 - When code or tests start showing large repeated patterns, actively consider whether a mature module or tool should replace the repetition with a clearer structure (for example, `rstest` cases for repeated validation matrices).
 - When suggesting a mature module, library, or framework, explain why now is the right time, what problem it solves, and the main tradeoff of adopting it.
 - After completing a piece of work, end with a short evaluation of valuable next-stage work and, by default, offer multiple concrete options for the user to choose from.
-- In final next-stage recommendations, put the highest-value option first and mark it as `(highest value/最有價值)`.
+- In final next-stage recommendations, put the highest-value option first and mark it as `(最有價值)`.
 - When a next-stage option maps to a roadmap milestone, phase, or named track, include that roadmap location so the user can see where it fits in the plan.
 - If the right choice depends on unknown constraints, ask 1–2 short clarifying questions, but still provide a best-effort set of options based on common assumptions.
 
