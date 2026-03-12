@@ -235,6 +235,15 @@ impl WireSession {
         }
     }
 
+    pub fn from_store_root(
+        known_peers: WirePeerDirectory,
+        store_root: &Path,
+    ) -> Result<Self, StoreRebuildError> {
+        let mut session = Self::new(known_peers);
+        session.load_known_verified_object_index_from_store(store_root)?;
+        Ok(session)
+    }
+
     pub fn register_known_peer(
         &mut self,
         node_id: &str,
@@ -1835,10 +1844,6 @@ mod tests {
         let store_root = temp_dir("known-index");
         let signing_key = signing_key();
         let sender_key = sender_public_key(&signing_key);
-        let mut session = WireSession::default();
-        session
-            .register_known_peer("node:alpha", &sender_key)
-            .expect("known peer should register");
         let base_revision_object =
             signed_revision_object_message(&signing_key, "node:alpha", &[], &[]);
         let base_revision_id = base_revision_object["payload"]["object_id"]
@@ -1869,9 +1874,12 @@ mod tests {
         write_object_value_to_store(&store_root, &root_revision_object["payload"]["body"])
             .expect("root revision should write to store");
 
-        session
-            .load_known_verified_object_index_from_store(&store_root)
-            .expect("verified object index should load from store");
+        let mut known_peers = WirePeerDirectory::new();
+        known_peers
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let mut session = WireSession::from_store_root(known_peers, &store_root)
+            .expect("session should bootstrap from store root");
 
         let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
         let manifest = signed_manifest_message_with_heads(
