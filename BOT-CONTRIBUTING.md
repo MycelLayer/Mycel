@@ -42,6 +42,12 @@ scripts/check-dev-env.sh --json
 
 If `.agent-local/dev-setup-status.md` already exists and says `Status: ready`, a new chat can use that local record instead of repeating the same bootstrap setup checks. Use [`.agent-local/DEV-SETUP-STATUS.example.md`](./.agent-local/DEV-SETUP-STATUS.example.md) as the format reference when the local file needs to be created or refreshed.
 
+Recommended refresh command:
+
+```bash
+scripts/update-dev-setup-status.py --actor <role-id>
+```
+
 The JSON output includes:
 
 - `status`

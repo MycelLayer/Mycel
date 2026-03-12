@@ -91,6 +91,7 @@ scripts/check-dev-env.sh --full --json
 ```bash
 scripts/check-dev-env.sh --json
 scripts/check-dev-env.sh --full --json
+scripts/update-dev-setup-status.py --actor <role-id>
 ```
 
 只有當記錄內容已涵蓋目前 workspace 需要的工具與驗證面時，才把它視為有效的 `Status: ready`。

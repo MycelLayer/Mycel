@@ -91,6 +91,7 @@ Recommended commands for populating the file:
 ```bash
 scripts/check-dev-env.sh --json
 scripts/check-dev-env.sh --full --json
+scripts/update-dev-setup-status.py --actor <role-id>
 ```
 
 Treat `Status: ready` as valid only when the recorded checks cover the tools and validation surface you rely on for the current workspace.

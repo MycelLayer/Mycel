@@ -63,6 +63,39 @@ scripts/check-dev-env.sh --full --json
 `--full` 不只是检查工具是否存在，也会直接执行当前仓库的验证面，所以它可能因为当前 workspace 状态失败，而不一定只是环境没装好。
 `--json` 适合给自动化工具或 agent 使用，方便读取机器可解析的结果。
 
+## 1.1 给新 chat 的本地 Ready 文件
+
+请把 `.agent-local/dev-setup-status.md` 当成这个 workspace 的本地 readiness record（就绪记录）。
+
+新的 chat 应该：
+
+- 如果文件存在，先读 `.agent-local/dev-setup-status.md`
+- 如果文件写的是 `Status: ready`，就不要在 bootstrap 阶段重复做 dev setup 检查
+- 如果文件不存在，或不是 `Status: ready`，就重新执行必要检查
+- 把文件写得足够详细，让后续 chat 能看出工具检查与 repo 验证面是否都已覆盖
+
+格式可参考 [`.agent-local/DEV-SETUP-STATUS.example.md`](../.agent-local/DEV-SETUP-STATUS.example.md)。
+
+本地状态文件至少应记录：
+
+- 整体状态
+- 检查时间
+- 检查者
+- `cargo`、`rustup`、`rustc`、`gh`、`rg` 的工具检查
+- `rustfmt`、`clippy` 的 Rust component 检查
+- 是否跑过完整 repo 验证
+- 各个验证命令与其是否成功
+
+建议用以下命令生成内容：
+
+```bash
+scripts/check-dev-env.sh --json
+scripts/check-dev-env.sh --full --json
+scripts/update-dev-setup-status.py --actor <role-id>
+```
+
+只有当记录内容已覆盖当前 workspace 需要的工具与验证面时，才把它视为有效的 `Status: ready`。
+
 ## 2. Clone 并进入仓库
 
 ```bash

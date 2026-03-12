@@ -5,11 +5,11 @@
 - Checked by: doc-<n>
 - Workspace: /workspaces/Mycel
 - Evidence source:
-  - `scripts/check-dev-env.sh --json`
-  - `scripts/check-dev-env.sh --full --json`
+  - `scripts/update-dev-setup-status.py --actor <role-id>`
 - Notes:
   - Update this file whenever tool availability changes or the workspace is reprovisioned.
   - New chats may skip bootstrap dev-setup checks only when this file says `Status: ready`.
+  - This file is normally generated rather than edited by hand.
 
 ## Tool Checks
 
