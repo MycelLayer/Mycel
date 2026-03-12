@@ -6,6 +6,7 @@ Do not treat it as a live agent mailbox.
 
 ## Planning Sync Handoff
 
+- Status: open
 - Date: 2026-03-12 11:30 UTC+8
 - Source agent: coding-2
 - Scope: accepted-head render editor admission

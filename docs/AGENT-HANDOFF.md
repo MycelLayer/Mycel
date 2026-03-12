@@ -171,7 +171,7 @@ Sequence:
 6. when `doc` finishes its current work item and prepares next items, `doc` runs `scripts/check-doc-refresh.sh`.
 7. if the script reports `due`, `doc` adds docs sync to the next items, reads the mailbox entry, and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
 8. `doc` updates only the planning files justified by the landed change.
-9. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox.
+9. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox, or updates the original planning handoff to `Status: resolved`.
 10. `doc` commits and pushes the planning-sync docs change.
 
 Example `coding` mailbox entry:
