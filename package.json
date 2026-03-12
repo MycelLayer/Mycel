@@ -1,0 +1,14 @@
+{
+  "name": "mycel-docs-checks",
+  "private": true,
+  "scripts": {
+    "lint:docs": "npm run lint:docs:html && npm run lint:docs:css",
+    "lint:docs:html": "html-validate \"docs/**/*.html\"",
+    "lint:docs:css": "stylelint \"docs/assets/**/*.css\""
+  },
+  "devDependencies": {
+    "html-validate": "^10.11.1",
+    "stylelint": "^17.4.0",
+    "stylelint-config-standard": "^40.0.0"
+  }
+}

@@ -6,6 +6,7 @@ AGENTS-LOCAL.md
 !.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md
 !.agent-local/DEV-SETUP-STATUS.example.md
 target/
+node_modules/
 sim/runtime/*
 !sim/runtime/README.md
 sim/reports/out/
