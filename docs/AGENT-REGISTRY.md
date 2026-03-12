@@ -215,16 +215,18 @@ Recommended startup sequence:
 4. check the latest completed CI status from the previous push
 5. if the user assigned a role, run `scripts/agent_registry.py claim <role> [--scope <scope>]`
 6. otherwise run `scripts/agent_registry.py claim auto [--scope <scope>]`
-7. run `scripts/agent_registry.py start <agent-ref>`
-8. run `scripts/agent_registry.py status <agent-ref>`
-9. begin the chat with `<display-id> | <scope-label>`
-10. when the first concrete task arrives, run `scripts/agent_registry.py touch <agent-ref>`
+7. immediately tell the user which role was claimed for this chat
+8. run `scripts/agent_registry.py start <agent-ref>`
+9. run `scripts/agent_registry.py status <agent-ref>`
+10. begin the chat with `<display-id> | <scope-label>`
+11. when the first concrete task arrives, run `scripts/agent_registry.py touch <agent-ref>`
 
 Keep startup output narrow:
 
 - do not claim file-specific context before the user gives a concrete task
 - do not run `claim`, `start`, and `status` in parallel
 - keep the CI line about the latest completed workflow, not a possibly in-progress run
+- after `claim`, include a short user-facing role announcement before moving on to task work
 
 ## Workflow
 
