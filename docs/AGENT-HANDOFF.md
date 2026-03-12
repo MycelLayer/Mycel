@@ -125,12 +125,13 @@ Copy this block into the relevant mailbox file and keep the newest entries first
 - Remaining follow-up: <one short sentence>
 ```
 
-When `doc` resolves or responds, either update the original entry status or append a reply entry in the relevant mailbox file:
+When `doc` resolves or responds, either update the original entry status or append a reply entry in the relevant mailbox file. Resolution and reply entries should include a `Date` line in `Asia/Taipei (UTC+8)` so humans can see when the docs work landed:
 
 ```md
 ## 2026-03-11 - doc - <scope>
 
 - Status: resolved
+- Date: 2026-03-11 15:20 UTC+8
 - Files touched: `<path>`, `<path>`
 - Behavior change: none
 - Protocol/schema/CLI/fixture impact: none
@@ -171,7 +172,7 @@ Sequence:
 6. when `doc` finishes its current work item and prepares next items, `doc` runs `scripts/check-doc-refresh.sh`.
 7. if the script reports `due`, `doc` adds docs sync to the next items, reads the mailbox entry, and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
 8. `doc` updates only the planning files justified by the landed change.
-9. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox, or updates the original planning handoff to `Status: resolved`.
+9. `doc` appends a reply or resolution entry with a `Date` line to its mailbox or the relevant peer mailbox, or updates the original planning handoff to `Status: resolved`.
 10. `doc` commits and pushes the planning-sync docs change.
 
 Example `coding` mailbox entry:
@@ -195,6 +196,7 @@ Example `doc` reply entry:
 ## 2026-03-11 - doc - file A planning sync
 
 - Status: resolved
+- Date: 2026-03-11 15:20 UTC+8
 - Files touched: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
 - Behavior change: none
 - Protocol/schema/CLI/fixture impact: none

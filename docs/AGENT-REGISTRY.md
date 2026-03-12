@@ -237,7 +237,7 @@ Minimum handoff quality:
 
 - planning-sync handoff entries should explicitly include `Status: open` when `coding` creates them
 - include enough detail for `doc` to identify the affected files, the likely planning surfaces, whether checklist closure changed, and what verification or evidence supports the claim
-- after `doc` completes the related docs work, it should either update that handoff to `Status: resolved` or append a `doc` reply entry that makes the resolution explicit
+- after `doc` completes the related docs work, it should either update that handoff to `Status: resolved` or append a `doc` reply entry with a `Date` line that makes the resolution explicit
 - if an agent wants a ready-made starting point instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
 
 Mailbox retention and archive policy:
