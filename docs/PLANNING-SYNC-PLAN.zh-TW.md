@@ -291,24 +291,39 @@ scripts/check-plan-refresh.sh
 
 對一個 `sync plan` 批次：
 
-1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
-2. run `scripts/check-plan-refresh.sh`
-3. 若 `sync doc` 到門檻，refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
-4. 若 `sync issue` 到門檻，對齊 GitHub Issues 與各語系 landing-page issue 入口
-5. 若 `sync web` 到門檻，再更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
-6. 確認 GitHub Pages 上的 planning 摘要與刷新後的 roadmap/checklist/issues 狀態一致
+1. 依這個順序掃 handoff mailboxes：
+   先掃 registry 中 `active` agents 宣告的 mailbox paths
+   再掃 registry 中 `paused` agents 宣告的 mailbox paths
+   接著掃 registry 中最近 `inactive`、但可能仍有 unresolved planning notes 的 mailbox paths
+   最後才掃 `.agent-local/coding-to-doc.md`、`.agent-local/doc-to-coding.md` 這類 fallback shared mailboxes（若存在）
+2. 除非目前 mailbox 明確指向 archive 裡仍未解決的條目，否則不要回頭掃 archived mailboxes
+3. run `scripts/check-plan-refresh.sh`
+4. 若 `sync doc` 到門檻，refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
+5. 若 `sync issue` 到門檻，對齊 GitHub Issues 與各語系 landing-page issue 入口
+6. 若 `sync web` 到門檻，再更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
+7. 確認 GitHub Pages 上的 planning 摘要與刷新後的 roadmap/checklist/issues 狀態一致
 
 對一個 `sync doc` 批次：
 
-1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
-2. run `scripts/check-plan-refresh.sh`
-3. refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
+1. 依這個順序掃 handoff mailboxes：
+   先掃 registry 中 `active` agents 宣告的 mailbox paths
+   再掃 registry 中 `paused` agents 宣告的 mailbox paths
+   接著掃 registry 中最近 `inactive`、但可能仍有 unresolved planning notes 的 mailbox paths
+   最後才掃 `.agent-local/coding-to-doc.md`、`.agent-local/doc-to-coding.md` 這類 fallback shared mailboxes（若存在）
+2. 除非目前 mailbox 明確指向 archive 裡仍未解決的條目，否則不要回頭掃 archived mailboxes
+3. run `scripts/check-plan-refresh.sh`
+4. refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案
 
 對一個 `sync web` 批次：
 
-1. 先掃 registry mailboxes，收集最近與 planning sync 有關的 coding/doc handoff material
-2. run `scripts/check-plan-refresh.sh`
-3. 更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
+1. 依這個順序掃 handoff mailboxes：
+   先掃 registry 中 `active` agents 宣告的 mailbox paths
+   再掃 registry 中 `paused` agents 宣告的 mailbox paths
+   接著掃 registry 中最近 `inactive`、但可能仍有 unresolved planning notes 的 mailbox paths
+   最後才掃 `.agent-local/coding-to-doc.md`、`.agent-local/doc-to-coding.md` 這類 fallback shared mailboxes（若存在）
+2. 除非目前 mailbox 明確指向 archive 裡仍未解決的條目，否則不要回頭掃 archived mailboxes
+3. run `scripts/check-plan-refresh.sh`
+4. 更新 `docs/progress.html` 與各語系 landing pages 的非 issue HTML 摘要
 
 ## 9. Anti-Drift 規則
 

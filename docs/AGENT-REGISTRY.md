@@ -206,6 +206,7 @@ Mailbox usage for `sync doc` / `sync web` / `sync plan` work:
 
 - `coding` agents should leave sync-relevant notes in their own registry mailbox when work changes planning-relevant implementation state, checklist closure, roadmap emphasis, public progress wording, or issue-triage inputs
 - `doc` should scan active, paused, and recently inactive agent mailboxes before any `sync doc`, `sync web`, or `sync plan` batch and use those notes as collection input for roadmap/checklist/progress or Pages refresh work
+- scan order should be: active mailbox paths first, paused mailbox paths second, recently inactive mailbox paths third, and fallback shared mailboxes last; archived mailboxes stay out of scope unless a current mailbox explicitly points to an unresolved archived entry
 - mailbox handoff is the default coordination path for planning-sync material; `coding` should not replace it by running `scripts/check-plan-refresh.sh`
 
 Recommended mailbox handoff template:

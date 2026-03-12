@@ -295,24 +295,39 @@ For a meaningful implementation batch:
 
 For a `sync plan` batch:
 
-1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
-2. run `scripts/check-plan-refresh.sh`
-3. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
-4. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
-5. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
-6. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
+1. scan handoff mailboxes in this order:
+   first, mailbox paths declared in the registry for active agents
+   second, mailbox paths declared in the registry for paused agents
+   third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
+   fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
+2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
+3. run `scripts/check-plan-refresh.sh`
+4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
+5. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
+6. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
+7. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 
 For a `sync doc` batch:
 
-1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
-2. run `scripts/check-plan-refresh.sh`
-3. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording
+1. scan handoff mailboxes in this order:
+   first, mailbox paths declared in the registry for active agents
+   second, mailbox paths declared in the registry for paused agents
+   third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
+   fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
+2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
+3. run `scripts/check-plan-refresh.sh`
+4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording
 
 For a `sync web` batch:
 
-1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
-2. run `scripts/check-plan-refresh.sh`
-3. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording
+1. scan handoff mailboxes in this order:
+   first, mailbox paths declared in the registry for active agents
+   second, mailbox paths declared in the registry for paused agents
+   third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
+   fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
+2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
+3. run `scripts/check-plan-refresh.sh`
+4. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording
 
 ## 9. Anti-Drift Rules
 
