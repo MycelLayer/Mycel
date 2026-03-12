@@ -210,10 +210,10 @@ Rules:
 
 1. on each new user command, the active agent should `touch` its own entry before starting work
 2. when that command's work is complete, the agent should `finish` its own entry so the role becomes `inactive`
-3. an entry that remains `inactive` for at least one hour becomes stale, but it is retained in the registry so its id is never reused automatically
-4. `scripts/agent_registry.py cleanup` reports stale `inactive` entries for review instead of deleting them
-5. a new chat should claim the next unused numeric suffix, not recycle the stale inactive id
-6. a previously inactive confirmed agent may resume by re-checking or touching its own retained entry
+3. an entry that remains `inactive` for at least one hour becomes stale and is still resumable during the stale-retention window
+4. once an entry has remained stale for at least 24 more hours, `scripts/agent_registry.py` should remove it from `.agent-local/agents.json`
+5. `scripts/agent_registry.py cleanup` reports both currently retained stale entries and any entries that were removed because they exceeded the 24-hour stale-retention window
+6. a previously inactive confirmed agent may resume by re-checking or touching its own retained entry only before that 24-hour stale-retention window expires
 
 ## Standard New Chat Startup
 
@@ -323,7 +323,8 @@ Forgotten-chat note:
 
 - a reopened old chat is not trusted just because the window still exists
 - it must re-check its own registry status before resuming work, preferably with `scripts/agent_registry.py resume-check <agent-id>`
-- if the old id is merely `inactive`, it may resume its own retained entry and a new chat should continue under a newer id such as `coding-2`
+- if the old id is merely `inactive` and still retained, it may resume its own entry during the first 24 hours of stale retention
+- if the old entry has already been cleaned out after 24 hours of staleness, the reopened chat must not continue under that old id and should treat itself as a new chat or explicit recovery case
 - if another chat already recovered the scope and the old id is now `paused`, the reopened old chat must stop and yield to the replacement id
 
 Role note:

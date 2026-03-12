@@ -141,7 +141,7 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertEqual("active", status_after_touch["agents"][0]["status"])
         self.assertIsNone(status_after_touch["agents"][0]["inactive_at"])
 
-    def test_cleanup_prunes_entries_inactive_for_at_least_one_hour(self) -> None:
+    def test_cleanup_reports_stale_entries_but_keeps_them_for_the_first_24_hours(self) -> None:
         now = datetime.now(TAIPEI_TZ).replace(microsecond=0)
         self.write_registry(
             {
@@ -182,13 +182,68 @@ class AgentRegistryCliTest(unittest.TestCase):
         )
 
         cleanup = json.loads(self.run_cli("cleanup", "--json").stdout)
+        self.assertEqual(0, cleanup["removed_count"])
+        self.assertEqual([], cleanup["removed_ids"])
         self.assertEqual(1, cleanup["stale_count"])
         self.assertEqual(["doc-9"], cleanup["stale_ids"])
 
         status = json.loads(self.run_cli("status", "--json").stdout)
         self.assertEqual(2, status["agent_count"])
+        self.assertEqual([], status["cleanup_removed_ids"])
         self.assertEqual(["doc-9"], status["stale_inactive_ids"])
         self.assertEqual(["doc-9", "coding-3"], [entry["id"] for entry in status["agents"]])
+
+    def test_cleanup_removes_entries_stale_for_24_hours(self) -> None:
+        now = datetime.now(TAIPEI_TZ).replace(microsecond=0)
+        self.write_registry(
+            {
+                "version": 1,
+                "updated_at": self.timestamp(now),
+                "agent_count": 2,
+                "agents": [
+                    {
+                        "id": "doc-9",
+                        "role": "doc",
+                        "assigned_by": "user",
+                        "assigned_at": self.timestamp(now - timedelta(hours=30)),
+                        "confirmed_by_agent": True,
+                        "confirmed_at": self.timestamp(now - timedelta(hours=30)),
+                        "last_touched_at": self.timestamp(now - timedelta(hours=29, minutes=55)),
+                        "inactive_at": self.timestamp(now - timedelta(hours=25, minutes=5)),
+                        "status": "inactive",
+                        "scope": "expired-task",
+                        "files": [],
+                        "mailbox": ".agent-local/doc-9.md",
+                    },
+                    {
+                        "id": "coding-3",
+                        "role": "coding",
+                        "assigned_by": "user",
+                        "assigned_at": self.timestamp(now - timedelta(hours=3)),
+                        "confirmed_by_agent": True,
+                        "confirmed_at": self.timestamp(now - timedelta(hours=3)),
+                        "last_touched_at": self.timestamp(now - timedelta(hours=2, minutes=55)),
+                        "inactive_at": self.timestamp(now - timedelta(hours=2, minutes=10)),
+                        "status": "inactive",
+                        "scope": "still-stale",
+                        "files": [],
+                        "mailbox": ".agent-local/coding-3.md",
+                    },
+                ],
+            }
+        )
+
+        cleanup = json.loads(self.run_cli("cleanup", "--json").stdout)
+        self.assertEqual(1, cleanup["removed_count"])
+        self.assertEqual(["doc-9"], cleanup["removed_ids"])
+        self.assertEqual(1, cleanup["stale_count"])
+        self.assertEqual(["coding-3"], cleanup["stale_ids"])
+
+        status = json.loads(self.run_cli("status", "--json").stdout)
+        self.assertEqual(1, status["agent_count"])
+        self.assertEqual([], status["cleanup_removed_ids"])
+        self.assertEqual(["coding-3"], status["stale_inactive_ids"])
+        self.assertEqual(["coding-3"], [entry["id"] for entry in status["agents"]])
 
     def test_resume_check_allows_inactive_confirmed_agents_to_resume(self) -> None:
         claim = json.loads(self.run_cli("claim", "coding", "--scope", "lease-test", "--json").stdout)

@@ -61,7 +61,8 @@ Per-command activity:
 
 1. `scripts/agent_registry.py touch <agent-id>` before working
 2. `scripts/agent_registry.py finish <agent-id>` after the command completes
-3. inactive entries older than one hour are stale-entry review candidates, not id-reuse candidates
+3. inactive entries older than one hour are stale-entry review candidates
+4. stale entries older than 24 hours are cleanup candidates and should be removed from `.agent-local/agents.json`
 
 Interrupted chat recovery:
 

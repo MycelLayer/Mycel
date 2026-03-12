@@ -275,8 +275,9 @@ Inactive lease rule:
 
 1. `touch` before each user-command work cycle
 2. `finish` when that command completes
-3. inactive entries older than one hour become stale, but remain retained so their ids are not recycled
-4. `scripts/agent_registry.py cleanup` can be used to report stale retained entries when an explicit sweep is needed
+3. inactive entries older than one hour become stale and remain resumable during the stale-retention window
+4. once an entry has been stale for 24 hours, `scripts/agent_registry.py` should remove it from `.agent-local/agents.json`
+5. `scripts/agent_registry.py cleanup` can be used to report retained stale entries and any entries removed after that 24-hour stale-retention window
 
 Do not silently reuse the old agent id for a new chat after an interruption.
 

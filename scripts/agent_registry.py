@@ -14,7 +14,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 ALLOWED_ROLES = {"coding", "doc"}
 ALLOWED_STATUSES = {"active", "inactive", "paused", "blocked", "done"}
-INACTIVE_TTL_SECONDS = 3600
+STALE_INACTIVE_SECONDS = 3600
+STALE_RETENTION_SECONDS = 24 * 3600
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 
 
@@ -114,9 +115,12 @@ def require_status(entry: dict[str, Any], agent_id: str) -> str:
     return status
 
 
-def collect_stale_inactive_agents(registry: dict[str, Any], *, now: datetime | None = None) -> list[str]:
+def classify_inactive_agents(
+    registry: dict[str, Any], *, now: datetime | None = None
+) -> tuple[list[str], list[str]]:
     current_time = now or datetime.now(timezone.utc)
     stale_ids: list[str] = []
+    expired_ids: list[str] = []
 
     for entry in registry["agents"]:
         agent_id = entry.get("id")
@@ -135,16 +139,38 @@ def collect_stale_inactive_agents(registry: dict[str, Any], *, now: datetime | N
                 inactive_since = None
             if inactive_since is not None:
                 age_seconds = (current_time - inactive_since).total_seconds()
-                if age_seconds >= INACTIVE_TTL_SECONDS:
+                if age_seconds >= STALE_INACTIVE_SECONDS + STALE_RETENTION_SECONDS:
+                    expired_ids.append(agent_id)
+                elif age_seconds >= STALE_INACTIVE_SECONDS:
                     stale_ids.append(agent_id)
 
-    return stale_ids
+    return stale_ids, expired_ids
 
 
-def load_registry_with_cleanup(*, allow_missing: bool = False) -> tuple[dict[str, Any], list[str]]:
+def prune_expired_inactive_agents(
+    registry: dict[str, Any], *, now: datetime | None = None
+) -> tuple[list[str], list[str]]:
+    stale_ids, expired_ids = classify_inactive_agents(registry, now=now)
+    if not expired_ids:
+        return stale_ids, expired_ids
+
+    expired_id_set = set(expired_ids)
+    registry["agents"] = [
+        entry for entry in registry["agents"] if entry.get("id") not in expired_id_set
+    ]
+    registry["agent_count"] = len(registry["agents"])
+    registry["updated_at"] = utc_now()
+    return stale_ids, expired_ids
+
+
+def load_registry_with_cleanup(
+    *, allow_missing: bool = False
+) -> tuple[dict[str, Any], list[str], list[str]]:
     registry = load_registry(allow_missing=allow_missing)
-    stale_ids = collect_stale_inactive_agents(registry)
-    return registry, stale_ids
+    stale_ids, expired_ids = prune_expired_inactive_agents(registry)
+    if expired_ids:
+        save_registry(registry)
+    return registry, stale_ids, expired_ids
 
 
 def next_agent_id(registry: dict[str, Any], role: str) -> str:
@@ -213,6 +239,8 @@ def print_status(data: dict[str, Any]) -> None:
     print(f"registry: {data['registry_path']}")
     print(f"updated_at: {data['updated_at']}")
     print(f"agents: {data['agent_count']}")
+    if data.get("cleanup_removed_ids"):
+        print(f"cleanup_removed_ids: {', '.join(data['cleanup_removed_ids'])}")
     if data.get("stale_inactive_ids"):
         print(f"stale_inactive_ids: {', '.join(data['stale_inactive_ids'])}")
     for entry in data["agents"]:
@@ -280,6 +308,10 @@ def print_finish(data: dict[str, Any]) -> None:
 
 
 def print_cleanup(data: dict[str, Any]) -> None:
+    print(f"removed_inactive_agents: {data['removed_count']}")
+    if data["removed_ids"]:
+        for agent_id in data["removed_ids"]:
+            print(f"  - {agent_id}")
     print(f"stale_inactive_agents: {data['stale_count']}")
     if data["stale_ids"]:
         for agent_id in data["stale_ids"]:
@@ -294,7 +326,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
     if not args.scope.strip():
         raise RegistryError("scope must not be empty")
 
-    registry, _ = load_registry_with_cleanup(allow_missing=True)
+    registry, _, _ = load_registry_with_cleanup(allow_missing=True)
     role = choose_auto_role(registry) if args.role == "auto" else args.role
 
     new_id = next_agent_id(registry, role)
@@ -342,7 +374,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
-    registry, _ = load_registry_with_cleanup()
+    registry, _, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     for field in ["role", "assigned_by", "assigned_at", "scope", "mailbox"]:
@@ -392,7 +424,7 @@ def cmd_stop(args: argparse.Namespace) -> int:
     if args.status not in {"paused", "done"}:
         raise RegistryError(f"unsupported stop status: {args.status}")
 
-    registry, _ = load_registry_with_cleanup()
+    registry, _, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
     current_status = require_status(entry, args.agent_id)
 
@@ -418,7 +450,7 @@ def cmd_stop(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    registry, stale_inactive_ids = load_registry_with_cleanup()
+    registry, stale_inactive_ids, cleanup_removed_ids = load_registry_with_cleanup()
     selected = registry["agents"]
 
     if args.agent_id:
@@ -457,6 +489,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         "registry_path": str(REGISTRY_PATH),
         "updated_at": normalize_timestamp_string(registry.get("updated_at")),
         "agent_count": len(normalized) if args.agent_id else len(registry["agents"]),
+        "cleanup_removed_ids": cleanup_removed_ids,
         "stale_inactive_ids": stale_inactive_ids,
         "agents": normalized,
     }
@@ -468,7 +501,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_resume_check(args: argparse.Namespace) -> int:
-    registry, stale_inactive_ids = load_registry_with_cleanup()
+    registry, stale_inactive_ids, cleanup_removed_ids = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     role = require_non_empty_str(entry, "role", args.agent_id)
@@ -506,6 +539,7 @@ def cmd_resume_check(args: argparse.Namespace) -> int:
         "last_touched_at": normalize_timestamp_string(last_touched_at),
         "mailbox": relative_to_root(mailbox_path),
         "safe_to_resume": safe_to_resume,
+        "cleanup_removed_ids": cleanup_removed_ids,
         "stale_inactive_ids": stale_inactive_ids,
         "reason": reason,
     }
@@ -520,7 +554,7 @@ def cmd_recover(args: argparse.Namespace) -> int:
     if not args.assigned_by.strip():
         raise RegistryError("assigned_by must not be empty")
 
-    registry, _ = load_registry_with_cleanup()
+    registry, _, _ = load_registry_with_cleanup()
     stale_entry = find_agent_entry(registry, args.stale_agent_id)
 
     role = require_non_empty_str(stale_entry, "role", args.stale_agent_id)
@@ -590,7 +624,7 @@ def cmd_recover(args: argparse.Namespace) -> int:
 
 
 def cmd_touch(args: argparse.Namespace) -> int:
-    registry, _ = load_registry_with_cleanup()
+    registry, _, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     role = require_non_empty_str(entry, "role", args.agent_id)
@@ -626,7 +660,7 @@ def cmd_touch(args: argparse.Namespace) -> int:
 
 
 def cmd_finish(args: argparse.Namespace) -> int:
-    registry, _ = load_registry_with_cleanup()
+    registry, _, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     previous_status = require_status(entry, args.agent_id)
@@ -654,9 +688,11 @@ def cmd_finish(args: argparse.Namespace) -> int:
 
 
 def cmd_cleanup(args: argparse.Namespace) -> int:
-    registry, stale_ids = load_registry_with_cleanup()
+    registry, stale_ids, removed_ids = load_registry_with_cleanup()
     result = {
         "status": "ok",
+        "removed_count": len(removed_ids),
+        "removed_ids": removed_ids,
         "stale_count": len(stale_ids),
         "stale_ids": stale_ids,
         "updated_at": normalize_timestamp_string(registry.get("updated_at")),
