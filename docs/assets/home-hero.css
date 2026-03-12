@@ -31,9 +31,9 @@
 }
 
 .home-page .hero h1 {
-  margin-top: 18px;
+  margin: 18px auto 0;
   font-size: var(--home-h1-size);
-  max-width: var(--home-h1-max-width);
+  width: calc(100% - 2 * var(--home-copy-inline-gutter));
   text-wrap: balance;
 }
 
