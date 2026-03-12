@@ -27,6 +27,7 @@ Mailbox retention:
 - orphaned uid-based mailboxes should move into `.agent-local/mailboxes/archive/YYYY-MM/`
 - use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
 - use `scripts/mailbox_gc.py archive` to move orphaned uid-based mailboxes without deleting contents
+- archived uid-based mailboxes older than 10 days may be deleted with `scripts/mailbox_gc.py prune` when they have no unresolved planning handoff
 - shared fallback mailboxes outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`
 
 ## Agent Roles
