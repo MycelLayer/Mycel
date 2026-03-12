@@ -35,6 +35,7 @@ Doc cadence reminder:
 
 - after each completed doc work item, while preparing next items, `doc` must run `scripts/check-plan-refresh.sh`
 - if it reports `due`, add the due planning surfaces as next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
+- when `doc` mirrors a summary into a GitHub issue comment or closes an issue with a Markdown note, prefer `scripts/gh_issue_comment.py ... --body-file - <<'EOF'` over inline shell-quoted `gh issue ... --body/--comment "..."` text
 
 ## Agent Roles
 
