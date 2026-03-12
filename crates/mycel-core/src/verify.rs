@@ -646,7 +646,7 @@ mod tests {
 
     use super::{
         inspect_object_path, verify_object_path, verify_object_value_with_object_index,
-        ObjectVerificationSummary,
+        ObjectInspectionSummary, ObjectVerificationSummary,
     };
     use crate::protocol::{recompute_object_id, signed_payload_bytes, BlockObject};
     use crate::replay::{compute_state_hash, DocumentState};

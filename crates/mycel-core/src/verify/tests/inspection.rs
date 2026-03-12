@@ -1,6 +1,52 @@
 use super::fixtures::*;
 use super::*;
 
+#[rstest]
+#[case("patch", "patch_id", json!(7), "top-level 'patch_id' should be a string")]
+#[case("revision", "revision_id", json!(7), "top-level 'revision_id' should be a string")]
+#[case("view", "view_id", json!(7), "top-level 'view_id' should be a string")]
+#[case("snapshot", "snapshot_id", json!(7), "top-level 'snapshot_id' should be a string")]
+fn inspect_warns_when_derived_id_has_wrong_type(
+    #[case] kind: &str,
+    #[case] id_field: &str,
+    #[case] invalid_value: Value,
+    #[case] expected_note: &str,
+) {
+    let summary = inspect_strict_id_case_summary(kind, id_field, invalid_value);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains(expected_note)),
+        "expected strict derived ID type warning, got {summary:?}"
+    );
+}
+
+#[rstest]
+#[case("patch", "patch_id", json!("rev:test"), "top-level 'patch_id' must use 'patch:' prefix")]
+#[case("revision", "revision_id", json!("patch:test"), "top-level 'revision_id' must use 'rev:' prefix")]
+#[case("view", "view_id", json!("snap:test"), "top-level 'view_id' must use 'view:' prefix")]
+#[case("snapshot", "snapshot_id", json!("view:test"), "top-level 'snapshot_id' must use 'snap:' prefix")]
+fn inspect_warns_when_derived_id_prefix_is_wrong(
+    #[case] kind: &str,
+    #[case] id_field: &str,
+    #[case] invalid_value: Value,
+    #[case] expected_note: &str,
+) {
+    let summary = inspect_strict_id_case_summary(kind, id_field, invalid_value);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains(expected_note)),
+        "expected strict derived ID prefix warning, got {summary:?}"
+    );
+}
+
 #[test]
 fn inspect_warns_when_document_logical_id_has_wrong_type() {
     let path = write_test_file(
