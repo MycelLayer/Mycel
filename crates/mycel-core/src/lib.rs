@@ -10,6 +10,7 @@ pub mod protocol;
 pub mod replay;
 pub mod store;
 pub mod verify;
+pub mod wire;
 
 pub const WORKSPACE_NAME: &str = "mycel";
 

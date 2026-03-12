@@ -1,5 +1,9 @@
 use super::fixtures::*;
 use super::*;
+use crate::wire::{
+    parse_wire_envelope, validate_wire_object_payload_behavior, validate_wire_payload,
+    WireMessageType,
+};
 
 #[test]
 fn protocol_spec_examples_parse() {
@@ -50,34 +54,33 @@ fn protocol_spec_examples_recompute_derived_ids(
 #[case(wire_protocol_bye_example())]
 #[case(wire_protocol_error_example())]
 fn wire_protocol_spec_examples_have_valid_envelope_shape(#[case] value: Value) {
-    let (message_type, payload) =
-        parse_wire_envelope_example(&value).expect("wire example envelope should parse");
+    let envelope = parse_wire_envelope(&value).expect("wire example envelope should parse");
 
-    validate_wire_payload_example(&message_type, &payload)
+    validate_wire_payload(envelope.message_type(), envelope.payload())
         .expect("wire example payload should validate");
 }
 
 #[test]
 fn concrete_wire_object_payload_matches_recomputed_object_id_and_hash() {
     let value = concrete_wire_object_example();
-    let (message_type, payload) =
-        parse_wire_envelope_example(&value).expect("concrete wire envelope should parse");
+    let envelope = parse_wire_envelope(&value).expect("concrete wire envelope should parse");
 
-    assert_eq!(message_type.as_str(), "OBJECT");
-    validate_wire_payload_example(&message_type, &payload)
-        .expect("concrete wire payload shape should validate");
-    validate_wire_object_payload_behavior(&payload)
-        .expect("concrete wire OBJECT behavior should validate");
+    assert_eq!(envelope.message_type(), WireMessageType::Object);
+    validate_wire_payload(envelope.message_type(), envelope.payload())
+        .expect("concrete wire OBJECT payload shape should validate");
+    validate_wire_object_payload_behavior(envelope.payload())
+        .expect("concrete wire OBJECT payload behavior should validate");
 }
 
 #[test]
 fn concrete_wire_object_payload_rejects_object_id_mismatch() {
     let mut value = concrete_wire_object_example();
     value["payload"]["object_id"] = Value::String("patch:mismatch".to_string());
-    let (_, payload) =
-        parse_wire_envelope_example(&value).expect("mismatched wire envelope should parse");
+    let envelope = parse_wire_envelope(&value).expect("mismatched wire envelope should parse");
 
-    let error = validate_wire_object_payload_behavior(&payload).unwrap_err();
+    validate_wire_payload(envelope.message_type(), envelope.payload())
+        .expect("mismatched wire payload shape should still validate");
+    let error = validate_wire_object_payload_behavior(envelope.payload()).unwrap_err();
 
     assert!(error.contains("OBJECT payload object_id"));
     assert!(error.contains("does not match recomputed"));

@@ -941,7 +941,7 @@ fn parse_patch_operation(value: &Value) -> Result<PatchOperation, TypedObjectErr
     }
 }
 
-fn reject_unknown_fields(
+pub(crate) fn reject_unknown_fields(
     object: &Map<String, Value>,
     scope: &str,
     allowed_fields: &[&str],
@@ -1178,7 +1178,7 @@ fn required_array<'a>(
     }
 }
 
-fn required_object(
+pub(crate) fn required_object(
     object: &Map<String, Value>,
     field: &str,
 ) -> Result<Map<String, Value>, TypedObjectError> {
@@ -1209,7 +1209,7 @@ fn required_string_array(
         .collect()
 }
 
-fn required_non_empty_string_array(
+pub(crate) fn required_non_empty_string_array(
     object: &Map<String, Value>,
     field: &str,
 ) -> Result<Vec<String>, TypedObjectError> {
@@ -1249,7 +1249,10 @@ fn required_canonical_object_id_array(
     Ok(values)
 }
 
-fn reject_duplicate_strings(values: &[String], field: &str) -> Result<(), TypedObjectError> {
+pub(crate) fn reject_duplicate_strings(
+    values: &[String],
+    field: &str,
+) -> Result<(), TypedObjectError> {
     let mut first_seen = BTreeMap::new();
     for (index, value) in values.iter().enumerate() {
         if let Some(first_index) = first_seen.insert(value.as_str(), index) {
@@ -1284,7 +1287,7 @@ fn required_string_map(
     }
 }
 
-fn required_prefixed_string_map(
+pub(crate) fn required_prefixed_string_map(
     object: &Map<String, Value>,
     field: &str,
     key_prefix: &str,
@@ -1307,7 +1310,7 @@ fn require_prefixed_string_map_entries(
     Ok(entries)
 }
 
-fn validate_prefixed_string(
+pub(crate) fn validate_prefixed_string(
     value: &str,
     field: &str,
     prefix: &str,
@@ -1328,7 +1331,10 @@ fn validate_prefixed_string_with_path(
     Ok(())
 }
 
-fn validate_canonical_object_id(value: &str, path: &str) -> Result<(), TypedObjectError> {
+pub(crate) fn validate_canonical_object_id(
+    value: &str,
+    path: &str,
+) -> Result<(), TypedObjectError> {
     if ["patch:", "rev:", "view:", "snap:"]
         .iter()
         .any(|prefix| value.starts_with(prefix) && value.len() > prefix.len())
@@ -1353,22 +1359,17 @@ fn validate_block_type(value: &str) -> Result<(), TypedObjectError> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use rstest::rstest;
-    use serde_json::{json, Map, Value};
+    use serde_json::{json, Value};
 
     use super::{
         canonical_json, canonical_object_json_excluding_fields, canonical_sha256_hex,
         ensure_supported_json_values, object_schema, parse_block_object, parse_document_object,
         parse_json_strict, parse_json_value_strict, parse_object_envelope, parse_patch_object,
         parse_revision_object, parse_snapshot_object, parse_view_object, prefixed_canonical_hash,
-        prefixed_canonical_object_hash_excluding_fields, recompute_object_id,
-        reject_duplicate_strings, reject_unknown_fields, required_non_empty_string_array,
-        required_object, required_prefixed_string_map, required_string_field, signed_payload_bytes,
-        validate_canonical_object_id, validate_prefixed_string, wire_envelope_signed_payload_bytes,
-        ObjectKind, ParseObjectEnvelopeError, SignatureRule, StringFieldError,
-        WIRE_PROTOCOL_VERSION,
+        prefixed_canonical_object_hash_excluding_fields, recompute_object_id, signed_payload_bytes,
+        wire_envelope_signed_payload_bytes, ObjectKind, ParseObjectEnvelopeError, SignatureRule,
+        StringFieldError,
     };
 
     #[path = "fixtures.rs"]
