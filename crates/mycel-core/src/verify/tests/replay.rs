@@ -902,3 +902,70 @@ pub(super) fn revision_replay_rejects_patch_dependency_with_wrong_object_type() 
         "expected wrong-type dependency error, got {summary:?}"
     );
 }
+
+#[test]
+pub(super) fn revision_replay_reports_multi_hop_parent_wrong_type_with_ancestry_context() {
+    let (signing_key, public_key) = signer_material();
+    let mut wrong_type_patch = json!({
+        "type": "patch",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "base_revision": "rev:genesis-null",
+        "author": public_key,
+        "timestamp": 10u64,
+        "ops": []
+    });
+    let wrong_type_patch_id = recompute_object_id(&wrong_type_patch, "patch_id", "patch")
+        .expect("wrong-type patch ID should recompute");
+    wrong_type_patch["patch_id"] = Value::String(wrong_type_patch_id);
+    wrong_type_patch["signature"] = Value::String(sign_value(&signing_key, &wrong_type_patch));
+
+    let mut parent_revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": ["rev:wrong-grandparent"],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 11u64
+    });
+    let parent_revision_id = recompute_object_id(&parent_revision, "revision_id", "rev")
+        .expect("parent revision ID should recompute");
+    parent_revision["revision_id"] = Value::String(parent_revision_id.clone());
+    parent_revision["signature"] = Value::String(sign_value(&signing_key, &parent_revision));
+
+    let mut revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [parent_revision_id.clone()],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 12u64
+    });
+    let revision_id =
+        recompute_object_id(&revision, "revision_id", "rev").expect("revision ID should recompute");
+    revision["revision_id"] = Value::String(revision_id);
+    revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+    let object_index = HashMap::from([
+        (parent_revision_id.clone(), parent_revision),
+        ("rev:wrong-grandparent".to_string(), wrong_type_patch),
+    ]);
+    let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains(&format!(
+                "while verifying ancestry through parent revision '{parent_revision_id}'"
+            )) && message.contains(
+                "parent revision 'rev:wrong-grandparent' is a 'patch' object instead of 'revision'",
+            )
+        }),
+        "expected nested ancestry context error, got {summary:?}"
+    );
+}

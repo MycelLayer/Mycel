@@ -585,7 +585,10 @@ fn verify_revision_dependency_closure(
             verified_revisions,
             visiting_revisions,
             verified_patches,
-        )?;
+        )
+        .map_err(|error| {
+            format!("while verifying ancestry through parent revision '{parent_id}': {error}")
+        })?;
     }
 
     for patch_id in &revision.patches {
