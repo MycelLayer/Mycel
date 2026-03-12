@@ -39,7 +39,7 @@
   font-size: 1.08rem;
   line-height: var(--home-lead-line-height);
   color: var(--muted);
-  text-wrap: pretty;
+  text-wrap: var(--home-lead-text-wrap, pretty);
 }
 
 .home-page .hero .hero-note {
@@ -48,7 +48,7 @@
   font-size: 0.98rem;
   line-height: var(--home-note-line-height);
   color: var(--accent-strong);
-  text-wrap: pretty;
+  text-wrap: var(--home-note-text-wrap, pretty);
 }
 
 @media (max-width: 880px) {
