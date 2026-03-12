@@ -1,0 +1,389 @@
+use std::fs;
+use std::path::PathBuf;
+
+use base64::Engine;
+use ed25519_dalek::{Signer, SigningKey};
+use serde_json::{json, Value};
+
+use mycel_core::canonical::{signed_payload_bytes, wire_envelope_signed_payload_bytes};
+use mycel_core::protocol::recompute_object_id;
+use mycel_core::replay::{compute_state_hash, DocumentState};
+
+mod common;
+
+use common::{
+    assert_json_status, assert_stderr_contains, assert_success, create_temp_dir, run_mycel,
+    stdout_text,
+};
+
+fn path_arg(path: &PathBuf) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+fn signing_key() -> SigningKey {
+    SigningKey::from_bytes(&[11u8; 32])
+}
+
+fn sender_public_key(signing_key: &SigningKey) -> String {
+    format!(
+        "pk:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signing_key.verifying_key().as_bytes())
+    )
+}
+
+fn sign_wire_value(signing_key: &SigningKey, value: &Value) -> String {
+    let payload =
+        wire_envelope_signed_payload_bytes(value).expect("wire payload should canonicalize");
+    let signature = signing_key.sign(&payload);
+    format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    )
+}
+
+fn sign_object_value(
+    signing_key: &SigningKey,
+    mut value: Value,
+    signer_field: &str,
+    id_field: &str,
+    prefix: &str,
+) -> Value {
+    value[signer_field] = Value::String(sender_public_key(signing_key));
+    let object_id =
+        recompute_object_id(&value, id_field, prefix).expect("test object ID should recompute");
+    value[id_field] = Value::String(object_id);
+    let payload = signed_payload_bytes(&value).expect("object payload should canonicalize");
+    let signature = signing_key.sign(&payload);
+    value["signature"] = Value::String(format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    ));
+    value
+}
+
+fn empty_state_hash(doc_id: &str) -> String {
+    compute_state_hash(&DocumentState {
+        doc_id: doc_id.to_string(),
+        blocks: Vec::new(),
+        metadata: serde_json::Map::new(),
+    })
+    .expect("empty state hash should compute")
+}
+
+fn signed_hello_message(signing_key: &SigningKey, sender: &str) -> Value {
+    let mut value = json!({
+        "type": "HELLO",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:hello-cli-sync-001",
+        "timestamp": "2026-03-08T20:00:00+08:00",
+        "from": sender,
+        "payload": {
+            "node_id": sender,
+            "capabilities": ["patch-sync"],
+            "nonce": "n:cli-sync"
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn signed_manifest_message(signing_key: &SigningKey, sender: &str, revision_id: &str) -> Value {
+    let mut value = json!({
+        "type": "MANIFEST",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:manifest-cli-sync-001",
+        "timestamp": "2026-03-08T20:00:10+08:00",
+        "from": sender,
+        "payload": {
+            "node_id": sender,
+            "capabilities": ["patch-sync"],
+            "heads": {
+                "doc:test": [revision_id]
+            }
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn signed_want_message(signing_key: &SigningKey, sender: &str, object_ids: &[&str]) -> Value {
+    let mut value = json!({
+        "type": "WANT",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:want-cli-sync-001",
+        "timestamp": "2026-03-08T20:01:00+08:00",
+        "from": sender,
+        "payload": {
+            "objects": object_ids
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn signed_patch_object_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    base_revision: &str,
+) -> Value {
+    let body = sign_object_value(
+        signing_key,
+        json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:placeholder",
+            "doc_id": "doc:test",
+            "base_revision": base_revision,
+            "author": "pk:ed25519:placeholder",
+            "timestamp": 1u64,
+            "ops": [],
+            "signature": "sig:placeholder"
+        }),
+        "author",
+        "patch_id",
+        "patch",
+    );
+    let object_id = body["patch_id"]
+        .as_str()
+        .expect("signed patch body should include patch_id")
+        .to_owned();
+    let object_hash = object_id
+        .split_once(':')
+        .map(|(_, hash)| hash.to_string())
+        .expect("wire object ID should contain hash");
+
+    let mut value = json!({
+        "type": "OBJECT",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:object-cli-sync-patch-001",
+        "timestamp": "2026-03-08T20:01:10+08:00",
+        "from": sender,
+        "payload": {
+            "object_id": object_id,
+            "object_type": "patch",
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": format!("hash:{object_hash}"),
+            "body": body
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn signed_revision_object_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    patches: &[&str],
+) -> Value {
+    let body = sign_object_value(
+        signing_key,
+        json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:placeholder",
+            "doc_id": "doc:test",
+            "parents": [],
+            "patches": patches,
+            "state_hash": empty_state_hash("doc:test"),
+            "author": "pk:ed25519:placeholder",
+            "timestamp": 2u64,
+            "signature": "sig:placeholder"
+        }),
+        "author",
+        "revision_id",
+        "rev",
+    );
+    let object_id = body["revision_id"]
+        .as_str()
+        .expect("signed revision body should include revision_id")
+        .to_owned();
+    let object_hash = object_id
+        .split_once(':')
+        .map(|(_, hash)| hash.to_string())
+        .expect("wire revision ID should contain hash");
+
+    let mut value = json!({
+        "type": "OBJECT",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:object-cli-sync-rev-001",
+        "timestamp": "2026-03-08T20:01:12+08:00",
+        "from": sender,
+        "payload": {
+            "object_id": object_id,
+            "object_type": "revision",
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": format!("hash:{object_hash}"),
+            "body": body
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn signed_bye_message(signing_key: &SigningKey, sender: &str) -> Value {
+    let mut value = json!({
+        "type": "BYE",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:bye-cli-sync-001",
+        "timestamp": "2026-03-08T20:02:00+08:00",
+        "from": sender,
+        "payload": {
+            "reason": "done"
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
+fn write_transcript(path: &PathBuf, transcript: &Value) {
+    fs::write(
+        path,
+        serde_json::to_string_pretty(transcript).expect("transcript should serialize"),
+    )
+    .expect("transcript should write");
+}
+
+#[test]
+fn sync_pull_json_replays_verified_wire_transcript_into_store() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-source");
+    let transcript_path = transcript_dir.path().join("pull-transcript.json");
+    let store_root = create_temp_dir("sync-pull-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                revision_object,
+                signed_want_message(&signing_key, sender, &[&patch_id]),
+                patch_object,
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(&store_root.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 7);
+    assert_eq!(json["verified_message_count"], 7);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["verified_object_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+    assert_eq!(json["existing_object_count"], 0);
+    assert_eq!(json["stored_objects"].as_array().map(Vec::len), Some(2));
+    assert!(
+        json["index_manifest_path"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("/indexes/manifest.json")),
+        "expected manifest path, stdout: {}",
+        stdout_text(&output)
+    );
+
+    let manifest_path = store_root.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 2);
+    assert_eq!(
+        manifest["doc_revisions"]["doc:test"]
+            .as_array()
+            .map(Vec::len),
+        Some(1),
+        "expected synced revision to be indexed"
+    );
+}
+
+#[test]
+fn sync_pull_text_reports_verification_failure_without_storing_objects() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let mut invalid_object = revision_object.clone();
+    invalid_object["payload"]["hash"] = Value::String("hash:tampered".to_string());
+    let transcript_dir = create_temp_dir("sync-pull-invalid");
+    let transcript_path = transcript_dir.path().join("invalid-transcript.json");
+    let store_root = create_temp_dir("sync-pull-invalid-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                invalid_object
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(&store_root.path().to_path_buf()),
+    ]);
+
+    assert!(
+        !output.status.success(),
+        "expected failure, stdout: {}, stderr: {}",
+        stdout_text(&output),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_stderr_contains(&output, "message 4 failed verification");
+    let stdout = stdout_text(&output);
+    assert!(stdout.contains("sync pull: failed"), "stdout: {stdout}");
+    assert!(stdout.contains("verified messages: 3"), "stdout: {stdout}");
+    assert!(!store_root
+        .path()
+        .join("indexes")
+        .join("manifest.json")
+        .exists());
+}

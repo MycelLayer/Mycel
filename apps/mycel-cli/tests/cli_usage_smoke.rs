@@ -186,6 +186,20 @@ fn sim_run_help_prints_structured_clap_help() {
 }
 
 #[test]
+fn sync_pull_help_prints_structured_clap_help() {
+    let assert = mycel_command(&["sync", "pull", "--help"])
+        .assert()
+        .success();
+    let stdout = assert_stdout_text(&assert);
+
+    assert_eq!(assert_stderr_text(&assert), "");
+    assert!(stdout.contains("Replay one wire-session transcript into verify/store sync state"));
+    assert!(stdout.contains("Usage: mycel sync pull [OPTIONS] --into <STORE_ROOT> <TRANSCRIPT>"));
+    assert!(stdout.contains("--into <STORE_ROOT>"));
+    assert!(stdout.contains("--json"));
+}
+
+#[test]
 fn store_rebuild_help_prints_structured_clap_help() {
     let assert = mycel_command(&["store", "rebuild", "--help"])
         .assert()

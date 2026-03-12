@@ -217,6 +217,22 @@ impl WirePeerSessionState {
             .values()
             .any(|revisions| revisions.contains(revision_id))
     }
+
+    pub fn hello_received(&self) -> bool {
+        self.hello_received
+    }
+
+    pub fn has_head_context(&self) -> bool {
+        !self.advertised_document_heads.is_empty()
+    }
+
+    pub fn pending_object_count(&self) -> usize {
+        self.pending_object_ids.len()
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

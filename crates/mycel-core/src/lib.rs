@@ -10,6 +10,7 @@ pub mod protocol;
 pub mod replay;
 pub mod signature;
 pub mod store;
+pub mod sync;
 pub mod verify;
 pub mod wire;
 
