@@ -23,7 +23,6 @@ Do not treat it as a live agent mailbox.
   - checklist wording refreshed
   - public progress summary refreshed
 - Verification:
-  - scripts/check-doc-refresh.sh
   - git diff --check
 - Remaining follow-up:
   - none

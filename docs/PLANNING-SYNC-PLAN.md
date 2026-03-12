@@ -255,12 +255,12 @@ Update planning surfaces immediately when:
 Use:
 
 ```bash
-scripts/check-plan-refresh.sh
+/workspaces/Mycel/scripts/check-plan-refresh.sh
 ```
 
 Ownership:
 
-- the active `doc` agent owns this check
+- the active `doc` agent owns this check and must run it
 - `coding` agents do not run this script
 - instead, `coding` agents hand off sync-relevant implementation and issue-triage material through their registry mailbox so `doc` can collect it before the next planning-sync batch
 - `sync doc` is due at 10 commits
@@ -301,7 +301,7 @@ For a `sync plan` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run `/workspaces/Mycel/scripts/check-plan-refresh.sh`
 4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
 5. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
 6. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
@@ -315,7 +315,7 @@ For a `sync doc` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run `/workspaces/Mycel/scripts/check-plan-refresh.sh`
 4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording
 
 For a `sync web` batch:
@@ -326,7 +326,7 @@ For a `sync web` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run `/workspaces/Mycel/scripts/check-plan-refresh.sh`
 4. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording
 
 ## 9. Anti-Drift Rules

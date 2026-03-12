@@ -335,8 +335,8 @@ The authoritative sync entry point is:
 Use:
 
 ```bash
-scripts/check-plan-refresh.sh
-scripts/check-plan-refresh.sh --json
+/workspaces/Mycel/scripts/check-plan-refresh.sh
+/workspaces/Mycel/scripts/check-plan-refresh.sh --json
 ```
 
 to decide whether a planning-surface refresh is due.

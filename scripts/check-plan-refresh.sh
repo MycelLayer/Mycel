@@ -7,12 +7,12 @@ usage() {
 Check whether planning-surface refresh is due.
 
 Usage:
-  scripts/check-plan-refresh.sh [--doc-threshold N] [--issue-threshold N] [--web-threshold N] [--json]
+  /workspaces/Mycel/scripts/check-plan-refresh.sh [--doc-threshold N] [--issue-threshold N] [--web-threshold N] [--json]
 
 Examples:
-  scripts/check-plan-refresh.sh
-  scripts/check-plan-refresh.sh --json
-  scripts/check-plan-refresh.sh --doc-threshold 10 --issue-threshold 10 --web-threshold 20
+  /workspaces/Mycel/scripts/check-plan-refresh.sh
+  /workspaces/Mycel/scripts/check-plan-refresh.sh --json
+  /workspaces/Mycel/scripts/check-plan-refresh.sh --doc-threshold 10 --issue-threshold 10 --web-threshold 20
 EOF
 }
 
