@@ -285,7 +285,7 @@ Recovery sequence:
 
 1. inspect `.agent-local/agents.json`
 2. run `scripts/agent_registry.py status`
-3. read the stale agent's mailbox
+3. read the stale agent's mailbox, starting from the newest open `Work Continuation Handoff`
 4. if the original chat itself has returned, run `scripts/agent_registry.py resume-check <agent_uid>` and `scripts/agent_registry.py recover <agent_uid>` if needed
 5. if a different chat must continue the work, run `scripts/agent_registry.py takeover <stale-agent-ref>`
 6. continue work only under the currently assigned `display_id`
@@ -313,11 +313,20 @@ When an agent stops or finishes, leave a short handoff:
 - what remains open
 - whether another issue is now unblocked
 
+For `coding`, this is not optional. At the end of every completed coding work item, leave one `Work Continuation Handoff` in the coding mailbox and assume the current user task may be the last one assigned before pause, interruption, or takeover.
+
 Recommended handoff format:
 
 - `Finished #4. Touched protocol.rs and object_verify_smoke.rs. Ran cargo test -p mycel-core and cargo test -p mycel-cli. Remaining follow-up: fixture-backed malformed snapshot cases.`
 
 For chat-first work with no issue, still leave the same handoff structure, but replace the issue reference with a short scope label.
+
+The continuation handoff should always include:
+
+- current state
+- next suggested step
+- blockers
+- last landed commit when one exists
 
 Example:
 

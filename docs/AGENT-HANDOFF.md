@@ -8,7 +8,7 @@ For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.m
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`.
+The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, and `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`.
 
 ## Modes
 
@@ -56,7 +56,7 @@ Mailbox retention and archive policy:
 
 - registry cleanup does not delete mailbox files automatically
 - active working-set uid-based mailboxes stay in `.agent-local/mailboxes/`
-- `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md` stay in place and are never archived
+- `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, and `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md` stay in place and are never archived
 - once an agent entry has been removed from `.agent-local/agents.json`, its uid-based mailbox becomes an orphaned mailbox candidate
 - orphaned uid-based mailboxes should be moved into `.agent-local/mailboxes/archive/YYYY-MM/` instead of being deleted
 - use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
@@ -67,12 +67,14 @@ Mailbox retention and archive policy:
 ## Workflow
 
 1. `coding` finishes one issue slice or chat-first implementation slice.
-2. `coding` appends a new entry to its mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
-3. `coding` commits and pushes the tracked code or doc changes.
-4. `doc` reads the newest open entry addressed to its scope or mailbox.
-5. `doc` updates only the docs justified by that message.
-6. `doc` appends any follow-up or blocking question to its own mailbox or the relevant peer mailbox.
-7. `doc` marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
+2. `coding` appends one `Work Continuation Handoff` entry to its own mailbox before ending the work item, even if no doc follow-up is needed. Assume the current user-visible task may be the last assignment before pause, interruption, or takeover.
+3. if the landed work is planning-relevant, `coding` also appends a `Planning Sync Handoff` entry to its own mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
+4. `coding` commits and pushes the tracked code or doc changes.
+5. the next `coding` agent that resumes or takes over the scope reads the newest open `Work Continuation Handoff` entry first.
+6. `doc` reads the newest open planning-sync entry addressed to its scope or mailbox.
+7. `doc` updates only the docs justified by that message.
+8. `doc` appends any follow-up or blocking question to its own mailbox or the relevant peer mailbox.
+9. the agent that absorbs the prior handoff marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
 
 If the work is issue-first, the same summary can also be mirrored into the issue comment, but the local mailbox remains the default agent-to-agent transport.
 
@@ -91,6 +93,13 @@ Every mailbox entry should include:
 - docs impacted
 - planning impact
 - remaining follow-up
+
+Every `Work Continuation Handoff` should also include:
+
+- current state
+- next suggested step
+- blockers
+- last landed commit when one exists
 
 Allowed `status` values:
 
@@ -142,6 +151,55 @@ When `doc` resolves or responds, either update the original entry status or appe
 ```
 
 If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`.
+
+## Work Continuation Handoff
+
+At the end of every completed `coding` work item, leave one continuation entry in the active coding mailbox. This is mandatory even when there is no planning-sync impact.
+
+Purpose:
+
+- let the next `coding` chat resume the work without reconstructing state from git history alone
+- preserve the latest known state when the user stops assigning follow-up work
+- reduce duplicate investigation during takeovers or resumed chats
+
+Use `Status: open` when `coding` writes the entry.
+
+That continuation entry stays open until one of the following happens:
+
+- a later `coding` agent resumes the same scope and marks it `resolved`
+- a newer continuation entry replaces it and marks the older one `superseded`
+- the work is blocked and the absorbing agent updates the status to `blocked`
+
+Copyable continuation template:
+
+```md
+## Work Continuation Handoff
+
+- Status: open
+- Date: 2026-03-12 22:30 UTC+8
+- Source agent: coding-2
+- Scope: <scope>
+- Files changed:
+  - `<path>`
+  - `<path>`
+- Behavior change:
+  - <one short sentence>
+- Verification:
+  - `<command>`
+  - `<command>`
+- Last landed commit:
+  - <short-sha subject> or `none`
+- Current state:
+  - <what is landed or locally understood now>
+- Next suggested step:
+  - <best next narrow slice if another coding agent resumes>
+- Blockers:
+  - `none` or <one short blocker sentence>
+- Notes:
+  - <optional short context>
+```
+
+If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`.
 
 ## Example
 

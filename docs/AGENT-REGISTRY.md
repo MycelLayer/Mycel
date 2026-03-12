@@ -198,6 +198,7 @@ Recommended mailbox pattern:
 - `.agent-local/mailboxes/<agent_uid>.md`
 - copyable planning-sync example: `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
 - copyable planning-sync resolution example: `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`
+- copyable work-continuation example: `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
 - mailbox archive root: `.agent-local/mailboxes/archive/YYYY-MM/`
 
 Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` may still be used if the team explicitly wants them, but the registry remains the source of truth for role assignment.
@@ -205,9 +206,15 @@ Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-lo
 Mailbox usage for `sync doc` / `sync web` / `sync plan` work:
 
 - `coding` agents should leave sync-relevant notes in their own registry mailbox when work changes planning-relevant implementation state, checklist closure, roadmap emphasis, public progress wording, or issue-triage inputs
+- `coding` agents should also leave one open `Work Continuation Handoff` in their own mailbox at the end of every completed coding work item, even when no planning-sync follow-up is needed
 - `doc` should scan active, paused, and recently inactive agent mailboxes before any `sync doc`, `sync web`, or `sync plan` batch and use those notes as collection input for roadmap/checklist/progress or Pages refresh work
 - scan order should be: active mailbox paths first, paused mailbox paths second, recently inactive mailbox paths third, and fallback shared mailboxes last; archived mailboxes stay out of scope unless a current mailbox explicitly points to an unresolved archived entry
 - mailbox handoff is the default coordination path for planning-sync material; `coding` should not replace it by running `scripts/check-plan-refresh.sh`
+
+Mailbox usage for resumed or takeover coding work:
+
+- a new or resumed `coding` agent should read the newest open `Work Continuation Handoff` entry for the overlapping scope before starting implementation
+- continuation handoffs are not doc-only; they are the default recovery surface for another coding agent that must continue the last landed or partially-finished slice
 
 Recommended mailbox handoff template:
 
@@ -241,6 +248,8 @@ Minimum handoff quality:
 - include enough detail for `doc` to identify the affected files, the likely planning surfaces, whether checklist closure changed, and what verification or evidence supports the claim
 - after `doc` completes the related docs work, it should either update that handoff to `Status: resolved` or append a `doc` reply entry with a `Date` line that makes the resolution explicit
 - if an agent wants a ready-made starting point instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` for the open handoff and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md` for the resolved reply
+- continuation handoffs should explicitly include `Status: open`, `Current state`, and `Next suggested step`, because they are written under the assumption that the user may not assign another follow-up before pause or takeover
+- if an agent wants a ready-made starting point for continuation instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
 
 Mailbox retention and archive policy:
 
