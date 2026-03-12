@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ use crate::protocol::{
     validate_prefixed_string, StringFieldError, WIRE_PROTOCOL_VERSION,
 };
 use crate::signature::verify_ed25519_signature;
+use crate::store::{load_store_object_index, StoreRebuildError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WireMessageType {
@@ -247,6 +249,15 @@ impl WireSession {
 
     pub fn set_known_verified_object_index(&mut self, object_index: BTreeMap<String, Value>) {
         self.known_verified_object_index = object_index;
+    }
+
+    pub fn load_known_verified_object_index_from_store(
+        &mut self,
+        store_root: &Path,
+    ) -> Result<(), StoreRebuildError> {
+        self.known_verified_object_index =
+            load_store_object_index(store_root)?.into_iter().collect();
+        Ok(())
     }
 
     pub fn peer_session(&self, node_id: &str) -> Option<&WirePeerSessionState> {
@@ -881,12 +892,17 @@ fn validate_wire_head_map(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
     use base64::Engine;
     use ed25519_dalek::{Signer, SigningKey};
     use serde_json::{json, Value};
 
-    use crate::canonical::wire_envelope_signed_payload_bytes;
+    use crate::canonical::{signed_payload_bytes, wire_envelope_signed_payload_bytes};
     use crate::protocol::recompute_object_id;
+    use crate::replay::{compute_state_hash, DocumentState};
+    use crate::store::write_object_value_to_store;
 
     use super::{
         parse_wire_envelope, validate_wire_envelope, validate_wire_object_payload_behavior,
@@ -896,6 +912,16 @@ mod tests {
 
     fn signing_key() -> SigningKey {
         SigningKey::from_bytes(&[9u8; 32])
+    }
+
+    fn temp_dir(prefix: &str) -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("mycel-wire-{prefix}-{unique}"));
+        fs::create_dir_all(&path).expect("temp dir should be created");
+        path
     }
 
     fn sender_public_key(signing_key: &SigningKey) -> String {
@@ -914,6 +940,35 @@ mod tests {
             "sig:ed25519:{}",
             base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
         )
+    }
+
+    fn sign_object_value(
+        signing_key: &SigningKey,
+        mut value: Value,
+        signer_field: &str,
+        id_field: &str,
+        prefix: &str,
+    ) -> Value {
+        value[signer_field] = Value::String(sender_public_key(signing_key));
+        let object_id =
+            recompute_object_id(&value, id_field, prefix).expect("test object ID should recompute");
+        value[id_field] = Value::String(object_id);
+        let payload = signed_payload_bytes(&value).expect("object payload should canonicalize");
+        let signature = signing_key.sign(&payload);
+        value["signature"] = Value::String(format!(
+            "sig:ed25519:{}",
+            base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+        ));
+        value
+    }
+
+    fn empty_state_hash(doc_id: &str) -> String {
+        compute_state_hash(&DocumentState {
+            doc_id: doc_id.to_string(),
+            blocks: Vec::new(),
+            metadata: serde_json::Map::new(),
+        })
+        .expect("empty state hash should compute")
     }
 
     fn signed_hello_message(
@@ -1032,20 +1087,27 @@ mod tests {
         sender: &str,
         base_revision: &str,
     ) -> Value {
-        let mut body = json!({
-            "type": "patch",
-            "version": "mycel/0.1",
-            "patch_id": "patch:placeholder",
-            "doc_id": "doc:test",
-            "base_revision": base_revision,
-            "author": "pk:ed25519:test",
-            "timestamp": 1u64,
-            "ops": [],
-            "signature": "sig:placeholder"
-        });
-        let object_id = recompute_object_id(&body, "patch_id", "patch")
-            .expect("concrete wire object ID should recompute");
-        body["patch_id"] = Value::String(object_id.clone());
+        let body = sign_object_value(
+            signing_key,
+            json!({
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:placeholder",
+                "doc_id": "doc:test",
+                "base_revision": base_revision,
+                "author": "pk:ed25519:placeholder",
+                "timestamp": 1u64,
+                "ops": [],
+                "signature": "sig:placeholder"
+            }),
+            "author",
+            "patch_id",
+            "patch",
+        );
+        let object_id = body["patch_id"]
+            .as_str()
+            .expect("signed patch body should include patch_id")
+            .to_owned();
         let object_hash = object_id
             .split_once(':')
             .map(|(_, hash)| hash.to_string())
@@ -1077,21 +1139,28 @@ mod tests {
         parents: &[&str],
         patches: &[&str],
     ) -> Value {
-        let mut body = json!({
-            "type": "revision",
-            "version": "mycel/0.1",
-            "revision_id": "rev:placeholder",
-            "doc_id": "doc:test",
-            "parents": parents,
-            "patches": patches,
-            "state_hash": "hash:test",
-            "author": "pk:ed25519:test",
-            "timestamp": 1u64,
-            "signature": "sig:placeholder"
-        });
-        let object_id = recompute_object_id(&body, "revision_id", "rev")
-            .expect("concrete wire revision ID should recompute");
-        body["revision_id"] = Value::String(object_id.clone());
+        let body = sign_object_value(
+            signing_key,
+            json!({
+                "type": "revision",
+                "version": "mycel/0.1",
+                "revision_id": "rev:placeholder",
+                "doc_id": "doc:test",
+                "parents": parents,
+                "patches": patches,
+                "state_hash": empty_state_hash("doc:test"),
+                "author": "pk:ed25519:placeholder",
+                "timestamp": 1u64,
+                "signature": "sig:placeholder"
+            }),
+            "author",
+            "revision_id",
+            "rev",
+        );
+        let object_id = body["revision_id"]
+            .as_str()
+            .expect("signed revision body should include revision_id")
+            .to_owned();
         let object_hash = object_id
             .split_once(':')
             .map(|(_, hash)| hash.to_string())
@@ -1702,8 +1771,12 @@ mod tests {
             .as_str()
             .expect("signed patch OBJECT should include object_id")
             .to_owned();
-        let root_revision_object =
-            signed_revision_object_message(&signing_key, "node:alpha", &[], &[patch_id.as_str()]);
+        let root_revision_object = signed_revision_object_message(
+            &signing_key,
+            "node:alpha",
+            &[base_revision_id.as_str()],
+            &[patch_id.as_str()],
+        );
         let root_revision_id = root_revision_object["payload"]["object_id"]
             .as_str()
             .expect("signed root revision OBJECT should include object_id")
@@ -1755,6 +1828,82 @@ mod tests {
         session
             .verify_incoming(&follow_on_want)
             .expect("known-index-expanded WANT should verify");
+    }
+
+    #[test]
+    fn wire_session_loads_known_verified_object_index_from_store() {
+        let store_root = temp_dir("known-index");
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let base_revision_object =
+            signed_revision_object_message(&signing_key, "node:alpha", &[], &[]);
+        let base_revision_id = base_revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("signed base revision OBJECT should include object_id")
+            .to_owned();
+        let patch_object =
+            signed_patch_object_message(&signing_key, "node:alpha", &base_revision_id);
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("signed patch OBJECT should include object_id")
+            .to_owned();
+        let root_revision_object = signed_revision_object_message(
+            &signing_key,
+            "node:alpha",
+            &[base_revision_id.as_str()],
+            &[patch_id.as_str()],
+        );
+        let root_revision_id = root_revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("signed root revision OBJECT should include object_id")
+            .to_owned();
+
+        write_object_value_to_store(&store_root, &base_revision_object["payload"]["body"])
+            .expect("base revision should write to store");
+        write_object_value_to_store(&store_root, &patch_object["payload"]["body"])
+            .expect("patch should write to store");
+        write_object_value_to_store(&store_root, &root_revision_object["payload"]["body"])
+            .expect("root revision should write to store");
+
+        session
+            .load_known_verified_object_index_from_store(&store_root)
+            .expect("verified object index should load from store");
+
+        let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+        let manifest = signed_manifest_message_with_heads(
+            &signing_key,
+            "node:alpha",
+            "node:alpha",
+            json!({
+                "doc:test": [root_revision_id.clone()]
+            }),
+        );
+        let root_want =
+            signed_want_message(&signing_key, "node:alpha", &[root_revision_id.as_str()]);
+        let follow_on_want = signed_want_message(
+            &signing_key,
+            "node:alpha",
+            &[patch_id.as_str(), base_revision_id.as_str()],
+        );
+
+        session
+            .verify_incoming(&hello)
+            .expect("HELLO should verify");
+        session
+            .verify_incoming(&manifest)
+            .expect("MANIFEST should verify");
+        session
+            .verify_incoming(&root_want)
+            .expect("root WANT should verify");
+        session
+            .verify_incoming(&follow_on_want)
+            .expect("store-backed reachable WANT should verify");
+
+        let _ = fs::remove_dir_all(store_root);
     }
 
     #[test]
