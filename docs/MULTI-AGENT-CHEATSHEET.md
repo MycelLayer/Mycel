@@ -33,7 +33,7 @@ Mailbox retention:
 
 Doc cadence reminder:
 
-- after each completed doc work item, while preparing next items, `doc` must run `/workspaces/Mycel/scripts/check-plan-refresh.sh`
+- after each completed doc work item, while preparing next items, `doc` must run `scripts/check-plan-refresh.sh`
 - if it reports `due`, add the due planning surfaces as next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
 
 ## Agent Roles
