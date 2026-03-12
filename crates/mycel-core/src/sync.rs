@@ -252,7 +252,7 @@ mod tests {
     use crate::canonical::{signed_payload_bytes, wire_envelope_signed_payload_bytes};
     use crate::protocol::recompute_object_id;
     use crate::replay::{compute_state_hash, DocumentState};
-    use crate::store::load_store_index_manifest;
+    use crate::store::{load_store_index_manifest, write_object_value_to_store};
 
     use super::{sync_pull_from_transcript, SyncPeer, SyncPullTranscript};
 
@@ -449,6 +449,7 @@ mod tests {
     fn signed_revision_object_message(
         signing_key: &SigningKey,
         sender: &str,
+        parents: &[&str],
         patches: &[&str],
     ) -> Value {
         let body = sign_object_value(
@@ -458,7 +459,7 @@ mod tests {
                 "version": "mycel/0.1",
                 "revision_id": "rev:placeholder",
                 "doc_id": "doc:test",
-                "parents": [],
+                "parents": parents,
                 "patches": patches,
                 "state_hash": empty_state_hash("doc:test"),
                 "author": "pk:ed25519:placeholder",
@@ -523,7 +524,8 @@ mod tests {
             .as_str()
             .expect("patch object should include object id")
             .to_string();
-        let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
         let revision_id = revision_object["payload"]["object_id"]
             .as_str()
             .expect("revision object should include object id")
@@ -588,7 +590,8 @@ mod tests {
             .as_str()
             .expect("patch object should include object id")
             .to_string();
-        let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
         let revision_id = revision_object["payload"]["object_id"]
             .as_str()
             .expect("revision object should include object id")
@@ -637,6 +640,91 @@ mod tests {
     }
 
     #[test]
+    fn sync_pull_from_transcript_verifies_incremental_sync_from_existing_store() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+
+        let base_patch_object =
+            signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let base_patch_id = base_patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("base patch object should include object id")
+            .to_string();
+        let base_revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&base_patch_id]);
+        let base_revision_id = base_revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("base revision object should include object id")
+            .to_string();
+
+        let follow_patch_object =
+            signed_patch_object_message(&signing_key, sender, &base_revision_id);
+        let follow_patch_id = follow_patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("follow patch object should include object id")
+            .to_string();
+        let follow_revision_object = signed_revision_object_message(
+            &signing_key,
+            sender,
+            &[&base_revision_id],
+            &[&follow_patch_id],
+        );
+        let follow_revision_id = follow_revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("follow revision object should include object id")
+            .to_string();
+
+        let store_root = temp_dir("pull-incremental");
+        write_object_value_to_store(&store_root, &base_patch_object["payload"]["body"])
+            .expect("base patch should write to store");
+        write_object_value_to_store(&store_root, &base_revision_object["payload"]["body"])
+            .expect("base revision should write to store");
+
+        let transcript = SyncPullTranscript {
+            peer: SyncPeer {
+                node_id: sender.to_string(),
+                public_key: sender_public_key(&signing_key),
+            },
+            messages: vec![
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &follow_revision_id),
+                signed_want_message(&signing_key, sender, &[&follow_revision_id]),
+                follow_revision_object,
+                signed_want_message(&signing_key, sender, &[&follow_patch_id]),
+                follow_patch_object,
+                signed_bye_message(&signing_key, sender),
+            ],
+        };
+
+        let summary =
+            sync_pull_from_transcript(&transcript, &store_root).expect("sync pull should run");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.status, "ok");
+        assert_eq!(summary.message_count, 7);
+        assert_eq!(summary.verified_message_count, 7);
+        assert_eq!(summary.object_message_count, 2);
+        assert_eq!(summary.verified_object_count, 2);
+        assert_eq!(summary.written_object_count, 2);
+        assert_eq!(summary.existing_object_count, 0);
+        assert!(
+            summary.notes.is_empty(),
+            "expected closed incremental sync without warnings: {summary:?}"
+        );
+
+        let manifest =
+            load_store_index_manifest(&store_root).expect("store manifest should be readable");
+        assert_eq!(manifest.stored_object_count, 4);
+        let revisions = manifest
+            .doc_revisions
+            .get("doc:test")
+            .expect("expected synced document revisions");
+        assert_eq!(revisions.len(), 2);
+        assert!(revisions.contains(&base_revision_id));
+        assert!(revisions.contains(&follow_revision_id));
+    }
+
+    #[test]
     fn sync_pull_from_transcript_fails_before_storing_invalid_object_message() {
         let signing_key = signing_key();
         let sender = "node:alpha";
@@ -644,6 +732,7 @@ mod tests {
         let revision_object = signed_revision_object_message(
             &signing_key,
             sender,
+            &[],
             &[patch_object["payload"]["object_id"]
                 .as_str()
                 .expect("patch id")],
@@ -696,6 +785,7 @@ mod tests {
         let revision_object = signed_revision_object_message(
             &signing_key,
             sender,
+            &[],
             &[patch_object["payload"]["object_id"]
                 .as_str()
                 .expect("patch id")],
@@ -746,7 +836,8 @@ mod tests {
             .as_str()
             .expect("patch id")
             .to_string();
-        let revision_object = signed_revision_object_message(&signing_key, sender, &[&patch_id]);
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
         let revision_id = revision_object["payload"]["object_id"]
             .as_str()
             .expect("revision object should include object id")
