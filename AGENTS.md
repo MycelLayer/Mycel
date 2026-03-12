@@ -48,6 +48,7 @@
 - After claiming a role for the chat, tell the user which role was claimed before moving on to task work.
 - For each user command work cycle, touch the active agent entry before working and mark it inactive after the work for that command finishes.
 - For each user command work cycle, post a short human-facing commentary line with a timestamp before work starts and after work ends. The timestamp must be visible in user-facing commentary, not only in terminal output or tool logs. Use the exact line format emitted by `scripts/agent_work_cycle.py begin|end <agent-ref> [--scope <scope-label>]`; do not hand-write, paraphrase, or replace it with dual-timezone text. Outside those canonical before/after lines, normal progress updates should not add hand-written date or time prefixes. `scripts/agent_timestamp.py` remains available only when a standalone timestamp line is needed and should keep the same single-line `UTC+8` format.
+- When using `scripts/agent_work_cycle.py begin|end`, do not immediately follow it with a manual `scripts/agent_registry.py touch|finish` for the same work cycle; `begin` already performs `touch`, and `end` already performs `finish`.
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to.
 - Reply with a short plan and the current repo status before making changes.
 
