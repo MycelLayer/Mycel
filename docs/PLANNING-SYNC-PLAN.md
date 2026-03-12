@@ -293,7 +293,7 @@ For a meaningful implementation batch:
 7. update `docs/progress.html`
 8. run the relevant verification checks; the plan-refresh cadence check remains doc-owned
 
-For a docs-only planning refresh:
+For a `sync plan` batch:
 
 1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
 2. run `scripts/check-plan-refresh.sh`

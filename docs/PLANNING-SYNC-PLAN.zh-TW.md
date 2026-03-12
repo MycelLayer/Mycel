@@ -289,7 +289,7 @@ scripts/check-plan-refresh.sh
 6. 更新 `docs/progress.html`
 7. 跑相關驗證與 plan-refresh 檢查
 
-對一個 docs-only planning refresh：
+對一個 `sync plan` 批次：
 
 1. run `scripts/check-plan-refresh.sh`
 2. 若 `sync doc` 到門檻，refresh `ROADMAP.md`、`IMPLEMENTATION-CHECKLIST.*`、`docs/PROGRESS.md` 與相關 README 文案

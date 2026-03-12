@@ -21,7 +21,7 @@ Use role-based execution modes:
 
 Use `coding` when the main output is behavior, tests, fixtures, parser/verifier work, or CLI changes.
 
-Use `doc` when the main output is document sync after implementation or accepted design direction already exists.
+Use `doc` when the main output is `sync doc` or `sync plan` work after implementation or accepted design direction already exists.
 
 Multiple agents may use the same role if their scopes and file ownership do not overlap.
 
@@ -175,7 +175,7 @@ Sequence:
 7. if the script reports `due`, `doc` adds the due planning sync surfaces to the next items, reads the mailbox entry, and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
 8. `doc` updates only the planning files justified by the landed change.
 9. `doc` appends a reply or resolution entry with a `Date` line to its mailbox or the relevant peer mailbox, or updates the original planning handoff to `Status: resolved`.
-10. `doc` commits and pushes the planning-sync docs change.
+10. `doc` commits and pushes the planning-sync change.
 
 Example `coding` mailbox entry:
 
@@ -189,7 +189,7 @@ Example `coding` mailbox entry:
 - Verify commands: `cargo test -p mycel-cli`
 - Docs impacted: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
 - Planning impact: `roadmap + checklist`
-- Remaining follow-up: planning surfaces likely need sync; `doc` should check cadence when preparing next items
+- Remaining follow-up: likely `sync doc`, `sync issue`, or `sync web` work remains; `doc` should check cadence when preparing next items
 ```
 
 Example `doc` reply entry:

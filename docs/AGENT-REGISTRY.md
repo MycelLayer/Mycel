@@ -202,7 +202,7 @@ Recommended mailbox pattern:
 
 Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` may still be used if the team explicitly wants them, but the registry remains the source of truth for role assignment.
 
-Mailbox usage for doc sync:
+Mailbox usage for `sync doc` / `sync plan` work:
 
 - `coding` agents should leave sync-relevant notes in their own registry mailbox when work changes planning-relevant implementation state, checklist closure, roadmap emphasis, public progress wording, or issue-triage inputs
 - `doc` should scan active, paused, and recently inactive agent mailboxes before a planning-sync batch and use those notes as collection input for roadmap/checklist/progress refresh work

@@ -42,7 +42,7 @@ Use role-based agent modes:
 - `coding`
   owns issue resolution, feature work, local verification, commit and push flow, and CI checks after each push
 - `doc`
-  owns document sync, design notes, roadmap or checklist updates, and planning-surface wording; this role does not check CI by default
+  owns `sync doc` / `sync plan` work, design notes, roadmap or checklist updates, and planning-surface wording; this role does not check CI by default
 
 Use `coding` when the main output is behavior, tests, fixtures, parser or verifier changes, CLI changes, or any landed feature slice.
 
@@ -323,7 +323,7 @@ Example:
 
 - `Finished local CI-fix follow-up. Touched protocol.rs. Ran cargo fmt --all and cargo test --workspace. Remaining follow-up: none.`
 
-When `coding` hands work to `doc`, use a real-time handoff that is structured enough for doc sync without rereading the full diff.
+When `coding` hands work to `doc`, use a real-time handoff that is structured enough for `sync doc` / `sync plan` work without rereading the full diff.
 
 Default repo-local handoff surface:
 
