@@ -790,3 +790,50 @@ pub(super) fn revision_replay_rejects_patch_dependency_that_fails_standalone_ver
         "expected dependency verification error, got {summary:?}"
     );
 }
+
+#[test]
+pub(super) fn revision_replay_rejects_parent_dependency_with_wrong_object_type() {
+    let (signing_key, public_key) = signer_material();
+    let mut patch = json!({
+        "type": "patch",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "base_revision": "rev:genesis-null",
+        "author": public_key,
+        "timestamp": 10u64,
+        "ops": []
+    });
+    let patch_id =
+        recompute_object_id(&patch, "patch_id", "patch").expect("patch ID should recompute");
+    patch["patch_id"] = Value::String(patch_id.clone());
+    patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+
+    let mut revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": ["rev:wrong-parent"],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 11u64
+    });
+    let revision_id =
+        recompute_object_id(&revision, "revision_id", "rev").expect("revision ID should recompute");
+    revision["revision_id"] = Value::String(revision_id);
+    revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+    let object_index = HashMap::from([("rev:wrong-parent".to_string(), patch)]);
+    let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains(
+                "parent revision 'rev:wrong-parent' is a 'patch' object instead of 'revision'",
+            )
+        }),
+        "expected wrong-type dependency error, got {summary:?}"
+    );
+}
