@@ -30,6 +30,11 @@ Mailbox retention:
 - archived uid-based mailboxes older than 10 days may be deleted with `scripts/mailbox_gc.py prune` when they have no unresolved planning handoff
 - shared fallback mailboxes outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`
 
+Doc cadence reminder:
+
+- after each completed doc work item, while preparing next items, run `scripts/check-doc-refresh.sh`
+- if it reports `due`, add docs sync as one of the next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
+
 ## Agent Roles
 
 - `coding`: owns issue resolution, feature work, local verification, commit/push flow, and CI checks after each push

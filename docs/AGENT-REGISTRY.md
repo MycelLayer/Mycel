@@ -296,7 +296,7 @@ Planning-sync coordination:
 
 - `coding` agents should append mailbox handoff notes when they land or discover planning-relevant changes
 - `doc` owns `scripts/check-doc-refresh.sh` and the decision to start a docs-sync batch
-- before a docs-sync batch, `doc` should scan the declared mailboxes for recent handoff material and fold it into the planning refresh
+- after each completed doc work item, while preparing next items, `doc` should run `scripts/check-doc-refresh.sh`; if it reports `due`, add docs sync to the next items and then scan the declared mailboxes for recent handoff material before the sync batch
 - if a mailbox note follows the recommended template, `doc` may treat it as ready-to-triage input instead of re-deriving the whole change from git history first
 
 If two `coding` agents would touch the same primary file or issue, one must narrow scope or pause before proceeding.

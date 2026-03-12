@@ -159,7 +159,7 @@ Example `coding` to `doc` message in `.agent-local/mailboxes/agt_example1234.md`
 
 ## Due Planning Sync Example
 
-Use this pattern when `coding` finishes implementation work and `scripts/check-doc-refresh.sh` reports that planning sync is due.
+Use this pattern when `coding` finishes implementation work and the landed change is likely to require planning-sync follow-up.
 
 Sequence:
 
@@ -168,10 +168,11 @@ Sequence:
 3. `coding` appends an open entry to its mailbox or the relevant peer mailbox with `planning impact` set to the affected planning surfaces.
 4. `coding` commits and pushes the tracked implementation change.
 5. `coding` checks the latest CI status after the push.
-6. `doc` reads the mailbox entry and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
-7. `doc` updates only the planning files justified by the landed change.
-8. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox.
-9. `doc` commits and pushes the planning-sync docs change.
+6. when `doc` finishes its current work item and prepares next items, `doc` runs `scripts/check-doc-refresh.sh`.
+7. if the script reports `due`, `doc` adds docs sync to the next items, reads the mailbox entry, and follows [`PLANNING-SYNC-PLAN.md`](./PLANNING-SYNC-PLAN.md).
+8. `doc` updates only the planning files justified by the landed change.
+9. `doc` appends a reply or resolution entry to its mailbox or the relevant peer mailbox.
+10. `doc` commits and pushes the planning-sync docs change.
 
 Example `coding` mailbox entry:
 
@@ -185,7 +186,7 @@ Example `coding` mailbox entry:
 - Verify commands: `cargo test -p mycel-cli`
 - Docs impacted: `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.en.md`, `IMPLEMENTATION-CHECKLIST.zh-TW.md`
 - Planning impact: `roadmap + checklist`
-- Remaining follow-up: `scripts/check-doc-refresh.sh` reported due; sync planning surfaces for the landed behavior
+- Remaining follow-up: planning surfaces likely need sync; `doc` should check cadence when preparing next items
 ```
 
 Example `doc` reply entry:
