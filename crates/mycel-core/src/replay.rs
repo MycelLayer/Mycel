@@ -553,6 +553,7 @@ mod tests {
     use serde_json::Map;
 
     use super::{apply_patch_ops, compute_state_hash, replay_revision_from_index, DocumentState};
+    use crate::canonical::prefixed_canonical_hash;
     use crate::protocol::{parse_patch_object, BlockObject, PatchObject, PatchOperation};
 
     fn block(block_id: &str, content: &str) -> BlockObject {
@@ -618,6 +619,70 @@ mod tests {
 
         assert_eq!(left, right);
         assert!(left.starts_with("hash:"));
+    }
+
+    #[test]
+    fn compute_state_hash_matches_shared_prefixed_canonical_hash() {
+        let mut root_attrs = Map::new();
+        root_attrs.insert("z".to_string(), json!("last"));
+        root_attrs.insert("a".to_string(), json!("first"));
+
+        let mut metadata = Map::new();
+        metadata.insert("topic".to_string(), json!("canonical-test"));
+        metadata.insert("priority".to_string(), json!(2u64));
+
+        let state = DocumentState {
+            doc_id: "doc:test".to_string(),
+            blocks: vec![BlockObject {
+                block_id: "blk:001".to_string(),
+                block_type: "paragraph".to_string(),
+                content: "Hello".to_string(),
+                attrs: root_attrs,
+                children: vec![BlockObject {
+                    block_id: "blk:002".to_string(),
+                    block_type: "annotation".to_string(),
+                    content: "Note".to_string(),
+                    attrs: Map::new(),
+                    children: Vec::new(),
+                }],
+            }],
+            metadata,
+        };
+
+        let state_hash = compute_state_hash(&state).expect("state hash should compute");
+        let manual = prefixed_canonical_hash(
+            &json!({
+                "metadata": {
+                    "priority": 2u64,
+                    "topic": "canonical-test"
+                },
+                "blocks": [
+                    {
+                        "children": [
+                            {
+                                "children": [],
+                                "attrs": {},
+                                "content": "Note",
+                                "block_type": "annotation",
+                                "block_id": "blk:002"
+                            }
+                        ],
+                        "attrs": {
+                            "a": "first",
+                            "z": "last"
+                        },
+                        "content": "Hello",
+                        "block_type": "paragraph",
+                        "block_id": "blk:001"
+                    }
+                ],
+                "doc_id": "doc:test"
+            }),
+            "hash",
+        )
+        .expect("manual canonical state hash should compute");
+
+        assert_eq!(state_hash, manual);
     }
 
     #[test]

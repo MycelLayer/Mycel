@@ -255,6 +255,36 @@ fn signed_payload_bytes_are_reproducible_across_object_key_order() {
 }
 
 #[test]
+fn signed_payload_bytes_match_shared_canonical_bytes_without_signature_field() {
+    let object = json!({
+        "type": "patch",
+        "version": "mycel/0.1",
+        "patch_id": "patch:test",
+        "doc_id": "doc:test",
+        "base_revision": "rev:genesis-null",
+        "author": "pk:ed25519:test",
+        "timestamp": 1u64,
+        "ops": [
+            {
+                "op": "set_metadata",
+                "entries": {
+                    "z": "last",
+                    "a": "first"
+                }
+            }
+        ],
+        "signature": "sig:placeholder"
+    });
+
+    let payload = signed_payload_bytes(&object).expect("payload should canonicalize");
+    let manual = canonical_object_json_excluding_fields(&object, &["signature"])
+        .expect("manual canonical reduction should succeed")
+        .into_bytes();
+
+    assert_eq!(payload, manual);
+}
+
+#[test]
 fn wire_envelope_signed_payload_bytes_are_reproducible_across_key_order() {
     let left = json!({
         "type": "HELLO",
@@ -287,4 +317,41 @@ fn wire_envelope_signed_payload_bytes_are_reproducible_across_key_order() {
         .expect("right wire envelope payload should canonicalize");
 
     assert_eq!(left_payload, right_payload);
+}
+
+#[test]
+fn wire_envelope_signed_payload_bytes_match_shared_canonical_bytes_without_sig_field() {
+    let envelope = json!({
+        "type": "OBJECT",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:obj-001",
+        "timestamp": "2026-03-08T20:01:02+08:00",
+        "from": "node:alpha",
+        "payload": {
+            "hash_alg": "blake3",
+            "encoding": "json",
+            "object_type": "patch",
+            "hash": "hash:test",
+            "object_id": "patch:test",
+            "body": {
+                "type": "patch",
+                "version": "mycel/0.1",
+                "patch_id": "patch:test",
+                "doc_id": "doc:test",
+                "base_revision": "rev:genesis-null",
+                "author": "pk:ed25519:test",
+                "timestamp": 1u64,
+                "ops": []
+            }
+        },
+        "sig": "sig:placeholder"
+    });
+
+    let payload =
+        wire_envelope_signed_payload_bytes(&envelope).expect("wire payload should canonicalize");
+    let manual = canonical_object_json_excluding_fields(&envelope, &["sig"])
+        .expect("manual wire canonical reduction should succeed")
+        .into_bytes();
+
+    assert_eq!(payload, manual);
 }
