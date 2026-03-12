@@ -127,7 +127,7 @@ This layer compresses project state for readers and contributors.
 Primary surfaces:
 
 - [docs/PROGRESS.md](./PROGRESS.md)
-- [docs/progress.html](./progress.html)
+- [pages/progress.html](../pages/progress.html)
 - README contributor guidance and landing-page contributor-entry issue links
 
 This layer is derived. It must not invent new project state.
@@ -223,8 +223,8 @@ Best for:
 
 Typical files:
 
-- `docs/index.html`
-- `docs/support.html`
+- `pages/index.html`
+- `pages/support.html`
 - `BOT-CONTRIBUTING.md`
 - issue templates and label docs
 

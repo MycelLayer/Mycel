@@ -2,9 +2,10 @@
   "name": "mycel-docs-checks",
   "private": true,
   "scripts": {
-    "lint:docs": "npm run lint:docs:html && npm run lint:docs:css",
-    "lint:docs:html": "html-validate \"docs/**/*.html\"",
-    "lint:docs:css": "stylelint \"docs/assets/**/*.css\""
+    "lint:docs": "npm run lint:pages",
+    "lint:pages": "npm run lint:pages:html && npm run lint:pages:css",
+    "lint:pages:html": "html-validate \"pages/**/*.html\"",
+    "lint:pages:css": "stylelint \"pages/assets/**/*.css\""
   },
   "devDependencies": {
     "html-validate": "^10.11.1",

@@ -15,8 +15,8 @@ It exists to prevent drift between the authoritative build plan, the open task q
 Use these terms consistently:
 
 - `sync doc`: Markdown-only sync. This covers planning/public-summary `.md` files such as `ROADMAP.*`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and any related README wording.
-- `sync web`: GitHub Pages-only sync. This covers Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording.
-- `sync issue`: GitHub Issues plus the contributor-entry issue links in GitHub Pages entry pages such as `docs/index.html`, `docs/zh-TW/index.html`, and `docs/zh-CN/index.html`.
+- `sync web`: GitHub Pages-only sync. This covers Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording.
+- `sync issue`: GitHub Issues plus the contributor-entry issue links in GitHub Pages entry pages such as `pages/index.html`, `pages/zh-TW/index.html`, and `pages/zh-CN/index.html`.
 - `sync plan`: the full sync. This means `sync doc` + `sync web` + `sync issue`.
 
 ## 1. Scope
@@ -28,8 +28,8 @@ This plan applies to:
 - [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md)
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)
-- [`docs/progress.html`](./progress.html)
-- contributor-entry issue links in [`docs/index.html`](./index.html), [`docs/zh-TW/index.html`](./zh-TW/index.html), and [`docs/zh-CN/index.html`](./zh-CN/index.html)
+- [`pages/progress.html`](../pages/progress.html)
+- contributor-entry issue links in [`pages/index.html`](../pages/index.html), [`pages/zh-TW/index.html`](../pages/zh-TW/index.html), and [`pages/zh-CN/index.html`](../pages/zh-CN/index.html)
 - GitHub Issues, especially `ai-ready` task issues
 
 It does not apply to:
@@ -46,7 +46,7 @@ Use this source-of-truth order whenever surfaces disagree:
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. GitHub Issues
 4. `docs/PROGRESS.md`
-5. `docs/progress.html`
+5. `pages/progress.html`
 6. landing-page summaries or support-page references
 7. landing-page contributor-entry issue links
 
@@ -55,8 +55,8 @@ Interpretation:
 - `ROADMAP.md` and `ROADMAP.zh-TW.md` jointly own milestone order, phase boundaries, and build sequence.
 - `IMPLEMENTATION-CHECKLIST.*` owns section-level closure state and concrete implementation gates.
 - GitHub Issues represent executable slices of the remaining gaps.
-- `docs/PROGRESS.md` and `docs/progress.html` are derived summaries and must not invent project state.
-- contributor-entry issue links in `docs/index.html` and localized landing pages are public contributor-entry summaries and must point at currently valid `ai-ready` work.
+- `docs/PROGRESS.md` and `pages/progress.html` are derived summaries and must not invent project state.
+- contributor-entry issue links in `pages/index.html` and localized landing pages are public contributor-entry summaries and must point at currently valid `ai-ready` work.
 
 ## 3. Surface Roles
 
@@ -102,7 +102,7 @@ Issues should not replace roadmap or checklist state. They should reflect it.
 
 ### 3.4 Pages Progress Surfaces
 
-Use `docs/PROGRESS.md` and `docs/progress.html` to answer:
+Use `docs/PROGRESS.md` and `pages/progress.html` to answer:
 
 - what a reader should understand quickly
 - which milestone lane is active
@@ -119,7 +119,7 @@ Update in this order:
 1. `ROADMAP.md`
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. `docs/PROGRESS.md`
-4. `docs/progress.html`
+4. `pages/progress.html`
 5. open or close related GitHub Issues
 
 Example:
@@ -134,7 +134,7 @@ Update in this order:
 1. `IMPLEMENTATION-CHECKLIST.*`
 2. related GitHub Issue status
 3. `docs/PROGRESS.md` if section-level status changed
-4. `docs/progress.html` if public summary wording changed
+4. `pages/progress.html` if public summary wording changed
 
 Example:
 
@@ -167,7 +167,7 @@ Do not update roadmap, checklist, or pages if:
 Update:
 
 1. `docs/PROGRESS.md`
-2. `docs/progress.html`
+2. `pages/progress.html`
 
 Do not change roadmap or checklist unless the underlying status changed.
 
@@ -229,14 +229,14 @@ It should not:
 - mark a checklist area complete if the checklist does not
 - speculate about future phases beyond what roadmap already says
 
-### 6.2 `docs/progress.html`
+### 6.2 `pages/progress.html`
 
 This file should be treated as a presentation layer over `docs/PROGRESS.md`.
 
 When the planning state changes:
 
 - update `docs/PROGRESS.md` first
-- update `docs/progress.html` second
+- update `pages/progress.html` second
 
 If there is disagreement, fix the HTML to match the Markdown summary, not the other way around.
 
@@ -276,7 +276,7 @@ If it reports `due`, refresh the reported surfaces:
 - aligned GitHub Issues
 - Markdown planning surfaces such as `docs/PROGRESS.md` when `sync doc` is due
 - aligned GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
-- GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
+- GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording when `sync web` is due
 
 in the next planning-sync batch, even if no single change forced an update.
 
@@ -290,7 +290,7 @@ For a meaningful implementation batch:
 4. decide whether roadmap emphasis changed
 5. update GitHub Issues
 6. update `docs/PROGRESS.md`
-7. update `docs/progress.html`
+7. update `pages/progress.html`
 8. run the relevant verification checks; the plan-refresh cadence check remains doc-owned
 
 For a `sync plan` batch:
@@ -304,7 +304,7 @@ For a `sync plan` batch:
 3. run `scripts/check-plan-refresh.sh`
 4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
 5. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
-6. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
+6. update GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording when `sync web` is due
 7. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 
 For a `sync doc` batch:
@@ -327,7 +327,7 @@ For a `sync web` batch:
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
 3. run `scripts/check-plan-refresh.sh`
-4. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording
+4. update GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording
 
 ## 9. Anti-Drift Rules
 
@@ -348,7 +348,7 @@ Planning surfaces are considered in sync when all of the following are true:
 - checklist boxes reflect current implementation closure
 - open issues correspond to real remaining gaps
 - `docs/PROGRESS.md` matches roadmap and checklist summaries
-- `docs/progress.html` matches `docs/PROGRESS.md`
+- `pages/progress.html` matches `docs/PROGRESS.md`
 - landing-page contributor-entry links still point at representative open starter issues
 
 ## 11. Current Practical Guidance for Mycel
@@ -358,8 +358,8 @@ Right now, use this concrete rule:
 1. treat `ROADMAP.md` as the milestone and lane authority
 2. treat `IMPLEMENTATION-CHECKLIST.*` as the closure authority
 3. treat open `ai-ready` issues as narrow execution slices of checklist gaps
-4. treat `docs/PROGRESS.md` and `docs/progress.html` as derived public summaries
+4. treat `docs/PROGRESS.md` and `pages/progress.html` as derived public summaries
 5. treat README contributor guidance as Markdown-only doc copy; it should point readers at the GitHub issue list rather than curate starter issues there
-6. treat contributor issue links in `docs/index.html` and localized landing pages as the public curated issue-entry surface during planning sync
+6. treat contributor issue links in `pages/index.html` and localized landing pages as the public curated issue-entry surface during planning sync
 
 This keeps roadmap, implementation closure, task queue, and public progress aligned without turning any one surface into an overloaded catch-all.

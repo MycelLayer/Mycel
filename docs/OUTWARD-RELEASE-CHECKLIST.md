@@ -4,9 +4,9 @@ Use this checklist after changing any public-facing project surface such as:
 
 - GitHub repo description, topics, homepage, or social preview
 - `README.md` or `README.zh-TW.md`
-- `docs/index.html`
-- `docs/social-preview.svg`
-- `docs/social-preview.png`
+- `pages/index.html`
+- `pages/social-preview.svg`
+- `pages/social-preview.png`
 
 This checklist is intentionally narrow. It is for outward presentation consistency, not protocol or implementation release validation.
 
@@ -30,7 +30,7 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 ## 3. Homepage
 
 - [ ] Homepage naming still follows [`docs/PROJECT-NAMING.md`](./PROJECT-NAMING.md).
-- [ ] [`docs/index.html`](./index.html) still reflects the same positioning as the README.
+- [ ] [`pages/index.html`](../pages/index.html) still reflects the same positioning as the README.
 - [ ] The main CTA links still point to the intended GitHub and spec pages.
 - [ ] `og:title`, `og:description`, and `og:image` still match the current landing message.
 - [ ] `twitter:image` still points to the intended social preview image.
@@ -38,8 +38,8 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 
 ## 4. Social Preview
 
-- [ ] [`docs/social-preview.svg`](./social-preview.svg) is the editable source of truth.
-- [ ] [`docs/social-preview.png`](./social-preview.png) has been regenerated after SVG edits.
+- [ ] [`pages/social-preview.svg`](../pages/social-preview.svg) is the editable source of truth.
+- [ ] [`pages/social-preview.png`](../pages/social-preview.png) has been regenerated after SVG edits.
 - [ ] The PNG remains `1200x630`.
 - [ ] Text fits safely inside the frame at normal preview size.
 - [ ] The GitHub repo preview and Pages preview are visually acceptable after cache refresh.
