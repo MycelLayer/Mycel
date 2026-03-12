@@ -2,10 +2,6 @@
 
 Status: active local-registry protocol for multi-agent coordination
 
-Related future redesign draft:
-
-- [docs/design-notes/DESIGN-NOTES.agent-registry-identity-split.zh-TW.md](./design-notes/DESIGN-NOTES.agent-registry-identity-split.zh-TW.md): proposed `agent_uid` + recyclable `display_id` model for converging short ids without identity collisions
-
 Use this file as the tracked specification for the local registry that tells agents how many agents are active, what role each one has, and whether each agent has confirmed that assignment before starting tracked work.
 
 The live registry file is local and gitignored:
@@ -394,3 +390,529 @@ For one `coding` agent and one `doc` agent:
   ]
 }
 ```
+
+## Future Identity-Split Design
+
+Status: design draft
+
+This section proposes a future registry redesign that splits the current single agent identifier into:
+
+- `agent_uid`: the true agent identity, never reused
+- `display_id`: the human-readable short id such as `coding-1`, which may be recycled
+
+The goal is to solve two problems at once:
+
+- keep short display ids converged instead of unbounded growth
+- prevent old and new chats from colliding just because both would otherwise appear as `coding-1`
+
+This is a future design draft. It does not replace the active protocol above until the repo explicitly migrates to it.
+
+### 0. Problem
+
+Today the local registry uses a single field for all of these concerns:
+
+- the agent's true identity
+- the CLI write key
+- the human-readable short label
+
+That creates two competing pressures:
+
+1. if ids are never reused, resume safety and auditability are strong, but names like `coding-17` grow forever
+2. if ids are reused, display names converge, but old and new chats can be confused as the same agent
+
+The `agent_uid + recyclable display_id` model separates those concerns into different fields.
+
+### 1. Goals
+
+Keep:
+
+- a stable identity per chat
+- clear identification when an old chat returns
+- a complete audit trail across assignment, resume, recover, and takeover
+
+Add:
+
+- the ability to recycle short ids such as `coding-1` and `doc-1`
+- a safe resume decision for old chats
+- predictable short-slot allocation for multiple chats sharing the same role
+
+Do not optimize for:
+
+- cryptographic-strength chat identity verification
+- cross-machine registry synchronization
+- backward compatibility with the old schema by default
+
+### 2. Terms
+
+#### 2.1 `agent_uid`
+
+The true primary identity key for an agent.
+
+Properties:
+
+- created at claim time
+- never reused
+- all state-changing CLI operations should key off it
+- mailbox paths and audit history should attach to it
+
+Suggested format:
+
+- `agt_` prefix plus a random suffix, for example `agt_7b2e9f4c`
+
+#### 2.2 `display_id`
+
+The short id shown to humans.
+
+Properties:
+
+- keeps the familiar `coding-1` and `doc-1` format
+- is bound to at most one current agent at a time
+- may be reassigned after release
+- must not be treated as the true identity key
+
+#### 2.3 Display Slot
+
+A numbered slot within a role, such as `coding-1` or `coding-2`.
+
+Slots are reusable.
+`display_id` tells us which slot an agent currently occupies, not which identity it permanently is across time.
+
+### 3. Proposed Data Model
+
+#### 3.1 Registry v2 Top-Level Shape
+
+```json
+{
+  "version": 2,
+  "updated_at": "2026-03-12T12:00:00+0800",
+  "agent_count": 2,
+  "agents": [
+    {
+      "agent_uid": "agt_a1b2c3d4",
+      "role": "coding",
+      "current_display_id": "coding-1",
+      "display_history": [
+        {
+          "display_id": "coding-1",
+          "assigned_at": "2026-03-12T11:00:00+0800",
+          "released_at": null,
+          "released_reason": null
+        }
+      ],
+      "assigned_by": "user",
+      "assigned_at": "2026-03-12T11:00:00+0800",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-12T11:01:00+0800",
+      "last_touched_at": "2026-03-12T11:10:00+0800",
+      "inactive_at": null,
+      "status": "active",
+      "scope": "forum inbox sync",
+      "files": [],
+      "mailbox": ".agent-local/mailboxes/agt_a1b2c3d4.md",
+      "recovery_of": null,
+      "superseded_by": null
+    },
+    {
+      "agent_uid": "agt_e5f6g7h8",
+      "role": "doc",
+      "current_display_id": "doc-1",
+      "display_history": [
+        {
+          "display_id": "doc-1",
+          "assigned_at": "2026-03-12T11:05:00+0800",
+          "released_at": null,
+          "released_reason": null
+        }
+      ],
+      "assigned_by": "user",
+      "assigned_at": "2026-03-12T11:05:00+0800",
+      "confirmed_by_agent": true,
+      "confirmed_at": "2026-03-12T11:06:00+0800",
+      "last_touched_at": "2026-03-12T11:15:00+0800",
+      "inactive_at": null,
+      "status": "active",
+      "scope": "registry design note",
+      "files": [],
+      "mailbox": ".agent-local/mailboxes/agt_e5f6g7h8.md",
+      "recovery_of": null,
+      "superseded_by": null
+    }
+  ]
+}
+```
+
+#### 3.2 Required Fields
+
+Top level:
+
+- `version`
+- `updated_at`
+- `agent_count`
+- `agents`
+
+Per agent:
+
+- `agent_uid`
+- `role`
+- `current_display_id`
+- `display_history`
+- `assigned_by`
+- `assigned_at`
+- `confirmed_by_agent`
+- `confirmed_at`
+- `last_touched_at`
+- `inactive_at`
+- `status`
+- `scope`
+- `files`
+- `mailbox`
+- `recovery_of`
+- `superseded_by`
+
+#### 3.3 Field Rules
+
+- `agent_uid` is the registry primary key
+- `current_display_id` may be `null`
+- if `current_display_id != null`, that value must be unique across all agents
+- `display_history` must be time ordered, and the last record represents the most recent slot assignment
+- any `display_history` record with `released_at == null` must correspond to `current_display_id`
+- `mailbox` should be keyed by `agent_uid`, not by `display_id`
+- `recovery_of` marks that this agent took over from an older stale agent
+- `superseded_by` marks that this agent has already been superseded by another agent
+
+#### 3.4 Why `current_display_id` May Be `null`
+
+This is what allows slot recycling without identity loss.
+
+When an agent entry still needs to remain in the registry for audit purposes, but its short slot has already been released to someone else:
+
+- the agent entry remains
+- `agent_uid` stays the same
+- `current_display_id` becomes `null`
+- the last `display_history` record gains a `released_at`
+
+### 4. Slot Recycling Rules
+
+#### 4.1 Stale and Slot Release
+
+This future design keeps the same command-level lease idea:
+
+- `finish` moves the agent to `inactive`
+- after one hour of inactivity, the agent becomes stale
+
+Under the future identity split, a stale agent no longer keeps its old short slot forever.
+The system may release its display slot during `cleanup` or before the next registry write:
+
+- set `current_display_id = null`
+- update the last `display_history.released_at`
+- set `released_reason = "stale-recycled"`
+
+The agent entry itself remains, so auditability and resume decisions are still possible.
+
+#### 4.2 New Claim Slot Allocation
+
+A new short slot should use the smallest available positive integer suffix for that role, not the historical max plus one.
+
+Example:
+
+- currently used slots are `coding-2` and `coding-4`
+- available slots are `coding-1` and `coding-3`
+- the next claim should take `coding-1`
+
+That is how short ids converge again.
+
+### 5. Lifecycle
+
+#### 5.1 New Chat Claim
+
+1. create a new `agent_uid`
+2. choose the smallest available `display_id` for the role
+3. create the mailbox at `.agent-local/mailboxes/<agent_uid>.md`
+4. write the new agent entry
+5. return both `agent_uid` and `display_id`
+
+#### 5.2 Start
+
+`start <agent_uid>` only confirms that specific agent entry:
+
+- `confirmed_by_agent = true`
+- `confirmed_at = now`
+- `status = active`
+- `inactive_at = null`
+
+The human-facing label remains the `display_id`, but writes key off `agent_uid`.
+
+#### 5.3 Each User Command
+
+1. `touch <agent_uid>`
+2. do the work
+3. `finish <agent_uid>`
+
+This matches the current lease flow except that the CLI primary key becomes `agent_uid`.
+
+#### 5.4 Old Chat Returns Before Slot Release
+
+If agent A still has `current_display_id = coding-1`, then:
+
+- `resume-check <agent_uid=A>` should return `safe_to_resume = true`
+- A may directly `touch A`
+- A still presents itself as `coding-1`
+
+#### 5.5 Old Chat Returns After Slot Release and Reassignment
+
+If:
+
+- A still exists in the registry
+- A has `current_display_id = null`
+- B has already claimed `coding-1`
+
+Then:
+
+- `resume-check <agent_uid=A>` must not permit a direct resume
+- it should return `must_recover = true`
+- A may not directly act as `coding-1`
+- A must go through `recover <agent_uid=A>`
+
+After recovery, A receives a new short slot such as `coding-2`.
+
+#### 5.6 Takeover by a Different Chat
+
+If the original chat A is not the one returning, and some new chat needs to take over A's scope, then the new chat must not reuse A's `agent_uid`.
+
+Instead, takeover should work like this:
+
+1. the new chat claims a fresh `agent_uid`
+2. the new chat receives a fresh `display_id`
+3. old A records `superseded_by = <new-agent-uid>`
+4. the new agent records `recovery_of = <old-agent-uid>`
+5. the new mailbox appends a takeover note
+
+This keeps the distinction clear:
+
+- self-resume keeps the same `agent_uid`
+- takeover creates a new `agent_uid`
+
+### 6. Proposed CLI Behavior
+
+#### 6.1 Primary Keys
+
+From this version onward, the design proposes:
+
+- write commands should accept only `agent_uid` by default
+- read commands may accept either `agent_uid` or `display_id`
+
+Reason:
+
+- `display_id` may be reused
+- `agent_uid` will not be reused
+
+#### 6.2 `claim`
+
+```text
+scripts/agent_registry.py claim <role|auto> [--scope <scope>] [--json]
+```
+
+Output:
+
+- `agent_uid`
+- `display_id`
+- `role`
+- `scope`
+- `mailbox`
+
+Claim should create the `agent_uid` immediately and allocate the smallest available `display_id`.
+
+#### 6.3 `start`
+
+```text
+scripts/agent_registry.py start <agent_uid> [--json]
+```
+
+Behavior:
+
+- verify that the `agent_uid` exists
+- if `current_display_id` is `null`, reject `start` and require `recover` first
+- on success, return both `agent_uid` and `display_id`
+
+#### 6.4 `status`
+
+```text
+scripts/agent_registry.py status [--agent-uid <agent_uid> | --display-id <display_id>] [--json]
+```
+
+By default it should list all agents, and each row should display:
+
+- `agent_uid`
+- `current_display_id`
+- `status`
+- `scope`
+- `last_touched_at`
+- `inactive_at`
+
+If queried by `display_id`, it should return only the current holder of that slot, not historical holders.
+
+#### 6.5 `touch`
+
+```text
+scripts/agent_registry.py touch <agent_uid> [--json]
+```
+
+Behavior:
+
+- if `current_display_id` is `null`, reject `touch` and require `recover` first
+- otherwise update `last_touched_at` and move the agent to `active`
+
+#### 6.6 `finish`
+
+```text
+scripts/agent_registry.py finish <agent_uid> [--json]
+```
+
+Behavior:
+
+- set `status = inactive`
+- update `inactive_at`
+- do not release the display slot yet
+
+Slot release happens during stale recycling or explicit recover logic, not immediately at `finish`.
+
+#### 6.7 `resume-check`
+
+```text
+scripts/agent_registry.py resume-check <agent_uid> [--json]
+```
+
+Output should include at least:
+
+- `agent_uid`
+- `current_display_id`
+- `safe_to_resume`
+- `must_recover`
+- `recommended_action`
+- `reason`
+
+Decision rules:
+
+1. if the agent is already `paused`, `done`, or `blocked`, return stop
+2. if `current_display_id != null`, return direct resume
+3. if `current_display_id == null`, return `must_recover = true`
+
+#### 6.8 `recover`
+
+```text
+scripts/agent_registry.py recover <agent_uid> [--scope <scope>] [--json]
+```
+
+Here `recover` means the same agent identity resumes work but needs a new short slot.
+
+Behavior:
+
+1. verify that the `agent_uid` exists
+2. verify that the agent is not `done`
+3. verify that `current_display_id == null`
+4. assign a new smallest available `display_id`
+5. append a new record to `display_history`
+6. if `--scope` is present, update the scope
+7. return the new `display_id`
+
+After `recover`:
+
+- `agent_uid` stays the same
+- `display_id` changes
+- mailbox stays the same
+
+#### 6.9 `takeover`
+
+```text
+scripts/agent_registry.py takeover <stale-agent-uid> [--scope <scope>] [--json]
+```
+
+This should be a distinct command, not just another flavor of `recover`.
+
+Use it when:
+
+- the original agent is not the one coming back
+- a different chat must take over the stale agent's work
+
+Behavior:
+
+1. create a new `agent_uid`
+2. assign a new `display_id`
+3. set `superseded_by = <new-agent-uid>` on the old agent
+4. set `recovery_of = <old-agent-uid>` on the new agent
+5. create a new mailbox
+
+### 7. Edge Case Walkthrough
+
+Scenario:
+
+- A originally was `agent_uid=A`, `display_id=coding-1`
+- A finished work and became `inactive`
+- after one hour A became stale and the slot was released
+- new chat B then claimed `agent_uid=B`, `display_id=coding-1`
+- later the user returned to old chat A
+
+The correct behavior should be:
+
+1. A runs `resume-check A`
+2. the system sees `current_display_id == null` for A
+3. the system returns `must_recover = true`
+4. A must not directly `touch A` and continue as `coding-1`
+5. A runs `recover A`
+6. the system assigns the next available slot, for example `coding-2`
+7. A continues under `display_id=coding-2`
+
+Result:
+
+- B remains `coding-1`
+- A safely becomes `coding-2`
+- the two chats never collide as the same identity
+
+### 8. Migration Guidance
+
+#### 8.1 Schema Migration
+
+For each old v1 agent entry:
+
+- move `id` into `current_display_id`
+- add a new `agent_uid`
+- add `display_history`
+
+If the old mailbox path used the display id, such as `.agent-local/coding-1.md`, then after migration the recommended shape is:
+
+- keep the old file during migration if needed
+- move or copy it to `.agent-local/mailboxes/<agent_uid>.md`
+- store only the uid-based mailbox path in the registry
+
+#### 8.2 CLI Migration
+
+Recommended in two phases:
+
+1. transitional phase
+   - `touch/start/finish/stop/resume-check/recover` accept both `agent_uid` and `display_id`
+   - if a write command receives a `display_id`, emit a deprecation warning
+2. stable phase
+   - write commands accept only `agent_uid`
+   - `display_id` remains only for display and lookup
+
+### 9. Why This Is Better Than Never Reusing Ids
+
+Compared with the current approach, this model:
+
+- keeps a stable identity for old chats
+- allows short ids to converge
+- no longer relies on keeping every historical id blocked forever
+- makes self-resume and takeover distinct concepts
+
+Tradeoffs:
+
+- the schema is more complex
+- the CLI has to move from display-id-first to uid-first
+- documents and tests would need a full rewrite
+
+### 10. Open Questions
+
+1. should we also add a `session_token` so another chat cannot impersonate the same `agent_uid`
+2. should `takeover` remain a separate command or be folded into `recover`
+3. after how much stale time should a display slot be released, and should that use the same threshold as the current one-hour stale TTL
+4. should `status` abbreviate `agent_uid` by default so the human-readable output does not become too noisy
