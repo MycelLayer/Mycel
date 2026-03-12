@@ -41,6 +41,12 @@
         --accent-strong: #084d3f;
         --line: rgba(29, 42, 38, 0.12);
         --shadow: 0 24px 80px rgba(20, 32, 27, 0.12);
+        --home-h1-size: clamp(1.5rem, 3.5vw, 2.9rem);
+        --home-h1-max-width: min(100%, 9em);
+        --home-lead-max-width: 60ch;
+        --home-lead-line-height: 1.8;
+        --home-note-max-width: 62ch;
+        --home-note-line-height: 1.8;
       }
 
       * {
@@ -100,13 +106,6 @@
         text-underline-offset: 0.18em;
       }
 
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-        gap: 24px;
-        align-items: stretch;
-      }
-
       .panel {
         background: var(--surface);
         border: 1px solid var(--line);
@@ -115,52 +114,12 @@
         backdrop-filter: blur(10px);
       }
 
-      .hero-copy {
-        padding: 40px;
-      }
-
-      .eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 14px;
-        border-radius: 999px;
-        background: rgba(13, 107, 87, 0.08);
-        color: var(--accent-strong);
-        font-size: 0.9rem;
-      }
-
       h1,
       h2,
       h3 {
         margin: 0;
         font-family: "Noto Serif SC", "Songti SC", serif;
         line-height: 1.08;
-      }
-
-      h1 {
-        margin-top: 18px;
-        font-size: clamp(1.5rem, 3.5vw, 2.9rem);
-        max-width: 14ch;
-        text-wrap: balance;
-      }
-
-      .lead {
-        margin: 18px 0 0;
-        max-width: 60ch;
-        font-size: 1.08rem;
-        line-height: 1.8;
-        color: var(--muted);
-        text-wrap: pretty;
-      }
-
-      .hero-note {
-        margin: 16px 0 0;
-        max-width: 62ch;
-        font-size: 0.98rem;
-        line-height: 1.8;
-        color: var(--accent-strong);
-        text-wrap: pretty;
       }
 
       .actions {
@@ -190,12 +149,6 @@
         background: transparent;
         border-color: var(--line);
         color: var(--text);
-      }
-
-      .hero-card {
-        display: grid;
-        gap: 16px;
-        padding: 24px;
       }
 
       .status-card,
@@ -278,20 +231,19 @@
       }
 
       @media (max-width: 880px) {
-        .hero,
         .grid,
         .read-grid {
           grid-template-columns: 1fr;
         }
 
-        .hero-copy,
         .section-panel {
           padding: 26px;
         }
       }
     </style>
+    <link rel="stylesheet" href="/Mycel/assets/home-hero.css">
   </head>
-  <body>
+  <body class="home-page">
     <div class="page">
       <nav class="nav">
         <div class="brand">Mycel</div>
