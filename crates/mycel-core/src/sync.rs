@@ -238,6 +238,44 @@ fn signed_object_message(
     )
 }
 
+fn signed_snapshot_offer_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    msg_id: String,
+    snapshot_id: &str,
+    body: &Value,
+) -> Result<Value, StoreRebuildError> {
+    let documents = body
+        .get("documents")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            StoreRebuildError::new(
+                "failed to build SNAPSHOT_OFFER payload: snapshot is missing 'documents'",
+            )
+        })?;
+    let root_hash = body
+        .get("root_hash")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            StoreRebuildError::new(
+                "failed to build SNAPSHOT_OFFER payload: snapshot is missing string field 'root_hash'",
+            )
+        })?;
+    let document_ids = documents.keys().cloned().collect::<Vec<_>>();
+
+    signed_sync_wire_message(
+        signing_key,
+        sender,
+        "SNAPSHOT_OFFER",
+        msg_id,
+        json!({
+            "snapshot_id": snapshot_id,
+            "root_hash": root_hash,
+            "documents": document_ids
+        }),
+    )
+}
+
 fn signed_view_announce_message(
     signing_key: &SigningKey,
     sender: &str,
@@ -340,6 +378,13 @@ fn advertised_sync_capabilities(remote_manifest: &StoreIndexManifest) -> Vec<&'s
     let mut capabilities = vec!["patch-sync"];
     if remote_manifest
         .object_ids_by_type
+        .get("snapshot")
+        .is_some_and(|ids| !ids.is_empty())
+    {
+        capabilities.push("snapshot-sync");
+    }
+    if remote_manifest
+        .object_ids_by_type
         .get("view")
         .is_some_and(|ids| !ids.is_empty())
     {
@@ -375,6 +420,7 @@ pub fn generate_sync_pull_transcript_from_peer_store(
 
     let remote_manifest = load_store_index_manifest(peer_store_root)?;
     let remote_heads = head_map_from_manifest(&remote_manifest);
+    let remote_snapshot_ids = sorted_object_ids_for_type(&remote_manifest, "snapshot");
     let remote_view_ids = sorted_object_ids_for_type(&remote_manifest, "view");
     let advertised_capabilities = advertised_sync_capabilities(&remote_manifest);
     if remote_heads.is_empty() {
@@ -413,6 +459,22 @@ pub fn generate_sync_pull_transcript_from_peer_store(
     }
 
     let mut sequence = 2usize;
+    for snapshot_id in &remote_snapshot_ids {
+        let body = remote_object_index.get(snapshot_id).ok_or_else(|| {
+            StoreRebuildError::new(format!(
+                "peer store {} is missing offered snapshot '{}'",
+                peer_store_root.display(),
+                snapshot_id
+            ))
+        })?;
+        messages.push(signed_snapshot_offer_message(
+            peer_signing_key,
+            &peer.node_id,
+            next_wire_msg_id(&mut sequence, "snapshot-offer"),
+            snapshot_id,
+            body,
+        )?);
+    }
     for view_id in &remote_view_ids {
         let body = remote_object_index.get(view_id).ok_or_else(|| {
             StoreRebuildError::new(format!(
@@ -435,6 +497,7 @@ pub fn generate_sync_pull_transcript_from_peer_store(
             .values()
             .flatten()
             .cloned()
+            .chain(remote_snapshot_ids.iter().cloned())
             .chain(remote_view_ids.iter().cloned())
             .collect::<Vec<_>>(),
         &known_local_ids,
@@ -1016,7 +1079,11 @@ mod tests {
         value
     }
 
-    fn signed_snapshot_object_message(signing_key: &SigningKey, sender: &str) -> Value {
+    fn signed_snapshot_object_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        revision_id: &str,
+    ) -> Value {
         let body = sign_object_value(
             signing_key,
             json!({
@@ -1024,9 +1091,9 @@ mod tests {
                 "version": "mycel/0.1",
                 "snapshot_id": "snap:placeholder",
                 "documents": {
-                    "doc:test": "rev:test"
+                    "doc:test": revision_id
                 },
-                "included_objects": ["rev:test"],
+                "included_objects": [revision_id],
                 "root_hash": "hash:snapshot-root",
                 "created_by": "pk:ed25519:placeholder",
                 "timestamp": 3u64,
@@ -1681,7 +1748,7 @@ mod tests {
     fn sync_pull_from_transcript_accepts_snapshot_offer_when_capability_is_advertised() {
         let signing_key = signing_key();
         let sender = "node:alpha";
-        let snapshot_object = signed_snapshot_object_message(&signing_key, sender);
+        let snapshot_object = signed_snapshot_object_message(&signing_key, sender, "rev:test");
         let snapshot_id = snapshot_object["payload"]["object_id"]
             .as_str()
             .expect("snapshot object should include object id")
@@ -1724,6 +1791,81 @@ mod tests {
         let manifest =
             load_store_index_manifest(&store_root).expect("store manifest should be readable");
         assert_eq!(manifest.stored_object_count, 1);
+    }
+
+    #[test]
+    fn generate_sync_pull_transcript_from_peer_store_offers_snapshots_when_present() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let remote_store_root = temp_dir("peer-driver-remote-snapshots");
+        let local_store_root = temp_dir("peer-driver-local-snapshots");
+
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch object should include object id")
+            .to_string();
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let snapshot_object = signed_snapshot_object_message(&signing_key, sender, &revision_id);
+        let snapshot_id = snapshot_object["payload"]["object_id"]
+            .as_str()
+            .expect("snapshot object should include object id")
+            .to_string();
+
+        for body in [
+            &patch_object["payload"]["body"],
+            &revision_object["payload"]["body"],
+            &snapshot_object["payload"]["body"],
+        ] {
+            write_object_value_to_store(&remote_store_root, body)
+                .expect("object should write to remote store");
+        }
+
+        let transcript = generate_sync_pull_transcript_from_peer_store(
+            &sync_peer(sender, &signing_key),
+            &signing_key,
+            &remote_store_root,
+            &local_store_root,
+        )
+        .expect("peer-store transcript should generate");
+
+        let message_types = transcript
+            .messages
+            .iter()
+            .map(|message| {
+                message["type"]
+                    .as_str()
+                    .expect("generated message should include type")
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            message_types,
+            vec![
+                "HELLO",
+                "MANIFEST",
+                "SNAPSHOT_OFFER",
+                "WANT",
+                "OBJECT",
+                "OBJECT",
+                "WANT",
+                "OBJECT",
+                "BYE"
+            ]
+        );
+        assert_eq!(
+            transcript.messages[0]["payload"]["capabilities"],
+            json!(["patch-sync", "snapshot-sync"])
+        );
+        assert_eq!(
+            transcript.messages[2]["payload"]["snapshot_id"],
+            snapshot_id
+        );
     }
 
     #[test]
@@ -1786,6 +1928,60 @@ mod tests {
             load_store_index_manifest(&store_root).expect("store manifest should be readable");
         assert_eq!(manifest.view_governance.len(), 1);
         assert_eq!(manifest.view_governance[0].view_id, view_id);
+    }
+
+    #[test]
+    fn sync_pull_from_peer_store_fetches_offered_snapshots() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let remote_store_root = temp_dir("peer-driver-remote-snapshot-sync");
+        let local_store_root = temp_dir("peer-driver-local-snapshot-sync");
+
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch object should include object id")
+            .to_string();
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let snapshot_object = signed_snapshot_object_message(&signing_key, sender, &revision_id);
+        let snapshot_id = snapshot_object["payload"]["object_id"]
+            .as_str()
+            .expect("snapshot object should include object id")
+            .to_string();
+
+        for body in [
+            &patch_object["payload"]["body"],
+            &revision_object["payload"]["body"],
+            &snapshot_object["payload"]["body"],
+        ] {
+            write_object_value_to_store(&remote_store_root, body)
+                .expect("object should write to remote store");
+        }
+
+        let summary = sync_pull_from_peer_store(
+            &sync_peer(sender, &signing_key),
+            &signing_key,
+            &remote_store_root,
+            &local_store_root,
+        )
+        .expect("peer-store sync should run");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.object_message_count, 3);
+        assert_eq!(summary.written_object_count, 3);
+
+        let manifest =
+            load_store_index_manifest(&local_store_root).expect("local manifest should exist");
+        assert_eq!(manifest.stored_object_count, 3);
+        assert_eq!(
+            manifest.object_ids_by_type.get("snapshot"),
+            Some(&vec![snapshot_id])
+        );
     }
 
     #[test]

@@ -1067,6 +1067,15 @@ fn populate_seed_store(
                 timestamp + 10,
             )?;
         }
+        if fixture_requests_seed_snapshot_sync(fixture) {
+            write_snapshot_to_store(
+                store_root,
+                signing_key,
+                &document.doc_id,
+                &current_revision_id,
+                timestamp + 20,
+            )?;
+        }
     }
     Ok(())
 }
@@ -1124,6 +1133,15 @@ fn fixture_requests_seed_view_sync(fixture: &Fixture) -> bool {
         .unwrap_or(false)
 }
 
+fn fixture_requests_seed_snapshot_sync(fixture: &Fixture) -> bool {
+    fixture
+        .metadata
+        .as_ref()
+        .and_then(|value| value.get("publish_seed_snapshot"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
 fn write_governance_view_to_store(
     store_root: &Path,
     signing_key: &ed25519_dalek::SigningKey,
@@ -1161,6 +1179,46 @@ fn write_governance_view_to_store(
     write_object_value_to_store(store_root, &view).map_err(|err| {
         format!(
             "failed to store governance view for '{doc_id}' at {}: {err}",
+            store_root.display()
+        )
+    })?;
+    Ok(())
+}
+
+fn write_snapshot_to_store(
+    store_root: &Path,
+    signing_key: &ed25519_dalek::SigningKey,
+    doc_id: &str,
+    revision_id: &str,
+    timestamp: u64,
+) -> Result<(), String> {
+    let creator = signer_id(signing_key);
+    let mut snapshot = json!({
+        "type": "snapshot",
+        "version": "mycel/0.1",
+        "snapshot_id": "snap:placeholder",
+        "documents": {
+            doc_id: revision_id
+        },
+        "included_objects": [revision_id],
+        "root_hash": format!("hash:snapshot-root-{timestamp}"),
+        "created_by": creator,
+        "timestamp": timestamp
+    });
+    let snapshot_id = recompute_object_id(&snapshot, "snapshot_id", "snap")
+        .map_err(|err| format!("failed to compute snapshot id for '{doc_id}': {err}"))?;
+    snapshot["snapshot_id"] = Value::String(snapshot_id);
+    let payload = signed_payload_bytes(&snapshot)
+        .map_err(|err| format!("failed to canonicalize snapshot for '{doc_id}': {err}"))?;
+    let signature = signing_key.sign(&payload);
+    snapshot["signature"] = Value::String(format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    ));
+
+    write_object_value_to_store(store_root, &snapshot).map_err(|err| {
+        format!(
+            "failed to store snapshot for '{doc_id}' at {}: {err}",
             store_root.display()
         )
     })?;

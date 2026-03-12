@@ -435,6 +435,111 @@ fn sim_run_with_seed_view_sync_publishes_governance_views_to_readers() {
 }
 
 #[test]
+fn sim_run_with_seed_snapshot_sync_publishes_snapshots_to_readers() {
+    let _guard = sim_run_lock();
+    let workspace = create_temp_workspace("sim-snapshot-sync");
+
+    let mut fixture = load_json_value(
+        &workspace
+            .root
+            .join("fixtures/object-sets/minimal-valid/fixture.json"),
+    );
+    fixture["fixture_id"] = Value::String("snapshot-sync-minimal".to_owned());
+    fixture["metadata"] = serde_json::json!({
+        "publish_seed_snapshot": true
+    });
+    let fixture_path = write_json_fixture(
+        &workspace,
+        "fixtures/object-sets/snapshot-sync-minimal/fixture.json",
+        &fixture,
+    );
+
+    let mut topology = load_json_value(
+        &workspace
+            .root
+            .join("sim/topologies/three-peer-consistency.example.json"),
+    );
+    topology["topology_id"] = Value::String("snapshot-sync-three-peer".to_owned());
+    topology["fixture_set"] =
+        Value::String("fixtures/object-sets/snapshot-sync-minimal".to_owned());
+    let topology_path = write_json_fixture(
+        &workspace,
+        "sim/topologies/snapshot-sync-three-peer.example.json",
+        &topology,
+    );
+
+    let mut test_case = load_json_value(
+        &workspace
+            .root
+            .join("sim/tests/three-peer-consistency.example.json"),
+    );
+    test_case["test_id"] = Value::String("snapshot-sync-three-peer".to_owned());
+    test_case["topology"] = Value::String(
+        topology_path
+            .strip_prefix(&workspace.root)
+            .expect("topology path should live under the temporary workspace")
+            .to_string_lossy()
+            .into_owned(),
+    );
+    test_case["fixture_set"] = Value::String(
+        fixture_path
+            .parent()
+            .expect("fixture path should have a parent")
+            .strip_prefix(&workspace.root)
+            .expect("fixture path should live under the temporary workspace")
+            .to_string_lossy()
+            .into_owned(),
+    );
+    let target_path = write_json_fixture(
+        &workspace,
+        "sim/tests/snapshot-sync-three-peer.example.json",
+        &test_case,
+    );
+    let target_owned = target_path.to_string_lossy().into_owned();
+
+    let output = run_mycel_in_dir(&workspace.root, &["sim", "run", &target_owned, "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["result"], "pass");
+    let report = load_report(&summary);
+    let peers = report["peers"]
+        .as_array()
+        .expect("peers should be an array");
+    let reader = peers
+        .iter()
+        .find(|peer| peer["node_id"] == "node:peer-reader-a")
+        .expect("expected reader peer in report");
+    let verified_object_ids = reader["verified_object_ids"]
+        .as_array()
+        .expect("verified_object_ids should be an array");
+    assert!(
+        verified_object_ids.iter().any(|value| value
+            .as_str()
+            .is_some_and(|object_id| object_id.starts_with("snap:"))),
+        "expected synchronized snapshot object in reader set, report: {report}"
+    );
+
+    let events = report["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert!(
+        events.iter().any(|entry| {
+            entry["action"] == "reader-accept"
+                && entry["detail"]
+                    .as_str()
+                    .is_some_and(|detail| detail.contains("transferred 2 OBJECT messages"))
+        }),
+        "expected reader-accept event to report snapshot-aware peer-store transfer"
+    );
+}
+
+#[test]
 fn signature_mismatch_run_produces_fault_plan_and_fail_result() {
     let _guard = sim_run_lock();
     let output = run_sim(&[

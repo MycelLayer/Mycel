@@ -297,7 +297,11 @@ fn signed_revision_object_message(
     value
 }
 
-fn signed_snapshot_object_message(signing_key: &SigningKey, sender: &str) -> Value {
+fn signed_snapshot_object_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    revision_id: &str,
+) -> Value {
     let body = sign_object_value(
         signing_key,
         json!({
@@ -305,9 +309,9 @@ fn signed_snapshot_object_message(signing_key: &SigningKey, sender: &str) -> Val
             "version": "mycel/0.1",
             "snapshot_id": "snap:placeholder",
             "documents": {
-                "doc:test": "rev:test"
+                "doc:test": revision_id
             },
-            "included_objects": ["rev:test"],
+            "included_objects": [revision_id],
             "root_hash": "hash:snapshot-root",
             "created_by": "pk:ed25519:placeholder",
             "timestamp": 3u64,
@@ -692,7 +696,7 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
 fn sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised() {
     let signing_key = signing_key();
     let sender = "node:alpha";
-    let snapshot_object = signed_snapshot_object_message(&signing_key, sender);
+    let snapshot_object = signed_snapshot_object_message(&signing_key, sender, "rev:test");
     let snapshot_id = snapshot_object["payload"]["object_id"]
         .as_str()
         .expect("snapshot object id should exist")
@@ -752,6 +756,71 @@ fn sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised() {
         serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
             .expect("manifest should parse");
     assert_eq!(manifest["stored_object_count"], 1);
+}
+
+#[test]
+fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-snapshot-remote");
+    let local_store = create_temp_dir("sync-peer-store-snapshot-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let snapshot_object = signed_snapshot_object_message(&signing_key, sender, &revision_id);
+    let snapshot_id = snapshot_object["payload"]["object_id"]
+        .as_str()
+        .expect("snapshot object id should exist")
+        .to_string();
+
+    for body in [
+        &patch_object["payload"]["body"],
+        &revision_object["payload"]["body"],
+        &snapshot_object["payload"]["body"],
+    ] {
+        write_object_value_to_store(remote_store.path(), body)
+            .expect("object should write to remote store");
+    }
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(&remote_store.path().to_path_buf()),
+        "--into",
+        &path_arg(&local_store.path().to_path_buf()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(
+        json["object_message_count"], 3,
+        "expected revision, patch, and snapshot transfer"
+    );
+    assert_eq!(json["written_object_count"], 3);
+
+    let manifest_path = local_store.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 3);
+    assert_eq!(manifest["object_ids_by_type"]["snapshot"][0], snapshot_id);
 }
 
 #[test]
