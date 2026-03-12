@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：late partial progress，已在最近一批 replay-dependency CLI proof 擴張、multi-hop ancestry context 傳遞、shared canonical module 收斂，以及 render/store ancestry context 保留工作後刷新；里程碑狀態未變
+狀態：late partial progress，已在最近一批 wire-envelope parsing、signature verification 與 session sequencing groundwork 後刷新；`M4` 現在已有 early implementation groundwork，但 end-to-end sync 仍未完成
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -17,6 +17,7 @@
 - 持續成長中的 v0.1 protocol 與 wire-spec 文件集
 - 適合做內部驗證與決定性模擬器工作流程的 Rust CLI
 - `mycel-core` 對 object schema metadata、object-envelope parsing、replay-based revision verification、local object-store ingest/rebuild、persisted store indexes，以及 accepted-head inspection 的支援
+- `mycel-core` 對早期 wire-envelope parsing、payload validation、通用 wire signature verification、sender mapping，以及 minimal message set 的 inbound session sequencing/head-tracking 的支援
 - 更集中化的 canonical hash 與 signed-payload helpers，已在 verification、replay、head/render 預先驗證、authoring，以及部分 CLI smoke 路徑之間重用
 - 早期 reader-plus-governance surfaces，涵蓋 accepted-head rendering、具名 fixed-profile selection，以及具備 editor-admission 感知的 inspect/render workflows
 - `document`、`block`、`patch`、`revision`、`view`、`snapshot` 在 parser / verify / CLI 路徑更廣的 strictness-surface coverage、更完整的 `object inspect` warning surface、對 merge 與 cross-document revision edge 更強的 signature-edge 與 replay/verification smoke coverage、更清楚的 multi-hop ancestry replay failure context，以及 isolate 過的 validate-peer fixtures
@@ -39,6 +40,7 @@
 1. 完成窄版的第一個客戶端核心
 2. 收掉 shared core 在 parsing 與 canonicalization 上剩餘的缺口
 3. 一邊持續擴充 fixtures、模擬器 coverage 與負向測試，一邊開始 reader-plus-governance 的讀取路徑
+4. 讓新的 wire groundwork 維持窄版範圍，等到 object-body verification 與 end-to-end sync 準備好再擴大
 
 ### 下一步
 
@@ -344,19 +346,20 @@ Implementation anchors：
 
 ### Current Status
 
-大多尚未開始。
+早期部分完成。
 
 已在進行中或部分完成：
 
 1. Simulator topology 與 report scaffolding
 2. 用於 report inspection、listing、stats 與 diffing 的 CLI workflows
 3. 可為窄版 resolved-state merges 產出可 replay patch operations 的保守型 local merge-authoring workflow
+4. `mycel-core` 的 wire-envelope parsing、payload validation、RFC 3339 timestamp checks、signature verification、sender identity checks，以及 minimal message set 的 inbound session sequencing
 
 仍缺少或未完成：
 
-1. 真正的 wire implementation
+1. 將 `OBJECT` body 衍生的 hash 與 object-ID 重算真正接進主要 incoming verification path
 2. Object fetch 與 sync state machine
-3. Snapshot-assisted catch-up
+3. Snapshot-assisted catch-up 與 capability-gated optional message handling
 4. Production replication behavior
 5. App-layer runtime support
 
@@ -380,14 +383,17 @@ Implementation anchors：
 
 目前判讀：
 
-實作尚未開始，但文件與 simulator 結構已經有 scaffold。
+`mycel-core` 已有 early groundwork：canonical envelope parsing、payload shape validation、RFC 3339 timestamp enforcement、通用 wire signature verification、sender checks，以及對 `HELLO`、`MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`ERROR` 的 inbound sequencing/head-tracking。仍缺的是完整 fetch/verify/store sync loop、capability-gated optional flows，以及把 `OBJECT` body 衍生驗證接進主要 incoming path。
 
 Implementation anchors：
 
 1. Crates:
+   `crates/mycel-core`
    `crates/mycel-sim`
    `apps/mycel-cli`
 2. Key files:
+   `crates/mycel-core/src/wire.rs`
+   `crates/mycel-core/src/signature.rs`
    `crates/mycel-sim/src/run.rs`
    `crates/mycel-sim/src/model.rs`
    `crates/mycel-sim/src/manifest.rs`
@@ -395,6 +401,7 @@ Implementation anchors：
    `WIRE-PROTOCOL.en.md`
    `PROTOCOL.en.md`
 3. Useful commands:
+   `cargo test -p mycel-core wire::`
    `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json`
    `cargo run -p mycel-cli -- report inspect sim/reports/out/three-peer-consistency.report.json --events --json`
    `cargo run -p mycel-cli -- report diff <left> <right> --events --json`

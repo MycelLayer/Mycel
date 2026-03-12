@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: late partial progress, refreshed after the recent replay-dependency CLI proof expansion, multi-hop ancestry-context propagation, shared canonical-module convergence, and render/store ancestry-context preservation batch; milestone state unchanged
+Status: late partial progress, refreshed after the recent wire-envelope parsing, signature-verification, and session-sequencing groundwork batch; `M4` now has early implementation groundwork, but end-to-end sync is still open
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -17,6 +17,7 @@ The repository already has:
 - a growing v0.1 protocol and wire-spec document set
 - a Rust CLI suitable for internal validation and deterministic simulator workflows
 - `mycel-core` support for object schema metadata, object-envelope parsing, replay-based revision verification, local object-store ingest/rebuild, persisted store indexes, and accepted-head inspection
+- `mycel-core` support for early wire-envelope parsing, payload validation, generic wire-signature verification, sender mapping, and inbound session sequencing/head-tracking for the minimal message set
 - more centralized canonical hash and signed-payload helpers reused across verification, replay, head/render pre-verification, authoring, and some CLI smoke paths
 - early reader-plus-governance surfaces for accepted-head rendering, named fixed-profile selection, and editor-admission-aware inspect/render workflows
 - broader parser / verify / CLI strictness-surface coverage for `document`, `block`, `patch`, `revision`, `view`, and `snapshot`, a materially wider `object inspect` warning surface, stronger signature-edge and replay/verification smoke coverage for merge and cross-document revision edges, clearer multi-hop ancestry context in replay-derived failures, and isolated validate-peer fixtures
@@ -39,6 +40,7 @@ The current lane is:
 1. finish the narrow first-client core
 2. close the remaining shared-core gaps in parsing and canonicalization
 3. keep expanding fixtures, simulator coverage, and negative tests while beginning reader-plus-governance read paths
+4. keep the new wire groundwork narrow until object-body verification and end-to-end sync are ready to land cleanly
 
 ### Next
 
@@ -385,19 +387,20 @@ Goal: extend from local verification and governed reading into interoperable rep
 
 ### Current Status
 
-Mostly not started.
+Early partial.
 
 Already in progress or partially implemented:
 
 1. Simulator topology and report scaffolding
 2. CLI workflows for report inspection, listing, stats, and diffing
 3. A conservative local merge-authoring workflow that emits replayable patch operations for narrow resolved-state merges
+4. `mycel-core` wire-envelope parsing, payload validation, RFC 3339 timestamp checks, signature verification, sender identity checks, and inbound session sequencing for the minimal message set
 
 Still missing or incomplete:
 
-1. Real wire implementation
+1. Wiring `OBJECT` body-derived hash and object-ID recomputation into the main incoming verification path
 2. Object fetch and sync state machine
-3. Snapshot-assisted catch-up
+3. Snapshot-assisted catch-up and capability-gated optional message handling
 4. Production replication behavior
 5. App-layer runtime support
 
@@ -421,14 +424,17 @@ Completion gate:
 
 Current read:
 
-Not started in implementation, but scaffolded in docs and simulator structure.
+Early groundwork exists in `mycel-core`: canonical envelope parsing, payload-shape validation, RFC 3339 timestamp enforcement, generic wire-signature verification, sender checks, and inbound sequencing/head-tracking for `HELLO`, `MANIFEST`, `HEADS`, `WANT`, `OBJECT`, `BYE`, and `ERROR` now exist. What is still missing is the full fetch/verify/store sync loop, capability-gated optional flows, and wiring `OBJECT` body-derived verification into the main incoming path.
 
 Implementation anchors:
 
 1. Crates:
+   `crates/mycel-core`
    `crates/mycel-sim`
    `apps/mycel-cli`
 2. Key files:
+   `crates/mycel-core/src/wire.rs`
+   `crates/mycel-core/src/signature.rs`
    `crates/mycel-sim/src/run.rs`
    `crates/mycel-sim/src/model.rs`
    `crates/mycel-sim/src/manifest.rs`
@@ -436,6 +442,7 @@ Implementation anchors:
    `WIRE-PROTOCOL.en.md`
    `PROTOCOL.en.md`
 3. Useful commands:
+   `cargo test -p mycel-core wire::`
    `cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json`
    `cargo run -p mycel-cli -- report inspect sim/reports/out/three-peer-consistency.report.json --events --json`
    `cargo run -p mycel-cli -- report diff <left> <right> --events --json`

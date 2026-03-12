@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：late partial progress，已在最近一批 replay-dependency CLI proof 擴張、multi-hop ancestry context 傳遞、shared canonical module 收斂，以及 render/store ancestry context 保留工作後刷新；實作狀態未變，M1 parsing、parser / verify / CLI strictness coverage、更廣的 inspect-surface parity、replay dependency strictness、具 ancestry 感知的 render/store proof coverage、signature-edge 與 replay/verify smoke coverage、fixture isolation、test-foundation cleanup 與 canonical reproducibility core 仍接近完成
+狀態：late partial progress，已在最近一批 wire-envelope parsing、signature verification 與 session sequencing groundwork 後刷新；實作狀態現在已包含早期 `M4` wire validation/session coverage，但 end-to-end sync 仍未完成
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
 
@@ -63,8 +63,8 @@
 - [x] 禁止 `document` 與 `block` 帶 signature。
 - [x] 要求 `patch`、`revision`、`view`、`snapshot` 必須帶 signature。
 - [x] 只有在 canonical ID 檢查通過後才驗簽。
-- [ ] 對所有 v0.1 wire message type 實作 envelope signature 驗證。
-- [ ] 拒絕任何未通過 profile 必要簽章檢查的物件或訊息。
+- [x] 對所有 v0.1 wire message type 實作 envelope signature 驗證。
+- [x] 拒絕任何未通過 profile 必要簽章檢查的物件或訊息。
 
 ## 5. Patch 與 Revision Engine
 
@@ -98,16 +98,16 @@
 
 ## 7. Wire Protocol
 
-- [ ] 實作 canonical wire envelope。
-- [ ] 驗證 `type`、`version`、`msg_id`、`timestamp`、`from`、`payload`、`sig`。
-- [ ] 對 wire messages 強制 RFC 3339 時間格式。
-- [ ] 實作 `HELLO`。
-- [ ] 實作 `MANIFEST`。
-- [ ] 實作 `HEADS`。
-- [ ] 實作 `WANT`。
-- [ ] 實作 `OBJECT`。
-- [ ] 實作 `BYE`。
-- [ ] 實作 `ERROR`。
+- [x] 實作 canonical wire envelope。
+- [x] 驗證 `type`、`version`、`msg_id`、`timestamp`、`from`、`payload`、`sig`。
+- [x] 對 wire messages 強制 RFC 3339 時間格式。
+- [x] 實作 `HELLO`。
+- [x] 實作 `MANIFEST`。
+- [x] 實作 `HEADS`。
+- [x] 實作 `WANT`。
+- [x] 實作 `OBJECT`。
+- [x] 實作 `BYE`。
+- [x] 實作 `ERROR`。
 - [ ] 只有在宣告 `snapshot-sync` 時才實作 `SNAPSHOT_OFFER`。
 - [ ] 只有在宣告 `view-sync` 時才實作 `VIEW_ANNOUNCE`。
 - [ ] 對每個 `OBJECT` 重算 `hash(body)`。

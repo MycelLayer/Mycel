@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: late partial progress, refreshed after the recent replay-dependency CLI proof expansion, multi-hop ancestry-context propagation, shared canonical-module convergence, and render/store ancestry-context preservation batch; implementation state unchanged, with M1 parsing, parser / verify / CLI strictness coverage, broader inspect-surface parity, replay dependency strictness, ancestry-aware render/store proof coverage, signature-edge and replay/verify smoke coverage, fixture isolation, test-foundation cleanup, and canonical reproducibility core still nearly complete
+Status: late partial progress, refreshed after the recent wire-envelope parsing, signature-verification, and session-sequencing groundwork batch; implementation state now includes early `M4` wire validation/session coverage while end-to-end sync remains open
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
@@ -63,8 +63,8 @@ Defer if needed:
 - [x] Forbid signatures on `document` and `block`.
 - [x] Require signatures on `patch`, `revision`, `view`, and `snapshot`.
 - [x] Verify signatures only after canonical ID checks pass.
-- [ ] Implement wire envelope signature verification for all v0.1 message types.
-- [ ] Reject any object or message that fails the profile's required signature checks.
+- [x] Implement wire envelope signature verification for all v0.1 message types.
+- [x] Reject any object or message that fails the profile's required signature checks.
 
 ## 5. Patch and Revision Engine
 
@@ -98,16 +98,16 @@ Defer if needed:
 
 ## 7. Wire Protocol
 
-- [ ] Implement the canonical wire envelope.
-- [ ] Validate `type`, `version`, `msg_id`, `timestamp`, `from`, `payload`, and `sig`.
-- [ ] Enforce RFC 3339 timestamps on wire messages.
-- [ ] Implement `HELLO`.
-- [ ] Implement `MANIFEST`.
-- [ ] Implement `HEADS`.
-- [ ] Implement `WANT`.
-- [ ] Implement `OBJECT`.
-- [ ] Implement `BYE`.
-- [ ] Implement `ERROR`.
+- [x] Implement the canonical wire envelope.
+- [x] Validate `type`, `version`, `msg_id`, `timestamp`, `from`, `payload`, and `sig`.
+- [x] Enforce RFC 3339 timestamps on wire messages.
+- [x] Implement `HELLO`.
+- [x] Implement `MANIFEST`.
+- [x] Implement `HEADS`.
+- [x] Implement `WANT`.
+- [x] Implement `OBJECT`.
+- [x] Implement `BYE`.
+- [x] Implement `ERROR`.
 - [ ] Implement `SNAPSHOT_OFFER` only if `snapshot-sync` is advertised.
 - [ ] Implement `VIEW_ANNOUNCE` only if `view-sync` is advertised.
 - [ ] Recompute `hash(body)` for every `OBJECT`.
