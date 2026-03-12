@@ -1,13 +1,20 @@
 //! Minimal single-process simulator runner.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::time::Instant;
 
 use chrono::{FixedOffset, Utc};
+use mycel_core::author::{
+    commit_revision_to_store, create_document_in_store, create_patch_in_store,
+    parse_signing_key_seed, DocumentCreateParams, PatchCreateParams, RevisionCommitParams,
+};
 use mycel_core::protocol::parse_json_strict;
+use mycel_core::replay::replay_revision_from_index;
+use mycel_core::store::{load_store_index_manifest, load_store_object_index, StoreIndexManifest};
+use mycel_core::sync::{sync_pull_from_peer_store, SyncPeer};
 use serde::Serialize;
 use serde_json::json;
 
@@ -53,6 +60,8 @@ pub struct FaultPlanEntry {
     pub source_node_id: String,
     pub target_node_id: Option<String>,
 }
+
+const SIM_SIGNING_KEY_SEED: &str = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
 
 pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String> {
     run_test_case_with_options(target_path, &RunOptions::default())
@@ -135,6 +144,11 @@ pub fn run_test_case_with_options(
         &deterministic_seed,
         &fault_plan,
     )?;
+    let run_mode = if collect_fault_modes(&fixture).is_empty() {
+        "peer-store-sync"
+    } else {
+        "deterministic-placeholder"
+    };
     let scheduled_peer_order = scheduled_peer_order(&topology, &deterministic_seed);
     let finished_at = now_taipei_timestamp()?;
     let elapsed = started_clock.elapsed();
@@ -165,6 +179,7 @@ pub fn run_test_case_with_options(
         ms_per_event,
         &scheduled_peer_order,
         &fault_plan,
+        run_mode,
     ));
     if let Some(parent) = report_path.parent() {
         fs::create_dir_all(parent).map_err(|err| {
@@ -219,6 +234,298 @@ pub fn run_test_case_with_options(
 }
 
 fn simulate_report(
+    test_case: &TestCase,
+    topology: &Topology,
+    fixture: &Fixture,
+    deterministic_seed: &str,
+    fault_plan: &[FaultPlanEntry],
+) -> Result<Report, String> {
+    let has_faults = fixture
+        .expected_outcomes
+        .iter()
+        .any(|outcome| outcome.contains("hash-mismatch") || outcome.contains("signature"));
+    if has_faults {
+        return simulate_fault_report(test_case, topology, fixture, deterministic_seed, fault_plan);
+    }
+    simulate_peer_store_sync_report(test_case, topology, fixture, deterministic_seed, fault_plan)
+}
+
+fn simulate_peer_store_sync_report(
+    test_case: &TestCase,
+    topology: &Topology,
+    fixture: &Fixture,
+    deterministic_seed: &str,
+    _fault_plan: &[FaultPlanEntry],
+) -> Result<Report, String> {
+    let seed_node_id = resolve_peer_ref(topology, &fixture.seed_peer).ok_or_else(|| {
+        format!(
+            "fixture seed peer '{}' does not resolve in topology",
+            fixture.seed_peer
+        )
+    })?;
+    let matched_expected_outcomes = matched_expected_outcomes(test_case, topology, fixture);
+    let signing_key = parse_signing_key_seed(SIM_SIGNING_KEY_SEED)
+        .map_err(|err| format!("failed to parse simulator signing key seed: {err}"))?;
+    let seed_peer = SyncPeer {
+        node_id: seed_node_id.clone(),
+        public_key: mycel_core::author::signer_id(&signing_key),
+    };
+    let stores = SimulationStores::new(&fixture.fixture_id)?;
+    let seed_store_root = stores.store_root(&seed_node_id);
+    let uses_recovery = fixture
+        .expected_outcomes
+        .iter()
+        .any(|outcome| outcome.contains("recovery") || outcome.contains("missing-objects"));
+
+    populate_seed_store(&seed_store_root, fixture, &signing_key, uses_recovery)?;
+    let seed_manifest = load_store_index_manifest(&seed_store_root)
+        .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
+    let seed_verified_object_ids = manifest_object_ids(&seed_manifest);
+
+    let mut events = Vec::new();
+    let mut failures = Vec::new();
+    let mut peers = Vec::with_capacity(topology.peers.len());
+    let mut reader_object_sets = BTreeMap::new();
+    let mut reader_replay_hashes = BTreeMap::new();
+
+    push_event(
+        &mut events,
+        "load",
+        "load-fixture",
+        "ok",
+        None,
+        build_fixture_object_refs(fixture),
+        Some(format!("Loaded fixture '{}'.", fixture.fixture_id)),
+    );
+    push_event(
+        &mut events,
+        "init",
+        "build-topology",
+        "ok",
+        None,
+        Vec::new(),
+        Some(format!(
+            "Prepared topology '{}' with {} peers. Scheduler order: {}.",
+            topology.topology_id,
+            topology.peers.len(),
+            scheduled_peer_order(topology, deterministic_seed).join(" -> ")
+        )),
+    );
+    push_event(
+        &mut events,
+        "init",
+        "build-fault-plan",
+        "ok",
+        None,
+        Vec::new(),
+        Some("No injected faults are scheduled for this run.".to_owned()),
+    );
+
+    for peer in scheduled_peers(topology, deterministic_seed) {
+        let mut report_peer = ReportPeer {
+            node_id: peer.node_id.clone(),
+            status: "ok".to_owned(),
+            verified_object_ids: Vec::new(),
+            rejected_object_ids: Vec::new(),
+            notes: Vec::new(),
+        };
+        let is_seed = peer.node_id == seed_node_id || peer.role == "seed";
+        let is_reader = peer.role == "reader";
+
+        push_event(
+            &mut events,
+            "init",
+            "init-peer",
+            "ok",
+            Some(peer.node_id.clone()),
+            Vec::new(),
+            Some(format!("Initialized peer with role '{}'.", peer.role)),
+        );
+
+        if is_seed {
+            report_peer.verified_object_ids = seed_verified_object_ids.clone();
+            report_peer.notes.push(format!(
+                "Prepared peer-store source with {} verified objects.",
+                seed_verified_object_ids.len()
+            ));
+            push_event(
+                &mut events,
+                "sync",
+                "seed-advertise",
+                "ok",
+                Some(peer.node_id.clone()),
+                seed_verified_object_ids.clone(),
+                Some("Seed advertised the current verified object set from the peer-store sync driver.".to_owned()),
+            );
+            peers.push(report_peer);
+            continue;
+        }
+
+        if !is_reader {
+            report_peer.status = "warning".to_owned();
+            report_peer
+                .notes
+                .push("Simulator did not schedule a sync for this peer role.".to_owned());
+            peers.push(report_peer);
+            continue;
+        }
+
+        let peer_store_root = stores.store_root(&peer.node_id);
+        let starts_with_partial_store = uses_recovery
+            && fixture.reader_peers.iter().any(|peer_ref| {
+                resolve_peer_ref(topology, peer_ref).as_deref() == Some(peer.node_id.as_str())
+            });
+        if starts_with_partial_store {
+            populate_partial_reader_store(&peer_store_root, fixture, &signing_key)?;
+        }
+
+        let summary =
+            sync_pull_from_peer_store(&seed_peer, &signing_key, &seed_store_root, &peer_store_root)
+                .map_err(|err| format!("peer-store sync failed for '{}': {err}", peer.node_id))?;
+
+        let manifest = load_store_index_manifest(&peer_store_root).map_err(|err| {
+            format!(
+                "failed to read reader store manifest '{}': {err}",
+                peer.node_id
+            )
+        })?;
+        let verified_object_ids = manifest_object_ids(&manifest);
+        let synced_object_ids = summary
+            .stored_objects
+            .iter()
+            .map(|record| record.object_id.clone())
+            .collect::<Vec<_>>();
+        let replay_hashes = store_head_replay_hashes(&peer_store_root)?;
+        let action = if starts_with_partial_store {
+            "request-missing-objects"
+        } else {
+            "reader-accept"
+        };
+        let outcome = if summary.is_ok() { "ok" } else { "failed" };
+
+        report_peer.status = if summary.is_ok() {
+            "ok".to_owned()
+        } else {
+            "failed".to_owned()
+        };
+        report_peer.verified_object_ids = verified_object_ids.clone();
+        report_peer.notes.push(format!(
+            "peer-store sync exchanged {} messages, verified {} objects, wrote {} new objects.",
+            summary.message_count, summary.verified_object_count, summary.written_object_count
+        ));
+        report_peer.notes.extend(summary.notes.clone());
+
+        if !summary.errors.is_empty() {
+            report_peer.notes.extend(summary.errors.iter().cloned());
+            failures.push(ReportFailure {
+                failure_id: format!("sync-failed:{}", peer.node_id),
+                node_id: Some(peer.node_id.clone()),
+                description: format!(
+                    "Peer-store sync failed for '{}': {}",
+                    peer.node_id,
+                    summary.errors.join("; ")
+                ),
+                severity: Some("error".to_owned()),
+            });
+        }
+
+        push_event(
+            &mut events,
+            "sync",
+            action,
+            outcome,
+            Some(peer.node_id.clone()),
+            if starts_with_partial_store {
+                synced_object_ids
+            } else {
+                verified_object_ids.clone()
+            },
+            Some(format!(
+                "Peer-store sync used {} and transferred {} OBJECT messages.",
+                if starts_with_partial_store {
+                    "HEADS/WANT"
+                } else {
+                    "MANIFEST/WANT"
+                },
+                summary.object_message_count
+            )),
+        );
+
+        reader_object_sets.insert(peer.node_id.clone(), verified_object_ids);
+        reader_replay_hashes.insert(peer.node_id.clone(), replay_hashes);
+        peers.push(report_peer);
+    }
+
+    for (node_id, object_ids) in &reader_object_sets {
+        if object_ids != &seed_verified_object_ids {
+            failures.push(ReportFailure {
+                failure_id: format!("object-set-mismatch:{node_id}"),
+                node_id: Some(node_id.clone()),
+                description: format!(
+                    "Reader '{}' diverged from the seed object set after peer-store sync.",
+                    node_id
+                ),
+                severity: Some("error".to_owned()),
+            });
+        }
+    }
+
+    let replay_outcome = if readers_match_replay(&reader_replay_hashes) {
+        "ok"
+    } else {
+        failures.push(ReportFailure {
+            failure_id: "replay-mismatch".to_owned(),
+            node_id: None,
+            description: "Reader-visible replay results diverged after peer-store sync.".to_owned(),
+            severity: Some("error".to_owned()),
+        });
+        "failed"
+    };
+    push_event(
+        &mut events,
+        "replay",
+        "compare-replay-results",
+        replay_outcome,
+        None,
+        seed_verified_object_ids.clone(),
+        Some(
+            "Reader-visible replay results were derived from the synchronized peer stores."
+                .to_owned(),
+        ),
+    );
+    push_event(
+        &mut events,
+        "finalize",
+        "write-report",
+        "ok",
+        None,
+        Vec::new(),
+        Some("Prepared machine-readable simulator report.".to_owned()),
+    );
+
+    Ok(Report {
+        schema: Some("../report.schema.json".to_owned()),
+        run_id: format!("run:{}", test_case.test_id),
+        topology_id: topology.topology_id.clone(),
+        fixture_id: fixture.fixture_id.clone(),
+        test_id: Some(test_case.test_id.clone()),
+        execution_mode: Some(test_case.execution_mode.clone()),
+        started_at: None,
+        finished_at: None,
+        peers,
+        result: derive_report_result(&failures),
+        events,
+        failures,
+        summary: Some(ReportSummary {
+            verified_object_count: Some(seed_verified_object_ids.len() as u64),
+            rejected_object_count: Some(0),
+            matched_expected_outcomes,
+        }),
+        metadata: None,
+    })
+}
+
+fn simulate_fault_report(
     test_case: &TestCase,
     topology: &Topology,
     fixture: &Fixture,
@@ -630,11 +937,12 @@ fn build_run_metadata(
     ms_per_event: f64,
     scheduled_peer_order: &[String],
     fault_plan: &[FaultPlanEntry],
+    run_mode: &str,
 ) -> serde_json::Value {
     json!({
         "generator": "mycel-cli/sim-run-v0",
         "deterministic": true,
-        "run_mode": "deterministic-placeholder",
+        "run_mode": run_mode,
         "trace_version": "v0",
         "timezone": "Asia/Taipei (UTC+8)",
         "validation_status": validation_status.to_string(),
@@ -649,6 +957,212 @@ fn build_run_metadata(
         "source_topology": relative_path_string(root, topology_path),
         "source_fixture": relative_path_string(root, fixture_path),
     })
+}
+
+struct SimulationStores {
+    root: PathBuf,
+}
+
+impl SimulationStores {
+    fn new(label: &str) -> Result<Self, String> {
+        let unique = Utc::now().timestamp_nanos_opt().unwrap_or_default();
+        let root = std::env::temp_dir().join(format!(
+            "mycel-sim-{}-{}-{}",
+            sanitize_path_component(label),
+            process::id(),
+            unique
+        ));
+        fs::create_dir_all(&root).map_err(|err| {
+            format!(
+                "failed to create simulator temp root {}: {err}",
+                root.display()
+            )
+        })?;
+        Ok(Self { root })
+    }
+
+    fn store_root(&self, node_id: &str) -> PathBuf {
+        self.root.join(sanitize_path_component(node_id))
+    }
+}
+
+impl Drop for SimulationStores {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
+fn populate_seed_store(
+    store_root: &Path,
+    fixture: &Fixture,
+    signing_key: &ed25519_dalek::SigningKey,
+    with_follow_up_revision: bool,
+) -> Result<(), String> {
+    fs::create_dir_all(store_root).map_err(|err| {
+        format!(
+            "failed to create seed store {}: {err}",
+            store_root.display()
+        )
+    })?;
+    for (index, document) in fixture_documents(fixture).iter().enumerate() {
+        let timestamp = 1_700_000_000 + index as u64;
+        let created = create_document_in_store(
+            store_root,
+            signing_key,
+            &DocumentCreateParams {
+                doc_id: document.doc_id.clone(),
+                title: format!("{} document", fixture.fixture_id),
+                language: "en".to_owned(),
+                timestamp,
+            },
+        )
+        .map_err(|err| {
+            format!(
+                "failed to create seed document '{}': {err}",
+                document.doc_id
+            )
+        })?;
+
+        if with_follow_up_revision {
+            let patch = create_patch_in_store(
+                store_root,
+                signing_key,
+                &PatchCreateParams {
+                    doc_id: document.doc_id.clone(),
+                    base_revision: created.genesis_revision_id.clone(),
+                    timestamp: timestamp + 1,
+                    ops: json!([]),
+                },
+            )
+            .map_err(|err| format!("failed to create patch for '{}': {err}", document.doc_id))?;
+            commit_revision_to_store(
+                store_root,
+                signing_key,
+                &RevisionCommitParams {
+                    doc_id: document.doc_id.clone(),
+                    parents: vec![created.genesis_revision_id],
+                    patches: vec![patch.patch_id],
+                    merge_strategy: None,
+                    timestamp: timestamp + 2,
+                },
+            )
+            .map_err(|err| format!("failed to commit revision for '{}': {err}", document.doc_id))?;
+        }
+    }
+    Ok(())
+}
+
+fn populate_partial_reader_store(
+    store_root: &Path,
+    fixture: &Fixture,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    fs::create_dir_all(store_root).map_err(|err| {
+        format!(
+            "failed to create reader store {}: {err}",
+            store_root.display()
+        )
+    })?;
+    for (index, document) in fixture_documents(fixture).iter().enumerate() {
+        let timestamp = 1_700_000_000 + index as u64;
+        create_document_in_store(
+            store_root,
+            signing_key,
+            &DocumentCreateParams {
+                doc_id: document.doc_id.clone(),
+                title: format!("{} document", fixture.fixture_id),
+                language: "en".to_owned(),
+                timestamp,
+            },
+        )
+        .map_err(|err| {
+            format!(
+                "failed to preseed reader document '{}': {err}",
+                document.doc_id
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn fixture_documents(fixture: &Fixture) -> Vec<crate::model::FixtureDocumentRef> {
+    if fixture.documents.is_empty() {
+        return vec![crate::model::FixtureDocumentRef {
+            doc_id: format!("doc:{}", fixture.fixture_id),
+            head_ids: Vec::new(),
+            notes: None,
+        }];
+    }
+    fixture.documents.clone()
+}
+
+fn manifest_object_ids(manifest: &StoreIndexManifest) -> Vec<String> {
+    let mut object_ids = manifest
+        .object_ids_by_type
+        .iter()
+        .filter(|(object_type, _)| object_type.as_str() != "document")
+        .flat_map(|(_, ids)| ids.iter().cloned())
+        .collect::<Vec<_>>();
+    object_ids.sort();
+    object_ids
+}
+
+fn store_head_replay_hashes(store_root: &Path) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let manifest = load_store_index_manifest(store_root).map_err(|err| {
+        format!(
+            "failed to load store manifest {}: {err}",
+            store_root.display()
+        )
+    })?;
+    let object_index = load_store_object_index(store_root)
+        .map_err(|err| format!("failed to load store index {}: {err}", store_root.display()))?;
+    let parent_revision_ids = manifest
+        .revision_parents
+        .values()
+        .flat_map(|parents| parents.iter().cloned())
+        .collect::<HashSet<_>>();
+    let mut replay_hashes = BTreeMap::new();
+
+    for (doc_id, revision_ids) in &manifest.doc_revisions {
+        let mut doc_hashes = revision_ids
+            .iter()
+            .filter(|revision_id| !parent_revision_ids.contains(*revision_id))
+            .map(|revision_id| {
+                let revision_value = object_index.get(revision_id).ok_or_else(|| {
+                    format!(
+                        "missing revision '{}' in store {}",
+                        revision_id,
+                        store_root.display()
+                    )
+                })?;
+                replay_revision_from_index(revision_value, &object_index)
+                    .map(|summary| summary.recomputed_state_hash)
+                    .map_err(|err| {
+                        format!(
+                            "failed to replay revision '{}' from {}: {err}",
+                            revision_id,
+                            store_root.display()
+                        )
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        doc_hashes.sort();
+        replay_hashes.insert(doc_id.clone(), doc_hashes);
+    }
+
+    Ok(replay_hashes)
+}
+
+fn readers_match_replay(replay_hashes: &BTreeMap<String, BTreeMap<String, Vec<String>>>) -> bool {
+    let mut entries = replay_hashes.values();
+    let Some(first) = entries.next() else {
+        return true;
+    };
+    entries.all(|entry| entry == first)
+}
+
+fn sanitize_path_component(value: &str) -> String {
+    value.replace(':', "-").replace('/', "-")
 }
 
 fn derive_validation_status(has_errors: bool, has_warnings: bool) -> ValidationStatus {

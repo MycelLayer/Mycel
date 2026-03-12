@@ -148,6 +148,7 @@ fn three_peer_consistency_run_produces_pass_report() {
 
     let report = load_report(&summary);
     assert_eq!(report["result"], "pass");
+    assert_eq!(report["metadata"]["run_mode"], "peer-store-sync");
     let events = report["events"]
         .as_array()
         .expect("events should be an array");
@@ -311,13 +312,17 @@ fn partial_want_recovery_run_records_recovery_flow() {
     );
 
     let report = load_report(&summary);
+    assert_eq!(report["metadata"]["run_mode"], "peer-store-sync");
     let events = report["events"]
         .as_array()
         .expect("events should be an array");
     assert!(
-        events
-            .iter()
-            .any(|entry| entry["action"] == "request-missing-objects"),
+        events.iter().any(|entry| {
+            entry["action"] == "request-missing-objects"
+                && entry["detail"]
+                    .as_str()
+                    .is_some_and(|detail| detail.contains("HEADS/WANT"))
+        }),
         "expected request-missing-objects event in report"
     );
 
