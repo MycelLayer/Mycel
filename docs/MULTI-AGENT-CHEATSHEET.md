@@ -35,9 +35,12 @@ Startup command:
 
 - `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
 - `scripts/agent_registry.py start <agent-id>`
+- `scripts/agent_registry.py touch <agent-id>`
+- `scripts/agent_registry.py finish <agent-id>`
 - `scripts/agent_registry.py status [<agent-id>]`
 - `scripts/agent_registry.py resume-check <agent-id>`
 - `scripts/agent_registry.py stop <agent-id> [--status paused|done]`
+- `scripts/agent_registry.py cleanup`
 - `scripts/agent_registry.py recover <stale-agent-id> [--scope <scope>]`
 
 Startup self-label:
@@ -48,10 +51,17 @@ Startup order:
 
 1. `scripts/agent_registry.py claim <role|auto> [--scope <scope>]` if needed
 2. `scripts/agent_registry.py start <agent-id>`
-3. `scripts/agent_registry.py status <agent-id>`
-4. first chat line: `<agent-id> | <scope-label>`
+3. `scripts/agent_registry.py touch <agent-id>` before working the current command
+4. `scripts/agent_registry.py status <agent-id>`
+5. first chat line: `<agent-id> | <scope-label>`
 
 Do not run `claim`, `start`, and `status` in parallel.
+
+Per-command activity:
+
+1. `scripts/agent_registry.py touch <agent-id>` before working
+2. `scripts/agent_registry.py finish <agent-id>` after the command completes
+3. inactive entries older than one hour are cleanup candidates
 
 Interrupted chat recovery:
 

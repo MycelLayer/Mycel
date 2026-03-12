@@ -58,8 +58,11 @@ Recommended startup command:
 
 - `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
 - `scripts/agent_registry.py start <agent-id>`
+- `scripts/agent_registry.py touch <agent-id>`
+- `scripts/agent_registry.py finish <agent-id>`
 - `scripts/agent_registry.py status [<agent-id>]`
 - `scripts/agent_registry.py stop <agent-id> [--status paused|done]`
+- `scripts/agent_registry.py cleanup`
 - `scripts/agent_registry.py recover <stale-agent-id> [--scope <scope>]`
 
 Recommended startup self-label:
@@ -109,7 +112,9 @@ Before an agent starts:
 7. check whether another agent or human is already working on it
 8. leave a short claim note in the issue or team channel
 9. confirm the likely file set before editing
-10. update the local registry entry when scope or status changes
+10. run `scripts/agent_registry.py touch <agent-id>` before working the current user-command cycle
+11. update the local registry entry when scope or status changes
+12. run `scripts/agent_registry.py finish <agent-id>` after the command-level work is complete
 
 When the chat itself starts, use one short self-label line first, such as:
 
@@ -265,6 +270,13 @@ Recovery sequence:
 4. if the chat is clearly gone, either run `scripts/agent_registry.py recover <agent-id>` or run `scripts/agent_registry.py stop <agent-id>` followed by `scripts/agent_registry.py claim <role>` and `scripts/agent_registry.py start <new-agent-id>`
 5. read the stale mailbox before resuming tracked work
 6. continue work only under the new agent id
+
+Inactive lease rule:
+
+1. `touch` before each user-command work cycle
+2. `finish` when that command completes
+3. inactive entries older than one hour should be removed
+4. `scripts/agent_registry.py cleanup` can be used when an explicit sweep is needed
 
 Do not silently reuse the old agent id for a new chat after an interruption.
 

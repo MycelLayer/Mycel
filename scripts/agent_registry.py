@@ -13,6 +13,8 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 ALLOWED_ROLES = {"coding", "doc"}
+ALLOWED_STATUSES = {"active", "inactive", "paused", "blocked", "done"}
+INACTIVE_TTL_SECONDS = 3600
 
 
 class RegistryError(Exception):
@@ -21,6 +23,13 @@ class RegistryError(Exception):
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def parse_utc_timestamp(value: str) -> datetime:
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    return datetime.fromisoformat(normalized).astimezone(timezone.utc)
 
 
 def load_registry(*, allow_missing: bool = False) -> dict[str, Any]:
@@ -83,6 +92,60 @@ def find_agent_entry(registry: dict[str, Any], agent_id: str) -> dict[str, Any]:
     if len(matches) > 1:
         raise RegistryError(f"invalid registry: duplicate agent id {agent_id}")
     return matches[0]
+
+
+def require_status(entry: dict[str, Any], agent_id: str) -> str:
+    status = require_non_empty_str(entry, "status", agent_id)
+    if status not in ALLOWED_STATUSES:
+        raise RegistryError(f"agent {agent_id} has unsupported status: {status}")
+    return status
+
+
+def prune_stale_inactive_agents(registry: dict[str, Any], *, now: datetime | None = None) -> list[str]:
+    current_time = now or datetime.now(timezone.utc)
+    removed_ids: list[str] = []
+    kept_agents: list[dict[str, Any]] = []
+
+    for entry in registry["agents"]:
+        agent_id = entry.get("id")
+        status = entry.get("status")
+        inactive_at = entry.get("inactive_at")
+
+        remove_entry = False
+        if (
+            isinstance(agent_id, str)
+            and status == "inactive"
+            and isinstance(inactive_at, str)
+            and inactive_at.strip()
+        ):
+            try:
+                inactive_since = parse_utc_timestamp(inactive_at)
+            except ValueError:
+                inactive_since = None
+            if inactive_since is not None:
+                age_seconds = (current_time - inactive_since).total_seconds()
+                if age_seconds >= INACTIVE_TTL_SECONDS:
+                    remove_entry = True
+
+        if remove_entry:
+            removed_ids.append(agent_id)
+        else:
+            kept_agents.append(entry)
+
+    if removed_ids:
+        registry["agents"] = kept_agents
+        registry["agent_count"] = len(kept_agents)
+        registry["updated_at"] = utc_now()
+
+    return removed_ids
+
+
+def load_registry_with_cleanup(*, allow_missing: bool = False) -> tuple[dict[str, Any], list[str]]:
+    registry = load_registry(allow_missing=allow_missing)
+    removed_ids = prune_stale_inactive_agents(registry)
+    if removed_ids:
+        save_registry(registry)
+    return registry, removed_ids
 
 
 def next_agent_id(registry: dict[str, Any], role: str) -> str:
@@ -151,6 +214,8 @@ def print_status(data: dict[str, Any]) -> None:
     print(f"registry: {data['registry_path']}")
     print(f"updated_at: {data['updated_at']}")
     print(f"agents: {data['agent_count']}")
+    if data.get("cleanup_removed_ids"):
+        print(f"cleanup_removed_ids: {', '.join(data['cleanup_removed_ids'])}")
     for entry in data["agents"]:
         print(f"id: {entry['id']}")
         print(f"  role: {entry['role']}")
@@ -160,6 +225,8 @@ def print_status(data: dict[str, Any]) -> None:
         print(f"  assigned_at: {entry['assigned_at']}")
         print(f"  confirmed_by_agent: {entry['confirmed_by_agent']}")
         print(f"  confirmed_at: {entry['confirmed_at']}")
+        print(f"  last_touched_at: {entry['last_touched_at']}")
+        print(f"  inactive_at: {entry['inactive_at']}")
         print(f"  mailbox: {entry['mailbox']}")
         print(f"  mailbox_exists: {entry['mailbox_exists']}")
         files = entry.get("files", [])
@@ -178,6 +245,7 @@ def print_resume_check(data: dict[str, Any]) -> None:
     print(f"scope: {data['scope']}")
     print(f"confirmed_by_agent: {data['confirmed_by_agent']}")
     print(f"confirmed_at: {data['confirmed_at']}")
+    print(f"last_touched_at: {data['last_touched_at']}")
     print(f"mailbox: {data['mailbox']}")
     print(f"safe_to_resume: {data['safe_to_resume']}")
     print(f"reason: {data['reason']}")
@@ -197,6 +265,28 @@ def print_recover(data: dict[str, Any]) -> None:
     print("next: read the stale mailbox before resuming tracked work")
 
 
+def print_touch(data: dict[str, Any]) -> None:
+    print(f"agent touched: {data['agent_id']}")
+    print(f"role: {data['role']}")
+    print(f"previous_status: {data['previous_status']}")
+    print(f"current_status: {data['current_status']}")
+    print(f"last_touched_at: {data['last_touched_at']}")
+
+
+def print_finish(data: dict[str, Any]) -> None:
+    print(f"agent finished: {data['agent_id']}")
+    print(f"previous_status: {data['previous_status']}")
+    print(f"current_status: {data['current_status']}")
+    print(f"inactive_at: {data['inactive_at']}")
+
+
+def print_cleanup(data: dict[str, Any]) -> None:
+    print(f"removed_agents: {data['removed_count']}")
+    if data["removed_ids"]:
+        for agent_id in data["removed_ids"]:
+            print(f"  - {agent_id}")
+
+
 def cmd_claim(args: argparse.Namespace) -> int:
     if args.role != "auto" and args.role not in ALLOWED_ROLES:
         raise RegistryError(f"unsupported role: {args.role}")
@@ -205,7 +295,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
     if not args.scope.strip():
         raise RegistryError("scope must not be empty")
 
-    registry = load_registry(allow_missing=True)
+    registry, _ = load_registry_with_cleanup(allow_missing=True)
     role = choose_auto_role(registry) if args.role == "auto" else args.role
 
     new_id = next_agent_id(registry, role)
@@ -228,6 +318,8 @@ def cmd_claim(args: argparse.Namespace) -> int:
             "scope": args.scope,
             "files": [],
             "mailbox": mailbox_rel,
+            "last_touched_at": None,
+            "inactive_at": None,
         }
     )
     registry["agent_count"] = len(registry["agents"])
@@ -251,13 +343,13 @@ def cmd_claim(args: argparse.Namespace) -> int:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
-    registry = load_registry()
+    registry, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     for field in ["role", "assigned_by", "assigned_at", "scope", "mailbox"]:
         require_non_empty_str(entry, field, args.agent_id)
 
-    status = require_non_empty_str(entry, "status", args.agent_id)
+    status = require_status(entry, args.agent_id)
     if status == "done":
         raise RegistryError(f"agent {args.agent_id} cannot start because status is done")
     if status == "blocked":
@@ -271,6 +363,8 @@ def cmd_start(args: argparse.Namespace) -> int:
     entry["confirmed_by_agent"] = True
     entry["confirmed_at"] = now
     entry["status"] = "active"
+    entry["last_touched_at"] = now
+    entry["inactive_at"] = None
     registry["updated_at"] = now
 
     mailbox_path = resolve_mailbox_path(entry["mailbox"])
@@ -299,12 +393,14 @@ def cmd_stop(args: argparse.Namespace) -> int:
     if args.status not in {"paused", "done"}:
         raise RegistryError(f"unsupported stop status: {args.status}")
 
-    registry = load_registry()
+    registry, _ = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
-    current_status = require_non_empty_str(entry, "status", args.agent_id)
+    current_status = require_status(entry, args.agent_id)
 
     now = utc_now()
     entry["status"] = args.status
+    if args.status != "inactive":
+        entry["inactive_at"] = None
     registry["updated_at"] = now
     save_registry(registry)
 
@@ -323,7 +419,7 @@ def cmd_stop(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    registry = load_registry()
+    registry, cleanup_removed_ids = load_registry_with_cleanup()
     selected = registry["agents"]
 
     if args.agent_id:
@@ -349,6 +445,8 @@ def cmd_status(args: argparse.Namespace) -> int:
                 "assigned_at": entry.get("assigned_at"),
                 "confirmed_by_agent": entry.get("confirmed_by_agent", False),
                 "confirmed_at": entry.get("confirmed_at"),
+                "last_touched_at": entry.get("last_touched_at"),
+                "inactive_at": entry.get("inactive_at"),
                 "files": entry.get("files", []),
                 "mailbox": mailbox_display,
                 "mailbox_exists": mailbox_exists,
@@ -360,6 +458,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         "registry_path": str(REGISTRY_PATH),
         "updated_at": registry.get("updated_at"),
         "agent_count": len(normalized) if args.agent_id else len(registry["agents"]),
+        "cleanup_removed_ids": cleanup_removed_ids,
         "agents": normalized,
     }
     if args.json:
@@ -370,15 +469,16 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_resume_check(args: argparse.Namespace) -> int:
-    registry = load_registry()
+    registry, cleanup_removed_ids = load_registry_with_cleanup()
     entry = find_agent_entry(registry, args.agent_id)
 
     role = require_non_empty_str(entry, "role", args.agent_id)
-    status = require_non_empty_str(entry, "status", args.agent_id)
+    status = require_status(entry, args.agent_id)
     scope = require_non_empty_str(entry, "scope", args.agent_id)
     mailbox_value = require_non_empty_str(entry, "mailbox", args.agent_id)
     confirmed_by_agent = entry.get("confirmed_by_agent", False)
     confirmed_at = entry.get("confirmed_at")
+    last_touched_at = entry.get("last_touched_at")
 
     mailbox_path = resolve_mailbox_path(mailbox_value)
     reason = "agent is still active and confirmed"
@@ -402,8 +502,10 @@ def cmd_resume_check(args: argparse.Namespace) -> int:
         "scope": scope,
         "confirmed_by_agent": bool(confirmed_by_agent),
         "confirmed_at": confirmed_at,
+        "last_touched_at": last_touched_at,
         "mailbox": relative_to_root(mailbox_path),
         "safe_to_resume": safe_to_resume,
+        "cleanup_removed_ids": cleanup_removed_ids,
         "reason": reason,
     }
     if args.json:
@@ -417,7 +519,7 @@ def cmd_recover(args: argparse.Namespace) -> int:
     if not args.assigned_by.strip():
         raise RegistryError("assigned_by must not be empty")
 
-    registry = load_registry()
+    registry, _ = load_registry_with_cleanup()
     stale_entry = find_agent_entry(registry, args.stale_agent_id)
 
     role = require_non_empty_str(stale_entry, "role", args.stale_agent_id)
@@ -426,7 +528,7 @@ def cmd_recover(args: argparse.Namespace) -> int:
 
     scope = args.scope or require_non_empty_str(stale_entry, "scope", args.stale_agent_id)
     stale_mailbox_value = require_non_empty_str(stale_entry, "mailbox", args.stale_agent_id)
-    stale_status = require_non_empty_str(stale_entry, "status", args.stale_agent_id)
+    stale_status = require_status(stale_entry, args.stale_agent_id)
     if stale_status == "done":
         raise RegistryError(f"agent {args.stale_agent_id} cannot be recovered because status is done")
 
@@ -440,6 +542,7 @@ def cmd_recover(args: argparse.Namespace) -> int:
 
     now = utc_now()
     stale_entry["status"] = "paused"
+    stale_entry["inactive_at"] = None
     registry["agents"].append(
         {
             "id": new_agent_id,
@@ -452,6 +555,8 @@ def cmd_recover(args: argparse.Namespace) -> int:
             "scope": scope,
             "files": [],
             "mailbox": new_mailbox_rel,
+            "last_touched_at": now,
+            "inactive_at": None,
         }
     )
     registry["agent_count"] = len(registry["agents"])
@@ -480,6 +585,85 @@ def cmd_recover(args: argparse.Namespace) -> int:
         print_json(result)
     else:
         print_recover(result)
+    return 0
+
+
+def cmd_touch(args: argparse.Namespace) -> int:
+    registry, _ = load_registry_with_cleanup()
+    entry = find_agent_entry(registry, args.agent_id)
+
+    role = require_non_empty_str(entry, "role", args.agent_id)
+    previous_status = require_status(entry, args.agent_id)
+    if previous_status == "done":
+        raise RegistryError(f"agent {args.agent_id} cannot be touched because status is done")
+
+    confirmed_by_agent = entry.get("confirmed_by_agent", False)
+    confirmed_at = entry.get("confirmed_at")
+    if confirmed_by_agent is not True or not isinstance(confirmed_at, str) or not confirmed_at.strip():
+        raise RegistryError(f"agent {args.agent_id} is not fully confirmed; use start before touch")
+
+    now = utc_now()
+    entry["status"] = "active"
+    entry["last_touched_at"] = now
+    entry["inactive_at"] = None
+    registry["updated_at"] = now
+    save_registry(registry)
+
+    result = {
+        "status": "ok",
+        "agent_id": args.agent_id,
+        "role": role,
+        "previous_status": previous_status,
+        "current_status": "active",
+        "last_touched_at": now,
+    }
+    if args.json:
+        print_json(result)
+    else:
+        print_touch(result)
+    return 0
+
+
+def cmd_finish(args: argparse.Namespace) -> int:
+    registry, _ = load_registry_with_cleanup()
+    entry = find_agent_entry(registry, args.agent_id)
+
+    previous_status = require_status(entry, args.agent_id)
+    if previous_status == "done":
+        raise RegistryError(f"agent {args.agent_id} cannot be finished because status is done")
+
+    now = utc_now()
+    entry["status"] = "inactive"
+    entry["inactive_at"] = now
+    registry["updated_at"] = now
+    save_registry(registry)
+
+    result = {
+        "status": "ok",
+        "agent_id": args.agent_id,
+        "previous_status": previous_status,
+        "current_status": "inactive",
+        "inactive_at": now,
+    }
+    if args.json:
+        print_json(result)
+    else:
+        print_finish(result)
+    return 0
+
+
+def cmd_cleanup(args: argparse.Namespace) -> int:
+    registry, removed_ids = load_registry_with_cleanup()
+    result = {
+        "status": "ok",
+        "removed_count": len(removed_ids),
+        "removed_ids": removed_ids,
+        "updated_at": registry.get("updated_at"),
+    }
+    if args.json:
+        print_json(result)
+    else:
+        print_cleanup(result)
     return 0
 
 
@@ -530,6 +714,23 @@ def build_parser() -> argparse.ArgumentParser:
     recover.add_argument("--json", action="store_true")
     recover.add_argument("-h", "--help", action="help")
     recover.set_defaults(func=cmd_recover)
+
+    touch = subparsers.add_parser("touch", add_help=False)
+    touch.add_argument("agent_id")
+    touch.add_argument("--json", action="store_true")
+    touch.add_argument("-h", "--help", action="help")
+    touch.set_defaults(func=cmd_touch)
+
+    finish = subparsers.add_parser("finish", add_help=False)
+    finish.add_argument("agent_id")
+    finish.add_argument("--json", action="store_true")
+    finish.add_argument("-h", "--help", action="help")
+    finish.set_defaults(func=cmd_finish)
+
+    cleanup = subparsers.add_parser("cleanup", add_help=False)
+    cleanup.add_argument("--json", action="store_true")
+    cleanup.add_argument("-h", "--help", action="help")
+    cleanup.set_defaults(func=cmd_cleanup)
 
     return parser
 

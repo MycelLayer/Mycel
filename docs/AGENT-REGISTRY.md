@@ -12,7 +12,10 @@ Recommended startup gate:
 
 - `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
 - `scripts/agent_registry.py start <agent-id>`
+- `scripts/agent_registry.py touch <agent-id>`
+- `scripts/agent_registry.py finish <agent-id>`
 - `scripts/agent_registry.py stop <agent-id> [--status paused|done]`
+- `scripts/agent_registry.py cleanup`
 - `scripts/agent_registry.py recover <stale-agent-id> [--scope <scope>]`
 
 Recommended status command:
@@ -79,6 +82,8 @@ The local registry file must be valid JSON and use this top-level shape:
       "assigned_at": "2026-03-11T00:00:00Z",
       "confirmed_by_agent": true,
       "confirmed_at": "2026-03-11T00:02:00Z",
+      "last_touched_at": "2026-03-11T00:10:00Z",
+      "inactive_at": null,
       "status": "active",
       "scope": "#42 accepted-head strictness",
       "files": [
@@ -94,6 +99,8 @@ The local registry file must be valid JSON and use this top-level shape:
       "assigned_at": "2026-03-11T00:01:00Z",
       "confirmed_by_agent": true,
       "confirmed_at": "2026-03-11T00:03:00Z",
+      "last_touched_at": "2026-03-11T00:11:00Z",
+      "inactive_at": null,
       "status": "active",
       "scope": "planning sync for #42",
       "files": [
@@ -123,6 +130,8 @@ Per agent:
 - `assigned_at`
 - `confirmed_by_agent`
 - `confirmed_at`
+- `last_touched_at`
+- `inactive_at`
 - `status`
 - `scope`
 - `files`
@@ -136,6 +145,7 @@ Allowed `role` values:
 Allowed `status` values:
 
 - `active`
+- `inactive`
 - `paused`
 - `blocked`
 - `done`
@@ -145,6 +155,10 @@ Allowed `status` values:
 `confirmed_by_agent` must be `true` before the agent starts tracked work.
 
 `confirmed_at` may be `null` only while the entry is still waiting for agent confirmation.
+
+`last_touched_at` may be `null` only before the entry has ever been activated or touched.
+
+`inactive_at` should be a timestamp when `status` is `inactive`, and should be `null` otherwise.
 
 ## Startup Gate
 
@@ -175,10 +189,24 @@ Recommended enforcement:
 5. The agent confirms its own assignment by running `scripts/agent_registry.py start <agent-id>`.
 6. Only after confirmation may the agent start tracked work.
 7. The agent uses its own `mailbox` file for peer coordination and handoff traffic.
-8. When scope changes, the agent updates its registry entry.
-9. When work is finished or paused, the agent updates `status`, preferably with `scripts/agent_registry.py stop <agent-id> [--status paused|done]`.
+8. Before doing work for each user command, the agent should run `scripts/agent_registry.py touch <agent-id>` so the registry marks that role active for the current command cycle.
+9. After finishing work for that user command, the agent should run `scripts/agent_registry.py finish <agent-id>` so the registry marks that role inactive.
+10. When scope changes, the agent updates its registry entry.
+11. When work is finished or paused for longer-lived coordination reasons, the agent updates `status`, preferably with `scripts/agent_registry.py stop <agent-id> [--status paused|done]`.
 
 If two `coding` agents would touch the same primary file or issue, one must pause or choose a narrower scope before proceeding.
+
+## Activity Lease
+
+The registry uses a per-command activity lease, not just a startup confirmation.
+
+Rules:
+
+1. on each new user command, the active agent should `touch` its own entry before starting work
+2. when that command's work is complete, the agent should `finish` its own entry so the role becomes `inactive`
+3. any entry that remains `inactive` for at least one hour should be cleared from the local registry
+4. `scripts/agent_registry.py` automatically prunes stale `inactive` entries before command execution
+5. `scripts/agent_registry.py cleanup` is available for a manual sweep when needed
 
 ## Standard New Chat Startup
 
@@ -193,8 +221,9 @@ Use this sequence in order. Do not run the registry commands in parallel.
    - otherwise run `scripts/agent_registry.py claim auto [--scope <scope>]`
 6. run `scripts/agent_registry.py start <agent-id>`
 7. run `scripts/agent_registry.py status <agent-id>`
-8. begin the chat with the startup self-label: `<agent-id> | <scope-label>`
-9. only after that, report repo status and wait for the concrete task
+8. when the first concrete user task arrives, run `scripts/agent_registry.py touch <agent-id>` before starting work
+9. begin the chat with the startup self-label: `<agent-id> | <scope-label>`
+10. only after that, report repo status and wait for the concrete task
 
 Recommended startup output:
 
@@ -221,6 +250,7 @@ Keep this startup output narrow:
 - do not run `claim`, `start`, and `status` in parallel
 - do not omit the startup self-label line
 - keep the CI line about the latest completed workflow, not a possibly in-progress run
+- mark the agent `inactive` with `scripts/agent_registry.py finish <agent-id>` after the command-level work is done
 
 ## Interrupted Chat Recovery
 
@@ -325,6 +355,8 @@ For one `coding` agent and one `doc` agent:
       "assigned_at": "2026-03-11T00:00:00Z",
       "confirmed_by_agent": true,
       "confirmed_at": "2026-03-11T00:02:00Z",
+      "last_touched_at": "2026-03-11T00:10:00Z",
+      "inactive_at": null,
       "status": "active",
       "scope": "#17 store refactor",
       "files": [
@@ -340,6 +372,8 @@ For one `coding` agent and one `doc` agent:
       "assigned_at": "2026-03-11T00:01:00Z",
       "confirmed_by_agent": true,
       "confirmed_at": "2026-03-11T00:03:00Z",
+      "last_touched_at": "2026-03-11T00:11:00Z",
+      "inactive_at": null,
       "status": "active",
       "scope": "planning sync for #17",
       "files": [
