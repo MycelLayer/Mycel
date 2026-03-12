@@ -129,8 +129,10 @@ Before an agent starts:
 8. leave a short claim note in the issue or team channel
 9. confirm the likely file set before editing
 10. run `scripts/agent_registry.py touch <agent-ref>` before working the current user-command cycle
-11. update the local registry entry when scope or status changes
-12. run `scripts/agent_registry.py finish <agent-ref>` after the command-level work is complete
+11. post a short human-facing commentary line with an `Asia/Taipei (UTC+8)` timestamp before the work starts; `scripts/agent_timestamp.py before --agent <display-id> --scope <scope-label>` is the preferred helper
+12. update the local registry entry when scope or status changes
+13. run `scripts/agent_registry.py finish <agent-ref>` after the command-level work is complete
+14. post a short human-facing commentary line with an `Asia/Taipei (UTC+8)` timestamp after the work ends; `scripts/agent_timestamp.py after --agent <display-id> --scope <scope-label>` is the preferred helper
 
 When the chat itself starts, use one short self-label line first, such as:
 

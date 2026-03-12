@@ -277,6 +277,7 @@ Recommended startup sequence:
 9. run `scripts/agent_registry.py status <agent-ref>`
 10. begin the chat with `<display-id> | <scope-label>`
 11. when the first concrete task arrives, run `scripts/agent_registry.py touch <agent-ref>`
+12. before doing the work, post a short human-facing commentary line with an `Asia/Taipei (UTC+8)` timestamp; `scripts/agent_timestamp.py before --agent <display-id> --scope <scope-label>` is the preferred helper
 
 Keep startup output narrow:
 
@@ -291,9 +292,11 @@ Keep startup output narrow:
 2. confirm the current scopes and active peers
 3. use the mailbox declared in the registry for coordination
 4. before each user-command work cycle, run `scripts/agent_registry.py touch <agent-ref>`
-5. after that command's work is complete, run `scripts/agent_registry.py finish <agent-ref>`
-6. when longer-lived coordination changes are needed, use `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
-7. treat `paused` as a medium-term parking state, not an indefinite one; if the work should live longer than the paused lease, plan for a later `takeover` or close it as `done`
+5. before the work starts, post a short human-facing commentary line with an `Asia/Taipei (UTC+8)` timestamp; `scripts/agent_timestamp.py before --agent <display-id> --scope <scope-label>` is the preferred helper
+6. after that command's work is complete, run `scripts/agent_registry.py finish <agent-ref>`
+7. after the work ends, post a short human-facing commentary line with an `Asia/Taipei (UTC+8)` timestamp; `scripts/agent_timestamp.py after --agent <display-id> --scope <scope-label>` is the preferred helper
+8. when longer-lived coordination changes are needed, use `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
+9. treat `paused` as a medium-term parking state, not an indefinite one; if the work should live longer than the paused lease, plan for a later `takeover` or close it as `done`
 
 Planning-sync coordination:
 
