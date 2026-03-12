@@ -27,6 +27,7 @@ Mailbox retention:
 - registry cleanup does not delete mailbox files automatically
 - active working-set uid-based mailboxes stay in `.agent-local/mailboxes/`
 - orphaned uid-based mailboxes should move into `.agent-local/mailboxes/archive/YYYY-MM/`
+- use `npm run handoffs:inactive-coding` after a new `coding` agent starts to check leftover open continuation handoffs from inactive coding agents
 - use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
 - use `scripts/mailbox_gc.py archive` to move orphaned uid-based mailboxes without deleting contents
 - archived uid-based mailboxes older than 10 days may be deleted with `scripts/mailbox_gc.py prune` when they have no unresolved planning handoff
@@ -83,8 +84,9 @@ Startup order:
 1. `scripts/agent_registry.py claim <role|auto> [--scope <scope>]` if needed
 2. `scripts/agent_registry.py start <agent-ref>`
 3. `scripts/agent_registry.py status <agent-ref>`
-4. `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]` before working the current command
-5. first chat line: `<display-id> | <scope-label>`
+4. if the new agent is `coding`, run `npm run handoffs:inactive-coding` to see leftover inactive-coding continuation handoffs before taking new implementation scope
+5. `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]` before working the current command
+6. first chat line: `<display-id> | <scope-label>`
 
 Do not run `claim`, `start`, and `status` in parallel.
 
