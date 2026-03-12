@@ -200,6 +200,23 @@ fn sync_pull_help_prints_structured_clap_help() {
 }
 
 #[test]
+fn sync_peer_store_help_prints_structured_clap_help() {
+    let assert = mycel_command(&["sync", "peer-store", "--help"])
+        .assert()
+        .success();
+    let stdout = assert_stdout_text(&assert);
+
+    assert_eq!(assert_stderr_text(&assert), "");
+    assert!(stdout.contains("Run the minimal peer-store sync driver into a local store"));
+    assert!(stdout.contains("Usage: mycel sync peer-store [OPTIONS] --from <REMOTE_STORE_ROOT> --into <STORE_ROOT> --peer-node-id <NODE_ID> --signing-key <FILE>"));
+    assert!(stdout.contains("--from <REMOTE_STORE_ROOT>"));
+    assert!(stdout.contains("--into <STORE_ROOT>"));
+    assert!(stdout.contains("--peer-node-id <NODE_ID>"));
+    assert!(stdout.contains("--signing-key <FILE>"));
+    assert!(stdout.contains("--json"));
+}
+
+#[test]
 fn store_rebuild_help_prints_structured_clap_help() {
     let assert = mycel_command(&["store", "rebuild", "--help"])
         .assert()

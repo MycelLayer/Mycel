@@ -277,6 +277,14 @@ fn write_transcript(path: &PathBuf, transcript: &Value) {
     .expect("transcript should write");
 }
 
+fn write_signing_key(path: &PathBuf, signing_key: &SigningKey) {
+    fs::write(
+        path,
+        base64::engine::general_purpose::STANDARD.encode(signing_key.to_bytes()),
+    )
+    .expect("signing key should write");
+}
+
 #[test]
 fn sync_pull_json_replays_verified_wire_transcript_into_store() {
     let signing_key = signing_key();
@@ -533,6 +541,114 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
     assert!(revisions
         .iter()
         .any(|value| value.as_str() == Some(follow_revision_id.as_str())));
+}
+
+#[test]
+fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-remote");
+    let local_store = create_temp_dir("sync-peer-store-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+
+    write_object_value_to_store(remote_store.path(), &patch_object["payload"]["body"])
+        .expect("patch should write to remote store");
+    write_object_value_to_store(remote_store.path(), &revision_object["payload"]["body"])
+        .expect("revision should write to remote store");
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(&remote_store.path().to_path_buf()),
+        "--into",
+        &path_arg(&local_store.path().to_path_buf()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(
+        json["source_store"],
+        path_arg(&remote_store.path().to_path_buf())
+    );
+    assert_eq!(json["message_count"], 7);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+    assert_eq!(json["existing_object_count"], 0);
+
+    let manifest_path = local_store.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 2);
+}
+
+#[test]
+fn sync_peer_store_json_reports_noop_when_local_store_is_current() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-noop-remote");
+    let local_store = create_temp_dir("sync-peer-store-noop-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+
+    for store_root in [remote_store.path(), local_store.path()] {
+        write_object_value_to_store(store_root, &patch_object["payload"]["body"])
+            .expect("patch should write to store");
+        write_object_value_to_store(store_root, &revision_object["payload"]["body"])
+            .expect("revision should write to store");
+    }
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(&remote_store.path().to_path_buf()),
+        "--into",
+        &path_arg(&local_store.path().to_path_buf()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["object_message_count"], 0);
+    assert_eq!(json["written_object_count"], 0);
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|note| {
+                note.as_str()
+                    .is_some_and(|value| value.contains("no WANT messages"))
+            })),
+        "expected no-op note, stdout: {}",
+        stdout_text(&output)
+    );
 }
 
 #[test]
