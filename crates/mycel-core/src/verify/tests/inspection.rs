@@ -256,6 +256,36 @@ fn inspect_warns_when_block_contains_unknown_nested_child_field() {
 }
 
 #[test]
+fn inspect_warns_when_block_nested_child_is_not_an_object() {
+    let path = write_test_file(
+        "block-non-object-nested-child-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {},
+            "children": ["not-an-object"]
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'children[0]' must be a JSON object")),
+        "expected nested child object-shape warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_patch_base_revision_prefix_is_wrong() {
     let path = write_test_file(
         "patch-wrong-base-revision-prefix-inspect",
@@ -498,6 +528,48 @@ fn inspect_warns_when_patch_mixes_set_metadata_forms() {
         }),
         "expected mixed set_metadata warning, got {summary:?}"
     );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_patch_nested_new_block_contains_unknown_field() {
+    let path = write_test_file(
+        "patch-nested-new-block-unknown-field-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "ops": [
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:001",
+                        "block_type": "paragraph",
+                        "content": "Hello",
+                        "attrs": {},
+                        "children": [],
+                        "unexpected": true
+                    }
+                }
+            ],
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(summary.notes.iter().any(|message| {
+        message.contains(
+            "top-level 'ops[0]': top-level 'new_block': top-level contains unexpected field 'unexpected'",
+        )
+    }), "expected nested new_block warning, got {summary:?}");
 
     let _ = std::fs::remove_file(path);
 }
@@ -802,6 +874,40 @@ fn inspect_warns_when_multi_parent_revision_is_missing_merge_strategy() {
 }
 
 #[test]
+fn inspect_warns_when_revision_merge_strategy_is_not_a_string() {
+    let path = write_test_file(
+        "revision-non-string-merge-strategy-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base", "rev:side"],
+            "patches": [],
+            "merge_strategy": 7,
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'merge_strategy' must be a string")),
+        "expected merge_strategy type warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_view_policy_is_not_object() {
     let path = write_test_file(
         "view-policy-non-object-inspect",
@@ -829,6 +935,38 @@ fn inspect_warns_when_view_policy_is_not_object() {
             .iter()
             .any(|message| message.contains("top-level 'policy' must be an object")),
         "expected non-object policy warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_view_is_missing_policy() {
+    let path = write_test_file(
+        "view-missing-policy-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("missing object field 'policy'")),
+        "expected missing policy warning, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);
@@ -937,6 +1075,41 @@ fn inspect_warns_when_view_document_value_prefix_is_wrong() {
 }
 
 #[test]
+fn inspect_warns_when_view_document_value_is_not_a_string() {
+    let path = write_test_file(
+        "view-non-string-document-value-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": 7
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'documents.doc:test' must be a string")),
+        "expected document value type warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_view_contains_unknown_top_level_field() {
     let path = write_test_file(
         "view-unknown-top-level-field-inspect",
@@ -1000,6 +1173,40 @@ fn inspect_warns_when_snapshot_missing_declared_revision_in_included_objects() {
             "top-level 'included_objects' must include revision 'rev:test' declared by 'documents.doc:test'",
         )
     }), "expected missing declared revision warning, got {summary:?}");
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_snapshot_document_value_is_not_a_string() {
+    let path = write_test_file(
+        "snapshot-non-string-document-value-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": 9
+            },
+            "included_objects": ["rev:test"],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'documents.doc:test' must be a string")),
+        "expected snapshot document value type warning, got {summary:?}"
+    );
 
     let _ = std::fs::remove_file(path);
 }
@@ -1163,6 +1370,40 @@ fn inspect_warns_when_snapshot_included_objects_has_empty_entry() {
             message.contains("top-level 'included_objects[1]' must not be an empty string")
         }),
         "expected empty included_objects entry warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_snapshot_included_objects_entry_is_not_a_string() {
+    let path = write_test_file(
+        "snapshot-non-string-included-object-entry-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "included_objects": ["rev:test", 7],
+            "root_hash": "hash:test",
+            "created_by": "pk:ed25519:test",
+            "timestamp": 9u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'included_objects[1]' must be a string")),
+        "expected included_objects type warning, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);
