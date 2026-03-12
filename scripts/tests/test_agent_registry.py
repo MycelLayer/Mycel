@@ -381,21 +381,21 @@ class AgentRegistryCliTest(unittest.TestCase):
             agent_uid="agt_paused_old",
             role="coding",
             display_id="coding-1",
-            assigned_at=self.timestamp(now - timedelta(days=16)),
+            assigned_at=self.timestamp(now - timedelta(days=4)),
             status="paused",
             scope="paused-old",
-            last_touched_at=self.timestamp(now - timedelta(days=16, minutes=5)),
-            paused_at=self.timestamp(now - timedelta(days=15)),
+            last_touched_at=self.timestamp(now - timedelta(days=4, minutes=5)),
+            paused_at=self.timestamp(now - timedelta(days=4)),
         )
         recent_entry = self.make_v2_entry(
             agent_uid="agt_paused_recent",
             role="coding",
             display_id="coding-2",
-            assigned_at=self.timestamp(now - timedelta(days=9)),
+            assigned_at=self.timestamp(now - timedelta(days=2)),
             status="paused",
             scope="paused-recent",
-            last_touched_at=self.timestamp(now - timedelta(days=9, minutes=5)),
-            paused_at=self.timestamp(now - timedelta(days=8)),
+            last_touched_at=self.timestamp(now - timedelta(days=2, minutes=5)),
+            paused_at=self.timestamp(now - timedelta(days=2)),
         )
         self.write_registry(
             {
@@ -431,10 +431,10 @@ class AgentRegistryCliTest(unittest.TestCase):
                             agent_uid="agt_paused_legacy",
                             role="doc",
                             display_id="doc-1",
-                            assigned_at=self.timestamp(now - timedelta(days=10)),
+                            assigned_at=self.timestamp(now - timedelta(days=2)),
                             status="paused",
                             scope="legacy-paused",
-                            last_touched_at=self.timestamp(now - timedelta(days=8)),
+                            last_touched_at=self.timestamp(now - timedelta(days=2)),
                         ),
                         "paused_at": None,
                     }

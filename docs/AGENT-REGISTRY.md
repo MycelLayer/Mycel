@@ -313,8 +313,8 @@ Rules:
 4. when an entry becomes stale, its `display_id` is released and `current_display_id` becomes `null`
 5. while the stale entry is still retained, the old chat must use `resume-check` and then `recover` by `agent_uid`
 6. once an entry has remained stale for at least 24 more hours, `scripts/agent_registry.py` removes it from `.agent-local/agents.json`
-7. once an entry stays `paused` for at least 7 days, it becomes stale-paused and releases its `display_id`
-8. once a stale-paused entry remains retained for 7 more days, `scripts/agent_registry.py` removes it from `.agent-local/agents.json`
+7. once an entry stays `paused` for at least 24 hours, it becomes stale-paused and releases its `display_id`
+8. once an entry has remained `paused` for at least 3 days total, `scripts/agent_registry.py` removes it from `.agent-local/agents.json`
 9. `cleanup` reports both retained stale agents and removed agents
 
 ## Recovery Model

@@ -19,8 +19,8 @@ ALLOWED_STATUSES = {"active", "inactive", "paused", "blocked", "done"}
 REGISTRY_VERSION = 2
 STALE_INACTIVE_SECONDS = 3600
 STALE_RETENTION_SECONDS = 24 * 3600
-STALE_PAUSED_SECONDS = 7 * 24 * 3600
-STALE_PAUSED_RETENTION_SECONDS = 7 * 24 * 3600
+STALE_PAUSED_SECONDS = 24 * 3600
+PAUSED_CLEANUP_SECONDS = 3 * 24 * 3600
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 
 
@@ -352,15 +352,15 @@ def apply_agent_lifecycle(
         status = entry.get("status")
         lifecycle_field = None
         stale_after_seconds = None
-        retention_seconds = None
+        cleanup_after_seconds = None
         if status == "inactive":
             lifecycle_field = "inactive_at"
             stale_after_seconds = STALE_INACTIVE_SECONDS
-            retention_seconds = STALE_RETENTION_SECONDS
+            cleanup_after_seconds = STALE_INACTIVE_SECONDS + STALE_RETENTION_SECONDS
         elif status == "paused":
             lifecycle_field = "paused_at"
             stale_after_seconds = STALE_PAUSED_SECONDS
-            retention_seconds = STALE_PAUSED_RETENTION_SECONDS
+            cleanup_after_seconds = PAUSED_CLEANUP_SECONDS
 
         lifecycle_at = entry.get(lifecycle_field) if lifecycle_field else None
         if lifecycle_field and isinstance(lifecycle_at, str) and lifecycle_at.strip():
@@ -370,7 +370,7 @@ def apply_agent_lifecycle(
                 lifecycle_since = None
             if lifecycle_since is not None:
                 age_seconds = (current_time - lifecycle_since).total_seconds()
-                if age_seconds >= stale_after_seconds + retention_seconds:
+                if age_seconds >= cleanup_after_seconds:
                     removed_agents.append(entry_summary(entry))
                     changed = True
                     continue
