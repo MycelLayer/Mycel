@@ -17,6 +17,7 @@ Local mailbox files:
 - `.agent-local/mailboxes/<agent_uid>.md`
 - archive: `.agent-local/mailboxes/archive/YYYY-MM/<agent_uid>.md`
 - example template: `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
+- resolution template: `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`
 - fallback: `.agent-local/coding-to-doc.md`
 - fallback: `.agent-local/doc-to-coding.md`
 
@@ -204,5 +205,6 @@ For `coding` to `doc` handoff, prefer:
 - `Finished #12. Touched verify.rs and object_verify_smoke.rs. Behavior change: reject duplicate revision parents earlier. Protocol/schema impact: none. Verify: cargo test -p mycel-core and cargo test -p mycel-cli. Docs impacted: none. Planning impact: checklist. Remaining follow-up: update IMPLEMENTATION-CHECKLIST after the batch lands.`
 - `Finished file A. Touched path/to/fileA. Behavior change: implemented the missing branch. Protocol/schema impact: CLI behavior changed. Verify: cargo test -p mycel-cli. Docs impacted: ROADMAP.md and IMPLEMENTATION-CHECKLIST.*. Planning impact: roadmap + checklist. Remaining follow-up: planning sync due.`
 - planning-sync handoffs should always include `Status: open`; after `doc` finishes, mark them `resolved` or append a `doc` reply entry with a `Date` line in `UTC+8`
+- use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` for open handoffs and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md` for resolved doc replies
 
 If there is no active issue comment thread, append the same content to the mailbox path declared for that agent in `.agent-local/agents.json`.

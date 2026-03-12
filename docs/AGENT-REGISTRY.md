@@ -197,6 +197,7 @@ Recommended mailbox pattern:
 
 - `.agent-local/mailboxes/<agent_uid>.md`
 - copyable planning-sync example: `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
+- copyable planning-sync resolution example: `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`
 - mailbox archive root: `.agent-local/mailboxes/archive/YYYY-MM/`
 
 Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` may still be used if the team explicitly wants them, but the registry remains the source of truth for role assignment.
@@ -238,7 +239,7 @@ Minimum handoff quality:
 - planning-sync handoff entries should explicitly include `Status: open` when `coding` creates them
 - include enough detail for `doc` to identify the affected files, the likely planning surfaces, whether checklist closure changed, and what verification or evidence supports the claim
 - after `doc` completes the related docs work, it should either update that handoff to `Status: resolved` or append a `doc` reply entry with a `Date` line that makes the resolution explicit
-- if an agent wants a ready-made starting point instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
+- if an agent wants a ready-made starting point instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` for the open handoff and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md` for the resolved reply
 
 Mailbox retention and archive policy:
 

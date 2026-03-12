@@ -8,7 +8,7 @@ For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.m
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`.
+The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`.
 
 ## Modes
 
@@ -56,7 +56,7 @@ Mailbox retention and archive policy:
 
 - registry cleanup does not delete mailbox files automatically
 - active working-set uid-based mailboxes stay in `.agent-local/mailboxes/`
-- `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` stays in place and is never archived
+- `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md` and `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md` stay in place and are never archived
 - once an agent entry has been removed from `.agent-local/agents.json`, its uid-based mailbox becomes an orphaned mailbox candidate
 - orphaned uid-based mailboxes should be moved into `.agent-local/mailboxes/archive/YYYY-MM/` instead of being deleted
 - use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
@@ -140,6 +140,8 @@ When `doc` resolves or responds, either update the original entry status or appe
 - Planning impact: `checklist`
 - Remaining follow-up: none
 ```
+
+If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`.
 
 ## Example
 
