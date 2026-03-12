@@ -137,9 +137,10 @@ fn signed_sync_wire_message(
     Ok(value)
 }
 
-fn signed_hello_message(
+fn signed_hello_message_with_capabilities(
     signing_key: &SigningKey,
     sender: &str,
+    capabilities: &[&str],
 ) -> Result<Value, StoreRebuildError> {
     signed_sync_wire_message(
         signing_key,
@@ -148,17 +149,18 @@ fn signed_hello_message(
         "msg:peer-sync-hello-0000".to_string(),
         json!({
             "node_id": sender,
-            "capabilities": ["patch-sync"],
+            "capabilities": capabilities,
             "nonce": "n:peer-sync"
         }),
     )
 }
 
-fn signed_manifest_message(
+fn signed_manifest_message_with_capabilities(
     signing_key: &SigningKey,
     sender: &str,
     msg_id: String,
     heads: &BTreeMap<String, Vec<String>>,
+    capabilities: &[&str],
 ) -> Result<Value, StoreRebuildError> {
     signed_sync_wire_message(
         signing_key,
@@ -167,7 +169,7 @@ fn signed_manifest_message(
         msg_id,
         json!({
             "node_id": sender,
-            "capabilities": ["patch-sync"],
+            "capabilities": capabilities,
             "heads": heads
         }),
     )
@@ -236,6 +238,43 @@ fn signed_object_message(
     )
 }
 
+fn signed_view_announce_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    msg_id: String,
+    view_id: &str,
+    body: &Value,
+) -> Result<Value, StoreRebuildError> {
+    let documents = body
+        .get("documents")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            StoreRebuildError::new(
+                "failed to build VIEW_ANNOUNCE payload: view is missing 'documents'",
+            )
+        })?;
+    let maintainer = body
+        .get("maintainer")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            StoreRebuildError::new(
+                "failed to build VIEW_ANNOUNCE payload: view is missing string field 'maintainer'",
+            )
+        })?;
+
+    signed_sync_wire_message(
+        signing_key,
+        sender,
+        "VIEW_ANNOUNCE",
+        msg_id,
+        json!({
+            "view_id": view_id,
+            "maintainer": maintainer,
+            "documents": documents
+        }),
+    )
+}
+
 fn signed_bye_message(signing_key: &SigningKey, sender: &str) -> Result<Value, StoreRebuildError> {
     signed_sync_wire_message(
         signing_key,
@@ -297,6 +336,29 @@ fn missing_object_ids(
     missing
 }
 
+fn advertised_sync_capabilities(remote_manifest: &StoreIndexManifest) -> Vec<&'static str> {
+    let mut capabilities = vec!["patch-sync"];
+    if remote_manifest
+        .object_ids_by_type
+        .get("view")
+        .is_some_and(|ids| !ids.is_empty())
+    {
+        capabilities.push("view-sync");
+    }
+    capabilities
+}
+
+fn sorted_object_ids_for_type(manifest: &StoreIndexManifest, object_type: &str) -> Vec<String> {
+    let mut object_ids = manifest
+        .object_ids_by_type
+        .get(object_type)
+        .cloned()
+        .unwrap_or_default();
+    object_ids.sort();
+    object_ids.dedup();
+    object_ids
+}
+
 pub fn generate_sync_pull_transcript_from_peer_store(
     peer: &SyncPeer,
     peer_signing_key: &SigningKey,
@@ -313,6 +375,8 @@ pub fn generate_sync_pull_transcript_from_peer_store(
 
     let remote_manifest = load_store_index_manifest(peer_store_root)?;
     let remote_heads = head_map_from_manifest(&remote_manifest);
+    let remote_view_ids = sorted_object_ids_for_type(&remote_manifest, "view");
+    let advertised_capabilities = advertised_sync_capabilities(&remote_manifest);
     if remote_heads.is_empty() {
         return Err(StoreRebuildError::new(format!(
             "peer store {} does not expose any document heads",
@@ -326,13 +390,18 @@ pub fn generate_sync_pull_transcript_from_peer_store(
     let local_store_was_empty = known_local_ids.is_empty();
 
     let mut messages = Vec::new();
-    messages.push(signed_hello_message(peer_signing_key, &peer.node_id)?);
+    messages.push(signed_hello_message_with_capabilities(
+        peer_signing_key,
+        &peer.node_id,
+        &advertised_capabilities,
+    )?);
     if local_store_was_empty {
-        messages.push(signed_manifest_message(
+        messages.push(signed_manifest_message_with_capabilities(
             peer_signing_key,
             &peer.node_id,
             "msg:peer-sync-manifest-0001".to_string(),
             &remote_heads,
+            &advertised_capabilities,
         )?);
     } else {
         messages.push(signed_heads_message(
@@ -344,8 +413,30 @@ pub fn generate_sync_pull_transcript_from_peer_store(
     }
 
     let mut sequence = 2usize;
+    for view_id in &remote_view_ids {
+        let body = remote_object_index.get(view_id).ok_or_else(|| {
+            StoreRebuildError::new(format!(
+                "peer store {} is missing announced view '{}'",
+                peer_store_root.display(),
+                view_id
+            ))
+        })?;
+        messages.push(signed_view_announce_message(
+            peer_signing_key,
+            &peer.node_id,
+            next_wire_msg_id(&mut sequence, "view-announce"),
+            view_id,
+            body,
+        )?);
+    }
+
     let mut next_batch = missing_object_ids(
-        remote_heads.values().flatten().cloned().collect::<Vec<_>>(),
+        remote_heads
+            .values()
+            .flatten()
+            .cloned()
+            .chain(remote_view_ids.iter().cloned())
+            .collect::<Vec<_>>(),
         &known_local_ids,
     );
 
@@ -757,6 +848,30 @@ mod tests {
         value
     }
 
+    fn signed_view_announce_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        view_id: &str,
+    ) -> Value {
+        let mut value = json!({
+            "type": "VIEW_ANNOUNCE",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:view-announce-sync-001",
+            "timestamp": "2026-03-08T20:00:45+08:00",
+            "from": sender,
+            "payload": {
+                "view_id": view_id,
+                "maintainer": sender_public_key(signing_key),
+                "documents": {
+                    "doc:test": "rev:test"
+                }
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
     fn signed_heads_message(
         signing_key: &SigningKey,
         sender: &str,
@@ -950,6 +1065,62 @@ mod tests {
         value
     }
 
+    fn signed_view_object_message(
+        signing_key: &SigningKey,
+        sender: &str,
+        revision_id: &str,
+    ) -> Value {
+        let body = sign_object_value(
+            signing_key,
+            json!({
+                "type": "view",
+                "version": "mycel/0.1",
+                "view_id": "view:placeholder",
+                "maintainer": "pk:ed25519:placeholder",
+                "documents": {
+                    "doc:test": revision_id
+                },
+                "policy": {
+                    "accept_keys": [sender_public_key(signing_key)],
+                    "merge_rule": "manual-reviewed",
+                    "preferred_branches": ["main"]
+                },
+                "timestamp": 4u64,
+                "signature": "sig:placeholder"
+            }),
+            "maintainer",
+            "view_id",
+            "view",
+        );
+        let object_id = body["view_id"]
+            .as_str()
+            .expect("signed view body should include view_id")
+            .to_owned();
+        let object_hash = object_id
+            .split_once(':')
+            .map(|(_, hash)| hash.to_string())
+            .expect("wire view ID should contain hash");
+
+        let mut value = json!({
+            "type": "OBJECT",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:object-sync-view-001",
+            "timestamp": "2026-03-08T20:01:16+08:00",
+            "from": sender,
+            "payload": {
+                "object_id": object_id,
+                "object_type": "view",
+                "encoding": "json",
+                "hash_alg": "sha256",
+                "hash": format!("hash:{object_hash}"),
+                "body": body
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
     fn signed_bye_message(signing_key: &SigningKey, sender: &str) -> Value {
         let mut value = json!({
             "type": "BYE",
@@ -1018,6 +1189,78 @@ mod tests {
     }
 
     #[test]
+    fn generate_sync_pull_transcript_from_peer_store_announces_views_when_present() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let remote_store_root = temp_dir("peer-driver-remote-views");
+        let local_store_root = temp_dir("peer-driver-local-views");
+
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch object should include object id")
+            .to_string();
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
+        let view_id = view_object["payload"]["object_id"]
+            .as_str()
+            .expect("view object should include object id")
+            .to_string();
+
+        for body in [
+            &patch_object["payload"]["body"],
+            &revision_object["payload"]["body"],
+            &view_object["payload"]["body"],
+        ] {
+            write_object_value_to_store(&remote_store_root, body)
+                .expect("object should write to remote store");
+        }
+
+        let transcript = generate_sync_pull_transcript_from_peer_store(
+            &sync_peer(sender, &signing_key),
+            &signing_key,
+            &remote_store_root,
+            &local_store_root,
+        )
+        .expect("peer-store transcript should generate");
+
+        let message_types = transcript
+            .messages
+            .iter()
+            .map(|message| {
+                message["type"]
+                    .as_str()
+                    .expect("generated message should include type")
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            message_types,
+            vec![
+                "HELLO",
+                "MANIFEST",
+                "VIEW_ANNOUNCE",
+                "WANT",
+                "OBJECT",
+                "OBJECT",
+                "WANT",
+                "OBJECT",
+                "BYE"
+            ]
+        );
+        assert_eq!(
+            transcript.messages[0]["payload"]["capabilities"],
+            json!(["patch-sync", "view-sync"])
+        );
+        assert_eq!(transcript.messages[2]["payload"]["view_id"], view_id);
+    }
+
+    #[test]
     fn sync_pull_from_peer_store_verifies_and_stores_first_time_sync() {
         let signing_key = signing_key();
         let sender = "node:alpha";
@@ -1060,6 +1303,65 @@ mod tests {
         assert_eq!(
             manifest.doc_revisions.get("doc:test"),
             Some(&vec![revision_id])
+        );
+    }
+
+    #[test]
+    fn sync_pull_from_peer_store_fetches_announced_views_as_governance_state() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let remote_store_root = temp_dir("peer-driver-remote-view-sync");
+        let local_store_root = temp_dir("peer-driver-local-view-sync");
+
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch object should include object id")
+            .to_string();
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
+        let view_id = view_object["payload"]["object_id"]
+            .as_str()
+            .expect("view object should include object id")
+            .to_string();
+
+        for body in [
+            &patch_object["payload"]["body"],
+            &revision_object["payload"]["body"],
+            &view_object["payload"]["body"],
+        ] {
+            write_object_value_to_store(&remote_store_root, body)
+                .expect("object should write to remote store");
+        }
+
+        let summary = sync_pull_from_peer_store(
+            &sync_peer(sender, &signing_key),
+            &signing_key,
+            &remote_store_root,
+            &local_store_root,
+        )
+        .expect("peer-store sync should run");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.object_message_count, 3);
+        assert_eq!(summary.written_object_count, 3);
+
+        let manifest =
+            load_store_index_manifest(&local_store_root).expect("local manifest should exist");
+        assert_eq!(manifest.stored_object_count, 3);
+        assert_eq!(manifest.view_governance.len(), 1);
+        assert_eq!(manifest.view_governance[0].view_id, view_id);
+        assert_eq!(
+            manifest
+                .document_views
+                .get("doc:test")
+                .expect("document views should be indexed"),
+            &vec![view_id]
         );
     }
 
@@ -1422,6 +1724,68 @@ mod tests {
         let manifest =
             load_store_index_manifest(&store_root).expect("store manifest should be readable");
         assert_eq!(manifest.stored_object_count, 1);
+    }
+
+    #[test]
+    fn sync_pull_from_transcript_accepts_view_announce_when_capability_is_advertised() {
+        let signing_key = signing_key();
+        let sender = "node:alpha";
+        let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+        let patch_id = patch_object["payload"]["object_id"]
+            .as_str()
+            .expect("patch object should include object id")
+            .to_string();
+        let revision_object =
+            signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+        let revision_id = revision_object["payload"]["object_id"]
+            .as_str()
+            .expect("revision object should include object id")
+            .to_string();
+        let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
+        let view_id = view_object["payload"]["object_id"]
+            .as_str()
+            .expect("view object should include object id")
+            .to_string();
+        let transcript = SyncPullTranscript {
+            peer: SyncPeer {
+                node_id: sender.to_string(),
+                public_key: sender_public_key(&signing_key),
+            },
+            messages: vec![
+                signed_hello_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    json!(["patch-sync", "view-sync"]),
+                ),
+                signed_manifest_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    &revision_id,
+                    json!(["patch-sync", "view-sync"]),
+                ),
+                signed_view_announce_message(&signing_key, sender, &view_id),
+                signed_want_message(&signing_key, sender, &[&view_id]),
+                view_object,
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                revision_object,
+                signed_want_message(&signing_key, sender, &[&patch_id]),
+                patch_object,
+                signed_bye_message(&signing_key, sender),
+            ],
+        };
+        let store_root = temp_dir("pull-view-announce");
+
+        let summary =
+            sync_pull_from_transcript(&transcript, &store_root).expect("sync pull should run");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+        assert_eq!(summary.object_message_count, 3);
+        assert_eq!(summary.written_object_count, 3);
+
+        let manifest =
+            load_store_index_manifest(&store_root).expect("store manifest should be readable");
+        assert_eq!(manifest.view_governance.len(), 1);
+        assert_eq!(manifest.view_governance[0].view_id, view_id);
     }
 
     #[test]

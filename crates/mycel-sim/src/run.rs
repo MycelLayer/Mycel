@@ -6,17 +6,24 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::time::Instant;
 
+use base64::Engine;
 use chrono::{FixedOffset, Utc};
+use ed25519_dalek::Signer;
 use mycel_core::author::{
     commit_revision_to_store, create_document_in_store, create_patch_in_store,
-    parse_signing_key_seed, DocumentCreateParams, PatchCreateParams, RevisionCommitParams,
+    parse_signing_key_seed, signer_id, DocumentCreateParams, PatchCreateParams,
+    RevisionCommitParams,
 };
-use mycel_core::protocol::parse_json_strict;
+use mycel_core::canonical::signed_payload_bytes;
+use mycel_core::protocol::{parse_json_strict, recompute_object_id};
 use mycel_core::replay::replay_revision_from_index;
-use mycel_core::store::{load_store_index_manifest, load_store_object_index, StoreIndexManifest};
+use mycel_core::store::{
+    load_store_index_manifest, load_store_object_index, write_object_value_to_store,
+    StoreIndexManifest,
+};
 use mycel_core::sync::{sync_pull_from_peer_store, SyncPeer};
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::model::{
     Fixture, Report, ReportEvent, ReportFailure, ReportPeer, ReportSummary, TestCase, Topology,
@@ -1022,6 +1029,7 @@ fn populate_seed_store(
                 document.doc_id
             )
         })?;
+        let mut current_revision_id = created.genesis_revision_id.clone();
 
         if with_follow_up_revision {
             let patch = create_patch_in_store(
@@ -1035,7 +1043,7 @@ fn populate_seed_store(
                 },
             )
             .map_err(|err| format!("failed to create patch for '{}': {err}", document.doc_id))?;
-            commit_revision_to_store(
+            let revision = commit_revision_to_store(
                 store_root,
                 signing_key,
                 &RevisionCommitParams {
@@ -1047,6 +1055,17 @@ fn populate_seed_store(
                 },
             )
             .map_err(|err| format!("failed to commit revision for '{}': {err}", document.doc_id))?;
+            current_revision_id = revision.revision_id;
+        }
+
+        if fixture_requests_seed_view_sync(fixture) {
+            write_governance_view_to_store(
+                store_root,
+                signing_key,
+                &document.doc_id,
+                &current_revision_id,
+                timestamp + 10,
+            )?;
         }
     }
     Ok(())
@@ -1094,6 +1113,58 @@ fn fixture_documents(fixture: &Fixture) -> Vec<crate::model::FixtureDocumentRef>
         }];
     }
     fixture.documents.clone()
+}
+
+fn fixture_requests_seed_view_sync(fixture: &Fixture) -> bool {
+    fixture
+        .metadata
+        .as_ref()
+        .and_then(|value| value.get("publish_seed_view"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn write_governance_view_to_store(
+    store_root: &Path,
+    signing_key: &ed25519_dalek::SigningKey,
+    doc_id: &str,
+    revision_id: &str,
+    timestamp: u64,
+) -> Result<(), String> {
+    let maintainer = signer_id(signing_key);
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:placeholder",
+        "maintainer": maintainer,
+        "documents": {
+            doc_id: revision_id
+        },
+        "policy": {
+            "accept_keys": [signer_id(signing_key)],
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": ["main"]
+        },
+        "timestamp": timestamp
+    });
+    let view_id = recompute_object_id(&view, "view_id", "view")
+        .map_err(|err| format!("failed to compute governance view id for '{doc_id}': {err}"))?;
+    view["view_id"] = Value::String(view_id);
+    let payload = signed_payload_bytes(&view)
+        .map_err(|err| format!("failed to canonicalize governance view for '{doc_id}': {err}"))?;
+    let signature = signing_key.sign(&payload);
+    view["signature"] = Value::String(format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    ));
+
+    write_object_value_to_store(store_root, &view).map_err(|err| {
+        format!(
+            "failed to store governance view for '{doc_id}' at {}: {err}",
+            store_root.display()
+        )
+    })?;
+    Ok(())
 }
 
 fn manifest_object_ids(manifest: &StoreIndexManifest) -> Vec<String> {

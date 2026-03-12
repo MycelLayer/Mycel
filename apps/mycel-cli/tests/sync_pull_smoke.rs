@@ -346,6 +346,58 @@ fn signed_snapshot_object_message(signing_key: &SigningKey, sender: &str) -> Val
     value
 }
 
+fn signed_view_object_message(signing_key: &SigningKey, sender: &str, revision_id: &str) -> Value {
+    let body = sign_object_value(
+        signing_key,
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:placeholder",
+            "maintainer": "pk:ed25519:placeholder",
+            "documents": {
+                "doc:test": revision_id
+            },
+            "policy": {
+                "accept_keys": [sender_public_key(signing_key)],
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": ["main"]
+            },
+            "timestamp": 4u64,
+            "signature": "sig:placeholder"
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object_id = body["view_id"]
+        .as_str()
+        .expect("signed view body should include view_id")
+        .to_owned();
+    let object_hash = object_id
+        .split_once(':')
+        .map(|(_, hash)| hash.to_string())
+        .expect("wire view ID should contain hash");
+
+    let mut value = json!({
+        "type": "OBJECT",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:object-cli-sync-view-001",
+        "timestamp": "2026-03-08T20:01:16+08:00",
+        "from": sender,
+        "payload": {
+            "object_id": object_id,
+            "object_type": "view",
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": format!("hash:{object_hash}"),
+            "body": body
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
 fn signed_bye_message(signing_key: &SigningKey, sender: &str) -> Value {
     let mut value = json!({
         "type": "BYE",
@@ -754,6 +806,73 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
         serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
             .expect("manifest should parse");
     assert_eq!(manifest["stored_object_count"], 2);
+}
+
+#[test]
+fn sync_peer_store_json_fetches_announced_views_into_governance_indexes() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-view-remote");
+    let local_store = create_temp_dir("sync-peer-store-view-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
+    let view_id = view_object["payload"]["object_id"]
+        .as_str()
+        .expect("view object id should exist")
+        .to_string();
+
+    for body in [
+        &patch_object["payload"]["body"],
+        &revision_object["payload"]["body"],
+        &view_object["payload"]["body"],
+    ] {
+        write_object_value_to_store(remote_store.path(), body)
+            .expect("object should write to remote store");
+    }
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(&remote_store.path().to_path_buf()),
+        "--into",
+        &path_arg(&local_store.path().to_path_buf()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["object_message_count"], 3);
+    assert_eq!(json["written_object_count"], 3);
+
+    let manifest_path = local_store.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 3);
+    assert_eq!(
+        manifest["view_governance"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(manifest["view_governance"][0]["view_id"], view_id);
+    assert_eq!(manifest["document_views"]["doc:test"][0], view_id);
 }
 
 #[test]
