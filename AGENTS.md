@@ -41,6 +41,7 @@
 - For a fresh local or Codespaces environment, ensure `gh` and `rg` are installed; install them if missing.
 - For multi-agent startup and role assignment, read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) first, then read the local registry file `.agent-local/agents.json`, and use `scripts/agent_registry.py` subcommands as defined there.
 - If the user did not assign a role for the new chat, use `scripts/agent_registry.py claim auto`: it takes `coding` when there is no active `coding` agent, takes `doc` when active `coding >= 1` and active `doc == 0`, and takes `coding` when active `coding >= 1` and active `doc >= 1`.
+- After claiming a role for the chat, tell the user which role was claimed before moving on to task work.
 - For each user command work cycle, touch the active agent entry before working and mark it inactive after the work for that command finishes.
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to.
 - Reply with a short plan and the current repo status before making changes.
