@@ -3,11 +3,13 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_SCRIPT = REPO_ROOT / "scripts" / "agent_registry.py"
+TAIPEI_TZ = timezone(timedelta(hours=8))
 
 
 class AgentRegistryCliTest(unittest.TestCase):
@@ -37,6 +39,9 @@ class AgentRegistryCliTest(unittest.TestCase):
         registry_path = self.root / ".agent-local" / "agents.json"
         registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
+    def timestamp(self, dt: datetime) -> str:
+        return dt.astimezone(TAIPEI_TZ).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S%z")
+
     def test_auto_role_selection_prefers_doc_only_when_coding_is_already_active(self) -> None:
         self.write_registry(
             {
@@ -48,10 +53,10 @@ class AgentRegistryCliTest(unittest.TestCase):
                         "id": "coding-1",
                         "role": "coding",
                         "assigned_by": "user",
-                        "assigned_at": "2026-03-12T00:00:00Z",
+                        "assigned_at": "2026-03-12T00:00:00+0800",
                         "confirmed_by_agent": True,
-                        "confirmed_at": "2026-03-12T00:00:00Z",
-                        "last_touched_at": "2026-03-12T00:05:00Z",
+                        "confirmed_at": "2026-03-12T00:00:00+0800",
+                        "last_touched_at": "2026-03-12T00:05:00+0800",
                         "inactive_at": None,
                         "status": "active",
                         "scope": "pending-user-task",
@@ -71,17 +76,17 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.write_registry(
             {
                 "version": 1,
-                "updated_at": "2026-03-12T00:00:00Z",
+                "updated_at": "2026-03-12T00:00:00+0800",
                 "agent_count": 2,
                 "agents": [
                     {
                         "id": "coding-1",
                         "role": "coding",
                         "assigned_by": "user",
-                        "assigned_at": "2026-03-12T00:00:00Z",
+                        "assigned_at": "2026-03-12T00:00:00+0800",
                         "confirmed_by_agent": True,
-                        "confirmed_at": "2026-03-12T00:00:00Z",
-                        "last_touched_at": "2026-03-12T00:05:00Z",
+                        "confirmed_at": "2026-03-12T00:00:00+0800",
+                        "last_touched_at": "2026-03-12T00:05:00+0800",
                         "inactive_at": None,
                         "status": "active",
                         "scope": "pending-user-task",
@@ -92,10 +97,10 @@ class AgentRegistryCliTest(unittest.TestCase):
                         "id": "doc-1",
                         "role": "doc",
                         "assigned_by": "user",
-                        "assigned_at": "2026-03-12T00:00:01Z",
+                        "assigned_at": "2026-03-12T00:00:01+0800",
                         "confirmed_by_agent": True,
-                        "confirmed_at": "2026-03-12T00:00:01Z",
-                        "last_touched_at": "2026-03-12T00:06:00Z",
+                        "confirmed_at": "2026-03-12T00:00:01+0800",
+                        "last_touched_at": "2026-03-12T00:06:00+0800",
                         "inactive_at": None,
                         "status": "active",
                         "scope": "pending-user-task",
@@ -121,6 +126,7 @@ class AgentRegistryCliTest(unittest.TestCase):
         finish = json.loads(self.run_cli("finish", agent_id, "--json").stdout)
         self.assertEqual("inactive", finish["current_status"])
         self.assertIsNotNone(finish["inactive_at"])
+        self.assertTrue(finish["inactive_at"].endswith("+0800"))
 
         status_after_finish = json.loads(self.run_cli("status", agent_id, "--json").stdout)
         self.assertEqual("inactive", status_after_finish["agents"][0]["status"])
@@ -129,27 +135,29 @@ class AgentRegistryCliTest(unittest.TestCase):
         touched = json.loads(self.run_cli("touch", agent_id, "--json").stdout)
         self.assertEqual("active", touched["current_status"])
         self.assertIsNotNone(touched["last_touched_at"])
+        self.assertTrue(touched["last_touched_at"].endswith("+0800"))
 
         status_after_touch = json.loads(self.run_cli("status", agent_id, "--json").stdout)
         self.assertEqual("active", status_after_touch["agents"][0]["status"])
         self.assertIsNone(status_after_touch["agents"][0]["inactive_at"])
 
     def test_cleanup_prunes_entries_inactive_for_at_least_one_hour(self) -> None:
+        now = datetime.now(TAIPEI_TZ).replace(microsecond=0)
         self.write_registry(
             {
                 "version": 1,
-                "updated_at": "2026-03-12T00:00:00Z",
+                "updated_at": self.timestamp(now),
                 "agent_count": 2,
                 "agents": [
                     {
                         "id": "doc-9",
                         "role": "doc",
                         "assigned_by": "user",
-                        "assigned_at": "2026-03-12T00:00:00Z",
+                        "assigned_at": self.timestamp(now - timedelta(hours=2)),
                         "confirmed_by_agent": True,
-                        "confirmed_at": "2026-03-12T00:00:00Z",
-                        "last_touched_at": "2026-03-12T00:05:00Z",
-                        "inactive_at": "2026-03-12T00:10:00Z",
+                        "confirmed_at": self.timestamp(now - timedelta(hours=2)),
+                        "last_touched_at": self.timestamp(now - timedelta(hours=2, minutes=5)),
+                        "inactive_at": self.timestamp(now - timedelta(hours=2, minutes=10)),
                         "status": "inactive",
                         "scope": "old-task",
                         "files": [],
@@ -159,11 +167,11 @@ class AgentRegistryCliTest(unittest.TestCase):
                         "id": "coding-3",
                         "role": "coding",
                         "assigned_by": "user",
-                        "assigned_at": "2026-03-12T01:30:00Z",
+                        "assigned_at": self.timestamp(now - timedelta(minutes=20)),
                         "confirmed_by_agent": True,
-                        "confirmed_at": "2026-03-12T01:30:00Z",
-                        "last_touched_at": "2026-03-12T01:35:00Z",
-                        "inactive_at": "2026-03-12T01:40:00Z",
+                        "confirmed_at": self.timestamp(now - timedelta(minutes=20)),
+                        "last_touched_at": self.timestamp(now - timedelta(minutes=15)),
+                        "inactive_at": self.timestamp(now - timedelta(minutes=10)),
                         "status": "inactive",
                         "scope": "recent-task",
                         "files": [],

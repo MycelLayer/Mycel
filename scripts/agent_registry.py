@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 ALLOWED_ROLES = {"coding", "doc"}
 ALLOWED_STATUSES = {"active", "inactive", "paused", "blocked", "done"}
 INACTIVE_TTL_SECONDS = 3600
+TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 
 
 class RegistryError(Exception):
@@ -22,14 +23,26 @@ class RegistryError(Exception):
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(TAIPEI_TIMEZONE).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def parse_utc_timestamp(value: str) -> datetime:
     normalized = value.strip()
     if normalized.endswith("Z"):
         normalized = normalized[:-1] + "+00:00"
+    elif len(normalized) >= 5 and normalized[-5] in {"+", "-"} and normalized[-3] != ":":
+        normalized = f"{normalized[:-2]}:{normalized[-2:]}"
     return datetime.fromisoformat(normalized).astimezone(timezone.utc)
+
+
+def normalize_timestamp_string(value: Any) -> Any:
+    if not isinstance(value, str) or not value.strip():
+        return value
+    try:
+        parsed = parse_utc_timestamp(value)
+    except ValueError:
+        return value
+    return parsed.astimezone(TAIPEI_TIMEZONE).strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def load_registry(*, allow_missing: bool = False) -> dict[str, Any]:
@@ -442,11 +455,11 @@ def cmd_status(args: argparse.Namespace) -> int:
                 "status": entry.get("status"),
                 "scope": entry.get("scope"),
                 "assigned_by": entry.get("assigned_by"),
-                "assigned_at": entry.get("assigned_at"),
+                "assigned_at": normalize_timestamp_string(entry.get("assigned_at")),
                 "confirmed_by_agent": entry.get("confirmed_by_agent", False),
-                "confirmed_at": entry.get("confirmed_at"),
-                "last_touched_at": entry.get("last_touched_at"),
-                "inactive_at": entry.get("inactive_at"),
+                "confirmed_at": normalize_timestamp_string(entry.get("confirmed_at")),
+                "last_touched_at": normalize_timestamp_string(entry.get("last_touched_at")),
+                "inactive_at": normalize_timestamp_string(entry.get("inactive_at")),
                 "files": entry.get("files", []),
                 "mailbox": mailbox_display,
                 "mailbox_exists": mailbox_exists,
@@ -456,7 +469,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     result = {
         "status": "ok",
         "registry_path": str(REGISTRY_PATH),
-        "updated_at": registry.get("updated_at"),
+        "updated_at": normalize_timestamp_string(registry.get("updated_at")),
         "agent_count": len(normalized) if args.agent_id else len(registry["agents"]),
         "cleanup_removed_ids": cleanup_removed_ids,
         "agents": normalized,
@@ -501,8 +514,8 @@ def cmd_resume_check(args: argparse.Namespace) -> int:
         "current_status": status,
         "scope": scope,
         "confirmed_by_agent": bool(confirmed_by_agent),
-        "confirmed_at": confirmed_at,
-        "last_touched_at": last_touched_at,
+        "confirmed_at": normalize_timestamp_string(confirmed_at),
+        "last_touched_at": normalize_timestamp_string(last_touched_at),
         "mailbox": relative_to_root(mailbox_path),
         "safe_to_resume": safe_to_resume,
         "cleanup_removed_ids": cleanup_removed_ids,

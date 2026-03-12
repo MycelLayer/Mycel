@@ -79,10 +79,10 @@ The local registry file must be valid JSON and use this top-level shape:
       "id": "agent-coding-1",
       "role": "coding",
       "assigned_by": "maintainer",
-      "assigned_at": "2026-03-11T00:00:00Z",
+      "assigned_at": "2026-03-11T00:00:00+0800",
       "confirmed_by_agent": true,
-      "confirmed_at": "2026-03-11T00:02:00Z",
-      "last_touched_at": "2026-03-11T00:10:00Z",
+      "confirmed_at": "2026-03-11T00:02:00+0800",
+      "last_touched_at": "2026-03-11T00:10:00+0800",
       "inactive_at": null,
       "status": "active",
       "scope": "#42 accepted-head strictness",
@@ -96,10 +96,10 @@ The local registry file must be valid JSON and use this top-level shape:
       "id": "agent-doc-1",
       "role": "doc",
       "assigned_by": "maintainer",
-      "assigned_at": "2026-03-11T00:01:00Z",
+      "assigned_at": "2026-03-11T00:01:00+0800",
       "confirmed_by_agent": true,
-      "confirmed_at": "2026-03-11T00:03:00Z",
-      "last_touched_at": "2026-03-11T00:11:00Z",
+      "confirmed_at": "2026-03-11T00:03:00+0800",
+      "last_touched_at": "2026-03-11T00:11:00+0800",
       "inactive_at": null,
       "status": "active",
       "scope": "planning sync for #42",
@@ -159,6 +159,8 @@ Allowed `status` values:
 `last_touched_at` may be `null` only before the entry has ever been activated or touched.
 
 `inactive_at` should be a timestamp when `status` is `inactive`, and should be `null` otherwise.
+
+`scripts/agent_registry.py` writes timestamps in `Asia/Taipei (UTC+8)` using the `+0800` offset form.
 
 ## Startup Gate
 
@@ -352,10 +354,10 @@ For one `coding` agent and one `doc` agent:
       "id": "coding-1",
       "role": "coding",
       "assigned_by": "maintainer",
-      "assigned_at": "2026-03-11T00:00:00Z",
+      "assigned_at": "2026-03-11T00:00:00+0800",
       "confirmed_by_agent": true,
-      "confirmed_at": "2026-03-11T00:02:00Z",
-      "last_touched_at": "2026-03-11T00:10:00Z",
+      "confirmed_at": "2026-03-11T00:02:00+0800",
+      "last_touched_at": "2026-03-11T00:10:00+0800",
       "inactive_at": null,
       "status": "active",
       "scope": "#17 store refactor",
@@ -369,10 +371,10 @@ For one `coding` agent and one `doc` agent:
       "id": "doc-1",
       "role": "doc",
       "assigned_by": "maintainer",
-      "assigned_at": "2026-03-11T00:01:00Z",
+      "assigned_at": "2026-03-11T00:01:00+0800",
       "confirmed_by_agent": true,
-      "confirmed_at": "2026-03-11T00:03:00Z",
-      "last_touched_at": "2026-03-11T00:11:00Z",
+      "confirmed_at": "2026-03-11T00:03:00+0800",
+      "last_touched_at": "2026-03-11T00:11:00+0800",
       "inactive_at": null,
       "status": "active",
       "scope": "planning sync for #17",
