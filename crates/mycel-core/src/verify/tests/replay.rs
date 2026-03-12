@@ -792,6 +792,54 @@ pub(super) fn revision_replay_rejects_patch_dependency_that_fails_standalone_ver
 }
 
 #[test]
+pub(super) fn revision_replay_rejects_parent_dependency_that_fails_standalone_verification() {
+    let (signing_key, public_key) = signer_material();
+    let mut parent_revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 10u64
+    });
+    let invalid_parent_id = "rev:wrong-parent".to_string();
+    parent_revision["revision_id"] = Value::String(invalid_parent_id.clone());
+    parent_revision["signature"] = Value::String(sign_value(&signing_key, &parent_revision));
+
+    let mut revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": [invalid_parent_id.clone()],
+        "patches": [],
+        "state_hash": state_hash_for_blocks("doc:test", Vec::new()),
+        "author": public_key,
+        "timestamp": 11u64
+    });
+    let revision_id =
+        recompute_object_id(&revision, "revision_id", "rev").expect("revision ID should recompute");
+    revision["revision_id"] = Value::String(revision_id);
+    revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+
+    let object_index = HashMap::from([(invalid_parent_id.clone(), parent_revision)]);
+    let summary = verify_object_value_with_object_index(&revision, Some(&object_index));
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert_eq!(summary.state_hash_verification.as_deref(), Some("failed"));
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains(&format!(
+                "failed to verify parent revision '{invalid_parent_id}'"
+            )) && message
+                .contains("declared revision_id does not match recomputed canonical object ID")
+        }),
+        "expected parent dependency verification error, got {summary:?}"
+    );
+}
+
+#[test]
 pub(super) fn revision_replay_rejects_parent_dependency_with_wrong_object_type() {
     let (signing_key, public_key) = signer_material();
     let mut patch = json!({

@@ -342,6 +342,44 @@ fn parse_patch_object_rejects_nested_new_block_non_object_attrs_with_path() {
 }
 
 #[test]
+fn parse_patch_object_rejects_nested_new_block_child_missing_attrs_with_path() {
+    let error = parse_patch_object(&json!({
+        "type": "patch",
+        "version": "mycel/0.1",
+        "patch_id": "patch:test",
+        "doc_id": "doc:test",
+        "base_revision": "rev:base",
+        "author": "pk:ed25519:test",
+        "timestamp": 1u64,
+        "ops": [
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:001",
+                    "block_type": "paragraph",
+                    "content": "Hello",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:002",
+                            "block_type": "paragraph",
+                            "content": "Child",
+                            "children": []
+                        }
+                    ]
+                }
+            }
+        ]
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'ops[0]': top-level 'new_block': top-level 'children[0]': missing object field 'attrs'"
+    );
+}
+
+#[test]
 fn parse_patch_object_rejects_mixed_set_metadata_forms() {
     let error = parse_patch_object(&json!({
         "type": "patch",

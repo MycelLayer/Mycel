@@ -900,6 +900,54 @@ fn inspect_warns_when_patch_nested_new_block_attrs_is_not_an_object() {
 }
 
 #[test]
+fn inspect_warns_when_patch_nested_new_block_child_is_missing_attrs() {
+    let path = write_test_file(
+        "patch-nested-new-block-child-missing-attrs-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 11u64,
+            "ops": [
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:001",
+                        "block_type": "paragraph",
+                        "content": "Hello",
+                        "attrs": {},
+                        "children": [
+                            {
+                                "block_id": "blk:002",
+                                "block_type": "paragraph",
+                                "content": "Child",
+                                "children": []
+                            }
+                        ]
+                    }
+                }
+            ],
+            "signature": "sig:placeholder"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(summary.notes.iter().any(|message| {
+        message.contains(
+            "top-level 'ops[0]': top-level 'new_block': top-level 'children[0]': missing object field 'attrs'",
+        )
+    }), "expected nested new_block child attrs warning, got {summary:?}");
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_revision_contains_duplicate_parent_ids() {
     let path = write_test_file(
         "revision-duplicate-parents-inspect",
