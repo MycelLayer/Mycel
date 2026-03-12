@@ -322,11 +322,11 @@ The authoritative sync entry point is:
 Use:
 
 ```bash
-scripts/check-doc-refresh.sh
-scripts/check-doc-refresh.sh --json
+scripts/check-plan-refresh.sh
+scripts/check-plan-refresh.sh --json
 ```
 
-to decide whether a planning-doc refresh is due.
+to decide whether a planning-surface refresh is due.
 
 ## 10. Human Review and Control
 

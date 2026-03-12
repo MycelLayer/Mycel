@@ -7,10 +7,10 @@
 - Commit and push must run serially; only push after the commit has completed successfully, and do not run commit/push in parallel.
 - If `git push origin main` is rejected because `origin/main` moved, run `git fetch origin`, `git rebase origin/main`, resolve any conflicts, and retry the push; do not force-push to bypass other chats' commits.
 - During rebase conflicts, preserve user changes first, then already-pushed `origin/main` changes from other chats, and then re-apply this chat's work on top; if the conflict cannot be resolved confidently, stop and ask the user instead of guessing.
-- On every 20 commits to `origin/main`, check [`docs/PLANNING-SYNC-PLAN.md`](docs/PLANNING-SYNC-PLAN.md) as the single planning-sync entry point and follow it to refresh the current planning surfaces.
-- The `doc` role owns `scripts/check-doc-refresh.sh` and should run it after each completed work item while preparing next items to check the 20-commit planning-sync cadence; if it reports `due`, include docs sync as one of the next items. `coding` agents must not run it.
-- When `coding` work produces roadmap, checklist, progress-page, or issue-triage material that may affect planning sync, hand that material to `doc` through the registry mailbox instead of running `scripts/check-doc-refresh.sh` directly.
-- If `scripts/check-doc-refresh.sh` reports `due`, use [`docs/PLANNING-SYNC-PLAN.md`](docs/PLANNING-SYNC-PLAN.md) as the single entry point for the next docs sync.
+- Use [`scripts/check-plan-refresh.sh`](scripts/check-plan-refresh.sh) to manage planning cadence: `sync doc` is due after 10 commits, `sync issue` is due after 10 commits, and `sync web` is due after 20 commits.
+- The `doc` role owns `scripts/check-plan-refresh.sh` and should run it after each completed work item while preparing next items; if it reports `due`, include the due planning surfaces in the next items. `coding` agents must not run it.
+- When `coding` work produces roadmap, checklist, progress-page, or issue-triage material that may affect planning sync, hand that material to `doc` through the registry mailbox instead of running `scripts/check-plan-refresh.sh` directly.
+- If `scripts/check-plan-refresh.sh` reports `due`, use [`docs/PLANNING-SYNC-PLAN.md`](docs/PLANNING-SYNC-PLAN.md) as the single entry point for the next planning-sync batch.
 - Do not check CI immediately after each push, since the workflow may still be running.
 - Only the `coding` role checks the latest completed CI status for the previous push before starting the next piece of work and reports any failures.
 - The `doc` role does not check CI.

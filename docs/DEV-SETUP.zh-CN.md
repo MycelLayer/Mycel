@@ -172,8 +172,8 @@ cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
 scripts/check-dev-env.sh
 scripts/check-labels.sh
-scripts/check-doc-refresh.sh
-scripts/check-doc-refresh.sh --json
+scripts/check-plan-refresh.sh
+scripts/check-plan-refresh.sh --json
 ```
 
 ## 8. 如果你是新的 AI Agent

@@ -48,9 +48,9 @@ Allowed `role` values:
 Role responsibilities:
 
 - `coding`
-  owns issue resolution, feature work, local verification, commit/push flow, and CI checks after each push; when work may affect planning surfaces, this role hands the relevant material to `doc` through the registry mailbox and does not run `scripts/check-doc-refresh.sh`
+  owns issue resolution, feature work, local verification, commit/push flow, and CI checks after each push; when work may affect planning surfaces, this role hands the relevant material to `doc` through the registry mailbox and does not run `scripts/check-plan-refresh.sh`
 - `doc`
-  owns design-note sync, roadmap/checklist refresh, explanatory docs, planning-surface wording, and the `scripts/check-doc-refresh.sh` cadence check; this role scans registry mailboxes to collect sync-relevant handoff material and does not check CI
+  owns design-note sync, roadmap/checklist refresh, explanatory docs, planning-surface wording, and the `scripts/check-plan-refresh.sh` cadence check; this role scans registry mailboxes to collect sync-relevant handoff material and does not check CI
 
 If the user does not assign any role in a new chat, `claim auto` should choose:
 
@@ -205,8 +205,8 @@ Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-lo
 Mailbox usage for doc sync:
 
 - `coding` agents should leave sync-relevant notes in their own registry mailbox when work changes planning-relevant implementation state, checklist closure, roadmap emphasis, public progress wording, or issue-triage inputs
-- `doc` should scan active, paused, and recently inactive agent mailboxes before a docs-sync batch and use those notes as collection input for roadmap/checklist/progress refresh work
-- mailbox handoff is the default coordination path for planning-sync material; `coding` should not replace it by running `scripts/check-doc-refresh.sh`
+- `doc` should scan active, paused, and recently inactive agent mailboxes before a planning-sync batch and use those notes as collection input for roadmap/checklist/progress refresh work
+- mailbox handoff is the default coordination path for planning-sync material; `coding` should not replace it by running `scripts/check-plan-refresh.sh`
 
 Recommended mailbox handoff template:
 
@@ -303,8 +303,8 @@ Keep startup output narrow:
 Planning-sync coordination:
 
 - `coding` agents should append mailbox handoff notes when they land or discover planning-relevant changes
-- `doc` owns `scripts/check-doc-refresh.sh` and the decision to start a docs-sync batch
-- after each completed doc work item, while preparing next items, `doc` should run `scripts/check-doc-refresh.sh`; if it reports `due`, add docs sync to the next items and then scan the declared mailboxes for recent handoff material before the sync batch
+- `doc` owns `scripts/check-plan-refresh.sh` and the decision to start a planning-sync batch
+- after each completed doc work item, while preparing next items, `doc` should run `scripts/check-plan-refresh.sh`; if it reports `due`, add the due sync surfaces to the next items and then scan the declared mailboxes for recent handoff material before the sync batch
 - if a mailbox note follows the recommended template, `doc` may treat it as ready-to-triage input instead of re-deriving the whole change from git history first
 
 If two `coding` agents would touch the same primary file or issue, one must narrow scope or pause before proceeding.

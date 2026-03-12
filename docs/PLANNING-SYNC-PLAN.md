@@ -15,7 +15,7 @@ It exists to prevent drift between the authoritative build plan, the open task q
 Use these terms consistently:
 
 - `sync doc`: Markdown-only sync. This covers planning/public-summary `.md` files such as `ROADMAP.*`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and any related README wording.
-- `sync web`: GitHub Pages-only sync. This covers Pages HTML surfaces such as `docs/index.html`, localized landing pages, and `docs/progress.html`.
+- `sync web`: GitHub Pages-only sync. This covers Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording.
 - `sync issue`: GitHub Issues plus the contributor-entry issue links in GitHub Pages entry pages such as `docs/index.html`, `docs/zh-TW/index.html`, and `docs/zh-CN/index.html`.
 - `sync plan`: the full sync. This means `sync doc` + `sync web` + `sync issue`.
 
@@ -255,25 +255,30 @@ Update planning surfaces immediately when:
 Use:
 
 ```bash
-scripts/check-doc-refresh.sh
+scripts/check-plan-refresh.sh
 ```
 
 Ownership:
 
 - the active `doc` agent owns this check
 - `coding` agents do not run this script
-- instead, `coding` agents hand off sync-relevant implementation and issue-triage material through their registry mailbox so `doc` can collect it before the next docs-sync batch
+- instead, `coding` agents hand off sync-relevant implementation and issue-triage material through their registry mailbox so `doc` can collect it before the next planning-sync batch
+- `sync doc` is due at 10 commits
+- `sync issue` is due at 10 commits
+- `sync web` is due at 20 commits
 
-If it reports `due`, refresh:
+If it reports `due`, refresh the reported surfaces:
 
 - `ROADMAP.md`
 - `ROADMAP.zh-TW.md`
 - `IMPLEMENTATION-CHECKLIST.en.md`
 - `IMPLEMENTATION-CHECKLIST.zh-TW.md`
 - aligned GitHub Issues
-- GitHub Pages planning summary surfaces such as `docs/PROGRESS.md` and `docs/progress.html`
+- Markdown planning surfaces such as `docs/PROGRESS.md` when `sync doc` is due
+- aligned GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
+- GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
 
-in the next docs-sync batch, even if no single change forced an update.
+in the next planning-sync batch, even if no single change forced an update.
 
 ## 8. Recommended Sync Workflow
 
@@ -286,19 +291,16 @@ For a meaningful implementation batch:
 5. update GitHub Issues
 6. update `docs/PROGRESS.md`
 7. update `docs/progress.html`
-8. run the relevant verification checks; the doc-refresh cadence check remains doc-owned
+8. run the relevant verification checks; the plan-refresh cadence check remains doc-owned
 
 For a docs-only planning refresh:
 
 1. scan registry mailboxes for recent coding/doc handoff material relevant to planning sync
-2. run `scripts/check-doc-refresh.sh`
-3. refresh `ROADMAP.md`
-4. refresh `IMPLEMENTATION-CHECKLIST.*`
-5. realign issues
-6. regenerate or manually update `docs/PROGRESS.md`
-7. update `docs/progress.html`
-8. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
-9. refresh contributor-entry issue links in `docs/index.html` and localized landing pages if the current starter issues changed
+2. run `scripts/check-plan-refresh.sh`
+3. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
+4. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
+5. update GitHub Pages HTML summary surfaces such as `docs/progress.html` and non-issue landing-page wording when `sync web` is due
+6. ensure the GitHub Pages planning summary matches the refreshed roadmap/checklist/issues state
 
 ## 9. Anti-Drift Rules
 

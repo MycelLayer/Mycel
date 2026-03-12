@@ -33,8 +33,8 @@ Mailbox retention:
 
 Doc cadence reminder:
 
-- after each completed doc work item, while preparing next items, run `scripts/check-doc-refresh.sh`
-- if it reports `due`, add docs sync as one of the next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
+- after each completed doc work item, while preparing next items, run `scripts/check-plan-refresh.sh`
+- if it reports `due`, add the due planning surfaces as next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
 
 ## Agent Roles
 
