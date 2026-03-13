@@ -48,7 +48,7 @@
 - If `.agent-local/dev-setup-status.md` is missing or does not say `Status: ready`, read [`docs/DEV-SETUP.md`](docs/DEV-SETUP.md), ensure the required setup items are satisfied, and update `.agent-local/dev-setup-status.md` with the detailed tool/setup check results, preferably via `scripts/update-dev-setup-status.py --actor <role-id>`. <!-- item-id: bootstrap.refresh-dev-setup-when-needed -->
 - Use [`.agent-local/DEV-SETUP-STATUS.example.md`](.agent-local/DEV-SETUP-STATUS.example.md) as the template for the local status file. <!-- item-id: bootstrap.dev-setup-template -->
 - For multi-agent startup and role assignment, read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) first, then read the local registry file `.agent-local/agents.json`, and use `scripts/agent_registry.py` subcommands as defined there. <!-- item-id: bootstrap.read-agent-registry -->
-- If the user did not assign a role for the new chat, use `scripts/agent_registry.py claim auto`: it takes `coding` when there is no active `coding` agent, takes `doc` when active `coding >= 1` and active `doc == 0`, and takes `coding` when active `coding >= 1` and active `doc >= 1`. <!-- item-id: bootstrap.claim-auto -->
+- If the user did not assign a role for the new chat, use `scripts/agent_registry.py claim auto`. <!-- item-id: bootstrap.claim-auto -->
 - After claiming a role for the chat, tell the user which role was claimed before moving on to task work. <!-- item-id: bootstrap.announce-claimed-role -->
 
 ## Work Cycle Workflow
@@ -57,6 +57,12 @@
 - When using `scripts/agent_work_cycle.py begin|end`, do not immediately follow it with a manual `scripts/agent_registry.py touch|finish` for the same work cycle; `begin` already performs `touch`, and `end` already performs `finish`. <!-- item-id: workflow.no-double-touch-finish -->
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to. <!-- item-id: workflow.install-needed-tools -->
 - Reply with a short plan and the current repo status before making changes. <!-- item-id: workflow.reply-with-plan-and-status -->
+
+## Item-ID Checklists
+- When an agent reads a Markdown file that carries `item-id` annotations, treat the tracked file as the canonical instruction source; do not use the tracked file itself as the personal work log.
+- Before self-tracking progress, the agent should create its own copy under `.agent-local/checklists/`, preferably with `python3 scripts/item_id_checklist.py <agent-ref> <source-md>`.
+- In that agent-local copy, every `item-id` line should use checklist-style prefixes such as `- [ ]` and `- [X]` so the agent can mark work in place without changing the tracked source file.
+- Agents should update `[ ]` / `[X]` state only in their own checklist copy unless the source instructions themselves are being intentionally edited.
 
 ## .md
 - Read .md from the root folder and its sub-folders, if it exists.
