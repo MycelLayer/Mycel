@@ -93,6 +93,44 @@ class ItemIdChecklistCliTest(unittest.TestCase):
         self.assertIn("- [ ] Existing checked item <!-- item-id: bootstrap.checked -->", content)
         self.assertIn("update checks here instead of the tracked source file", content)
 
+    def test_keeps_only_item_id_sections_and_items(self) -> None:
+        self.write_registry()
+        self.write_source(
+            "docs/source.md",
+            """# Source
+
+Intro paragraph that should not be copied.
+
+## Kept Section
+
+- Keep me <!-- item-id: kept.one -->
+- Keep me too <!-- item-id: kept.two -->
+
+## Dropped Section
+
+- This plain bullet should not be copied.
+
+### Nested Kept Section
+
+Context line that should not be copied.
+- Nested item <!-- item-id: kept.nested -->
+""",
+        )
+
+        result = json.loads(self.run_cli("agt_doc", "docs/source.md", "--json").stdout)
+        content = (self.root / result["output"]).read_text(encoding="utf-8")
+
+        self.assertIn("# Source", content)
+        self.assertIn("## Kept Section", content)
+        self.assertIn("### Nested Kept Section", content)
+        self.assertIn("- [ ] Keep me <!-- item-id: kept.one -->", content)
+        self.assertIn("- [ ] Keep me too <!-- item-id: kept.two -->", content)
+        self.assertIn("- [ ] Nested item <!-- item-id: kept.nested -->", content)
+        self.assertNotIn("Intro paragraph that should not be copied.", content)
+        self.assertNotIn("This plain bullet should not be copied.", content)
+        self.assertNotIn("Context line that should not be copied.", content)
+        self.assertNotIn("## Dropped Section", content)
+
     def test_accepts_display_id_as_agent_ref(self) -> None:
         self.write_registry()
         self.write_source(

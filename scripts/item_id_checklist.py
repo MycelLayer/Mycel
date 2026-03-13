@@ -18,6 +18,7 @@ TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 ITEM_ID_COMMENT_RE = re.compile(r"<!--\s*item-id:\s*(?P<item_id>.*?)\s*-->")
 CHECKBOX_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+\[(?:X|!| )\]\s+(?P<text>.*)$")
 LIST_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+(?P<text>.*)$")
+HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<text>.+?)\s*$")
 
 
 class ItemIdChecklistError(Exception):
@@ -117,6 +118,54 @@ def normalize_item_line(line: str) -> tuple[str, bool]:
     return f"- [ ] {text} {comment}", True
 
 
+def collect_relevant_lines(lines: list[str]) -> tuple[list[str], int]:
+    selected_indices: set[int] = set()
+    heading_stack: list[tuple[int, int]] = []
+    root_heading_index: int | None = None
+    item_count = 0
+
+    for index, line in enumerate(lines):
+        heading_match = HEADING_RE.match(line)
+        if heading_match is not None:
+            level = len(heading_match.group("marks"))
+            if level == 1 and root_heading_index is None:
+                root_heading_index = index
+            heading_stack = [(existing_level, heading_index) for existing_level, heading_index in heading_stack if existing_level < level]
+            heading_stack.append((level, index))
+            continue
+
+        _, had_item_id = normalize_item_line(line)
+        if not had_item_id:
+            continue
+
+        item_count += 1
+        selected_indices.add(index)
+        if root_heading_index is not None:
+            selected_indices.add(root_heading_index)
+        if heading_stack:
+            selected_indices.add(heading_stack[-1][1])
+
+    rendered_lines: list[str] = []
+    previous_was_heading = False
+    for index, line in enumerate(lines):
+        if index not in selected_indices:
+            continue
+
+        normalized_line, had_item_id = normalize_item_line(line)
+        output_line = normalized_line if had_item_id else line.rstrip()
+        is_heading = HEADING_RE.match(output_line) is not None
+
+        if is_heading and rendered_lines and rendered_lines[-1] != "":
+            rendered_lines.append("")
+        elif not is_heading and previous_was_heading and rendered_lines and rendered_lines[-1] != "":
+            rendered_lines.append("")
+
+        rendered_lines.append(output_line)
+        previous_was_heading = is_heading
+
+    return rendered_lines, item_count
+
+
 def materialize_checklist(
     *,
     agent_uid: str,
@@ -130,13 +179,7 @@ def materialize_checklist(
         raise ItemIdChecklistError(f"source path is not a file: {relative_to_root(source_path)}")
 
     source_text = source_path.read_text(encoding="utf-8")
-    normalized_lines: list[str] = []
-    item_count = 0
-    for line in source_text.splitlines():
-        normalized_line, had_item_id = normalize_item_line(line)
-        if had_item_id:
-            item_count += 1
-        normalized_lines.append(normalized_line)
+    normalized_lines, item_count = collect_relevant_lines(source_text.splitlines())
 
     if item_count == 0:
         raise ItemIdChecklistError(f"source file has no item-id markers: {relative_to_root(source_path)}")
