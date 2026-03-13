@@ -34,11 +34,6 @@
 - As the project grows, proactively suggest mature modules, libraries, or frameworks at the right time when they would clearly reduce maintenance risk or simplify the design. Do not wait for the user to ask if the need is becoming obvious (for example, suggesting `clap` once CLI argument parsing becomes complex).
 - When code or tests start showing large repeated patterns, actively consider whether a mature module or tool should replace the repetition with a clearer structure (for example, `rstest` cases for repeated validation matrices).
 - When suggesting a mature module, library, or framework, explain why now is the right time, what problem it solves, and the main tradeoff of adopting it.
-- After completing a piece of work, end with a short evaluation of valuable next-stage work and, by default, offer multiple concrete options for the user to choose from.
-- In final next-stage recommendations, put the highest-value option first and mark it as `(最有價值)`.
-- When suggesting next-stage work or options, use numeric item indexes (`1. 2. 3.`), not dot bullets.
-- When a next-stage option maps to a roadmap milestone, phase, or named track, include that roadmap location so the user can see where it fits in the plan.
-- If the right choice depends on unknown constraints, ask 1–2 short clarifying questions, but still provide a best-effort set of options based on common assumptions.
 
 ## New chat bootstrap
 - Scan the repo layout with `rg --files` for fast file discovery. <!-- item-id: bootstrap.repo-layout -->
@@ -62,6 +57,11 @@
 - Do not immediately follow `scripts/agent_work_cycle.py begin|end` with a manual `scripts/agent_registry.py touch|finish` for the same work cycle. <!-- item-id: workflow.no-double-touch-finish -->
 - Before ending each completed user command work cycle after bootstrap batch 1, append or update one handoff entry in the agent's declared mailbox so the mailbox records the latest state for that cycle. If the new entry replaces an older open current-state handoff in the same mailbox, mark the older one `superseded` first. Bootstrap batch 1 should skip mailbox handoff and treat this item as not needed. <!-- item-id: workflow.mailbox-handoff-each-cycle -->
 - After work in each completed user command cycle, use `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]`; it handles the inactive registry transition for the cycle and checks for unchecked items in the current workcycle checklist. For batch 1 bootstrap work, it also checks the bootstrap checklist before ending cleanly. <!-- item-id: workflow.finish-work-cycle -->
+- After completing a piece of work, end with a short evaluation of valuable next-stage work and, by default, offer multiple concrete options for the user to choose from.
+  - In final next-stage recommendations, put the highest-value option first and mark it as `(最有價值)`.
+  - When suggesting next-stage work or options, use numeric item indexes (`1. 2. 3.`), not dot bullets.
+  - When a next-stage option maps to a roadmap milestone, phase, or named track, include that roadmap location so the user can see where it fits in the plan.
+  - If the right choice depends on unknown constraints, ask 1–2 short clarifying questions, but still provide a best-effort set of options based on common assumptions.
 
 ## Item-ID Checklists
 - When an agent reads a Markdown file that carries `item-id` annotations, treat the tracked file as the canonical instruction source; do not use the tracked file itself as the personal work log.
