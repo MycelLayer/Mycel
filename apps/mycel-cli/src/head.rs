@@ -106,6 +106,9 @@ fn print_head_inspect_text(summary: &HeadInspectSummary) -> i32 {
     }
     println!("verified revisions: {}", summary.verified_revision_count);
     println!("verified views: {}", summary.verified_view_count);
+    if summary.viewer_signal_count > 0 {
+        println!("viewer signals: {}", summary.viewer_signal_count);
+    }
     println!("status: {}", summary.status);
 
     for head in &summary.eligible_heads {
@@ -136,6 +139,27 @@ fn print_head_inspect_text(summary: &HeadInspectSummary) -> i32 {
     }
     if let Some(tie_break_reason) = &summary.tie_break_reason {
         println!("tie break reason: {tie_break_reason}");
+    }
+    for channel in &summary.viewer_score_channels {
+        if channel.viewer_bonus > 0
+            || channel.viewer_penalty > 0
+            || channel.challenge_review_pressure > 0
+            || channel.challenge_freeze_pressure > 0
+        {
+            println!(
+                "viewer channel: {} maintainer_score={} bonus={} penalty={} challenges={} review_pressure={} freeze_pressure={} review_state={}",
+                channel.revision_id,
+                channel.maintainer_score,
+                channel.viewer_bonus,
+                channel.viewer_penalty,
+                channel.challenge_signal_count,
+                channel.challenge_review_pressure,
+                channel.challenge_freeze_pressure,
+                serde_json::to_string(&channel.viewer_review_state)
+                    .unwrap_or_else(|_| "\"unknown\"".to_string())
+                    .trim_matches('"')
+            );
+        }
     }
     for trace in &summary.decision_trace {
         println!("trace: {}: {}", trace.step, trace.detail);

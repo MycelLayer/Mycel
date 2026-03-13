@@ -124,7 +124,19 @@ pub struct ViewerScoreChannelSummary {
     pub viewer_penalty: u64,
     pub approval_signal_count: u64,
     pub objection_signal_count: u64,
+    pub challenge_signal_count: u64,
+    pub challenge_review_pressure: u64,
+    pub challenge_freeze_pressure: u64,
+    pub viewer_review_state: ViewerReviewState,
     pub selector_score: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ViewerReviewState {
+    None,
+    ReviewPressure,
+    FreezePressure,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -345,6 +357,9 @@ struct ViewerHeadScore {
     viewer_penalty: u64,
     approval_signal_count: u64,
     objection_signal_count: u64,
+    challenge_signal_count: u64,
+    challenge_review_pressure: u64,
+    challenge_freeze_pressure: u64,
 }
 
 fn default_true() -> bool {
@@ -1730,6 +1745,25 @@ fn compute_viewer_score_channels(
             }
         }
 
+        if selector_eligible && signal.signal_type == ViewerSignalType::Challenge {
+            let entry = per_head_scores
+                .entry(signal.candidate_revision_id.clone())
+                .or_default();
+            entry.challenge_signal_count += 1;
+            if signal.evidence_ref.is_some() {
+                let challenge_weight =
+                    confidence_weight(&signal.confidence_level).min(effective_weight_cap);
+                entry.challenge_review_pressure = entry
+                    .challenge_review_pressure
+                    .saturating_add(challenge_weight);
+                if signal.confidence_level == ViewerConfidenceLevel::High {
+                    entry.challenge_freeze_pressure = entry
+                        .challenge_freeze_pressure
+                        .saturating_add(challenge_weight);
+                }
+            }
+        }
+
         signal_summaries.push(ViewerSignalSummary {
             signal_id: signal.signal_id.clone(),
             viewer_id: signal.viewer_id.clone(),
@@ -1770,6 +1804,10 @@ fn compute_viewer_score_channels(
                 viewer_penalty: score.viewer_penalty,
                 approval_signal_count: score.approval_signal_count,
                 objection_signal_count: score.objection_signal_count,
+                challenge_signal_count: score.challenge_signal_count,
+                challenge_review_pressure: score.challenge_review_pressure,
+                challenge_freeze_pressure: score.challenge_freeze_pressure,
+                viewer_review_state: viewer_review_state_for_score(&score),
                 selector_score: 0,
             }
         })
@@ -1812,6 +1850,16 @@ fn viewer_score_mode_label(mode: &ViewerScoreMode) -> &'static str {
     match mode {
         ViewerScoreMode::Disabled => "disabled",
         ViewerScoreMode::BoundedBonusPenalty => "bounded-bonus-penalty",
+    }
+}
+
+fn viewer_review_state_for_score(score: &ViewerHeadScore) -> ViewerReviewState {
+    if score.challenge_freeze_pressure > 0 {
+        ViewerReviewState::FreezePressure
+    } else if score.challenge_review_pressure > 0 {
+        ViewerReviewState::ReviewPressure
+    } else {
+        ViewerReviewState::None
     }
 }
 

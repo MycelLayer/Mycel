@@ -2191,6 +2191,19 @@ fn head_inspect_applies_bounded_viewer_score_channels() {
     assert_eq!(selected_channel["viewer_bonus"], Value::from(2));
     assert_eq!(selected_channel["viewer_penalty"], Value::from(0));
     assert_eq!(selected_channel["approval_signal_count"], Value::from(2));
+    assert_eq!(selected_channel["challenge_signal_count"], Value::from(0));
+    assert_eq!(
+        selected_channel["challenge_review_pressure"],
+        Value::from(0)
+    );
+    assert_eq!(
+        selected_channel["challenge_freeze_pressure"],
+        Value::from(0)
+    );
+    assert_eq!(
+        selected_channel["viewer_review_state"],
+        Value::String("none".to_string())
+    );
     assert_eq!(selected_channel["selector_score"], Value::from(3));
     let alternative_channel = viewer_score_channels
         .iter()
@@ -2201,6 +2214,22 @@ fn head_inspect_applies_bounded_viewer_score_channels() {
     assert_eq!(
         alternative_channel["objection_signal_count"],
         Value::from(1)
+    );
+    assert_eq!(
+        alternative_channel["challenge_signal_count"],
+        Value::from(1)
+    );
+    assert_eq!(
+        alternative_channel["challenge_review_pressure"],
+        Value::from(2)
+    );
+    assert_eq!(
+        alternative_channel["challenge_freeze_pressure"],
+        Value::from(2)
+    );
+    assert_eq!(
+        alternative_channel["viewer_review_state"],
+        Value::String("freeze-pressure".to_string())
     );
     assert_eq!(alternative_channel["selector_score"], Value::from(0));
 
@@ -2218,6 +2247,93 @@ fn head_inspect_applies_bounded_viewer_score_channels() {
                     })
             })),
         "expected viewer_score_channels trace entry, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_inspect_text_reports_viewer_channels_without_overloading_trace() {
+    let doc_id = "doc:viewer-score-text";
+    let revision_author = signing_key(111);
+    let maintainer_a = signing_key(112);
+    let maintainer_b = signing_key(113);
+    let policy = json!({
+        "accept_keys": [
+            signer_id(&maintainer_a),
+            signer_id(&maintainer_b)
+        ],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let revision_a = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![],
+        10,
+        "hash:viewer-score-text-a",
+    );
+    let revision_b = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![],
+        20,
+        "hash:viewer-score-text-b",
+    );
+    let mut profile = head_profile(hash_json(&policy), 250);
+    profile["viewer_score"] = bounded_viewer_score_profile();
+    let mut challenge = viewer_signal(
+        "signal-challenge-text",
+        114,
+        &revision_b["revision_id"],
+        "challenge",
+        "high",
+        100,
+        400,
+    );
+    challenge["evidence_ref"] = Value::String("evidence:challenge-text".to_string());
+    let bundle = json!({
+        "profile": profile,
+        "revisions": [revision_a.clone(), revision_b.clone()],
+        "views": [
+            signed_view(
+                &maintainer_a,
+                &policy,
+                documents_value(doc_id, &revision_a["revision_id"]),
+                100
+            ),
+            signed_view(
+                &maintainer_b,
+                &policy,
+                documents_value(doc_id, &revision_b["revision_id"]),
+                110
+            )
+        ],
+        "viewer_signals": [
+            viewer_signal(
+                "signal-approval-text",
+                115,
+                &revision_a["revision_id"],
+                "approval",
+                "medium",
+                100,
+                400
+            ),
+            challenge
+        ],
+        "critical_violations": []
+    });
+    let input = write_input_file("head-inspect-viewer-score-text", "input.json", bundle);
+    let output = run_mycel(&["head", "inspect", doc_id, "--input", &path_arg(&input.path)]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "viewer signals: 2");
+    assert_stdout_contains(&output, "viewer channel: ");
+    assert_stdout_contains(&output, "review_pressure=2");
+    assert_stdout_contains(&output, "freeze_pressure=2");
+    assert_stdout_contains(&output, "review_state=freeze-pressure");
+    assert!(
+        !stdout_text(&output).contains("trace: viewer_signal_id"),
+        "expected trace to stay high-level, stdout: {}",
         stdout_text(&output)
     );
 }
