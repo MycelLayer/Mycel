@@ -582,6 +582,42 @@ fn object_verify_json_fails_for_block_with_non_object_attrs() {
 }
 
 #[test]
+fn object_verify_json_fails_for_block_with_empty_attr_key() {
+    let object = write_object_file(
+        "object-verify-block-empty-attr-key",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:001",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "": "value"
+            },
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'attrs' keys must not be empty strings")
+                })
+            })),
+        "expected empty attrs-key error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_block_with_non_array_children() {
     let object = write_object_file(
         "object-verify-block-non-array-children",

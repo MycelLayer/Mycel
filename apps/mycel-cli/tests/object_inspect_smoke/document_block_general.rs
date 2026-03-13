@@ -283,6 +283,42 @@ fn object_inspect_json_warns_for_block_with_wrong_block_id_prefix() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_block_with_empty_attr_key() {
+    let object = write_object_file(
+        "object-inspect-block-empty-attr-key",
+        "block.json",
+        json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "": "value"
+            },
+            "children": []
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "block");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'attrs' keys must not be empty strings")
+                })
+            })),
+        "expected empty attrs-key warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_block_with_unknown_top_level_field() {
     let object = write_object_file(
         "object-inspect-block-unknown-top-level-field",
