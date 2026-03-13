@@ -10,6 +10,8 @@ This note proposes a checks-and-balances model for Mycel with three distinct rol
 
 The goal is to let editors propose content, let view maintainers govern accepted-head selection, and let viewers apply bounded public-pressure signals without turning Mycel into a pure popularity system.
 
+This model also follows a governance principle: Mycel should preserve meaningful opposition. If a role no longer faces credible, durable opposition, it becomes easier for that role to reinforce itself, overextend, and push the system out of balance.
+
 Related notes:
 
 - `DESIGN-NOTES.two-maintainer-role.*`

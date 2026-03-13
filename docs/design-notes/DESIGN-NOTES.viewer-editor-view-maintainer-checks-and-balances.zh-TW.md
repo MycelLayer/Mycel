@@ -10,6 +10,8 @@
 
 目標是讓 editors 提出內容候選版本、讓 view maintainers 治理 accepted-head selection，並讓 viewers 能提供受限的公眾制衡訊號，而不把 Mycel 直接變成純人氣系統。
 
+這份模型也遵守一條治理原則：Mycel 應保留有意義的反對力量。若一個角色長期不再面對可信、持續存在的反對者，它就更容易在沒有外部制衡的情況下自我強化、過度擴張，最後把系統推向失衡。
+
 相關文件：
 
 - `DESIGN-NOTES.two-maintainer-role.*`
