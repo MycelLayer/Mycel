@@ -286,6 +286,24 @@ viewer 訊號通常不應直接硬選 accepted head。
 - 遷移最安全
 - checks 較弱
 
+### 未來若有生物特徵認證
+
+如果未來出現成本、隱私與可靠性都可接受的人類生物特徵認證，它會明顯改變 viewer anti-Sybil 的設計空間。
+
+可能帶來的好處：
+
+- 更容易接近「一個自然人對應一個 challenge-capable identity」
+- 廣泛 viewer participation 與強 civic checks 可以同時存在
+- `temporary_freeze` 或其他高影響 viewer power 比較有機會安全開放
+
+但它不會自動解掉所有問題：
+
+- 生物特徵只能較好處理「是不是不同人」，不能保證「是不是有良好判斷」
+- 仍然需要 reputation、evidence requirement、delay window 與 abuse recovery
+- 會引入更重的隱私、排除性、與 credential custody 風險
+
+因此，即使未來真的有成熟的生物特徵認證，Mycel 也更適合把它視為 anti-Sybil substrate，而不是直接把它等同於治理正當性本身。
+
 ## 10. 建議方向
 
 對 Mycel 而言，最安全的第一步是：
@@ -376,7 +394,40 @@ viewer challenge 可以觸發 `temporary_freeze`，但其門檻必須比一般 r
 - 讓 viewer challenge 能強制觸發 mandatory re-review
 - 把 freeze 保留給高信任、高證據門檻的案例
 
-## 14. 取捨
+## 14. `viewer` 進 / 不進 `selector_score` 的三角色比較
+
+若 `viewer` 不進 `selector_score`：
+
+- `editor-maintainer` 仍主要受 `view-maintainer` ratification 約束，再額外受 viewer 的 `delay` / `review` / `freeze` 約束
+- `view-maintainer` 仍握有主裁決權，viewer 比較像程序性制衡者
+- `viewer` 擁有煞車與挑戰權，但沒有直接定案權
+
+這種結構的效果是：
+
+- 對 `editor-maintainer` 的制衡較強
+- 對 `view-maintainer` 的制衡屬中等，偏程序性
+- 對 `viewer` 自身的約束較強，比較不容易讓系統滑向灌票式人氣治理
+
+若 `viewer` 直接進 `selector_score`：
+
+- `editor-maintainer` 不只要說服 `view-maintainer`，也要爭取 viewer score
+- `view-maintainer` 會從主治理者，部分降格為與 viewer 共治 accepted-head selection 的角色
+- `viewer` 會從煞車者升級成實質治理者
+
+這種結構的效果是：
+
+- 對 `editor-maintainer` 的制衡最強
+- 對 `view-maintainer` 的制衡也最強
+- 但對 `viewer` 的自我約束最弱，anti-Sybil、identity admission、signal quality control 都會變成更核心的安全邊界
+
+所以三角色一起考慮時：
+
+- `viewer` 不進 `selector_score`，比較像「editor proposal + maintainer ratification + viewer procedural check」
+- `viewer` 進 `selector_score`，比較像「editor proposal + maintainer-viewer mixed governance」
+
+對目前 Mycel 來說，較穩的路線仍是先不讓 `viewer` 進主 selector weight，再把 viewer challenge 補強為強制複審與高門檻 freeze。
+
+## 15. 取捨
 
 好處：
 
@@ -392,7 +443,7 @@ viewer challenge 可以觸發 `temporary_freeze`，但其門檻必須比一般 r
 - challenge spam 與 moderation burden 會變成真問題
 - accepted-head activation 在爭議情況下會較不即時
 
-## 15. 開放問題
+## 16. 開放問題
 
 - viewers 是否應該永遠只有 escalation power，而不直接拿 selector weight？
 - viewer approvals 應只影響 tie-break，還是可提供受限的 score bonus？

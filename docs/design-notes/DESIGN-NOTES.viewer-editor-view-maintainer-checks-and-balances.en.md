@@ -286,6 +286,24 @@ Tradeoff:
 - safest migration path
 - weaker checks
 
+### If biometric authentication becomes viable
+
+If human biometric authentication becomes reliable, privacy-preserving, and deployable at acceptable cost, it would materially change the viewer anti-Sybil design space.
+
+Possible gains:
+
+- easier approximation of one natural person per challenge-capable identity
+- broader viewer participation can coexist with stronger civic checks
+- higher-impact viewer powers such as `temporary_freeze` become easier to justify
+
+But it still would not solve everything:
+
+- biometrics can help distinguish people, but not guarantee judgment quality
+- reputation, evidence requirements, delay windows, and abuse recovery would still matter
+- privacy, exclusion, and credential-custody risks would become much more important
+
+So even in that future, Mycel should treat biometrics as anti-Sybil substrate, not as governance legitimacy by itself.
+
 ## 10. Recommended Direction
 
 For Mycel, the safest first step is:
@@ -376,7 +394,40 @@ The most balanced next step for Mycel is likely:
 - let viewer challenge force mandatory re-review
 - reserve freeze for high-trust, high-evidence cases
 
-## 14. Tradeoffs
+## 14. Three-Role Comparison: Viewer Inside vs Outside `selector_score`
+
+If `viewer` stays outside `selector_score`:
+
+- `editor-maintainer` remains primarily constrained by `view-maintainer` ratification, with added viewer `delay` / `review` / `freeze` pressure
+- `view-maintainer` remains the primary decider, while viewer acts mainly as a procedural check
+- `viewer` gains braking and challenge power, but not direct finality power
+
+This structure tends to produce:
+
+- strong checks on `editor-maintainer`
+- moderate, mostly procedural checks on `view-maintainer`
+- stronger constraints on `viewer` itself, reducing the chance of sliding into popularity capture
+
+If `viewer` enters `selector_score` directly:
+
+- `editor-maintainer` must win both maintainer support and viewer score
+- `view-maintainer` shifts from primary governor toward a co-governor of accepted-head selection alongside viewers
+- `viewer` shifts from brake to substantive governor
+
+This structure tends to produce:
+
+- the strongest checks on `editor-maintainer`
+- the strongest checks on `view-maintainer`
+- the weakest self-constraints on `viewer`, making anti-Sybil, identity admission, and signal-quality control much more central
+
+Considering all three roles together:
+
+- keeping `viewer` outside `selector_score` is closer to "editor proposal + maintainer ratification + viewer procedural check"
+- putting `viewer` into `selector_score` is closer to "editor proposal + maintainer-viewer mixed governance"
+
+For Mycel as it exists today, the more stable path is still to keep viewers out of primary selector weight first, while strengthening viewer challenge into mandatory re-review and high-threshold freeze.
+
+## 15. Tradeoffs
 
 Benefits:
 
@@ -392,7 +443,7 @@ Costs:
 - challenge spam and moderation burden become real concerns
 - accepted-head activation becomes less immediate in controversial cases
 
-## 15. Open Questions
+## 16. Open Questions
 
 - Should viewers ever receive direct selector weight, or only escalation power?
 - Should viewer approvals affect only tie-breaks, or contribute bounded score bonuses?
