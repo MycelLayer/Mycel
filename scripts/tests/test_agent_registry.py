@@ -9,6 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_SCRIPT = REPO_ROOT / "scripts" / "agent_registry.py"
+SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 
@@ -19,7 +20,9 @@ class AgentRegistryCliTest(unittest.TestCase):
         (self.root / "scripts").mkdir(parents=True, exist_ok=True)
         (self.root / ".agent-local").mkdir(parents=True, exist_ok=True)
         shutil.copy2(SOURCE_SCRIPT, self.root / "scripts" / "agent_registry.py")
+        shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
+        (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -45,6 +48,20 @@ class AgentRegistryCliTest(unittest.TestCase):
 
     def timestamp(self, dt: datetime) -> str:
         return dt.astimezone(TAIPEI_TZ).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+    def write_agents_md(self) -> None:
+        (self.root / "AGENTS.md").write_text(
+            """# Repo Working Agreements
+
+## New chat bootstrap
+- Bootstrap one <!-- item-id: bootstrap.one -->
+
+## Work Cycle Workflow
+- Begin the work cycle <!-- item-id: workflow.touch-work-cycle -->
+- Finish the work cycle <!-- item-id: workflow.finish-work-cycle -->
+""",
+            encoding="utf-8",
+        )
 
     def make_v2_entry(
         self,
@@ -166,6 +183,7 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertTrue(claim["mailbox"].startswith(".agent-local/mailboxes/"))
 
     def test_touch_and_finish_accept_agent_uid(self) -> None:
+        self.write_agents_md()
         claim = json.loads(self.run_cli("claim", "coding", "--scope", "lease-test", "--json").stdout)
         agent_uid = claim["agent_uid"]
         display_id = claim["display_id"]
@@ -173,6 +191,8 @@ class AgentRegistryCliTest(unittest.TestCase):
         start = json.loads(self.run_cli("start", agent_uid, "--json").stdout)
         self.assertEqual(agent_uid, start["agent_uid"])
         self.assertEqual(display_id, start["display_id"])
+        self.assertEqual(f".agent-local/agents/{agent_uid}/checklists/AGENTS-bootstrap-checklist.md", start["bootstrap_output"])
+        self.assertTrue((self.root / start["bootstrap_output"]).exists())
 
         finish = json.loads(self.run_cli("finish", agent_uid, "--json").stdout)
         self.assertEqual("inactive", finish["current_status"])

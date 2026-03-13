@@ -216,6 +216,51 @@ Context line that should not be copied.
         self.assertTrue(second_workcycle_path.exists())
         self.assertTrue(bootstrap_path.exists())
 
+    def test_agents_checklist_bootstrap_section_only_writes_bootstrap_output(self) -> None:
+        self.write_registry()
+        self.write_source(
+            "AGENTS.md",
+            """# Repo Working Agreements
+
+## New chat bootstrap
+- Bootstrap one <!-- item-id: bootstrap.one -->
+
+## Work Cycle Workflow
+- Workflow one <!-- item-id: workflow.one -->
+""",
+        )
+
+        result = json.loads(self.run_cli("agt_doc", "AGENTS.md", "--section", "bootstrap", "--json").stdout)
+
+        self.assertEqual("bootstrap", result["section"])
+        self.assertEqual(".agent-local/agents/agt_doc/checklists/AGENTS-bootstrap-checklist.md", result["output"])
+        self.assertNotIn("batch_num", result)
+        self.assertFalse((self.root / ".agent-local/agents/agt_doc/checklists/AGENTS-workcycle-checklist-1.md").exists())
+
+    def test_agents_checklist_workcycle_section_only_writes_next_batch(self) -> None:
+        self.write_registry()
+        self.write_source(
+            "AGENTS.md",
+            """# Repo Working Agreements
+
+## New chat bootstrap
+- Bootstrap one <!-- item-id: bootstrap.one -->
+
+## Work Cycle Workflow
+- Workflow one <!-- item-id: workflow.one -->
+""",
+        )
+
+        first = json.loads(self.run_cli("agt_doc", "AGENTS.md", "--section", "workcycle", "--json").stdout)
+        second = json.loads(self.run_cli("agt_doc", "AGENTS.md", "--section", "workcycle", "--json").stdout)
+
+        self.assertEqual("workcycle", first["section"])
+        self.assertEqual(".agent-local/agents/agt_doc/checklists/AGENTS-workcycle-checklist-1.md", first["output"])
+        self.assertEqual(1, first["batch_num"])
+        self.assertEqual(".agent-local/agents/agt_doc/checklists/AGENTS-workcycle-checklist-2.md", second["output"])
+        self.assertEqual(2, second["batch_num"])
+        self.assertFalse((self.root / ".agent-local/agents/agt_doc/checklists/AGENTS-bootstrap-checklist.md").exists())
+
     def test_agents_checklist_rejects_explicit_output_override(self) -> None:
         self.write_registry()
         self.write_source(

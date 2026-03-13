@@ -9,10 +9,17 @@ import sys
 from pathlib import Path
 
 from agent_timestamp import build_message
+from item_id_checklist import (
+    agents_bootstrap_checklist_path,
+    agents_workcycle_checklist_path,
+    latest_agents_workcycle_batch_num,
+    materialize_checklist,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
+AGENTS_PATH = ROOT_DIR / "AGENTS.md"
 
 
 class WorkCycleError(Exception):
@@ -60,14 +67,120 @@ def emit_registry_summary(payload: dict[str, str]) -> None:
         print(f"inactive_at: {payload['inactive_at']}")
 
 
+def checklist_item_line(item_id: str, state: str) -> str:
+    return f"<!-- item-id: {item_id} -->", f"- [{state}]"
+
+
+def set_checklist_item_state(checklist_path: Path, item_id: str, state: str) -> None:
+    if not checklist_path.exists():
+        raise WorkCycleError(f"missing checklist file: {checklist_path.relative_to(ROOT_DIR)}")
+
+    lines = checklist_path.read_text(encoding="utf-8").splitlines()
+    marker, replacement = checklist_item_line(item_id, state)
+    for index, line in enumerate(lines):
+        if marker not in line:
+            continue
+        lines[index] = line.replace("- [ ]", replacement, 1)
+        lines[index] = lines[index].replace("- [X]", replacement, 1)
+        lines[index] = lines[index].replace("- [-]", replacement, 1)
+        lines[index] = lines[index].replace("- [!]", replacement, 1)
+        checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return
+    raise WorkCycleError(f"checklist item not found: {item_id}")
+
+
+def scan_unchecked_items(checklist_path: Path) -> list[str]:
+    unchecked: list[str] = []
+    for line in checklist_path.read_text(encoding="utf-8").splitlines():
+        if not line.lstrip().startswith("- [ ] "):
+            continue
+        unchecked.append(line.strip())
+    return unchecked
+
+
+def emit_checklist_summary(
+    *,
+    checklist_paths: list[Path],
+    unchecked_by_path: dict[Path, list[str]],
+    bootstrap_batch: bool,
+) -> None:
+    print(f"bootstrap_batch: {str(bootstrap_batch).lower()}")
+    print("checklists_checked:")
+    for path in checklist_paths:
+        print(f"  - {path.relative_to(ROOT_DIR)}")
+    total_unchecked = sum(len(items) for items in unchecked_by_path.values())
+    print(f"unchecked_items: {total_unchecked}")
+    for path, items in unchecked_by_path.items():
+        if not items:
+            continue
+        print(f"unchecked_in: {path.relative_to(ROOT_DIR)}")
+        for item in items:
+            print(f"  - {item}")
+
+
 def main() -> int:
     args = parse_args()
     registry_command = "touch" if args.stage == "begin" else "finish"
     payload = run_registry(registry_command, args.agent_ref)
+    agent_uid = payload.get("agent_uid") or args.agent_ref
+    display_id = payload.get("display_id")
+
+    checklist_paths: list[Path] = []
+    unchecked_by_path: dict[Path, list[str]] = {}
+    bootstrap_batch = False
+
+    if args.stage == "begin":
+        checklist_result = materialize_checklist(
+            agent_uid=agent_uid,
+            display_id=display_id,
+            source_path=AGENTS_PATH,
+            output_path=agents_bootstrap_checklist_path(agent_uid),
+            section="workcycle",
+        )
+        workcycle_output = checklist_result.get("output")
+        if not isinstance(workcycle_output, str):
+            raise WorkCycleError("workcycle checklist generation did not return an output path")
+        workcycle_path = ROOT_DIR / workcycle_output
+        set_checklist_item_state(workcycle_path, "workflow.touch-work-cycle", "X")
+        print(f"workcycle_output: {workcycle_output}")
+        if "batch_num" in checklist_result:
+            print(f"batch_num: {checklist_result['batch_num']}")
+    else:
+        latest_batch = latest_agents_workcycle_batch_num(agent_uid)
+        if latest_batch is None:
+            raise WorkCycleError(f"no workcycle checklist found for {agent_uid}")
+
+        workcycle_path = agents_workcycle_checklist_path(agent_uid, latest_batch)
+        set_checklist_item_state(workcycle_path, "workflow.finish-work-cycle", "X")
+        checklist_paths.append(workcycle_path)
+
+        bootstrap_path = agents_bootstrap_checklist_path(agent_uid)
+        bootstrap_batch = latest_batch == 1
+        if bootstrap_batch:
+            if not bootstrap_path.exists():
+                raise WorkCycleError(
+                    f"missing bootstrap checklist file: {bootstrap_path.relative_to(ROOT_DIR)}"
+                )
+            checklist_paths.insert(0, bootstrap_path)
+
+        stage = "after"
+        label = display_id or args.agent_ref
+        emit_registry_summary(payload)
+        print(build_message(stage, agent=label, scope=args.scope))
+
+        for path in checklist_paths:
+            unchecked_by_path[path] = scan_unchecked_items(path)
+        emit_checklist_summary(
+            checklist_paths=checklist_paths,
+            unchecked_by_path=unchecked_by_path,
+            bootstrap_batch=bootstrap_batch,
+        )
+        return 2 if any(unchecked_by_path.values()) else 0
+
     emit_registry_summary(payload)
 
     stage = "before" if args.stage == "begin" else "after"
-    label = payload.get("display_id") or args.agent_ref
+    label = display_id or args.agent_ref
     print(build_message(stage, agent=label, scope=args.scope))
     return 0
 

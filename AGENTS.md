@@ -50,20 +50,22 @@
 - Agent startup:
   - For multi-agent startup and role assignment, read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) first, then read the local registry file `.agent-local/agents.json`, and use `scripts/agent_registry.py` subcommands as defined there. <!-- item-id: bootstrap.read-agent-registry -->
   - If the user did not assign a role for the new chat, use `scripts/agent_registry.py claim auto`, then tell the user which role was claimed before moving on to task work. <!-- item-id: bootstrap.claim-auto -->
+  - `scripts/agent_registry.py start <agent-ref>` generates the agent's bootstrap checklist template at `.agent-local/agents/<agent_uid>/checklists/AGENTS-bootstrap-checklist.md` if it does not exist yet.
 
 ## Work Cycle Workflow
-- Before work in each user command cycle, use `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]`; it handles the active registry transition for the cycle. <!-- item-id: workflow.touch-work-cycle -->
+- Before work in each user command cycle, use `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]`; it handles the active registry transition for the cycle and generates the next `.agent-local/agents/<agent_uid>/checklists/AGENTS-workcycle-checklist-<n>.md`. <!-- item-id: workflow.touch-work-cycle -->
 - Run `git status -sb` to understand the repo state. <!-- item-id: bootstrap.git-status -->
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to. <!-- item-id: workflow.install-needed-tools -->
 - Reply with a short plan and the current repo status before making changes. <!-- item-id: workflow.reply-with-plan-and-status -->
 - Use the exact before/after timestamp line emitted by `scripts/agent_work_cycle.py begin|end`; do not hand-write replacements or swap in a different timestamp format. <!-- item-id: workflow.timestamped-commentary -->
 - Do not immediately follow `scripts/agent_work_cycle.py begin|end` with a manual `scripts/agent_registry.py touch|finish` for the same work cycle. <!-- item-id: workflow.no-double-touch-finish -->
 - Before ending each completed user command work cycle, append or update one handoff entry in the agent's declared mailbox so the mailbox records the latest state for that cycle. If the new entry replaces an older open current-state handoff in the same mailbox, mark the older one `superseded` first. <!-- item-id: workflow.mailbox-handoff-each-cycle -->
-- After work in each completed user command cycle, use `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]`; it handles the inactive registry transition for the cycle. <!-- item-id: workflow.finish-work-cycle -->
+- After work in each completed user command cycle, use `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]`; it handles the inactive registry transition for the cycle and checks for unchecked items in the current workcycle checklist. For batch 1 bootstrap work, it also checks the bootstrap checklist before ending cleanly. <!-- item-id: workflow.finish-work-cycle -->
 
 ## Item-ID Checklists
 - When an agent reads a Markdown file that carries `item-id` annotations, treat the tracked file as the canonical instruction source; do not use the tracked file itself as the personal work log.
 - Before self-tracking progress, the agent should create its own copy under `.agent-local/agents/<agent_uid>/checklists/`, preferably with `python3 scripts/item_id_checklist.py <agent-ref> <source-md>`.
+- For `AGENTS.md`, `scripts/agent_registry.py start` and `scripts/agent_work_cycle.py begin` already generate the standard bootstrap/workcycle checklist copies automatically; use `scripts/item_id_checklist.py` directly when you need another source file or need to regenerate manually.
 - In that agent-local copy, every `item-id` line should use checklist-style prefixes such as `- [ ]`, `- [X]`, `- [-]`, and `- [!]` so the agent can mark work in place without changing the tracked source file.
 - Use these meanings consistently in the agent-local copy: `- [ ]` means not checked yet, `- [X]` means checked and completed without problems, `- [-]` means not needed for this work cycle, and `- [!]` means checked but problems were found.
 - When an item is marked `- [!]`, the agent should add an indented subitem immediately below it explaining the problem.

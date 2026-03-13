@@ -15,6 +15,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 AGENT_DIR = ROOT_DIR / ".agent-local" / "agents"
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
+AGENTS_BOOTSTRAP_TITLE = "New chat bootstrap"
+AGENTS_WORKCYCLE_TITLE = "Work Cycle Workflow"
 ITEM_ID_COMMENT_RE = re.compile(r"<!--\s*item-id:\s*(?P<item_id>.*?)\s*-->")
 CHECKBOX_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+\[(?:X|!|-| )\]\s+(?P<text>.*)$")
 LIST_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+(?P<text>.*)$")
@@ -91,6 +93,14 @@ def agents_bootstrap_checklist_rel(agent_uid: str) -> str:
 
 def agents_workcycle_checklist_rel(agent_uid: str, batch_num: int) -> str:
     return f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-{batch_num}.md"
+
+
+def agents_bootstrap_checklist_path(agent_uid: str) -> Path:
+    return resolve_path(agents_bootstrap_checklist_rel(agent_uid))
+
+
+def agents_workcycle_checklist_path(agent_uid: str, batch_num: int) -> Path:
+    return resolve_path(agents_workcycle_checklist_rel(agent_uid, batch_num))
 
 
 def resolve_checklist_path(path_value: str | None, *, agent_uid: str, source_path: Path) -> Path:
@@ -279,6 +289,43 @@ def next_agents_workcycle_batch_num(agent_uid: str) -> int:
     return max_batch + 1
 
 
+def latest_agents_workcycle_batch_num(agent_uid: str) -> int | None:
+    next_batch = next_agents_workcycle_batch_num(agent_uid)
+    if next_batch <= 1:
+        return None
+    return next_batch - 1
+
+
+def build_agents_section_body(root_lines: list[str], block_lines: list[str]) -> list[str]:
+    body = [*root_lines]
+    if body and body[-1] != "":
+        body.append("")
+    body.extend(block_lines)
+    return body
+
+
+def write_agents_section_checklist(
+    *,
+    agent_uid: str,
+    display_id: str | None,
+    source_path: Path,
+    output_path: Path,
+    body_lines: list[str],
+    generated_at: str,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        render_checklist_document(
+            agent_uid=agent_uid,
+            display_id=display_id,
+            source_path=source_path,
+            body_lines=body_lines,
+            generated_at=generated_at,
+        ),
+        encoding="utf-8",
+    )
+
+
 def materialize_agents_checklists(
     *,
     agent_uid: str,
@@ -286,60 +333,59 @@ def materialize_agents_checklists(
     source_path: Path,
     normalized_lines: list[str],
     item_count: int,
+    section: str,
 ) -> dict[str, Any]:
     root_lines, source_blocks = split_heading_blocks(normalized_lines)
     source_block_map = {title: lines for title, lines in source_blocks}
-    bootstrap_block = source_block_map.get("New chat bootstrap")
-    workcycle_block = source_block_map.get("Work Cycle Workflow")
+    bootstrap_block = source_block_map.get(AGENTS_BOOTSTRAP_TITLE)
+    workcycle_block = source_block_map.get(AGENTS_WORKCYCLE_TITLE)
 
     if bootstrap_block is None or workcycle_block is None:
         raise ItemIdChecklistError("AGENTS.md checklist generation requires both bootstrap and workcycle sections")
 
     generated_at = utc_now()
-    bootstrap_path = resolve_path(agents_bootstrap_checklist_rel(agent_uid))
-    bootstrap_path.parent.mkdir(parents=True, exist_ok=True)
-    bootstrap_body = [*root_lines]
-    if bootstrap_body and bootstrap_body[-1] != "":
-        bootstrap_body.append("")
-    bootstrap_body.extend(bootstrap_block)
-    bootstrap_path.write_text(
-        render_checklist_document(
-            agent_uid=agent_uid,
-            display_id=display_id,
-            source_path=source_path,
-            body_lines=bootstrap_body,
-            generated_at=generated_at,
-        ),
-        encoding="utf-8",
-    )
-
-    batch_num = next_agents_workcycle_batch_num(agent_uid)
-    workcycle_path = resolve_path(agents_workcycle_checklist_rel(agent_uid, batch_num))
-    workcycle_path.parent.mkdir(parents=True, exist_ok=True)
-    workcycle_body = [*root_lines]
-    if workcycle_body and workcycle_body[-1] != "":
-        workcycle_body.append("")
-    workcycle_body.extend(workcycle_block)
-    workcycle_path.write_text(
-        render_checklist_document(
-            agent_uid=agent_uid,
-            display_id=display_id,
-            source_path=source_path,
-            body_lines=workcycle_body,
-            generated_at=generated_at,
-        ),
-        encoding="utf-8",
-    )
-
-    return {
+    result = {
         "agent_uid": agent_uid,
         "display_id": display_id,
         "source": relative_to_root(source_path),
-        "bootstrap_output": relative_to_root(bootstrap_path),
-        "workcycle_output": relative_to_root(workcycle_path),
-        "batch_num": batch_num,
         "item_count": item_count,
+        "section": section,
     }
+
+    if section in {"all", "bootstrap"}:
+        bootstrap_path = agents_bootstrap_checklist_path(agent_uid)
+        write_agents_section_checklist(
+            agent_uid=agent_uid,
+            display_id=display_id,
+            source_path=source_path,
+            output_path=bootstrap_path,
+            body_lines=build_agents_section_body(root_lines, bootstrap_block),
+            generated_at=generated_at,
+        )
+        if section == "bootstrap":
+            result["output"] = relative_to_root(bootstrap_path)
+            return result
+        result["bootstrap_output"] = relative_to_root(bootstrap_path)
+
+    if section in {"all", "workcycle"}:
+        batch_num = next_agents_workcycle_batch_num(agent_uid)
+        workcycle_path = agents_workcycle_checklist_path(agent_uid, batch_num)
+        write_agents_section_checklist(
+            agent_uid=agent_uid,
+            display_id=display_id,
+            source_path=source_path,
+            output_path=workcycle_path,
+            body_lines=build_agents_section_body(root_lines, workcycle_block),
+            generated_at=generated_at,
+        )
+        if section == "workcycle":
+            result["output"] = relative_to_root(workcycle_path)
+            result["batch_num"] = batch_num
+            return result
+        result["workcycle_output"] = relative_to_root(workcycle_path)
+        result["batch_num"] = batch_num
+
+    return result
 
 
 def materialize_checklist(
@@ -348,6 +394,7 @@ def materialize_checklist(
     display_id: str | None,
     source_path: Path,
     output_path: Path,
+    section: str = "all",
 ) -> dict[str, Any]:
     if not source_path.exists():
         raise ItemIdChecklistError(f"source file not found: {relative_to_root(source_path)}")
@@ -367,6 +414,7 @@ def materialize_checklist(
             source_path=source_path,
             normalized_lines=normalized_lines,
             item_count=item_count,
+            section=section,
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -394,9 +442,14 @@ def print_human(data: dict[str, Any]) -> None:
     print(f"agent_uid: {data['agent_uid']}")
     print(f"display_id: {data['display_id']}")
     print(f"source: {data['source']}")
+    if "section" in data:
+        print(f"section: {data['section']}")
     if "bootstrap_output" in data and "workcycle_output" in data:
         print(f"bootstrap_output: {data['bootstrap_output']}")
         print(f"workcycle_output: {data['workcycle_output']}")
+        print(f"batch_num: {data['batch_num']}")
+    elif "batch_num" in data:
+        print(f"output: {data['output']}")
         print(f"batch_num: {data['batch_num']}")
     else:
         print(f"output: {data['output']}")
@@ -411,6 +464,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("agent_ref")
     parser.add_argument("source_md")
     parser.add_argument("--output", default="")
+    parser.add_argument("--section", choices=["all", "bootstrap", "workcycle"], default="all")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -434,6 +488,7 @@ def main() -> int:
             display_id=display_id,
             source_path=source_path,
             output_path=output_path,
+            section=args.section,
         )
     except ItemIdChecklistError as exc:
         print(str(exc), file=sys.stderr)

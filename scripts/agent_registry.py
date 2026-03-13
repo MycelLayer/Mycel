@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from item_id_checklist import agents_bootstrap_checklist_path, materialize_checklist
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
@@ -639,6 +640,9 @@ def print_start(data: dict[str, Any]) -> None:
     print(f"scope: {data['scope']}")
     print(f"mailbox: {data['mailbox']}")
     print(f"confirmed_at: {data['confirmed_at']}")
+    if "bootstrap_output" in data:
+        print(f"bootstrap_output: {data['bootstrap_output']}")
+        print(f"bootstrap_created: {data['bootstrap_created']}")
 
 
 def print_stop(data: dict[str, Any]) -> None:
@@ -866,6 +870,19 @@ def cmd_start(args: argparse.Namespace) -> int:
     ensure_mailbox(mailbox_path, title=agent_uid)
     save_registry(registry)
 
+    bootstrap_path = agents_bootstrap_checklist_path(agent_uid)
+    bootstrap_created = False
+    if not bootstrap_path.exists():
+        checklist_result = materialize_checklist(
+            agent_uid=agent_uid,
+            display_id=display_id,
+            source_path=AGENTS_PATH,
+            output_path=bootstrap_path,
+            section="bootstrap",
+        )
+        bootstrap_path = ROOT_DIR / require_non_empty_str(checklist_result, "output", agent_uid)
+        bootstrap_created = True
+
     result = {
         "status": "ok",
         "agent_uid": agent_uid,
@@ -874,6 +891,8 @@ def cmd_start(args: argparse.Namespace) -> int:
         "scope": entry["scope"],
         "mailbox": relative_to_root(mailbox_path),
         "confirmed_at": now,
+        "bootstrap_output": relative_to_root(bootstrap_path),
+        "bootstrap_created": bootstrap_created,
     }
     if args.json:
         print_json(result)
