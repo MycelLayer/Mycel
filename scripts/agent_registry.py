@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import uuid
@@ -129,6 +130,34 @@ def resolve_agent_local_path(path_value: str | Path) -> Path:
     except ValueError as exc:
         raise RegistryError("checklist output must live under .agent-local/") from exc
     return resolved
+
+
+def agent_dir_for_uid(agent_uid: str) -> Path:
+    return (AGENT_LOCAL_DIR / "agents" / agent_uid).resolve()
+
+
+def mailbox_symlink_rel_for_uid(agent_uid: str) -> str:
+    return f".agent-local/agents/{agent_uid}/mailbox.md"
+
+
+def ensure_agent_mailbox_symlink(agent_uid: str, mailbox_path: Path) -> Path:
+    agent_dir = agent_dir_for_uid(agent_uid)
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    link_path = agent_dir / "mailbox.md"
+
+    if link_path.exists() or link_path.is_symlink():
+        if link_path.is_symlink() and link_path.resolve() == mailbox_path.resolve():
+            return link_path
+        if link_path.is_symlink():
+            link_path.unlink()
+        else:
+            raise RegistryError(
+                f"cannot create mailbox symlink because a non-symlink path exists: {relative_to_root(link_path)}"
+            )
+
+    target_rel = os.path.relpath(mailbox_path, start=link_path.parent)
+    link_path.symlink_to(target_rel)
+    return link_path
 
 
 def path_exists_and_contains(path: Path, needle: str) -> bool:
@@ -639,6 +668,7 @@ def print_start(data: dict[str, Any]) -> None:
     print(f"role: {data['role']}")
     print(f"scope: {data['scope']}")
     print(f"mailbox: {data['mailbox']}")
+    print(f"mailbox_link: {data['mailbox_link']}")
     print(f"confirmed_at: {data['confirmed_at']}")
     if "bootstrap_output" in data:
         print(f"bootstrap_output: {data['bootstrap_output']}")
@@ -868,6 +898,7 @@ def cmd_start(args: argparse.Namespace) -> int:
 
     mailbox_path = resolve_mailbox_path(require_non_empty_str(entry, "mailbox", agent_uid))
     ensure_mailbox(mailbox_path, title=agent_uid)
+    mailbox_link = ensure_agent_mailbox_symlink(agent_uid, mailbox_path)
     save_registry(registry)
 
     bootstrap_path = agents_bootstrap_checklist_path(agent_uid)
@@ -890,6 +921,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "role": entry["role"],
         "scope": entry["scope"],
         "mailbox": relative_to_root(mailbox_path),
+        "mailbox_link": relative_to_root(mailbox_link),
         "confirmed_at": now,
         "bootstrap_output": relative_to_root(bootstrap_path),
         "bootstrap_created": bootstrap_created,

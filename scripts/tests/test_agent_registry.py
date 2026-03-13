@@ -193,6 +193,21 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertEqual(display_id, start["display_id"])
         self.assertEqual(f".agent-local/agents/{agent_uid}/checklists/AGENTS-bootstrap-checklist.md", start["bootstrap_output"])
         self.assertTrue((self.root / start["bootstrap_output"]).exists())
+        self.assertEqual(f".agent-local/agents/{agent_uid}/mailbox.md", start["mailbox_link"])
+        mailbox_link = self.root / start["mailbox_link"]
+        self.assertTrue(mailbox_link.is_symlink())
+        self.assertEqual(
+            (self.root / claim["mailbox"]).resolve(),
+            mailbox_link.resolve(),
+        )
+
+        restarted = json.loads(self.run_cli("start", agent_uid, "--json").stdout)
+        self.assertEqual(start["mailbox_link"], restarted["mailbox_link"])
+        self.assertTrue(mailbox_link.is_symlink())
+        self.assertEqual(
+            (self.root / claim["mailbox"]).resolve(),
+            mailbox_link.resolve(),
+        )
 
         finish = json.loads(self.run_cli("finish", agent_uid, "--json").stdout)
         self.assertEqual("inactive", finish["current_status"])
