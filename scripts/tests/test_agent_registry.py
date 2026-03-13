@@ -235,8 +235,8 @@ class AgentRegistryCliTest(unittest.TestCase):
                         assigned_at=self.timestamp(now - timedelta(hours=3)),
                         status="inactive",
                         scope="old-work",
-                        last_touched_at=self.timestamp(now - timedelta(hours=2, minutes=55)),
-                        inactive_at=self.timestamp(now - timedelta(hours=2, minutes=10)),
+                        last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=55)),
+                        inactive_at=self.timestamp(now - timedelta(hours=1, minutes=10)),
                     )
                 ],
             }
@@ -265,14 +265,14 @@ class AgentRegistryCliTest(unittest.TestCase):
             assigned_at=self.timestamp(now - timedelta(hours=3)),
             status="inactive",
             scope="old-work",
-            last_touched_at=self.timestamp(now - timedelta(hours=2, minutes=55)),
-            inactive_at=self.timestamp(now - timedelta(hours=2, minutes=10)),
+            last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=55)),
+            inactive_at=self.timestamp(now - timedelta(hours=1, minutes=10)),
         )
         stale_entry["display_history"] = [
             {
                 "display_id": "coding-1",
                 "assigned_at": self.timestamp(now - timedelta(hours=3)),
-                "released_at": self.timestamp(now - timedelta(hours=2)),
+                "released_at": self.timestamp(now - timedelta(hours=1)),
                 "released_reason": "stale-recycled",
             }
         ]
@@ -314,14 +314,14 @@ class AgentRegistryCliTest(unittest.TestCase):
             assigned_at=self.timestamp(now - timedelta(hours=3)),
             status="inactive",
             scope="handoff-work",
-            last_touched_at=self.timestamp(now - timedelta(hours=2, minutes=55)),
-            inactive_at=self.timestamp(now - timedelta(hours=2, minutes=10)),
+            last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=55)),
+            inactive_at=self.timestamp(now - timedelta(hours=1, minutes=10)),
         )
         stale_entry["display_history"] = [
             {
                 "display_id": "coding-1",
                 "assigned_at": self.timestamp(now - timedelta(hours=3)),
-                "released_at": self.timestamp(now - timedelta(hours=2)),
+                "released_at": self.timestamp(now - timedelta(hours=1)),
                 "released_reason": "stale-recycled",
             }
         ]
@@ -356,23 +356,23 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertEqual("active", new_entry["status"])
         self.assertEqual("paused", old_entry["status"])
 
-    def test_cleanup_removes_entries_stale_for_24_hours(self) -> None:
+    def test_cleanup_removes_entries_stale_for_1_hour(self) -> None:
         now = datetime.now(TAIPEI_TZ).replace(microsecond=0)
         old_entry = self.make_v2_entry(
             agent_uid="agt_old",
             role="doc",
             display_id=None,
-            assigned_at=self.timestamp(now - timedelta(hours=30)),
+            assigned_at=self.timestamp(now - timedelta(hours=4)),
             status="inactive",
             scope="expired-task",
-            last_touched_at=self.timestamp(now - timedelta(hours=29, minutes=55)),
-            inactive_at=self.timestamp(now - timedelta(hours=25, minutes=5)),
+            last_touched_at=self.timestamp(now - timedelta(hours=3, minutes=55)),
+            inactive_at=self.timestamp(now - timedelta(hours=2, minutes=5)),
         )
         old_entry["display_history"] = [
             {
                 "display_id": "doc-1",
-                "assigned_at": self.timestamp(now - timedelta(hours=30)),
-                "released_at": self.timestamp(now - timedelta(hours=24)),
+                "assigned_at": self.timestamp(now - timedelta(hours=4)),
+                "released_at": self.timestamp(now - timedelta(hours=2)),
                 "released_reason": "stale-recycled",
             }
         ]
@@ -383,8 +383,8 @@ class AgentRegistryCliTest(unittest.TestCase):
             assigned_at=self.timestamp(now - timedelta(hours=3)),
             status="inactive",
             scope="still-stale",
-            last_touched_at=self.timestamp(now - timedelta(hours=2, minutes=55)),
-            inactive_at=self.timestamp(now - timedelta(hours=2, minutes=10)),
+            last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=55)),
+            inactive_at=self.timestamp(now - timedelta(hours=1, minutes=10)),
         )
         retained_entry["display_history"] = [
             {
@@ -419,21 +419,21 @@ class AgentRegistryCliTest(unittest.TestCase):
             agent_uid="agt_paused_old",
             role="coding",
             display_id="coding-1",
-            assigned_at=self.timestamp(now - timedelta(days=4)),
+            assigned_at=self.timestamp(now - timedelta(hours=3)),
             status="paused",
             scope="paused-old",
-            last_touched_at=self.timestamp(now - timedelta(days=4, minutes=5)),
-            paused_at=self.timestamp(now - timedelta(days=4)),
+            last_touched_at=self.timestamp(now - timedelta(hours=3, minutes=5)),
+            paused_at=self.timestamp(now - timedelta(hours=3)),
         )
         recent_entry = self.make_v2_entry(
             agent_uid="agt_paused_recent",
             role="coding",
             display_id="coding-2",
-            assigned_at=self.timestamp(now - timedelta(days=2)),
+            assigned_at=self.timestamp(now - timedelta(hours=1, minutes=30)),
             status="paused",
             scope="paused-recent",
-            last_touched_at=self.timestamp(now - timedelta(days=2, minutes=5)),
-            paused_at=self.timestamp(now - timedelta(days=2)),
+            last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=35)),
+            paused_at=self.timestamp(now - timedelta(hours=1, minutes=30)),
         )
         self.write_registry(
             {
@@ -469,10 +469,10 @@ class AgentRegistryCliTest(unittest.TestCase):
                             agent_uid="agt_paused_legacy",
                             role="doc",
                             display_id="doc-1",
-                            assigned_at=self.timestamp(now - timedelta(days=2)),
+                            assigned_at=self.timestamp(now - timedelta(hours=1, minutes=30)),
                             status="paused",
                             scope="legacy-paused",
-                            last_touched_at=self.timestamp(now - timedelta(days=2)),
+                            last_touched_at=self.timestamp(now - timedelta(hours=1, minutes=30)),
                         ),
                         "paused_at": None,
                     }
