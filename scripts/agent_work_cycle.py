@@ -67,6 +67,17 @@ def emit_registry_summary(payload: dict[str, str]) -> None:
         print(f"inactive_at: {payload['inactive_at']}")
 
 
+def resolve_agent_mailbox_path(agent_ref: str) -> Path:
+    status_payload = run_registry("status", agent_ref)
+    agents = status_payload.get("agents")
+    if not isinstance(agents, list) or len(agents) != 1:
+        raise WorkCycleError(f"unable to resolve mailbox for {agent_ref}")
+    mailbox_rel = agents[0].get("mailbox")
+    if not isinstance(mailbox_rel, str) or not mailbox_rel.strip():
+        raise WorkCycleError(f"agent {agent_ref} is missing mailbox information")
+    return ROOT_DIR / mailbox_rel
+
+
 def checklist_item_line(item_id: str, state: str) -> str:
     return f"<!-- item-id: {item_id} -->", f"- [{state}]"
 
@@ -116,6 +127,26 @@ def emit_checklist_summary(
         print(f"unchecked_in: {path.relative_to(ROOT_DIR)}")
         for item in items:
             print(f"  - {item}")
+
+
+def scan_open_handoffs(mailbox_path: Path) -> list[int]:
+    if not mailbox_path.exists():
+        raise WorkCycleError(f"missing mailbox file: {mailbox_path.relative_to(ROOT_DIR)}")
+
+    open_lines: list[int] = []
+    for index, line in enumerate(mailbox_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if line.strip() == "- Status: open":
+            open_lines.append(index)
+    return open_lines
+
+
+def emit_mailbox_summary(mailbox_path: Path, open_lines: list[int]) -> None:
+    print(f"mailbox: {mailbox_path.relative_to(ROOT_DIR)}")
+    print(f"open_handoffs: {len(open_lines)}")
+    if open_lines:
+        print("open_handoff_lines:")
+        for line_no in open_lines:
+            print(f"  - {line_no}")
 
 
 def main() -> int:
@@ -172,12 +203,15 @@ def main() -> int:
 
         for path in checklist_paths:
             unchecked_by_path[path] = scan_unchecked_items(path)
+        mailbox_path = resolve_agent_mailbox_path(agent_uid)
+        open_handoff_lines = scan_open_handoffs(mailbox_path)
         emit_checklist_summary(
             checklist_paths=checklist_paths,
             unchecked_by_path=unchecked_by_path,
             bootstrap_batch=bootstrap_batch,
         )
-        return 2 if any(unchecked_by_path.values()) else 0
+        emit_mailbox_summary(mailbox_path, open_handoff_lines)
+        return 2 if any(unchecked_by_path.values()) or len(open_handoff_lines) > 1 else 0
 
     emit_registry_summary(payload)
 

@@ -73,6 +73,11 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         content = path.read_text(encoding="utf-8")
         path.write_text(content.replace(old, new), encoding="utf-8")
 
+    def write_mailbox(self, agent_uid: str, content: str) -> None:
+        path = self.root / ".agent-local" / "mailboxes" / f"{agent_uid}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
     def test_begin_touches_agent_and_prints_before_work_line(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
@@ -119,6 +124,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("After work | doc-1 | timestamp-wrapper", proc.stdout)
         self.assertIn("bootstrap_batch: true", proc.stdout)
         self.assertIn("unchecked_items: 0", proc.stdout)
+        self.assertIn(f"mailbox: .agent-local/mailboxes/{agent_uid}.md", proc.stdout)
+        self.assertIn("open_handoffs: 0", proc.stdout)
 
     def test_end_returns_pending_when_bootstrap_or_workcycle_items_are_unchecked(self) -> None:
         self.write_agents_md()
@@ -132,6 +139,43 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertEqual(2, proc.returncode)
         self.assertIn("bootstrap_batch: true", proc.stdout)
         self.assertIn("unchecked_items: 2", proc.stdout)
+
+    def test_end_returns_pending_when_mailbox_has_multiple_open_handoffs(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.replace_in_file(
+            start["bootstrap_output"],
+            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
+            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
+        )
+        self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
+        self.replace_in_file(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            "- [ ] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+            "- [X] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+        )
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_doc
+
+## First
+
+- Status: open
+
+## Second
+
+- Status: open
+""",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("unchecked_items: 0", proc.stdout)
+        self.assertIn("open_handoffs: 2", proc.stdout)
+        self.assertIn("open_handoff_lines:", proc.stdout)
 
 
 if __name__ == "__main__":
