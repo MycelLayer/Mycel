@@ -8,7 +8,7 @@ This note proposes a checks-and-balances model for Mycel with three distinct rol
 - `editor-maintainer`
 - `view-maintainer`
 
-The goal is to let editors propose content, let view maintainers govern accepted-head selection, and let viewers apply bounded public-pressure signals without turning Mycel into a pure popularity system.
+The goal is to let editors propose content, let view maintainers govern accepted-head selection, and let viewers apply bounded public-check signals without turning Mycel into a pure popularity system.
 
 Put more bluntly, the principle is: "I want my opponents to exist, otherwise I'll end up pushing myself until I blow past the limit."
 
@@ -116,7 +116,7 @@ No role should collapse all three into one path.
 If `viewer` ever enters `selector_score` in a bounded way, the line "I want my opponents to exist, otherwise I'll end up pushing myself until I blow past the limit." stops being only an attitude statement and becomes a concrete institutional requirement:
 
 - opponents must be able to leave measurable resistance inside the decision model, not just express sentiment from the outside
-- that resistance must remain bounded, so the system does not collapse into raw popularity rule
+- that resistance must remain bounded, so the system does not collapse into raw popularity voting
 - opposition should affect not only score but, at higher thresholds, `review` or `temporary_freeze`
 - opponents themselves must still be constrained by anti-Sybil, eligibility, and signal-quality rules so fake opposition is not mistaken for real balancing power
 
@@ -217,7 +217,7 @@ They should instead control escalation.
 
 ### 7.1 Delay
 
-`delay` is the lightest intervention.
+`delay` is the lightest temporary intervention.
 
 Use it when:
 
@@ -244,7 +244,7 @@ Effect:
 
 ### 7.3 Temporary Freeze
 
-`temporary_freeze` is the strongest intervention.
+`temporary_freeze` is the strongest temporary intervention.
 
 Use it only when:
 

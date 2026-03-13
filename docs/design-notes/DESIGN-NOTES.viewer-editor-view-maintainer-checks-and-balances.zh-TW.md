@@ -8,7 +8,7 @@
 - `editor-maintainer`
 - `view-maintainer`
 
-目標是讓 editors 提出內容候選版本、讓 view maintainers 治理 accepted-head selection，並讓 viewers 能提供受限的公眾制衡訊號，而不把 Mycel 直接變成純人氣系統。
+目標是讓 editors 提出內容候選版本、讓 view maintainers 治理 accepted-head selection，並讓 viewers 能提供有界的公眾制衡訊號，而不把 Mycel 直接變成純人氣系統。
 
 用比較直白的話說，這個原則是：「我希望我的反對者存在，不然我一定會自己玩到爆掉。」
 
@@ -116,9 +116,9 @@ accepted head 仍然是依規則選出的當前有效輸出。
 如果未來讓 `viewer` 有界地進入 `selector_score`，這句「我希望我的反對者存在，不然我一定會自己玩到爆掉。」就不再只是態度聲明，而會落成幾個具體制度要求：
 
 - 反對者必須能留下可計算的阻力，而不是只能在外圍表達情緒
-- 這個阻力必須是 bounded 的，不能把系統直接改成 raw popularity rule
+- 這個阻力必須是有界的，不能把系統直接改成原始人氣計票
 - 反對不只影響分數，也應能在高門檻下觸發 `review` 或 `temporary_freeze`
-- 反對者本身也必須受 anti-Sybil、eligibility、與 signal-quality 條件約束，避免系統把假 opposition 誤認成真正的制衡
+- 反對者本身也必須受 anti-Sybil、eligibility 與 signal-quality 條件約束，避免系統把假性 opposition 誤認成真正的制衡
 
 換句話說，這條原則的制度化版本不是「讓 viewer 贏」，而是：
 
@@ -217,7 +217,7 @@ viewer 訊號通常不應直接硬選 accepted head。
 
 ### 7.1 Delay
 
-`delay` 是最輕的介入。
+`delay` 是最輕的暫時性介入。
 
 適用於：
 
@@ -244,7 +244,7 @@ viewer 訊號通常不應直接硬選 accepted head。
 
 ### 7.3 Temporary Freeze
 
-`temporary_freeze` 是最強的介入。
+`temporary_freeze` 是最強的暫時性介入。
 
 只應用於：
 
@@ -386,7 +386,7 @@ viewer 訊號通常不應直接硬選 accepted head。
 
 比較安全的方向是：
 
-- 讓 `approval` 與 `objection` 只進 bounded score channel
+- 讓 `approval` 與 `objection` 只進有界 score channel
 - 讓 `challenge` 主要影響 `review` / `freeze`，而不是直接大幅改寫主分數
 - 讓最終 `effective_signal_weight` 由 profile 規則計算，而不是由 viewer 自報
 
