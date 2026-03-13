@@ -533,12 +533,19 @@ fn parse_block_object_with_context(
     )?;
     let block_type = required_string_with_context(object, "block_type", context)?;
     validate_block_type(&block_type).map_err(|error| maybe_prepend_context(error, context))?;
+    let attrs = required_object_with_context(object, "attrs", context)?;
+    if attrs.keys().any(String::is_empty) {
+        return Err(maybe_prepend_context(
+            TypedObjectError::new("top-level 'attrs' keys must not be empty strings"),
+            context,
+        ));
+    }
 
     Ok(BlockObject {
         block_id: required_prefixed_string_with_context(object, "block_id", "blk:", context)?,
         block_type,
         content: required_string_with_context(object, "content", context)?,
-        attrs: required_object_with_context(object, "attrs", context)?,
+        attrs,
         children: required_array_with_context(object, "children", context)?
             .iter()
             .enumerate()

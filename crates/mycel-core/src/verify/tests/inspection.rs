@@ -262,6 +262,38 @@ fn inspect_fails_when_block_nested_attrs_contains_null() {
 }
 
 #[test]
+fn inspect_warns_when_block_attrs_contains_empty_key() {
+    let path = write_test_file(
+        "block-empty-attr-key-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "": "value"
+            },
+            "children": []
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'attrs' keys must not be empty strings")),
+        "expected empty attrs-key warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_block_logical_id_prefix_is_wrong() {
     let path = write_test_file(
         "block-wrong-block-id-prefix-inspect",
@@ -895,6 +927,49 @@ fn inspect_warns_when_patch_nested_new_block_attrs_is_not_an_object() {
         }),
         "expected nested new_block attrs warning, got {summary:?}"
     );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_patch_nested_new_block_attrs_contains_empty_key() {
+    let path = write_test_file(
+        "patch-nested-new-block-empty-attr-key-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "patch",
+            "version": "mycel/0.1",
+            "patch_id": "patch:test",
+            "doc_id": "doc:test",
+            "base_revision": "rev:genesis-null",
+            "author": "pk:ed25519:test",
+            "timestamp": 11u64,
+            "ops": [
+                {
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:001",
+                        "block_type": "paragraph",
+                        "content": "Hello",
+                        "attrs": {
+                            "": "value"
+                        },
+                        "children": []
+                    }
+                }
+            ],
+            "signature": "sig:placeholder"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(summary.notes.iter().any(|message| {
+        message.contains(
+            "top-level 'ops[0]': top-level 'new_block': top-level 'attrs' keys must not be empty strings",
+        )
+    }), "expected nested new_block empty attrs-key warning, got {summary:?}");
 
     let _ = std::fs::remove_file(path);
 }

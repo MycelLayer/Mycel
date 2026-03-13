@@ -123,6 +123,38 @@ pub(super) fn block_nested_attrs_null_is_rejected_with_json_path() {
 }
 
 #[test]
+pub(super) fn block_empty_attr_key_is_rejected() {
+    let path = write_test_file(
+        "block-empty-attr-key",
+        &serde_json::to_string_pretty(&json!({
+            "type": "block",
+            "version": "mycel/0.1",
+            "block_id": "blk:test",
+            "block_type": "paragraph",
+            "content": "Hello",
+            "attrs": {
+                "": "value"
+            },
+            "children": []
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary
+            .errors
+            .iter()
+            .any(|message| message.contains("top-level 'attrs' keys must not be empty strings")),
+        "expected empty attrs-key error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 pub(super) fn view_policy_nested_float_is_rejected_with_json_path() {
     let (_signing_key, public_key) = signer_material();
     let view = json!({
@@ -768,6 +800,52 @@ pub(super) fn patch_nested_new_block_non_object_attrs_is_rejected() {
         }),
         "expected nested new_block attrs type error, got {summary:?}"
     );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+pub(super) fn patch_nested_new_block_empty_attr_key_is_rejected() {
+    let (signing_key, public_key) = signer_material();
+    let mut patch = json!({
+        "type": "patch",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "base_revision": "rev:genesis-null",
+        "author": public_key,
+        "timestamp": 11u64,
+        "ops": [
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:001",
+                    "block_type": "paragraph",
+                    "content": "Hello",
+                    "attrs": {
+                        "": "value"
+                    },
+                    "children": []
+                }
+            }
+        ]
+    });
+    let patch_id =
+        recompute_object_id(&patch, "patch_id", "patch").expect("patch ID should recompute");
+    patch["patch_id"] = Value::String(patch_id);
+    patch["signature"] = Value::String(sign_value(&signing_key, &patch));
+    let path = write_test_file(
+        "patch-nested-new-block-empty-attr-key",
+        &serde_json::to_string_pretty(&patch).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(summary.errors.iter().any(|message| {
+        message.contains(
+            "top-level 'ops[0]': top-level 'new_block': top-level 'attrs' keys must not be empty strings",
+        )
+    }), "expected nested new_block empty attrs-key error, got {summary:?}");
 
     let _ = std::fs::remove_file(path);
 }
