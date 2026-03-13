@@ -41,6 +41,29 @@ Avoid:
 - letting any one role unilaterally finalize outcomes
 - making viewer challenge paths trivially Sybilable
 
+## 0.1 Decision Summary for the bounded viewer-in-selector lane
+
+For the current `M3` follow-up, this note recommends one specific bounded model rather than leaving the lane fully open-ended:
+
+- keep `view-maintainer` support as the primary ratification score
+- allow `viewer` participation only through two bounded score channels:
+  - `bounded_viewer_bonus` from eligible `approval`
+  - `bounded_viewer_penalty` from eligible `objection`
+- keep `challenge` and `flag` out of the main score path; they belong to escalation paths such as `review`, `delay`, or `temporary_freeze`
+- never treat raw viewer counts as selector input
+- never give viewer contribution parity with `view-maintainer` ratification weight
+
+The intended selector shape is therefore:
+
+`selector_score = maintainer_score + bounded_viewer_bonus - bounded_viewer_penalty`
+
+With the following guardrails:
+
+- `maintainer_score` remains the dominant governance input
+- viewer-derived bonus and penalty are each capped by profile rules
+- viewer participation can be disabled per profile
+- higher-impact viewer effects require separate anti-Sybil and evidence gates rather than larger raw counts
+
 ## 1. Role Model
 
 ### 1.1 Viewer
@@ -372,16 +395,30 @@ For this proposal, the more stable bounded version is:
 
 - keep the view-maintainer score channel as the primary ratification mechanism
 - add viewer `approval`, `objection`, `challenge`, and `flag`
-- let `approval` / `objection` enter `selector_score` in a bounded way
+- let `approval` / `objection` enter `selector_score` only as bounded bonus / bounded penalty channels
 - let `challenge` primarily trigger `review`
 - reserve `temporary_freeze` for high-threshold challenge paths, ideally with stronger anti-Sybil conditions or maintainer corroboration
 
 This lets viewer input enter the selector path without collapsing governance into raw popularity voting.
 
+More concretely, the recommended bounded direction is:
+
+- `approval` may contribute only a capped `bounded_viewer_bonus`
+- `objection` may contribute only a capped `bounded_viewer_penalty`
+- `challenge` should not directly add or subtract from the primary selector score
+- `flag` should remain outside score calculation and support only low-severity triage
+- if the profile cannot support anti-Sybil or admission gating, viewer selector participation should default to `disabled`
+
 ## 11. Example Minimal Policy Shape
 
 A future profile could define fields such as:
 
+- `viewer_selector_mode`
+- `viewer_bonus_cap`
+- `viewer_penalty_cap`
+- `viewer_selector_participation_enabled`
+- `viewer_eligibility_mode`
+- `viewer_min_identity_tier`
 - `viewer_objection_delay_threshold`
 - `viewer_challenge_review_threshold`
 - `viewer_freeze_threshold`
@@ -390,6 +427,17 @@ A future profile could define fields such as:
 - `viewer_challenge_requires_evidence`
 
 These should remain profile-level rules, not ad hoc local client settings.
+
+Suggested meaning:
+
+- `viewer_selector_mode`: `disabled` or `bounded_bonus_penalty`
+- `viewer_bonus_cap`: upper bound for total viewer-derived positive contribution
+- `viewer_penalty_cap`: upper bound for total viewer-derived negative contribution
+- `viewer_selector_participation_enabled`: explicit profile switch for enabling or disabling viewer score participation
+- `viewer_eligibility_mode`: whether viewer participation is open, admitted, reputation-gated, or otherwise constrained
+- `viewer_min_identity_tier`: minimum identity tier required before viewer signals can affect selector score
+- `viewer_signal_weight_cap`: maximum per-viewer or aggregate bounded contribution under the active profile
+- `viewer_challenge_requires_evidence`: whether higher-impact escalation requires evidence-bearing challenge signals
 
 ### 11.1 Example `viewer` signal shape
 
@@ -425,6 +473,16 @@ A safer direction is:
 - let `approval` and `objection` enter only a bounded score channel
 - let `challenge` primarily affect `review` / `freeze`, not rewrite the main score directly
 - compute final `effective_signal_weight` from profile rules rather than self-reported viewer input
+
+## 11.2 Non-goals for this lane
+
+This bounded viewer-in-selector work should not be read as:
+
+- equalizing `viewer` and `view-maintainer` governance authority
+- turning Mycel into one-person-one-vote public popularity selection
+- endorsing unbounded positive or negative viewer counts as direct selector input
+- requiring immediate code changes in `mycel-core` before signal schema, anti-Sybil gating, and trace surfaces are specified
+- treating biometric identity, if it ever becomes viable, as governance legitimacy by itself
 
 ## 12. Viewer Balancing Strength
 
