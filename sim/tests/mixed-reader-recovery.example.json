@@ -1,0 +1,31 @@
+{
+  "$schema": "./test-case.schema.json",
+  "test_id": "mixed-reader-recovery",
+  "description": "A partial reader and an empty reader should both converge on the same verified object set and replay result.",
+  "category": "recovery",
+  "topology": "sim/topologies/mixed-reader-recovery.example.json",
+  "fixture_set": "fixtures/object-sets/partial-want-recovery",
+  "execution_mode": "single-process",
+  "expected_result": "pass",
+  "expected_outcomes": [
+    "missing-objects-requested",
+    "recovery-success",
+    "matching-object-sets",
+    "matching-replay-results"
+  ],
+  "assertions": [
+    {
+      "assertion_id": "mixed-reader-convergence",
+      "description": "Readers with different local starting states still converge on the same synchronized object set.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "recovery-success",
+      "description": "The partial reader completes deterministic WANT-based recovery without diverging from the empty reader.",
+      "severity": "error"
+    }
+  ],
+  "notes": [
+    "Use this to inspect broader peer interop proof where not all readers begin from the same local store state."
+  ]
+}

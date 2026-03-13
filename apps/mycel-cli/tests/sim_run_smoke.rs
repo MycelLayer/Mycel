@@ -331,6 +331,85 @@ fn partial_want_recovery_run_records_recovery_flow() {
 }
 
 #[test]
+fn mixed_reader_recovery_run_converges_across_partial_and_empty_readers() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/mixed-reader-recovery.example.json",
+        "--json",
+    ]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["result"], "pass");
+    let outcomes = summary["matched_expected_outcomes"]
+        .as_array()
+        .expect("matched_expected_outcomes should be an array");
+    assert!(
+        outcomes.iter().any(|entry| entry == "recovery-success"),
+        "expected recovery-success outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        outcomes.iter().any(|entry| entry == "matching-object-sets"),
+        "expected matching-object-sets outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let report = load_report(&summary);
+    assert_eq!(report["metadata"]["run_mode"], "peer-store-sync");
+
+    let peers = report["peers"]
+        .as_array()
+        .expect("peers should be an array");
+    let reader_a = peers
+        .iter()
+        .find(|peer| peer["node_id"] == "node:peer-reader-a")
+        .expect("expected partial reader in report");
+    let reader_b = peers
+        .iter()
+        .find(|peer| peer["node_id"] == "node:peer-reader-b")
+        .expect("expected empty reader in report");
+    assert_eq!(
+        reader_a["verified_object_ids"], reader_b["verified_object_ids"],
+        "expected both readers to converge on the same object set, report: {report}"
+    );
+
+    let events = report["events"]
+        .as_array()
+        .expect("events should be an array");
+    assert!(
+        events.iter().any(|entry| {
+            entry["node_id"] == "node:peer-reader-a"
+                && entry["action"] == "request-missing-objects"
+                && entry["detail"]
+                    .as_str()
+                    .is_some_and(|detail| detail.contains("HEADS/WANT"))
+        }),
+        "expected partial reader recovery event in report"
+    );
+    assert!(
+        events.iter().any(|entry| {
+            entry["node_id"] == "node:peer-reader-b"
+                && entry["action"] == "reader-accept"
+                && entry["detail"]
+                    .as_str()
+                    .is_some_and(|detail| detail.contains("MANIFEST/WANT"))
+        }),
+        "expected empty reader sync event in report"
+    );
+
+    let validation = validate_generated_report(&summary);
+    assert_eq!(validation["report_count"], 1);
+}
+
+#[test]
 fn sim_run_with_seed_view_sync_publishes_governance_views_to_readers() {
     let _guard = sim_run_lock();
     let workspace = create_temp_workspace("sim-view-sync");

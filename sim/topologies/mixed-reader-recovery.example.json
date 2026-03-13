@@ -1,0 +1,36 @@
+{
+  "$schema": "./topology.schema.json",
+  "topology_id": "mixed-reader-recovery",
+  "description": "One seed peer, one partial reader, and one empty reader converge after deterministic peer-store sync",
+  "fixture_set": "fixtures/object-sets/partial-want-recovery",
+  "execution_mode": "single-process",
+  "peers": [
+    {
+      "node_id": "node:peer-seed",
+      "role": "seed",
+      "bootstrap_peers": [],
+      "endpoint": "local:peer-seed"
+    },
+    {
+      "node_id": "node:peer-reader-a",
+      "role": "reader",
+      "bootstrap_peers": ["node:peer-seed"],
+      "endpoint": "local:peer-reader-a"
+    },
+    {
+      "node_id": "node:peer-reader-b",
+      "role": "reader",
+      "bootstrap_peers": ["node:peer-seed"],
+      "endpoint": "local:peer-reader-b"
+    }
+  ],
+  "expected_outcomes": [
+    "missing-objects-requested",
+    "recovery-success",
+    "matching-object-sets",
+    "matching-replay-results"
+  ],
+  "notes": [
+    "Use this topology to prove that mixed local reader states still converge through the shared peer-store sync path."
+  ]
+}
