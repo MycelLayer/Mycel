@@ -484,7 +484,7 @@ class AgentRegistryCliTest(unittest.TestCase):
         output_path = self.root / result["output"]
         content = output_path.read_text(encoding="utf-8")
 
-        self.assertEqual(".agent-local/agt_doc-work-checklist.md", result["output"])
+        self.assertEqual(".agent-local/checklists/agt_doc-work-checklist.md", result["output"])
         self.assertTrue(output_path.exists())
         self.assertIn("# Agent Work Checklist for doc-1", content)
         self.assertIn("- [X] Agent has completed the `start` confirmation step.", content)

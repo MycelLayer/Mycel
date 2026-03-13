@@ -172,7 +172,7 @@ def mailbox_rel_for_uid(agent_uid: str) -> str:
 
 
 def checklist_rel_for_uid(agent_uid: str) -> str:
-    return f".agent-local/{agent_uid}-work-checklist.md"
+    return f".agent-local/checklists/{agent_uid}-work-checklist.md"
 
 
 def ensure_mailbox(path: Path, *, title: str, source_path: Path | None = None) -> None:

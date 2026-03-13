@@ -80,7 +80,7 @@ Recommended startup command:
 - `scripts/agent_registry.py resume-check <agent-ref>`
 - `scripts/agent_registry.py recover <agent-ref> [--scope <scope>]`
 - `scripts/agent_registry.py takeover <stale-agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py work-checklist <agent-ref> [--output .agent-local/...md]`
+- `scripts/agent_registry.py work-checklist <agent-ref> [--output .agent-local/checklists/...md]`
 
 Recommended startup self-label:
 
