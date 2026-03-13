@@ -111,6 +111,32 @@ accepted head 仍然是依規則選出的當前有效輸出。
 
 任何單一角色都不應同時壟斷這三條路徑。
 
+### 3.1 這句原則在 `viewer` 進入 `selector_score` 後怎麼實踐
+
+如果未來讓 `viewer` 有界地進入 `selector_score`，這句「我希望我的反對者存在，不然我一定會自己玩到爆掉。」就不再只是態度聲明，而會落成幾個具體制度要求：
+
+- 反對者必須能留下可計算的阻力，而不是只能在外圍表達情緒
+- 這個阻力必須是 bounded 的，不能把系統直接改成 raw popularity rule
+- 反對不只影響分數，也應能在高門檻下觸發 `review` 或 `temporary_freeze`
+- 反對者本身也必須受 anti-Sybil、eligibility、與 signal-quality 條件約束，避免系統把假 opposition 誤認成真正的制衡
+
+換句話說，這條原則的制度化版本不是「讓 viewer 贏」，而是：
+
+- 讓 `editor-maintainer` 不能只靠 proposal power 一路推進
+- 讓 `view-maintainer` 不能只靠狹窄內部共識就完全消化外部反對
+- 讓 `viewer` 有正式但受限的阻力渠道，而不是只有無後果的旁觀表態
+
+若用公式語言濃縮，方向會更接近：
+
+`maintainer_score + bounded_viewer_bonus - bounded_viewer_penalty`
+
+再搭配：
+
+- 高可信 `viewer_challenge_pressure` 可觸發 `review`
+- 更高門檻且高證據的 challenge 可觸發 `temporary_freeze`
+
+這樣保留反對者的意義，才會從一句政治語言，變成 accepted-head governance 的安全機制。
+
 ## 4. Viewer 訊號類型
 
 viewer 的影響力不應只被建模成一種模糊的票數。

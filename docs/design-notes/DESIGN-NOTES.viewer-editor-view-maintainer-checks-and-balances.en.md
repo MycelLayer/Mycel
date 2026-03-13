@@ -111,6 +111,32 @@ The system should separate three powers:
 
 No role should collapse all three into one path.
 
+### 3.1 How this principle is implemented once `viewer` enters `selector_score`
+
+If `viewer` ever enters `selector_score` in a bounded way, the line "I want my opponents to exist, otherwise I'll end up pushing myself until I blow past the limit." stops being only an attitude statement and becomes a concrete institutional requirement:
+
+- opponents must be able to leave measurable resistance inside the decision model, not just express sentiment from the outside
+- that resistance must remain bounded, so the system does not collapse into raw popularity rule
+- opposition should affect not only score but, at higher thresholds, `review` or `temporary_freeze`
+- opponents themselves must still be constrained by anti-Sybil, eligibility, and signal-quality rules so fake opposition is not mistaken for real balancing power
+
+In other words, the institutional form of this principle is not "let viewers win." It is:
+
+- prevent `editor-maintainer` from advancing on proposal power alone
+- prevent `view-maintainer` from absorbing all external dissent through a narrow internal consensus
+- give `viewer` a formal but bounded channel for resistance rather than consequence-free spectator expression
+
+In formula language, the direction is closer to:
+
+`maintainer_score + bounded_viewer_bonus - bounded_viewer_penalty`
+
+Combined with:
+
+- high-confidence `viewer_challenge_pressure` can trigger `review`
+- higher-threshold, higher-evidence challenge can trigger `temporary_freeze`
+
+That is how preserving opponents stops being political rhetoric and becomes a safety mechanism inside accepted-head governance.
+
 ## 4. Viewer Signal Types
 
 Viewer influence should not be modeled as one undifferentiated vote count.
