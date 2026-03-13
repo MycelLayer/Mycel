@@ -72,6 +72,26 @@ class ItemIdChecklistMarkCliTest(unittest.TestCase):
         self.assertIn("- [!] Do the thing <!-- item-id: workflow.do-thing -->", content)
         self.assertIn("  - Problem: Latest verification failed", content)
 
+    def test_marks_not_needed(self) -> None:
+        checklist = self.write_checklist(
+            ".agent-local/agents/agt_doc/checklists/test.md",
+            "- [ ] Do the thing <!-- item-id: workflow.do-thing -->\n",
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                str(checklist.relative_to(self.root)),
+                "workflow.do-thing",
+                "--state",
+                "not-needed",
+                "--json",
+            ).stdout
+        )
+        content = checklist.read_text(encoding="utf-8")
+
+        self.assertEqual("not-needed", payload["state"])
+        self.assertIn("- [-] Do the thing <!-- item-id: workflow.do-thing -->", content)
+
     def test_problem_state_requires_problem_text(self) -> None:
         checklist = self.write_checklist(
             ".agent-local/agents/agt_doc/checklists/test.md",
@@ -100,6 +120,26 @@ class ItemIdChecklistMarkCliTest(unittest.TestCase):
 
         self.assertIn("- [X] Do the thing <!-- item-id: workflow.do-thing -->", content)
         self.assertNotIn("Problem: Old problem", content)
+
+    def test_toggle_from_not_needed_returns_unchecked(self) -> None:
+        checklist = self.write_checklist(
+            ".agent-local/agents/agt_doc/checklists/test.md",
+            "- [-] Do the thing <!-- item-id: workflow.do-thing -->\n",
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                str(checklist.relative_to(self.root)),
+                "workflow.do-thing",
+                "--state",
+                "toggle",
+                "--json",
+            ).stdout
+        )
+        content = checklist.read_text(encoding="utf-8")
+
+        self.assertEqual("unchecked", payload["state"])
+        self.assertIn("- [ ] Do the thing <!-- item-id: workflow.do-thing -->", content)
 
     def test_rejects_checklist_outside_agent_local(self) -> None:
         checklist = self.write_checklist(

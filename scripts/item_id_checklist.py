@@ -16,7 +16,7 @@ REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 AGENT_DIR = ROOT_DIR / ".agent-local" / "agents"
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 ITEM_ID_COMMENT_RE = re.compile(r"<!--\s*item-id:\s*(?P<item_id>.*?)\s*-->")
-CHECKBOX_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+\[(?:X|!| )\]\s+(?P<text>.*)$")
+CHECKBOX_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+\[(?:X|!|-| )\]\s+(?P<text>.*)$")
 LIST_PREFIX_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+\.)\s+(?P<text>.*)$")
 HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<text>.+?)\s*$")
 
@@ -227,7 +227,7 @@ def render_checklist_document(
             f"- Source: `{relative_to_root(source_path)}`",
             f"- Generated at: `{generated_at}`",
             "- This is the agent's personal working copy; update checks here instead of the tracked source file.",
-            "- Status meanings: `- [ ]` not checked, `- [X]` checked and completed without problems, `- [!]` checked but problems were found.",
+            "- Status meanings: `- [ ]` not checked, `- [X]` checked and completed without problems, `- [-]` not needed for this work cycle, `- [!]` checked but problems were found.",
             "- When an item is marked `- [!]`, add an indented subitem immediately below it explaining the problem.",
             "",
             *body_lines,

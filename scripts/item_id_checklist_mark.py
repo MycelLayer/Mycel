@@ -14,7 +14,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 AGENT_CHECKLIST_DIR = ROOT_DIR / ".agent-local" / "agents"
 LEGACY_CHECKLIST_DIR = ROOT_DIR / ".agent-local" / "checklists"
 ITEM_LINE_RE = re.compile(
-    r"^(?P<prefix>\s*-\s\[(?P<mark>[X! ])\]\s.*?)(?P<suffix>\s*<!-- item-id: (?P<item_id>.*?) -->\s*)$"
+    r"^(?P<prefix>\s*-\s\[(?P<mark>[X!\- ])\]\s.*?)(?P<suffix>\s*<!-- item-id: (?P<item_id>.*?) -->\s*)$"
 )
 PROBLEM_SUBITEM_RE = re.compile(r"^\s{2,}-\sProblem:\s.*$")
 
@@ -70,6 +70,8 @@ def find_item(lines: list[str], item_id: str) -> tuple[int, str]:
 def mark_to_state(mark: str) -> str:
     if mark == "X":
         return "checked"
+    if mark == "-":
+        return "not-needed"
     if mark == "!":
         return "problem"
     return "unchecked"
@@ -92,9 +94,11 @@ def set_problem_subitem(lines: list[str], item_index: int, problem: str) -> None
 
 def apply_state(lines: list[str], item_index: int, current_mark: str, state: str, problem: str) -> str:
     if state == "toggle":
-        next_mark = " " if current_mark in {"X", "!"} else "X"
+        next_mark = " " if current_mark in {"X", "!", "-"} else "X"
     elif state == "checked":
         next_mark = "X"
+    elif state == "not-needed":
+        next_mark = "-"
     elif state == "problem":
         next_mark = "!"
     else:
@@ -126,7 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("checklist_md")
     parser.add_argument("item_id")
-    parser.add_argument("--state", choices=["checked", "unchecked", "problem", "toggle"], default="checked")
+    parser.add_argument("--state", choices=["checked", "unchecked", "not-needed", "problem", "toggle"], default="checked")
     parser.add_argument("--problem", default="")
     parser.add_argument("--json", action="store_true")
     return parser
