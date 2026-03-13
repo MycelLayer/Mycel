@@ -568,7 +568,14 @@ pub fn validate_wire_payload(
             reject_unknown_fields(
                 payload,
                 "top-level",
-                &["node_id", "capabilities", "topics", "heads", "snapshots", "views"],
+                &[
+                    "node_id",
+                    "capabilities",
+                    "topics",
+                    "heads",
+                    "snapshots",
+                    "views",
+                ],
             )
             .map_err(|error| error.to_string())?;
             validate_prefixed_string(
@@ -627,7 +634,14 @@ pub fn validate_wire_payload(
             reject_unknown_fields(
                 payload,
                 "top-level",
-                &["object_id", "object_type", "encoding", "hash_alg", "hash", "body"],
+                &[
+                    "object_id",
+                    "object_type",
+                    "encoding",
+                    "hash_alg",
+                    "hash",
+                    "body",
+                ],
             )
             .map_err(|error| error.to_string())?;
             validate_canonical_object_id(
@@ -699,8 +713,12 @@ pub fn validate_wire_payload(
             optional_wire_u64(payload, "size_bytes", "wire payload")?;
         }
         WireMessageType::ViewAnnounce => {
-            reject_unknown_fields(payload, "top-level", &["view_id", "maintainer", "documents"])
-                .map_err(|error| error.to_string())?;
+            reject_unknown_fields(
+                payload,
+                "top-level",
+                &["view_id", "maintainer", "documents"],
+            )
+            .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "view_id", "wire payload")?,
                 "view_id",

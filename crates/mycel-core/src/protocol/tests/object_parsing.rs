@@ -970,7 +970,10 @@ fn parse_view_object_rejects_non_string_policy_merge_rule() {
     }))
     .unwrap_err();
 
-    assert_eq!(error.to_string(), "top-level 'policy.merge_rule' must be a string");
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.merge_rule' must be a string"
+    );
 }
 
 #[test]
@@ -1113,6 +1116,30 @@ fn parse_view_object_rejects_duplicate_policy_preferred_branches() {
     assert_eq!(
         error.to_string(),
         "top-level 'policy.preferred_branches[1]' duplicates 'policy.preferred_branches[0]'"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_unknown_policy_field() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "threshold": "strict"
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy' contains unexpected field 'threshold'"
     );
 }
 
@@ -1507,6 +1534,28 @@ fn parse_revision_object_rejects_non_string_merge_strategy() {
     assert_eq!(
         error.to_string(),
         "top-level 'merge_strategy' must be a string"
+    );
+}
+
+#[test]
+fn parse_revision_object_rejects_empty_merge_strategy() {
+    let error = parse_revision_object(&json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "revision_id": "rev:test",
+        "doc_id": "doc:test",
+        "parents": ["rev:base", "rev:side"],
+        "patches": ["patch:test"],
+        "merge_strategy": "",
+        "state_hash": "hash:test",
+        "author": "pk:ed25519:test",
+        "timestamp": 2u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'merge_strategy' must not be an empty string"
     );
 }
 

@@ -1167,6 +1167,42 @@ pub(super) fn revision_non_string_merge_strategy_is_rejected() {
 }
 
 #[test]
+pub(super) fn revision_empty_merge_strategy_is_rejected() {
+    let (signing_key, public_key) = signer_material();
+    let mut revision = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "doc_id": "doc:test",
+        "parents": ["rev:base", "rev:side"],
+        "patches": [],
+        "merge_strategy": "",
+        "state_hash": "hash:test",
+        "author": public_key,
+        "timestamp": 11u64
+    });
+    let revision_id =
+        recompute_object_id(&revision, "revision_id", "rev").expect("revision ID should recompute");
+    revision["revision_id"] = Value::String(revision_id);
+    revision["signature"] = Value::String(sign_value(&signing_key, &revision));
+    let path = write_test_file(
+        "revision-empty-merge-strategy",
+        &serde_json::to_string_pretty(&revision).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains("top-level 'merge_strategy' must not be an empty string")
+        }),
+        "expected empty merge_strategy error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 pub(super) fn revision_wrong_state_hash_prefix_is_rejected() {
     let (signing_key, public_key) = signer_material();
     let mut revision = json!({
@@ -2012,6 +2048,43 @@ pub(super) fn view_missing_policy_is_rejected_by_typed_validation() {
             .iter()
             .any(|message| message.contains("missing object field 'policy'")),
         "expected missing policy error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+pub(super) fn view_unknown_policy_field_is_rejected_by_typed_validation() {
+    let (signing_key, public_key) = signer_material();
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "maintainer": public_key,
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "threshold": "strict"
+        },
+        "timestamp": 12u64
+    });
+    let view_id = recompute_object_id(&view, "view_id", "view").expect("view ID should recompute");
+    view["view_id"] = Value::String(view_id);
+    view["signature"] = Value::String(sign_value(&signing_key, &view));
+    let path = write_test_file(
+        "view-unknown-policy-field",
+        &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains("top-level 'policy' contains unexpected field 'threshold'")
+        }),
+        "expected unknown policy field error, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);

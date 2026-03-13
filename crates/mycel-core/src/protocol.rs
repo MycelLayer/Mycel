@@ -622,7 +622,7 @@ pub fn parse_revision_object(value: &Value) -> Result<RevisionObject, TypedObjec
         ],
     )?;
     let parents = required_prefixed_string_array(object, "parents", "rev:")?;
-    let merge_strategy = optional_string(object, "merge_strategy")?;
+    let merge_strategy = optional_non_empty_string(object, "merge_strategy")?;
     if parents.is_empty() {
         if merge_strategy.is_some() {
             return Err(TypedObjectError::new(
@@ -1151,6 +1151,21 @@ fn optional_string(
     }
 }
 
+fn optional_non_empty_string(
+    object: &Map<String, Value>,
+    field: &str,
+) -> Result<Option<String>, TypedObjectError> {
+    let value = optional_string(object, field)?;
+    if let Some(value) = &value {
+        if value.is_empty() {
+            return Err(TypedObjectError::new(format!(
+                "top-level '{field}' must not be an empty string"
+            )));
+        }
+    }
+    Ok(value)
+}
+
 fn optional_prefixed_string(
     object: &Map<String, Value>,
     field: &str,
@@ -1303,6 +1318,12 @@ pub(crate) fn reject_duplicate_strings(
 }
 
 fn validate_view_policy(policy: &Map<String, Value>) -> Result<(), TypedObjectError> {
+    reject_unknown_fields(
+        policy,
+        "top-level 'policy'",
+        &["merge_rule", "accept_keys", "preferred_branches"],
+    )?;
+
     if let Some(merge_rule) = policy.get("merge_rule") {
         match merge_rule {
             Value::String(value) => {
@@ -1328,7 +1349,11 @@ fn validate_view_policy(policy: &Map<String, Value>) -> Result<(), TypedObjectEr
                     "top-level 'policy.accept_keys[{index}]' must not be an empty string"
                 )));
             }
-            validate_prefixed_string_with_path(value, &format!("policy.accept_keys[{index}]"), "pk:")?;
+            validate_prefixed_string_with_path(
+                value,
+                &format!("policy.accept_keys[{index}]"),
+                "pk:",
+            )?;
         }
         reject_duplicate_strings(&values, "policy.accept_keys")?;
     }
@@ -1348,7 +1373,10 @@ fn validate_view_policy(policy: &Map<String, Value>) -> Result<(), TypedObjectEr
     Ok(())
 }
 
-fn string_array_with_path(value: &Value, field_path: &str) -> Result<Vec<String>, TypedObjectError> {
+fn string_array_with_path(
+    value: &Value,
+    field_path: &str,
+) -> Result<Vec<String>, TypedObjectError> {
     match value {
         Value::Array(values) => values
             .iter()

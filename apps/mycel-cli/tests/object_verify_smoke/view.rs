@@ -208,7 +208,11 @@ fn object_verify_json_fails_for_view_with_invalid_policy_accept_key_prefix() {
         "view_id",
         "view",
     );
-    let object = write_object_file("object-verify-view-bad-policy-accept-key", "view.json", view);
+    let object = write_object_file(
+        "object-verify-view-bad-policy-accept-key",
+        "view.json",
+        view,
+    );
     let path = path_arg(&object.path);
     let output = run_mycel(&["object", "verify", &path, "--json"]);
 

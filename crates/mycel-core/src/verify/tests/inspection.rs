@@ -1215,6 +1215,39 @@ fn inspect_warns_when_revision_merge_strategy_is_not_a_string() {
 }
 
 #[test]
+fn inspect_warns_when_revision_merge_strategy_is_empty() {
+    let path = write_test_file(
+        "revision-empty-merge-strategy-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "revision",
+            "version": "mycel/0.1",
+            "revision_id": "rev:test",
+            "doc_id": "doc:test",
+            "parents": ["rev:base", "rev:side"],
+            "patches": [],
+            "merge_strategy": "",
+            "state_hash": "hash:test",
+            "author": "pk:ed25519:test",
+            "timestamp": 1u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary.notes.iter().any(|message| {
+            message.contains("top-level 'merge_strategy' must not be an empty string")
+        }),
+        "expected empty merge_strategy warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_view_policy_is_not_object() {
     let path = write_test_file(
         "view-policy-non-object-inspect",
@@ -1242,6 +1275,41 @@ fn inspect_warns_when_view_policy_is_not_object() {
             .iter()
             .any(|message| message.contains("top-level 'policy' must be an object")),
         "expected non-object policy warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_view_policy_contains_unknown_field() {
+    let path = write_test_file(
+        "view-policy-unknown-field-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "threshold": "strict"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary.notes.iter().any(|message| {
+            message.contains("top-level 'policy' contains unexpected field 'threshold'")
+        }),
+        "expected unknown policy field warning, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);
