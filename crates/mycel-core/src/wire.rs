@@ -540,6 +540,12 @@ pub fn validate_wire_payload(
 ) -> Result<(), String> {
     match message_type {
         WireMessageType::Hello => {
+            reject_unknown_fields(
+                payload,
+                "top-level",
+                &["node_id", "agent", "capabilities", "topics", "nonce"],
+            )
+            .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "node_id", "wire payload")?,
                 "node_id",
@@ -547,6 +553,10 @@ pub fn validate_wire_payload(
             )
             .map_err(|error| error.to_string())?;
             validate_wire_string_array(payload, "capabilities")?;
+            optional_wire_string(payload, "agent", "wire payload")?;
+            if payload.contains_key("topics") {
+                validate_wire_string_array(payload, "topics")?;
+            }
             validate_prefixed_string(
                 &required_wire_string(payload, "nonce", "wire payload")?,
                 "nonce",
@@ -555,6 +565,12 @@ pub fn validate_wire_payload(
             .map_err(|error| error.to_string())?;
         }
         WireMessageType::Manifest => {
+            reject_unknown_fields(
+                payload,
+                "top-level",
+                &["node_id", "capabilities", "topics", "heads", "snapshots", "views"],
+            )
+            .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "node_id", "wire payload")?,
                 "node_id",
@@ -562,6 +578,9 @@ pub fn validate_wire_payload(
             )
             .map_err(|error| error.to_string())?;
             validate_wire_string_array(payload, "capabilities")?;
+            if payload.contains_key("topics") {
+                validate_wire_string_array(payload, "topics")?;
+            }
             validate_wire_head_map(payload, "heads")?;
             if payload.contains_key("snapshots") {
                 for (index, object_id) in validate_wire_string_array(payload, "snapshots")?
@@ -583,6 +602,8 @@ pub fn validate_wire_payload(
             }
         }
         WireMessageType::Heads => {
+            reject_unknown_fields(payload, "top-level", &["documents", "replace"])
+                .map_err(|error| error.to_string())?;
             validate_wire_head_map(payload, "documents")?;
             match payload.get("replace") {
                 Some(Value::Bool(_)) => {}
@@ -591,6 +612,8 @@ pub fn validate_wire_payload(
             }
         }
         WireMessageType::Want => {
+            reject_unknown_fields(payload, "top-level", &["objects", "max_items"])
+                .map_err(|error| error.to_string())?;
             for (index, object_id) in validate_wire_string_array(payload, "objects")?
                 .iter()
                 .enumerate()
@@ -598,8 +621,15 @@ pub fn validate_wire_payload(
                 validate_canonical_object_id(object_id, &format!("objects[{index}]"))
                     .map_err(|error| error.to_string())?;
             }
+            optional_wire_u64(payload, "max_items", "wire payload")?;
         }
         WireMessageType::Object => {
+            reject_unknown_fields(
+                payload,
+                "top-level",
+                &["object_id", "object_type", "encoding", "hash_alg", "hash", "body"],
+            )
+            .map_err(|error| error.to_string())?;
             validate_canonical_object_id(
                 &required_wire_string(payload, "object_id", "OBJECT payload")?,
                 "object_id",
@@ -634,6 +664,18 @@ pub fn validate_wire_payload(
             }
         }
         WireMessageType::SnapshotOffer => {
+            reject_unknown_fields(
+                payload,
+                "top-level",
+                &[
+                    "snapshot_id",
+                    "root_hash",
+                    "documents",
+                    "object_count",
+                    "size_bytes",
+                ],
+            )
+            .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "snapshot_id", "wire payload")?,
                 "snapshot_id",
@@ -653,8 +695,12 @@ pub fn validate_wire_payload(
                 validate_prefixed_string(doc_id, &format!("documents[{index}]"), "doc:")
                     .map_err(|error| error.to_string())?;
             }
+            optional_wire_u64(payload, "object_count", "wire payload")?;
+            optional_wire_u64(payload, "size_bytes", "wire payload")?;
         }
         WireMessageType::ViewAnnounce => {
+            reject_unknown_fields(payload, "top-level", &["view_id", "maintainer", "documents"])
+                .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "view_id", "wire payload")?,
                 "view_id",
@@ -674,9 +720,13 @@ pub fn validate_wire_payload(
             }
         }
         WireMessageType::Bye => {
+            reject_unknown_fields(payload, "top-level", &["reason"])
+                .map_err(|error| error.to_string())?;
             required_wire_string(payload, "reason", "wire payload")?;
         }
         WireMessageType::Error => {
+            reject_unknown_fields(payload, "top-level", &["in_reply_to", "code", "detail"])
+                .map_err(|error| error.to_string())?;
             validate_prefixed_string(
                 &required_wire_string(payload, "in_reply_to", "wire payload")?,
                 "in_reply_to",
@@ -684,6 +734,7 @@ pub fn validate_wire_payload(
             )
             .map_err(|error| error.to_string())?;
             required_wire_string(payload, "code", "wire payload")?;
+            optional_wire_string(payload, "detail", "wire payload")?;
         }
     }
 
@@ -758,6 +809,35 @@ fn required_wire_bool(
         Some(Value::Bool(value)) => Ok(*value),
         Some(_) => Err(format!("{scope} field '{field}' must be a boolean")),
         None => Err(format!("{scope} is missing boolean field '{field}'")),
+    }
+}
+
+fn optional_wire_string(
+    object: &Map<String, Value>,
+    field: &str,
+    scope: &str,
+) -> Result<Option<String>, String> {
+    match object.get(field) {
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        Some(_) => Err(format!("{scope} field '{field}' must be a string")),
+        None => Ok(None),
+    }
+}
+
+fn optional_wire_u64(
+    object: &Map<String, Value>,
+    field: &str,
+    scope: &str,
+) -> Result<Option<u64>, String> {
+    match object.get(field) {
+        Some(Value::Number(value)) => value
+            .as_u64()
+            .map(Some)
+            .ok_or_else(|| format!("{scope} field '{field}' must be a non-negative integer")),
+        Some(_) => Err(format!(
+            "{scope} field '{field}' must be a non-negative integer"
+        )),
+        None => Ok(None),
     }
 }
 
@@ -1479,6 +1559,98 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error, "OBJECT payload 'hash_alg' must equal 'sha256'");
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_unknown_hello_payload_field() {
+        let payload = json!({
+            "node_id": "node:alpha",
+            "capabilities": ["patch-sync"],
+            "nonce": "n:test",
+            "unexpected": true
+        });
+
+        let error = validate_wire_payload(
+            WireMessageType::Hello,
+            payload.as_object().expect("payload should be object"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error, "top-level contains unexpected field 'unexpected'");
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_non_array_hello_topics() {
+        let payload = json!({
+            "node_id": "node:alpha",
+            "capabilities": ["patch-sync"],
+            "topics": "text/core",
+            "nonce": "n:test"
+        });
+
+        let error = validate_wire_payload(
+            WireMessageType::Hello,
+            payload.as_object().expect("payload should be object"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error, "top-level 'topics' must be an array");
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_negative_snapshot_offer_size_bytes() {
+        let payload = json!({
+            "snapshot_id": "snap:test",
+            "root_hash": "hash:test",
+            "documents": ["doc:test"],
+            "size_bytes": -1
+        });
+
+        let error = validate_wire_payload(
+            WireMessageType::SnapshotOffer,
+            payload.as_object().expect("payload should be object"),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error,
+            "wire payload field 'size_bytes' must be a non-negative integer"
+        );
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_unknown_snapshot_offer_payload_field() {
+        let payload = json!({
+            "snapshot_id": "snap:test",
+            "root_hash": "hash:test",
+            "documents": ["doc:test"],
+            "unknown_count": 7u64
+        });
+
+        let error = validate_wire_payload(
+            WireMessageType::SnapshotOffer,
+            payload.as_object().expect("payload should be object"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error, "top-level contains unexpected field 'unknown_count'");
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_non_string_error_detail() {
+        let payload = json!({
+            "in_reply_to": "msg:test",
+            "code": "INVALID_HASH",
+            "detail": 7
+        });
+
+        let error = validate_wire_payload(
+            WireMessageType::Error,
+            payload.as_object().expect("payload should be object"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error, "wire payload field 'detail' must be a string");
     }
 
     #[test]
