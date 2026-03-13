@@ -37,7 +37,7 @@ Doc cadence reminder:
 
 - after each completed doc work item, while preparing next items, `doc` must run `scripts/check-plan-refresh.sh`
 - if it reports `due`, add the due planning surfaces as next items and use `docs/PLANNING-SYNC-PLAN.md` as the entry point
-- when `doc` mirrors a summary into a GitHub issue comment or closes an issue with a Markdown note, prefer `scripts/gh_issue_comment.py ... --body-file - <<'EOF'` over inline shell-quoted `gh issue ... --body/--comment "..."` text
+- when `doc` mirrors a summary into a GitHub issue comment or closes an issue with a Markdown note, prefer `scripts/gh_issue_comment.py` over fragile inline shell-quoted `gh issue` text
 
 ## Agent Roles
 
@@ -60,20 +60,12 @@ No tracked work starts until the agent confirms its own entry in `.agent-local/a
 - the transitional CLI still accepts either `agent_uid` or the current `display_id` as `<agent-ref>`
 - once a stale entry releases its `display_id`, only `agent_uid` can address that old entry
 
-Startup command:
+Registry and lifecycle tools:
 
-- `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
-- `scripts/agent_registry.py start <agent-ref>`
-- `scripts/agent_registry.py touch <agent-ref>`
-- `scripts/agent_registry.py finish <agent-ref>`
-- `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]`
-- `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]`
-- `scripts/agent_registry.py status [<agent-ref>]`
-- `scripts/agent_registry.py resume-check <agent-ref>`
-- `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
-- `scripts/agent_registry.py recover <agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py takeover <stale-agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py cleanup`
+- `scripts/agent_bootstrap.py` for the repo-standard bootstrap flow
+- `scripts/agent_registry.py` for claiming, confirming, pausing, recovering, taking over, cleaning up, and inspecting agent state
+- `scripts/agent_work_cycle.py` for starting and ending a tracked user-command work cycle
+- `scripts/agent_timestamp.py` for canonical timestamp lines when no registry transition is needed
 
 Startup self-label:
 
@@ -81,21 +73,19 @@ Startup self-label:
 
 Startup order:
 
-1. `scripts/agent_registry.py claim <role|auto> [--scope <scope>]` if needed
-2. `scripts/agent_registry.py start <agent-ref>`
-3. `scripts/agent_registry.py status <agent-ref>`
-4. if the new agent is `coding`, run `npm run handoffs:inactive-coding` to see leftover inactive-coding continuation handoffs before taking new implementation scope
-5. `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]` before working the current command
-6. first chat line: `<display-id> | <scope-label>`
+1. use the registry tool to confirm or claim the agent identity if needed
+2. use the registry tool to confirm the startup state
+3. if the new agent is `coding`, run `npm run handoffs:inactive-coding` to see leftover inactive-coding continuation handoffs before taking new implementation scope
+4. use the work-cycle tool before working the current command
+5. first chat line: `<display-id> | <scope-label>`
 
 Do not run `claim`, `start`, and `status` in parallel.
 
 Per-command activity:
 
-1. prefer `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]` before working; it wraps `touch` and prints the canonical before-work timestamp line, and that exact line should appear in user-visible commentary
-2. prefer `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]` after the command completes; it wraps `finish` and prints the canonical after-work timestamp line, and that exact line should appear in user-visible commentary
-3. do not immediately follow `scripts/agent_work_cycle.py begin|end` with a manual `scripts/agent_registry.py touch|finish` for the same work cycle
-4. use `scripts/agent_timestamp.py before|after --agent <display-id> --agent-uid <agent-uid> --scope <scope-label>` only when you need the timestamp line without the registry change, and paste the emitted line directly instead of hand-writing the format
+1. prefer `scripts/agent_work_cycle.py` before and after tracked work so the canonical timestamp line comes from the tool itself
+2. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same cycle
+3. use `scripts/agent_timestamp.py` only when you need the timestamp line without the registry change, and paste the emitted line directly instead of hand-writing the format
 5. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
 6. inactive entries older than one hour become stale and release their `display_id`
 7. once an inactive stale entry stays retained for 24 more hours, `cleanup` removes it from `.agent-local/agents.json`
@@ -116,18 +106,16 @@ Short plan:
 2. Claim the `coding` role for this chat and start the registry entry.
 3. Begin the current work cycle with the canonical timestamp line, then report the claimed role and repo status.
 
-Background terminal finished with python scripts/agent_registry.py claim coding --scope read-agents-md
-Background terminal finished with python scripts/agent_registry.py start agt_example1234
-Background terminal finished with python scripts/agent_registry.py status agt_example1234
-Background terminal finished with python scripts/agent_work_cycle.py begin agt_example1234 --scope read-agents-md
+Background terminal finished with the registry tool for role claim and startup confirmation.
+Background terminal finished with the work-cycle tool for the current command.
 
-<paste the exact before-work line emitted by `scripts/agent_work_cycle.py begin` here>
+<paste the exact before-work line emitted by `scripts/agent_work_cycle.py` here>
 
 ... do the startup/read work for this command cycle ...
 
-Background terminal finished with python scripts/agent_work_cycle.py end agt_example1234 --scope read-agents-md
+Background terminal finished with the work-cycle tool to close the current command.
 
-<paste the exact after-work line emitted by `scripts/agent_work_cycle.py end` here>
+<paste the exact after-work line emitted by `scripts/agent_work_cycle.py` here>
 
 Please read AGENTS.md and treat this chat as the coding role.
 
@@ -136,10 +124,10 @@ Please read AGENTS.md and treat this chat as the coding role.
 
 Interrupted chat recovery:
 
-1. `scripts/agent_registry.py status`
+1. use the registry tool to inspect the current agent state
 2. read the stale agent mailbox, starting from the newest open `Work Continuation Handoff`
-3. if the original chat itself is returning, run `scripts/agent_registry.py resume-check <agent_uid>` and then `scripts/agent_registry.py recover <agent_uid>` if the display slot was released
-4. if a different chat is taking over, run `scripts/agent_registry.py takeover <stale-agent-ref>`
+3. if the original chat itself is returning, use the registry tool to check whether recovery is needed and then recover the stale identity when allowed
+4. if a different chat is taking over, use the registry tool to take over the stale scope under a fresh identity
 5. read the stale mailbox before resuming tracked work
 
 ## Takeover Transcript
@@ -156,14 +144,13 @@ Short plan:
 2. Scan leftover inactive-coding continuation handoffs and choose the takeover target.
 3. Run `takeover`, read the source mailbox, and begin the work cycle for the resumed scope.
 
-Background terminal finished with python scripts/agent_registry.py status
+Background terminal finished with the registry tool to inspect current state.
 Background terminal finished with gh run list --branch main --limit 1 --json databaseId,status,conclusion,workflowName,displayTitle,headSha,updatedAt
 Background terminal finished with npm run handoffs:inactive-coding
-Background terminal finished with python scripts/agent_registry.py takeover agt_example5678 --scope m4-snapshot-offer-sync
-Background terminal finished with python scripts/agent_registry.py status agt_newagent1234
-Background terminal finished with python scripts/agent_work_cycle.py begin agt_newagent1234 --scope m4-snapshot-offer-sync
+Background terminal finished with the registry tool to take over the stale scope and confirm the replacement agent.
+Background terminal finished with the work-cycle tool for the resumed command.
 
-<paste the exact before-work line emitted by `scripts/agent_work_cycle.py begin` here>
+<paste the exact before-work line emitted by `scripts/agent_work_cycle.py` here>
 
 Please take over the existing handoff.
 
@@ -173,9 +160,9 @@ Please take over the existing handoff.
 Reopened chat startup:
 
 1. `read AGENTS.md, you are <role>`
-2. `scripts/agent_registry.py status`
-3. `scripts/agent_registry.py resume-check <agent_uid>`
-4. if `must_recover = true`, run `scripts/agent_registry.py recover <agent_uid>`
+2. use the registry tool to inspect the current agent state
+3. use the registry tool to determine whether recovery is needed
+4. if recovery is required, use the registry tool to restore the stale identity before continuing
 5. read `.agent-local/mailboxes/<agent_uid>.md`
 6. first chat line: `<display-id> | <scope-label>`
 
@@ -183,12 +170,12 @@ Role note:
 
 - `coding` usually reports the latest completed CI result after recovery
 - `doc` usually skips CI unless explicitly asked
-- if an old forgotten chat is reopened, run `scripts/agent_registry.py resume-check <agent_uid>` before doing any tracked work
+- if an old forgotten chat is reopened, use the registry tool to confirm whether recovery is required before doing any tracked work
 
 ## 10-Line Rule Set
 
 1. Default to hybrid mode, not issue-for-everything.
-2. Read `.agent-local/agents.json`; if the user declared only a role, claim an id first with `scripts/agent_registry.py claim <role>`.
+2. Read `.agent-local/agents.json`; if the user declared only a role, use the registry tool to claim an id first.
 3. Use one agent per issue when the work needs claims, handoff, or more than one commit.
 4. One active issue should map to one chat and one worktree or isolated session.
 5. Small local fixes can stay chat-first, but do not let them widen silently.

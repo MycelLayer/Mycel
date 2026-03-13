@@ -51,17 +51,7 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
-Use the repo-local checker if you want one command:
-
-```bash
-scripts/check-dev-env.sh
-scripts/check-dev-env.sh --full
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-```
-
-`--full` goes beyond tool detection and also runs the current repo-local validation surface, so it can fail because of the present workspace state as well as missing setup.
-`--json` is intended for automation-oriented tools that need machine-readable pass/fail output.
+Use `scripts/check-dev-env.sh` as the repo-local environment checker when you want the workspace's standard setup validation in one tool.
 
 ## 1.1 Local Ready File For New Chats
 
@@ -86,13 +76,10 @@ The local status file should at minimum record:
 - whether the full repo validation pass was run
 - the exact validation commands and whether they passed
 
-Recommended commands for populating the file:
+Recommended tools for populating the file:
 
-```bash
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-scripts/update-dev-setup-status.py --actor <role-id>
-```
+- `scripts/check-dev-env.sh` to gather the repo-local environment and validation result
+- `scripts/update-dev-setup-status.py` to refresh the local readiness record
 
 Treat `Status: ready` as valid only when the recorded checks cover the tools and validation surface you rely on for the current workspace.
 
@@ -157,11 +144,7 @@ Treat setup as complete if all of the following are true:
 - fixture validation succeeds on `fixtures/object-sets/minimal-valid/fixture.json`
 - `./sim/negative-validation/smoke.sh --summary-only` succeeds
 
-The repo-local shortcut for the full pass is:
-
-```bash
-scripts/check-dev-env.sh --full
-```
+The repo-local shortcut for the full pass is `scripts/check-dev-env.sh`.
 
 ## 6. Common Working Rules
 
@@ -177,11 +160,13 @@ scripts/check-dev-env.sh --full
 cargo run -p mycel-cli -- object inspect <path> --json
 cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
-scripts/check-dev-env.sh
-scripts/check-labels.sh
-scripts/check-plan-refresh.sh
-scripts/check-plan-refresh.sh --json
 ```
+
+Useful repo-local tools:
+
+- `scripts/check-dev-env.sh` for environment validation
+- `scripts/check-labels.sh` for tracked-label verification
+- `scripts/check-plan-refresh.sh` for planning-refresh cadence checks
 
 ## 8. If You Are a New AI Agent
 

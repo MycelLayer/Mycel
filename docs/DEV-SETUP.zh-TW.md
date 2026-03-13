@@ -51,17 +51,7 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
-如果想用單一命令檢查，也可以直接跑：
-
-```bash
-scripts/check-dev-env.sh
-scripts/check-dev-env.sh --full
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-```
-
-`--full` 不只檢查工具是否存在，也會直接跑目前 repo 的驗證面，所以它可能因為當前 workspace 狀態而失敗，而不一定只是缺少環境安裝。
-`--json` 則適合給 automation-oriented tools（偏自動化工具）或 agent 做機器可讀的結果判讀。
+如果想用 repo 內建的單一工具檢查，也可以直接用 `scripts/check-dev-env.sh`。
 
 ## 1.1 給新 chat 的本地 Ready 檔
 
@@ -86,13 +76,10 @@ scripts/check-dev-env.sh --full --json
 - 是否跑過完整 repo 驗證
 - 各個驗證命令與其是否成功
 
-建議用以下命令產生內容：
+建議使用以下工具產生內容：
 
-```bash
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-scripts/update-dev-setup-status.py --actor <role-id>
-```
+- `scripts/check-dev-env.sh` 用來取得 repo-local 的環境與驗證結果
+- `scripts/update-dev-setup-status.py` 用來更新本地 readiness record（就緒紀錄）
 
 只有當記錄內容已涵蓋目前 workspace 需要的工具與驗證面時，才把它視為有效的 `Status: ready`。
 
@@ -157,11 +144,7 @@ cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.js
 - `fixtures/object-sets/minimal-valid/fixture.json` 可成功驗證
 - `./sim/negative-validation/smoke.sh --summary-only` 成功
 
-完整 setup 驗證也可以直接用：
-
-```bash
-scripts/check-dev-env.sh --full
-```
+完整 setup 驗證也可以直接用 `scripts/check-dev-env.sh`。
 
 ## 6. 常見工作規則
 
@@ -177,11 +160,13 @@ scripts/check-dev-env.sh --full
 cargo run -p mycel-cli -- object inspect <path> --json
 cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
-scripts/check-dev-env.sh
-scripts/check-labels.sh
-scripts/check-plan-refresh.sh
-scripts/check-plan-refresh.sh --json
 ```
+
+實用的 repo-local 工具：
+
+- `scripts/check-dev-env.sh` 用來做環境驗證
+- `scripts/check-labels.sh` 用來核對 tracked labels
+- `scripts/check-plan-refresh.sh` 用來檢查 planning refresh cadence（規劃同步節奏）
 
 ## 8. 如果你是新的 AI Agent
 

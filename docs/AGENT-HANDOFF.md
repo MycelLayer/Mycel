@@ -8,7 +8,7 @@ For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.m
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-Use `python3 scripts/mailbox_handoff.py create ...` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in that mailbox as `superseded`.
+Use `scripts/mailbox_handoff.py` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in that mailbox as `superseded`.
 
 The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, and `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`.
 
@@ -61,9 +61,7 @@ Mailbox retention and archive policy:
 - `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, and `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md` stay in place and are never archived
 - once an agent entry has been removed from `.agent-local/agents.json`, its uid-based mailbox becomes an orphaned mailbox candidate
 - orphaned uid-based mailboxes should be moved into `.agent-local/mailboxes/archive/YYYY-MM/` instead of being deleted
-- use `scripts/mailbox_gc.py scan` to inspect referenced, missing, orphaned, and archived uid-based mailboxes
-- use `scripts/mailbox_gc.py archive` to move orphaned uid-based mailboxes into the archive tree without deleting contents
-- archived uid-based mailboxes older than 10 days may be deleted with `scripts/mailbox_gc.py prune` only when they do not contain an unresolved planning handoff
+- use `scripts/mailbox_gc.py` to inspect, archive, and prune uid-based mailboxes under the repo's mailbox-retention rules
 - use `scripts/inactive_coding_handoffs.py` to collect the latest open `Work Continuation Handoff` left by each `inactive` `coding` agent
 - use `npm run handoffs:inactive-coding` as the short startup command for a new `coding` agent that wants to scan those leftover handoffs first
 - shared fallback mailbox files outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`; retire or archive those only by explicit team decision
@@ -71,7 +69,7 @@ Mailbox retention and archive policy:
 ## Workflow
 
 1. an agent finishes one user-command work cycle.
-2. before appending a new current-state handoff, the agent updates any older open current-state handoff in the same mailbox and same scope to `Status: superseded` when the new entry replaces it; `scripts/mailbox_handoff.py create` automates that step for new open entries.
+2. before appending a new current-state handoff, the agent updates any older open current-state handoff in the same mailbox and same scope to `Status: superseded` when the new entry replaces it; `scripts/mailbox_handoff.py` automates that step for new open entries.
 3. every agent appends or updates one mailbox handoff entry in its own mailbox before ending the work cycle, so the mailbox records the latest state for that cycle.
 4. `coding` normally satisfies that requirement with one open `Work Continuation Handoff`, even if no doc follow-up is needed.
 5. if the landed work is planning-relevant, `coding` also appends a `Planning Sync Handoff` entry to its own mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
@@ -156,7 +154,7 @@ When `doc` resolves or responds, either update the original entry status or appe
 - Remaining follow-up: none
 ```
 
-If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> planning-resolution ...`.
+If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, or use `scripts/mailbox_handoff.py`.
 
 ## Doc Continuation Note
 
@@ -179,7 +177,7 @@ Copyable doc continuation template:
   - <best next doc/planning action>
 ```
 
-If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> doc-continuation ...`.
+If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`, or use `scripts/mailbox_handoff.py`.
 
 ## Work Continuation Handoff
 
@@ -230,7 +228,7 @@ Copyable continuation template:
   - <optional short context>
 ```
 
-If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> work-continuation ...`.
+If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, or use `scripts/mailbox_handoff.py`.
 
 ## Example
 

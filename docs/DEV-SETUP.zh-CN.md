@@ -51,17 +51,7 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
-如果想用一条命令检查，也可以直接运行：
-
-```bash
-scripts/check-dev-env.sh
-scripts/check-dev-env.sh --full
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-```
-
-`--full` 不只是检查工具是否存在，也会直接执行当前仓库的验证面，所以它可能因为当前 workspace 状态失败，而不一定只是环境没装好。
-`--json` 适合给自动化工具或 agent 使用，方便读取机器可解析的结果。
+如果想用仓库内建的单一工具检查，也可以直接用 `scripts/check-dev-env.sh`。
 
 ## 1.1 给新 chat 的本地 Ready 文件
 
@@ -86,13 +76,10 @@ scripts/check-dev-env.sh --full --json
 - 是否跑过完整 repo 验证
 - 各个验证命令与其是否成功
 
-建议用以下命令生成内容：
+建议使用以下工具生成内容：
 
-```bash
-scripts/check-dev-env.sh --json
-scripts/check-dev-env.sh --full --json
-scripts/update-dev-setup-status.py --actor <role-id>
-```
+- `scripts/check-dev-env.sh` 用来获取 repo-local 的环境与验证结果
+- `scripts/update-dev-setup-status.py` 用来更新本地 readiness record（就绪记录）
 
 只有当记录内容已覆盖当前 workspace 需要的工具与验证面时，才把它视为有效的 `Status: ready`。
 
@@ -160,11 +147,7 @@ cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.js
 - `fixtures/object-sets/minimal-valid/fixture.json` 能成功验证
 - `./sim/negative-validation/smoke.sh --summary-only` 成功
 
-完整 setup 验证也可以直接用：
-
-```bash
-scripts/check-dev-env.sh --full
-```
+完整 setup 验证也可以直接用 `scripts/check-dev-env.sh`。
 
 ## 6. 常见工作规则
 
@@ -180,11 +163,13 @@ scripts/check-dev-env.sh --full
 cargo run -p mycel-cli -- object inspect <path> --json
 cargo run -p mycel-cli -- object verify <path> --json
 cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json --json
-scripts/check-dev-env.sh
-scripts/check-labels.sh
-scripts/check-plan-refresh.sh
-scripts/check-plan-refresh.sh --json
 ```
+
+实用的 repo-local 工具：
+
+- `scripts/check-dev-env.sh` 用来做环境验证
+- `scripts/check-labels.sh` 用来核对 tracked labels
+- `scripts/check-plan-refresh.sh` 用来检查 planning refresh cadence（规划同步节奏）
 
 ## 8. 如果你是新的 AI Agent
 

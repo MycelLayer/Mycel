@@ -13,21 +13,12 @@ The current protocol uses a split identity model:
 
 ## Command Surface
 
-Recommended startup and lifecycle commands:
+Recommended startup and lifecycle tools:
 
-- `scripts/agent_bootstrap.py [role|auto] [--scope <scope>]`
-- `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
-- `scripts/agent_registry.py start <agent-ref>`
-- `scripts/agent_registry.py status [<agent-ref>] [--verbose]`
-- `scripts/agent_registry.py touch <agent-ref>`
-- `scripts/agent_registry.py finish <agent-ref>`
-- `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
-- `scripts/agent_registry.py resume-check <agent-ref>`
-- `scripts/agent_registry.py recover <agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py takeover <stale-agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py work-checklist <agent-ref> [--output .agent-local/agents/<agent_uid>/...md]`
-- `scripts/agent_registry.py work-checklist-mark <agent-ref> <item-id> [--state checked|unchecked|toggle]`
-- `scripts/agent_registry.py cleanup`
+- `scripts/agent_bootstrap.py` for the repo-standard bootstrap flow
+- `scripts/agent_registry.py` for role claim, startup confirmation, lifecycle state, recovery, takeover, cleanup, and checklist management
+- `scripts/agent_work_cycle.py` for tracked per-command activity transitions
+- `scripts/agent_timestamp.py` for canonical timestamp lines when no registry transition is needed
 
 Transition note:
 
@@ -41,7 +32,7 @@ Recommended startup self-label:
 
 Fast path:
 
-- `scripts/agent_bootstrap.py` is the preferred thin wrapper when a new chat wants a fresh claim plus `start`, `begin`, and `git status -sb` in one call.
+- `scripts/agent_bootstrap.py` is the preferred thin wrapper when a new chat wants the repo-standard claim/start/work-cycle bootstrap in one call.
 - The wrapper does not replace reading [`AGENTS.md`](../AGENTS.md) or local overlays first; it only reduces command round-trips after those inputs are loaded.
 
 ## Role Model
@@ -264,7 +255,7 @@ Minimum handoff quality:
 - continuation handoffs should explicitly include `Status: open`, `Current state`, and `Next suggested step`, because they are written under the assumption that the user may not assign another follow-up before pause or takeover
 - a mailbox should not accumulate multiple open current-state handoffs for the same scope; older ones should be closed as `superseded` before a newer open current-state handoff is added
 - if an agent wants a ready-made starting point for continuation instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
-- if an agent wants to render the tracked mailbox shapes directly, use `python3 scripts/mailbox_handoff.py create <agent-ref> <template> ...`
+- if an agent wants to render the tracked mailbox shapes directly, use `scripts/mailbox_handoff.py`
 
 Mailbox retention and archive policy:
 
@@ -296,16 +287,16 @@ Recommended startup sequence:
 2. run `git status -sb`
 3. check `rg` and `gh`
 4. if the role is `coding`, check the latest completed CI status from the previous push
-5. if the user assigned a role, run `scripts/agent_registry.py claim <role> [--scope <scope>]`
-6. otherwise run `scripts/agent_registry.py claim auto [--scope <scope>]`
+5. if the user assigned a role, use the registry tool to claim that role
+6. otherwise use the registry tool to auto-claim a role
 7. immediately tell the user which role was claimed for this chat
-8. run `scripts/agent_registry.py start <agent-ref>`
-9. run `scripts/agent_registry.py status <agent-ref>`
-10. if a personalized task list would help, run `scripts/agent_registry.py work-checklist <agent-ref>`
+8. use the registry tool to confirm startup
+9. use the registry tool to inspect the current agent state
+10. if a personalized task list would help, use the registry tool to materialize one
 11. if the role is `coding`, run `npm run handoffs:inactive-coding` and treat handoff scan as the next item before taking a new implementation scope
 12. begin the chat with `<display-id> | <scope-label>`
-13. when the first concrete task arrives, run `scripts/agent_registry.py touch <agent-ref>`
-14. before doing the work, prefer `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]`; it runs `touch` and prints the canonical `Asia/Taipei (UTC+8)` timestamp line, and that exact line must be surfaced in user-visible commentary rather than only terminal output
+13. when the first concrete task arrives, use the work-cycle tool to begin tracked work
+14. before doing the work, prefer `scripts/agent_work_cycle.py`; it advances the work cycle and prints the canonical `Asia/Taipei (UTC+8)` timestamp line, and that exact line must be surfaced in user-visible commentary rather than only terminal output
 
 Keep startup output narrow:
 
@@ -320,15 +311,15 @@ Keep startup output narrow:
 1. before starting work, read `.agent-local/agents.json`
 2. confirm the current scopes and active peers
 3. use the mailbox declared in the registry for coordination
-4. before each user-command work cycle, prefer `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]`; it wraps `scripts/agent_registry.py touch <agent-ref>` together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
+4. before each user-command work cycle, prefer `scripts/agent_work_cycle.py`; it advances the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
 5. before ending that completed work cycle, append or update one mailbox handoff entry in the agent's declared mailbox so the latest state for the cycle is captured
-6. after that command's work is complete, prefer `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]`; it wraps `scripts/agent_registry.py finish <agent-ref>` together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
-7. do not immediately follow `scripts/agent_work_cycle.py begin|end` with a manual `scripts/agent_registry.py touch|finish` for the same work cycle; `begin` already performs `touch`, and `end` already performs `finish`
-8. if you need only the timestamp line without the registry change, use `scripts/agent_timestamp.py before|after --agent <display-id> --agent-uid <agent-uid> --scope <scope-label>` and paste the emitted line directly; do not hand-write, reformat, or replace it with dual-timezone text
+6. after that command's work is complete, prefer `scripts/agent_work_cycle.py`; it closes the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
+7. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same work cycle
+8. if you need only the timestamp line without the registry change, use `scripts/agent_timestamp.py` and paste the emitted line directly; do not hand-write, reformat, or replace it with dual-timezone text
 9. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
-10. when longer-lived coordination changes are needed, use `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
-11. when an agent wants a refreshable task list, use `scripts/agent_registry.py work-checklist <agent-ref>`; by default it writes `.agent-local/agents/<agent_uid>/work-checklist.md` with Markdown `[X]` / `[ ]` items plus stable hidden `item-id` markers
-12. to update one checklist line quickly from automation or a terminal command, use `scripts/agent_registry.py work-checklist-mark <agent-ref> <item-id>` and optionally `--state checked|unchecked|toggle`
+10. when longer-lived coordination changes are needed, use the registry tool to pause or stop the tracked agent state
+11. when an agent wants a refreshable task list, use the registry tool to materialize one; by default it writes `.agent-local/agents/<agent_uid>/work-checklist.md` with Markdown `[X]` / `[ ]` items plus stable hidden `item-id` markers
+12. to update one checklist line quickly from automation or a terminal command, use the registry tool's checklist-marking support
 13. treat `paused` as a medium-term parking state, not an indefinite one; if the work should live longer than the paused lease, plan for a later `takeover` or close it as `done`
 
 Planning-sync coordination:
@@ -369,7 +360,7 @@ Example:
 
 - old chat A is still the same `agent_uid`
 - A's `display_id` was already released after staleness
-- A runs `scripts/agent_registry.py recover <agent_uid>`
+- A uses the registry tool to recover the stale identity
 - A keeps the same `agent_uid` but receives a new `display_id`
 
 ### Takeover
@@ -379,7 +370,7 @@ Use `takeover` when a different chat needs to continue a stale agent's work.
 Example:
 
 - old chat A is gone or should not resume directly
-- a new chat B runs `scripts/agent_registry.py takeover <stale-agent-ref>`
+- a new chat B uses the registry tool to take over the stale scope
 - B gets a fresh `agent_uid`
 - B gets a fresh `display_id`
 - old A records `superseded_by = <new-agent-uid>`
@@ -397,14 +388,13 @@ Short plan:
 2. Scan leftover inactive-coding continuation handoffs and choose the takeover target.
 3. Run `takeover`, read the source mailbox, and begin the work cycle for the resumed scope.
 
-Background terminal finished with python scripts/agent_registry.py status
+Background terminal finished with the registry tool to inspect current state.
 Background terminal finished with gh run list --branch main --limit 1 --json databaseId,status,conclusion,workflowName,displayTitle,headSha,updatedAt
 Background terminal finished with npm run handoffs:inactive-coding
-Background terminal finished with python scripts/agent_registry.py takeover agt_example5678 --scope m4-snapshot-offer-sync
-Background terminal finished with python scripts/agent_registry.py status agt_newagent1234
-Background terminal finished with python scripts/agent_work_cycle.py begin agt_newagent1234 --scope m4-snapshot-offer-sync
+Background terminal finished with the registry tool to take over the stale scope and confirm the replacement agent.
+Background terminal finished with the work-cycle tool for the resumed command.
 
-<paste the exact before-work line emitted by `scripts/agent_work_cycle.py begin` here>
+<paste the exact before-work line emitted by `scripts/agent_work_cycle.py` here>
 
 Please take over the existing handoff.
 

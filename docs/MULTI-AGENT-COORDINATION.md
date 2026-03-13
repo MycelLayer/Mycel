@@ -68,20 +68,11 @@ Operational consequences:
 
 No agent may start tracked work until it has confirmed its own assigned role in `.agent-local/agents.json`.
 
-Recommended startup command:
+Recommended startup tools:
 
-- `scripts/agent_registry.py claim <role|auto> [--scope <scope>]`
-- `scripts/agent_registry.py start <agent-ref>`
-- `scripts/agent_registry.py touch <agent-ref>`
-- `scripts/agent_registry.py finish <agent-ref>`
-- `scripts/agent_registry.py status [<agent-ref>]`
-- `scripts/agent_registry.py stop <agent-ref> [--status paused|done]`
-- `scripts/agent_registry.py cleanup`
-- `scripts/agent_registry.py resume-check <agent-ref>`
-- `scripts/agent_registry.py recover <agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py takeover <stale-agent-ref> [--scope <scope>]`
-- `scripts/agent_registry.py work-checklist <agent-ref> [--output .agent-local/agents/<agent_uid>/...md]`
-- `scripts/agent_registry.py work-checklist-mark <agent-ref> <item-id> [--state checked|unchecked|toggle]`
+- `scripts/agent_registry.py` for role claim, startup confirmation, lifecycle state, recovery, takeover, cleanup, and checklist management
+- `scripts/agent_work_cycle.py` for starting and ending a tracked user-command work cycle
+- `scripts/agent_timestamp.py` for canonical timestamp lines without a registry transition
 
 Recommended startup self-label:
 
@@ -122,19 +113,19 @@ Practical default:
 Before an agent starts:
 
 1. read `.agent-local/agents.json`
-2. if the user already declared a role but no entry exists, run `scripts/agent_registry.py claim <role>`
+2. if the user already declared a role but no entry exists, use the registry tool to claim that role
 3. confirm the entry has `agent_uid`, `role`, `assigned_by`, `assigned_at`, and `current_display_id`
-4. run `scripts/agent_registry.py start <agent-ref>`
+4. use the registry tool to confirm startup
 5. only then decide whether the task is issue-first or chat-first
 6. if it is issue-first, choose one open issue
 7. check whether another agent or human is already working on it
 8. leave a short claim note in the issue or team channel
 9. confirm the likely file set before editing
-10. prefer `scripts/agent_work_cycle.py begin <agent-ref> [--scope <scope-label>]` before working the current user-command cycle; it wraps `touch` together with the canonical before-work timestamp line, and that exact line should be surfaced in user-visible commentary
+10. prefer `scripts/agent_work_cycle.py` before working the current user-command cycle; it advances the work cycle and emits the canonical before-work timestamp line that should be surfaced in user-visible commentary
 11. update the local registry entry when scope or status changes
-12. prefer `scripts/agent_work_cycle.py end <agent-ref> [--scope <scope-label>]` after the command-level work is complete; it wraps `finish` together with the canonical after-work timestamp line, and that exact line should be surfaced in user-visible commentary
-13. do not immediately follow `scripts/agent_work_cycle.py begin|end` with a manual `scripts/agent_registry.py touch|finish` for the same work cycle
-14. use `scripts/agent_timestamp.py before|after --agent <display-id> --agent-uid <agent-uid> --scope <scope-label>` only when you need the timestamp line without the registry transition, and paste the emitted line directly instead of restating the format in docs or chat text
+12. prefer `scripts/agent_work_cycle.py` after the command-level work is complete; it closes the work cycle and emits the canonical after-work timestamp line that should be surfaced in user-visible commentary
+13. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same work cycle
+14. use `scripts/agent_timestamp.py` only when you need the timestamp line without the registry transition, and paste the emitted line directly instead of restating the format in docs or chat text
 15. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
 
 When the chat itself starts, use one short self-label line first, such as:
@@ -286,10 +277,10 @@ If a chat stops unexpectedly, use the local registry and mailbox files as the re
 Recovery sequence:
 
 1. inspect `.agent-local/agents.json`
-2. run `scripts/agent_registry.py status`
+2. use the registry tool to inspect current state
 3. read the stale agent's mailbox, starting from the newest open `Work Continuation Handoff`
-4. if the original chat itself has returned, run `scripts/agent_registry.py resume-check <agent_uid>` and `scripts/agent_registry.py recover <agent_uid>` if needed
-5. if a different chat must continue the work, run `scripts/agent_registry.py takeover <stale-agent-ref>`
+4. if the original chat itself has returned, use the registry tool to determine whether recovery is needed and recover the stale identity when allowed
+5. if a different chat must continue the work, use the registry tool to take over the stale scope under a fresh identity
 6. continue work only under the currently assigned `display_id`
 
 Inactive lease rule:

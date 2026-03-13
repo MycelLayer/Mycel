@@ -17,14 +17,10 @@ The repo-tracked source for custom bot/task labels is:
 
 - [`.github/labels.yml`](../.github/labels.yml)
 
-Sync and verify commands:
+Sync and verify with:
 
-```bash
-scripts/sync-labels.sh
-scripts/check-labels.sh
-```
-
-Use `scripts/check-labels.sh --strict` only if you want to flag untracked GitHub host labels too.
+- `scripts/sync-labels.sh` for syncing tracked labels
+- `scripts/check-labels.sh` for verifying tracked labels against GitHub
 
 ## Label Meanings
 

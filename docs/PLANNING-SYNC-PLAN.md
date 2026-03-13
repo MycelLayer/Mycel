@@ -252,11 +252,7 @@ Update planning surfaces immediately when:
 
 ### 7.2 Commit-count refresh
 
-Use:
-
-```bash
-scripts/check-plan-refresh.sh
-```
+Use `scripts/check-plan-refresh.sh` as the planning-refresh cadence checker.
 
 Ownership:
 
@@ -301,7 +297,7 @@ For a `sync plan` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run the planning-refresh cadence checker
 4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording when `sync doc` is due
 5. realign GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
 6. update GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording when `sync web` is due
@@ -315,7 +311,7 @@ For a `sync doc` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run the planning-refresh cadence checker
 4. refresh Markdown planning surfaces such as `ROADMAP.md`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and related README wording
 
 For a `sync web` batch:
@@ -326,7 +322,7 @@ For a `sync web` batch:
    third, mailbox paths declared in the registry for recently inactive agents that may still have unresolved planning notes
    fourth, fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` when they exist
 2. ignore archived mailboxes unless a current mailbox explicitly points to an unresolved entry there
-3. run `scripts/check-plan-refresh.sh`
+3. run the planning-refresh cadence checker
 4. update GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording
 
 ## 9. Anti-Drift Rules

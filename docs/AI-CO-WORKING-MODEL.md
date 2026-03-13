@@ -332,14 +332,7 @@ The authoritative sync entry point is:
 
 - [PLANNING-SYNC-PLAN.md](./PLANNING-SYNC-PLAN.md)
 
-Use:
-
-```bash
-scripts/check-plan-refresh.sh
-scripts/check-plan-refresh.sh --json
-```
-
-to decide whether a planning-surface refresh is due.
+Use `scripts/check-plan-refresh.sh` to decide whether a planning-surface refresh is due.
 
 ## 10. Human Review and Control
 
