@@ -27,6 +27,7 @@ Mailbox retention:
 - orphaned uid-based mailboxes older than 3 days should be deleted; there is no archive step
 - use `npm run handoffs:inactive-coding` after a new `coding` agent starts to check leftover open continuation handoffs from inactive coding agents
 - use `scripts/mailbox_gc.py` to inspect mailbox references and delete orphaned uid-based mailboxes after the retention window
+- each shared fallback mailbox is limited to `1024` bytes
 - shared fallback mailboxes outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`
 
 Doc cadence reminder:

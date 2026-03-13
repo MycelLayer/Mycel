@@ -21,6 +21,11 @@ from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_it
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
+SHARED_FALLBACK_MAILBOX_LIMIT_BYTES = 1024
+SHARED_FALLBACK_MAILBOX_PATHS = [
+    ROOT_DIR / ".agent-local" / "coding-to-doc.md",
+    ROOT_DIR / ".agent-local" / "doc-to-coding.md",
+]
 ROLE_OPEN_HANDOFF_HEADINGS = {
     "coding": "Work Continuation Handoff",
     "doc": "Doc Continuation Note",
@@ -174,6 +179,34 @@ def emit_mailbox_summary(mailbox_path: Path, open_handoff_lines: dict[str, list[
             print(f"  - {line_no}")
 
 
+def scan_shared_fallback_mailboxes() -> list[dict[str, int | str | bool]]:
+    results: list[dict[str, int | str | bool]] = []
+    for path in SHARED_FALLBACK_MAILBOX_PATHS:
+        if not path.exists():
+            continue
+        size_bytes = path.stat().st_size
+        results.append(
+            {
+                "path": str(path.relative_to(ROOT_DIR)),
+                "size_bytes": size_bytes,
+                "over_limit": size_bytes > SHARED_FALLBACK_MAILBOX_LIMIT_BYTES,
+            }
+        )
+    return results
+
+
+def emit_shared_fallback_summary(records: list[dict[str, int | str | bool]]) -> None:
+    oversized = [record for record in records if record["over_limit"]]
+    print(f"shared_fallback_mailboxes_checked: {len(records)}")
+    print(f"shared_fallback_mailbox_limit_bytes: {SHARED_FALLBACK_MAILBOX_LIMIT_BYTES}")
+    print(f"oversized_shared_fallback_mailboxes: {len(oversized)}")
+    if not oversized:
+        return
+    print("oversized_shared_fallback_mailbox_paths:")
+    for record in oversized:
+        print(f"  - {record['path']} ({record['size_bytes']} bytes)")
+
+
 def main() -> int:
     args = parse_args()
     registry_command = "touch" if args.stage == "begin" else "finish"
@@ -238,12 +271,15 @@ def main() -> int:
             bootstrap_batch=bootstrap_batch,
         )
         emit_mailbox_summary(mailbox_path, open_handoff_lines)
+        shared_fallback_records = scan_shared_fallback_mailboxes()
+        emit_shared_fallback_summary(shared_fallback_records)
         same_role_open_count = len(open_handoff_lines["same_role"])
         other_role_open_count = len(open_handoff_lines["other_role"])
         mailbox_pending = other_role_open_count > 1
         if not bootstrap_batch:
             mailbox_pending = mailbox_pending or same_role_open_count != 1
-        return 2 if any(unchecked_by_path.values()) or mailbox_pending else 0
+        shared_fallback_pending = any(record["over_limit"] for record in shared_fallback_records)
+        return 2 if any(unchecked_by_path.values()) or mailbox_pending or shared_fallback_pending else 0
 
     emit_registry_summary(payload)
 

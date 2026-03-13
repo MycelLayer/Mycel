@@ -81,6 +81,11 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
+    def write_shared_fallback_mailbox(self, relative_path: str, content: str) -> None:
+        path = self.root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
     def prepare_completed_bootstrap_batch(self, *, role: str = "doc") -> str:
         self.write_agents_md()
         claim = self.run_registry("claim", role, "--scope", "timestamp-wrapper")
@@ -254,6 +259,28 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("open_handoffs: 2", proc.stdout)
         self.assertIn("same_role_open_handoffs: 1", proc.stdout)
         self.assertIn("other_role_open_handoffs: 1", proc.stdout)
+        self.assertIn("oversized_shared_fallback_mailboxes: 0", proc.stdout)
+
+    def test_end_returns_pending_when_shared_fallback_mailbox_exceeds_limit(self) -> None:
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        self.write_shared_fallback_mailbox(".agent-local/coding-to-doc.md", "x" * 1025)
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("shared_fallback_mailboxes_checked: 1", proc.stdout)
+        self.assertIn("shared_fallback_mailbox_limit_bytes: 1024", proc.stdout)
+        self.assertIn("oversized_shared_fallback_mailboxes: 1", proc.stdout)
+        self.assertIn(".agent-local/coding-to-doc.md (1025 bytes)", proc.stdout)
 
 
 if __name__ == "__main__":
