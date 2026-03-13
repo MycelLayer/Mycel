@@ -34,6 +34,7 @@ class TemplateSpec:
     kind: str
     heading: str
     status: str
+    open_slot: str | None = None
 
 
 TEMPLATES: dict[str, TemplateSpec] = {
@@ -41,22 +42,31 @@ TEMPLATES: dict[str, TemplateSpec] = {
         kind="work-continuation",
         heading="Work Continuation Handoff",
         status="open",
+        open_slot="coding",
     ),
     "planning-sync": TemplateSpec(
         kind="planning-sync",
         heading="Planning Sync Handoff",
         status="open",
+        open_slot="cross-role",
     ),
     "doc-continuation": TemplateSpec(
         kind="doc-continuation",
         heading="Doc Continuation Note",
         status="open",
+        open_slot="doc",
     ),
     "planning-resolution": TemplateSpec(
         kind="planning-resolution",
         heading="Planning Sync Resolution",
         status="resolved",
     ),
+}
+
+OPEN_HANDOFF_HEADING_SLOTS = {
+    "Work Continuation Handoff": "coding",
+    "Planning Sync Handoff": "cross-role",
+    "Doc Continuation Note": "doc",
 }
 
 
@@ -232,11 +242,17 @@ def render_entry(template: str, *, date_text: str, source_agent: str, args: argp
     raise MailboxHandoffError(f"unsupported template: {template}")
 
 
-def supersede_open_entries(content: str) -> tuple[str, int]:
+def supersede_open_entries(content: str, *, open_slot: str) -> tuple[str, int]:
     lines = content.splitlines()
     superseded = 0
+    current_heading: str | None = None
     for index, line in enumerate(lines):
+        if line.startswith("## "):
+            current_heading = line[3:].strip()
+            continue
         if line.strip() != "- Status: open":
+            continue
+        if OPEN_HANDOFF_HEADING_SLOTS.get(current_heading) != open_slot:
             continue
         prefix = line[: len(line) - len(line.lstrip())]
         lines[index] = f"{prefix}- Status: superseded"
@@ -257,9 +273,17 @@ def split_mailbox_content(content: str) -> tuple[str, str]:
     return before.strip(), f"## {after.strip()}"
 
 
-def build_updated_mailbox(existing_content: str, entry_text: str, *, supersede_open: bool) -> tuple[str, int]:
+def build_updated_mailbox(
+    existing_content: str,
+    entry_text: str,
+    *,
+    supersede_open: bool,
+    open_slot: str | None,
+) -> tuple[str, int]:
     if supersede_open:
-        superseded_content, superseded_count = supersede_open_entries(existing_content)
+        if open_slot is None:
+            raise MailboxHandoffError("open mailbox entries must declare an open_slot")
+        superseded_content, superseded_count = supersede_open_entries(existing_content, open_slot=open_slot)
     else:
         superseded_content, superseded_count = existing_content, 0
     preamble, body = split_mailbox_content(superseded_content)
@@ -307,6 +331,7 @@ def create_entry(args: argparse.Namespace) -> dict[str, object]:
         existing_content,
         entry_text,
         supersede_open=template.status == "open",
+        open_slot=template.open_slot,
     )
     mailbox_path.write_text(updated_content, encoding="utf-8")
 

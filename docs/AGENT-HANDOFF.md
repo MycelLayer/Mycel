@@ -8,7 +8,7 @@ For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.m
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-Use `scripts/mailbox_handoff.py` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in that mailbox as `superseded`.
+Use `scripts/mailbox_handoff.py` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in the same handoff slot as `superseded`.
 
 The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, and `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`.
 
@@ -70,15 +70,17 @@ Mailbox retention and archive policy:
 
 1. an agent finishes one user-command work cycle.
 2. before appending a new current-state handoff, the agent updates any older open current-state handoff in the same mailbox and same scope to `Status: superseded` when the new entry replaces it; `scripts/mailbox_handoff.py` automates that step for new open entries.
-3. every agent appends or updates one mailbox handoff entry in its own mailbox before ending the work cycle, so the mailbox records the latest state for that cycle.
-4. `coding` normally satisfies that requirement with one open `Work Continuation Handoff`, even if no doc follow-up is needed.
-5. if the landed work is planning-relevant, `coding` also appends a `Planning Sync Handoff` entry to its own mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
-6. `coding` commits and pushes the tracked code or doc changes.
-7. the next `coding` agent that resumes or takes over the scope reads the newest open `Work Continuation Handoff` entry first.
-8. `doc` reads the newest open planning-sync entry addressed to its scope or mailbox.
-9. `doc` updates only the docs justified by that message.
-10. `doc` still leaves one mailbox handoff entry for that completed work cycle, using a planning-sync resolution, blocking note, or doc continuation note as appropriate.
-11. the agent that absorbs the prior handoff marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
+3. every agent appends or updates one same-role mailbox handoff entry in its own mailbox before ending the work cycle, so the mailbox records the latest state for that cycle.
+4. `coding` satisfies that requirement with one open `Work Continuation Handoff`, even if no doc follow-up is needed.
+5. `doc` satisfies that requirement with one open `Doc Continuation Note` when it needs to leave current-state context for later doc work.
+6. if the landed work is planning-relevant or another role needs follow-up, the agent may also append one open cross-role handoff such as a `Planning Sync Handoff`.
+7. at `scripts/agent_work_cycle.py end`, each mailbox may have at most one open same-role handoff and at most one open cross-role handoff; after bootstrap batch 1, one open same-role handoff is required.
+8. `coding` commits and pushes the tracked code or doc changes.
+9. the next `coding` agent that resumes or takes over the scope reads the newest open `Work Continuation Handoff` entry first.
+10. `doc` reads the newest open planning-sync entry addressed to its scope or mailbox.
+11. `doc` updates only the docs justified by that message.
+12. `doc` still leaves one same-role mailbox handoff entry for that completed work cycle, using a doc continuation note or another doc-owned current-state entry as appropriate.
+13. the agent that absorbs the prior handoff marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
 
 If the work is issue-first, the same summary can also be mirrored into the issue comment, but the local mailbox remains the default agent-to-agent transport.
 
@@ -181,7 +183,7 @@ If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EX
 
 ## Work Continuation Handoff
 
-At the end of every completed `coding` work item, leave one continuation entry in the active coding mailbox. This is how `coding` satisfies the per-work-cycle mailbox-handoff requirement, and it remains mandatory even when there is no planning-sync impact.
+At the end of every completed `coding` work item, leave one continuation entry in the active coding mailbox. This is how `coding` satisfies the per-work-cycle same-role mailbox-handoff requirement, and it remains mandatory even when there is no planning-sync impact.
 
 At any moment, each coding mailbox should have at most one open `Work Continuation Handoff`. Before adding a newer one, close older open continuation entries in that mailbox by marking them `superseded`.
 
@@ -229,6 +231,18 @@ Copyable continuation template:
 ```
 
 If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, or use `scripts/mailbox_handoff.py`.
+
+## Open Slot Rule
+
+Mailbox validation uses two open handoff slots:
+
+- same-role slot
+  - `coding`: `Work Continuation Handoff`
+  - `doc`: `Doc Continuation Note`
+- cross-role slot
+  - optional follow-up for the other role, such as `Planning Sync Handoff`
+
+After bootstrap batch 1, `scripts/agent_work_cycle.py end` requires exactly one open same-role handoff and allows at most one open cross-role handoff in that mailbox.
 
 ## Example
 

@@ -21,6 +21,10 @@ from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_it
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
+ROLE_OPEN_HANDOFF_HEADINGS = {
+    "coding": "Work Continuation Handoff",
+    "doc": "Doc Continuation Note",
+}
 
 
 class WorkCycleError(Exception):
@@ -79,6 +83,17 @@ def resolve_agent_mailbox_path(agent_ref: str) -> Path:
     return ROOT_DIR / mailbox_rel
 
 
+def resolve_agent_role(agent_ref: str) -> str:
+    status_payload = run_registry("status", agent_ref)
+    agents = status_payload.get("agents")
+    if not isinstance(agents, list) or len(agents) != 1:
+        raise WorkCycleError(f"unable to resolve role for {agent_ref}")
+    role = agents[0].get("role")
+    if not isinstance(role, str) or not role.strip():
+        raise WorkCycleError(f"agent {agent_ref} is missing role information")
+    return role
+
+
 def set_checklist_item_states(checklist_path: Path, updates: list[tuple[str, str]]) -> None:
     try:
         update_checklist_items(checklist_path, updates)
@@ -118,23 +133,44 @@ def emit_checklist_summary(
             print(f"  - {item}")
 
 
-def scan_open_handoffs(mailbox_path: Path) -> list[int]:
+def scan_open_handoffs(mailbox_path: Path, *, agent_role: str) -> dict[str, list[int]]:
     if not mailbox_path.exists():
         raise WorkCycleError(f"missing mailbox file: {mailbox_path.relative_to(ROOT_DIR)}")
 
-    open_lines: list[int] = []
+    own_heading = ROLE_OPEN_HANDOFF_HEADINGS.get(agent_role)
+    if own_heading is None:
+        raise WorkCycleError(f"unsupported agent role for mailbox validation: {agent_role}")
+
+    same_role_open_lines: list[int] = []
+    other_role_open_lines: list[int] = []
+    current_heading: str | None = None
     for index, line in enumerate(mailbox_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if line.startswith("## "):
+            current_heading = line[3:].strip()
+            continue
         if line.strip() == "- Status: open":
-            open_lines.append(index)
-    return open_lines
+            if current_heading == own_heading:
+                same_role_open_lines.append(index)
+            else:
+                other_role_open_lines.append(index)
+    return {"same_role": same_role_open_lines, "other_role": other_role_open_lines}
 
 
-def emit_mailbox_summary(mailbox_path: Path, open_lines: list[int]) -> None:
+def emit_mailbox_summary(mailbox_path: Path, open_handoff_lines: dict[str, list[int]]) -> None:
+    same_role_open_lines = open_handoff_lines["same_role"]
+    other_role_open_lines = open_handoff_lines["other_role"]
+    all_open_lines = same_role_open_lines + other_role_open_lines
     print(f"mailbox: {mailbox_path.relative_to(ROOT_DIR)}")
-    print(f"open_handoffs: {len(open_lines)}")
-    if len(open_lines) > 1:
-        print("open_handoff_lines:")
-        for line_no in open_lines:
+    print(f"open_handoffs: {len(all_open_lines)}")
+    print(f"same_role_open_handoffs: {len(same_role_open_lines)}")
+    print(f"other_role_open_handoffs: {len(other_role_open_lines)}")
+    if same_role_open_lines:
+        print("same_role_open_handoff_lines:")
+        for line_no in same_role_open_lines:
+            print(f"  - {line_no}")
+    if other_role_open_lines:
+        print("other_role_open_handoff_lines:")
+        for line_no in other_role_open_lines:
             print(f"  - {line_no}")
 
 
@@ -144,6 +180,7 @@ def main() -> int:
     payload = run_registry(registry_command, args.agent_ref)
     agent_uid = payload.get("agent_uid") or args.agent_ref
     display_id = payload.get("display_id")
+    agent_role = resolve_agent_role(agent_uid)
 
     checklist_paths: list[Path] = []
     unchecked_by_path: dict[Path, list[str]] = {}
@@ -194,14 +231,19 @@ def main() -> int:
         for path in checklist_paths:
             unchecked_by_path[path] = scan_unchecked_items(path)
         mailbox_path = resolve_agent_mailbox_path(agent_uid)
-        open_handoff_lines = scan_open_handoffs(mailbox_path)
+        open_handoff_lines = scan_open_handoffs(mailbox_path, agent_role=agent_role)
         emit_checklist_summary(
             checklist_paths=checklist_paths,
             unchecked_by_path=unchecked_by_path,
             bootstrap_batch=bootstrap_batch,
         )
         emit_mailbox_summary(mailbox_path, open_handoff_lines)
-        return 2 if any(unchecked_by_path.values()) or len(open_handoff_lines) > 1 else 0
+        same_role_open_count = len(open_handoff_lines["same_role"])
+        other_role_open_count = len(open_handoff_lines["other_role"])
+        mailbox_pending = other_role_open_count > 1
+        if not bootstrap_batch:
+            mailbox_pending = mailbox_pending or same_role_open_count != 1
+        return 2 if any(unchecked_by_path.values()) or mailbox_pending else 0
 
     emit_registry_summary(payload)
 

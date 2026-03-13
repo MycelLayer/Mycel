@@ -81,6 +81,42 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
+    def prepare_completed_bootstrap_batch(self, *, role: str = "doc") -> str:
+        self.write_agents_md()
+        claim = self.run_registry("claim", role, "--scope", "timestamp-wrapper")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.replace_in_file(
+            start["bootstrap_output"],
+            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
+            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
+        )
+        self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
+        self.replace_in_file(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            "- [ ] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+            "- [X] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+        )
+        end = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper")
+        self.assertEqual(0, end.returncode)
+        return agent_uid
+
+    def prepare_second_batch(self, *, role: str = "doc") -> str:
+        agent_uid = self.prepare_completed_bootstrap_batch(role=role)
+        begin = self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
+        self.assertEqual(0, begin.returncode)
+        self.replace_in_file(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "- [ ] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+            "- [X] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
+        )
+        self.replace_in_file(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "- [ ] Leave a mailbox handoff <!-- item-id: workflow.mailbox-handoff-each-cycle -->",
+            "- [X] Leave a mailbox handoff <!-- item-id: workflow.mailbox-handoff-each-cycle -->",
+        )
+        return agent_uid
+
     def test_begin_touches_agent_and_prints_before_work_line(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
@@ -147,30 +183,20 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("unchecked_items: 2", proc.stdout)
 
     def test_end_returns_pending_when_mailbox_has_multiple_open_handoffs(self) -> None:
-        self.write_agents_md()
-        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
-        agent_uid = claim["agent_uid"]
-        start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
-        self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
-        self.replace_in_file(
-            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
-            "- [ ] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
-            "- [X] Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->",
-        )
+        agent_uid = self.prepare_second_batch(role="doc")
         self.write_mailbox(
             agent_uid,
             """# Mailbox for agt_doc
 
-## First
+## Doc Continuation Note
 
 - Status: open
 
-## Second
+## Planning Sync Handoff
+
+- Status: open
+
+## Third
 
 - Status: open
 """,
@@ -180,8 +206,54 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(2, proc.returncode)
         self.assertIn("unchecked_items: 0", proc.stdout)
+        self.assertIn("open_handoffs: 3", proc.stdout)
+        self.assertIn("same_role_open_handoffs: 1", proc.stdout)
+        self.assertIn("other_role_open_handoffs: 2", proc.stdout)
+        self.assertIn("same_role_open_handoff_lines:", proc.stdout)
+        self.assertIn("other_role_open_handoff_lines:", proc.stdout)
+
+    def test_end_returns_pending_when_non_bootstrap_batch_has_no_open_same_role_handoff(self) -> None:
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Planning Sync Handoff
+
+- Status: open
+""",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("unchecked_items: 0", proc.stdout)
+        self.assertIn("same_role_open_handoffs: 0", proc.stdout)
+        self.assertIn("other_role_open_handoffs: 1", proc.stdout)
+
+    def test_end_allows_one_open_same_role_handoff_and_one_open_other_role_handoff(self) -> None:
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+
+## Planning Sync Handoff
+
+- Status: open
+""",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("unchecked_items: 0", proc.stdout)
         self.assertIn("open_handoffs: 2", proc.stdout)
-        self.assertIn("open_handoff_lines:", proc.stdout)
+        self.assertIn("same_role_open_handoffs: 1", proc.stdout)
+        self.assertIn("other_role_open_handoffs: 1", proc.stdout)
 
 
 if __name__ == "__main__":

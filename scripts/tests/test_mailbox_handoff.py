@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_MAILBOX_HANDOFF = REPO_ROOT / "scripts" / "mailbox_handoff.py"
 SOURCE_AGENT_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_ITEM_ID_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
+SOURCE_ITEM_ID_CHECKLIST_MARK = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 
 
 class MailboxHandoffCliTest(unittest.TestCase):
@@ -21,9 +22,11 @@ class MailboxHandoffCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_MAILBOX_HANDOFF, self.root / "scripts" / "mailbox_handoff.py")
         shutil.copy2(SOURCE_AGENT_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_ITEM_ID_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
+        shutil.copy2(SOURCE_ITEM_ID_CHECKLIST_MARK, self.root / "scripts" / "item_id_checklist_mark.py")
         (self.root / "scripts" / "mailbox_handoff.py").chmod(0o755)
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
+        (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -166,6 +169,98 @@ class MailboxHandoffCliTest(unittest.TestCase):
         self.assertIn("- Source agent: doc-9", mailbox)
         self.assertIn("  - refresh is due for doc, issue, and web", mailbox)
         self.assertIn("  - scripts/check-plan-refresh.sh", mailbox)
+
+    def test_create_planning_sync_keeps_open_same_role_handoff(self) -> None:
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 1,
+                "agents": [self.registry_entry(agent_uid="agt_coding", role="coding", display_id="coding-7")],
+            }
+        )
+        self.write_mailbox(
+            ".agent-local/mailboxes/agt_coding.md",
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+- Date: 2026-03-13 09:00 UTC+8
+- Source agent: coding-7
+- Scope: coding-follow-up
+- Current state:
+  - open coding state remains
+- Next suggested step:
+  - continue coding work
+""",
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                "create",
+                "coding-7",
+                "planning-sync",
+                "--scope",
+                "planning-follow-up",
+                "--planning-impact",
+                "roadmap wording update needed",
+                "--verification",
+                "cargo test -p mycel-cli",
+                "--json",
+            ).stdout
+        )
+
+        mailbox = (self.root / payload["mailbox"]).read_text(encoding="utf-8")
+        self.assertEqual("planning-sync", payload["template"])
+        self.assertEqual(0, payload["superseded_count"])
+        self.assertEqual(2, mailbox.count("- Status: open"))
+        self.assertIn("## Work Continuation Handoff", mailbox)
+        self.assertIn("## Planning Sync Handoff", mailbox)
+
+    def test_create_planning_sync_supersedes_existing_open_cross_role_entry_only(self) -> None:
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 1,
+                "agents": [self.registry_entry(agent_uid="agt_coding", role="coding", display_id="coding-7")],
+            }
+        )
+        self.write_mailbox(
+            ".agent-local/mailboxes/agt_coding.md",
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+
+## Planning Sync Handoff
+
+- Status: open
+""",
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                "create",
+                "coding-7",
+                "planning-sync",
+                "--scope",
+                "new-planning-follow-up",
+                "--planning-impact",
+                "checklist wording update needed",
+                "--verification",
+                "cargo test -p mycel-cli",
+                "--json",
+            ).stdout
+        )
+
+        mailbox = (self.root / payload["mailbox"]).read_text(encoding="utf-8")
+        self.assertEqual(1, payload["superseded_count"])
+        self.assertEqual(2, mailbox.count("- Status: open"))
+        self.assertEqual(1, mailbox.count("- Status: superseded"))
+        self.assertIn("- Scope: new-planning-follow-up", mailbox)
 
     def test_planning_resolution_does_not_close_existing_open_entry(self) -> None:
         self.write_registry(
