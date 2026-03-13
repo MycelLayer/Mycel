@@ -36,7 +36,7 @@
 - When suggesting a mature module, library, or framework, explain why now is the right time, what problem it solves, and the main tradeoff of adopting it.
 
 ## New chat bootstrap
-- Scan the repo layout with `rg --files` for fast file discovery. <!-- item-id: bootstrap.repo-layout -->
+- Scan the repo root with `ls` for a quick top-level layout before using narrower file discovery commands when needed. <!-- item-id: bootstrap.repo-layout -->
 - Dev setup:
   - Before repeating environment checks, read `.agent-local/dev-setup-status.md` if it exists. <!-- item-id: bootstrap.read-dev-setup-status -->
   - If `.agent-local/dev-setup-status.md` says `Status: ready` and records the required tool/setup checks for this workspace, a new chat does not need to re-check dev setup during bootstrap. <!-- item-id: bootstrap.skip-dev-setup-when-ready -->
