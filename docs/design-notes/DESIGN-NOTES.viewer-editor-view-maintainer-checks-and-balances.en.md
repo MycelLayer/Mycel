@@ -449,17 +449,81 @@ Suggested minimum fields:
 - `viewer_id`
 - `candidate_revision_id`
 - `signal_type`
+- `reason_code`
 - `confidence_level`
 - `evidence_ref`
 - `created_at`
 - `expires_at`
+- `signal_status`
 
 Where:
 
 - `signal_type` should at least distinguish `approval`, `objection`, and `challenge`
+- `reason_code` keeps the signal machine-classifiable without forcing the entire explanation into free text
 - `confidence_level` distinguishes low-cost expression from higher-commitment signaling
 - `evidence_ref` is mainly for `challenge`, so it does not collapse into a heavier dislike
 - `expires_at` prevents very old signals from sticking to a candidate forever
+- `signal_status` distinguishes active, expired, withdrawn, or resolved signals without treating every challenge as final rejection
+
+Suggested minimum enum shape:
+
+- `signal_type`
+  - `approval`
+  - `objection`
+  - `challenge`
+- `confidence_level`
+  - `low`
+  - `medium`
+  - `high`
+- `signal_status`
+  - `active`
+  - `expired`
+  - `withdrawn`
+  - `resolved`
+
+Suggested per-type minimum semantics:
+
+- `approval`
+  - may contribute only to `bounded_viewer_bonus`
+  - may use `low` or `medium` confidence
+  - should not require `evidence_ref`
+- `objection`
+  - may contribute only to `bounded_viewer_penalty`
+  - may use `low`, `medium`, or `high` confidence
+  - may omit `evidence_ref`, but should still carry a machine-readable `reason_code`
+- `challenge`
+  - should not directly modify the primary selector score
+  - should require `medium` or `high` confidence
+  - should require `evidence_ref` or another durable evidence handle
+  - should open a review-oriented path rather than encode final rejection by itself
+
+Suggested field rules:
+
+- `signal_id` should be stable and unique within the relevant profile or application scope
+- `viewer_id` identifies the signaling subject, but final eligibility and weight still come from profile rules
+- `candidate_revision_id` binds the signal to one candidate head rather than the entire document forever
+- `created_at` records when the signal became active
+- `expires_at` bounds how long it can affect selector bonus, penalty, or escalation paths
+- `signal_status=resolved` means the signal entered and completed a review path; it does not mean the candidate was automatically rejected
+- `signal_status=withdrawn` means the viewer removed the signal before expiry or resolution
+
+Suggested evidence and confidence expectations:
+
+- `approval`
+  - evidence is optional
+  - confidence mainly expresses how strongly the viewer is willing to stand behind the support signal
+- `objection`
+  - evidence is optional but encouraged for repeated or high-confidence objection
+  - confidence expresses how strongly the objection should count inside bounded penalty rules
+- `challenge`
+  - evidence should be required because challenge is an escalation request, not a heavier dislike
+  - confidence expresses the severity and commitment of the challenge claim, but does not bypass review
+
+This distinction matters because the model should keep:
+
+- support separate from resistance
+- resistance separate from formal review request
+- formal review request separate from final rejection
 
 For safer deployment, signal-adjacent eligibility and weighting fields are also needed:
 
