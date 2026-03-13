@@ -71,6 +71,46 @@ fn object_inspect_json_warns_for_view_with_non_object_policy() {
 }
 
 #[test]
+fn object_inspect_json_warns_for_view_with_duplicate_policy_preferred_branches() {
+    let object = write_object_file(
+        "object-inspect-view-duplicate-policy-preferred-branches",
+        "view.json",
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": ["main", "main"]
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }),
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "inspect", &path, "--json"]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|entry| entry
+                .as_str()
+                .is_some_and(|message| message.contains(
+                    "top-level 'policy.preferred_branches[1]' duplicates 'policy.preferred_branches[0]'"
+                )))),
+        "expected duplicate preferred_branches warning, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_inspect_json_warns_for_view_with_wrong_maintainer_prefix() {
     let object = write_object_file(
         "object-inspect-view-wrong-maintainer-prefix",

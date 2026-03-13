@@ -954,6 +954,169 @@ fn parse_view_object_rejects_non_object_policy() {
 }
 
 #[test]
+fn parse_view_object_rejects_non_string_policy_merge_rule() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": 7
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(error.to_string(), "top-level 'policy.merge_rule' must be a string");
+}
+
+#[test]
+fn parse_view_object_rejects_empty_policy_merge_rule() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": ""
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.merge_rule' must not be an empty string"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_non_array_policy_accept_keys() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "accept_keys": "pk:ed25519:test",
+            "merge_rule": "manual-reviewed"
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.accept_keys' must be an array"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_wrong_policy_accept_key_prefix() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "accept_keys": ["sig:test"],
+            "merge_rule": "manual-reviewed"
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.accept_keys[0]' must use 'pk:' prefix"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_duplicate_policy_accept_keys() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "accept_keys": ["pk:ed25519:test", "pk:ed25519:test"],
+            "merge_rule": "manual-reviewed"
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.accept_keys[1]' duplicates 'policy.accept_keys[0]'"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_non_string_policy_preferred_branch() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": [7]
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.preferred_branches[0]' must be a string"
+    );
+}
+
+#[test]
+fn parse_view_object_rejects_duplicate_policy_preferred_branches() {
+    let error = parse_view_object(&json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": "pk:ed25519:test",
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": ["main", "main"]
+        },
+        "timestamp": 7u64
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "top-level 'policy.preferred_branches[1]' duplicates 'policy.preferred_branches[0]'"
+    );
+}
+
+#[test]
 fn parse_view_object_rejects_missing_policy() {
     let error = parse_view_object(&json!({
         "type": "view",

@@ -691,7 +691,11 @@ pub fn parse_view_object(value: &Value) -> Result<ViewObject, TypedObjectError> 
         view_id: required_prefixed_string(object, "view_id", "view:")?,
         maintainer: required_prefixed_string(object, "maintainer", "pk:")?,
         documents: require_prefixed_string_map_entries(documents, "documents", "doc:", "rev:")?,
-        policy: Value::Object(required_object(object, "policy")?),
+        policy: {
+            let policy = required_object(object, "policy")?;
+            validate_view_policy(&policy)?;
+            Value::Object(policy)
+        },
         timestamp: required_u64(object, "timestamp")?,
     })
 }
@@ -1296,6 +1300,70 @@ pub(crate) fn reject_duplicate_strings(
         }
     }
     Ok(())
+}
+
+fn validate_view_policy(policy: &Map<String, Value>) -> Result<(), TypedObjectError> {
+    if let Some(merge_rule) = policy.get("merge_rule") {
+        match merge_rule {
+            Value::String(value) => {
+                if value.is_empty() {
+                    return Err(TypedObjectError::new(
+                        "top-level 'policy.merge_rule' must not be an empty string",
+                    ));
+                }
+            }
+            _ => {
+                return Err(TypedObjectError::new(
+                    "top-level 'policy.merge_rule' must be a string",
+                ));
+            }
+        }
+    }
+
+    if let Some(accept_keys) = policy.get("accept_keys") {
+        let values = string_array_with_path(accept_keys, "policy.accept_keys")?;
+        for (index, value) in values.iter().enumerate() {
+            if value.is_empty() {
+                return Err(TypedObjectError::new(format!(
+                    "top-level 'policy.accept_keys[{index}]' must not be an empty string"
+                )));
+            }
+            validate_prefixed_string_with_path(value, &format!("policy.accept_keys[{index}]"), "pk:")?;
+        }
+        reject_duplicate_strings(&values, "policy.accept_keys")?;
+    }
+
+    if let Some(preferred_branches) = policy.get("preferred_branches") {
+        let values = string_array_with_path(preferred_branches, "policy.preferred_branches")?;
+        for (index, value) in values.iter().enumerate() {
+            if value.is_empty() {
+                return Err(TypedObjectError::new(format!(
+                    "top-level 'policy.preferred_branches[{index}]' must not be an empty string"
+                )));
+            }
+        }
+        reject_duplicate_strings(&values, "policy.preferred_branches")?;
+    }
+
+    Ok(())
+}
+
+fn string_array_with_path(value: &Value, field_path: &str) -> Result<Vec<String>, TypedObjectError> {
+    match value {
+        Value::Array(values) => values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| match value {
+                Value::String(value) => Ok(value.clone()),
+                _ => Err(TypedObjectError::new(format!(
+                    "top-level '{field_path}[{index}]' must be a string"
+                ))),
+            })
+            .collect(),
+        _ => Err(TypedObjectError::new(format!(
+            "top-level '{field_path}' must be an array"
+        ))),
+    }
 }
 
 fn required_string_map(

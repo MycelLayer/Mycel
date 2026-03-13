@@ -190,6 +190,45 @@ fn object_verify_json_fails_for_view_with_negative_timestamp() {
 }
 
 #[test]
+fn object_verify_json_fails_for_view_with_invalid_policy_accept_key_prefix() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "accept_keys": ["sig:test"],
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file("object-verify-view-bad-policy-accept-key", "view.json", view);
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains("top-level 'policy.accept_keys[0]' must use 'pk:' prefix")
+                })
+            })),
+        "expected policy accept_keys prefix error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_view_with_non_string_signature() {
     let object = write_object_file(
         "object-verify-view-non-string-signature",
