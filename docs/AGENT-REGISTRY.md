@@ -201,6 +201,7 @@ Recommended mailbox pattern:
 - copyable planning-sync example: `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`
 - copyable planning-sync resolution example: `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`
 - copyable work-continuation example: `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
+- copyable doc-continuation example: `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`
 - mailbox archive root: `.agent-local/mailboxes/archive/YYYY-MM/`
 
 Fallback shared mailboxes such as `.agent-local/coding-to-doc.md` and `.agent-local/doc-to-coding.md` may still be used if the team explicitly wants them, but the registry remains the source of truth for role assignment.
@@ -211,7 +212,7 @@ Mailbox usage for `sync doc` / `sync web` / `sync plan` work:
 - `coding` agents should leave sync-relevant notes in their own registry mailbox when work changes planning-relevant implementation state, checklist closure, roadmap emphasis, public progress wording, or issue-triage inputs
 - `coding` agents should satisfy that per-cycle requirement with one open `Work Continuation Handoff` in their own mailbox, even when no planning-sync follow-up is needed
 - `doc` agents should satisfy that per-cycle requirement with one mailbox handoff entry that captures the latest doc state for the cycle; use a planning-sync handoff, resolution reply, blocking note, or doc continuation note as appropriate
-- before leaving a new open current-state handoff in the same mailbox, the agent should mark any older open current-state handoff for that scope as `superseded`, so the mailbox ends with one latest open current-state handoff
+- before leaving a new open current-state handoff in the same mailbox, the agent should mark any older open current-state handoff for that scope as `superseded`, so the mailbox ends with one latest open current-state handoff; `python3 scripts/mailbox_handoff.py create ...` automates that supersede-and-prepend step
 - `doc` should scan active, paused, and recently inactive agent mailboxes before any `sync doc`, `sync web`, or `sync plan` batch and use those notes as collection input for roadmap/checklist/progress or Pages refresh work
 - scan order should be: active mailbox paths first, paused mailbox paths second, recently inactive mailbox paths third, and fallback shared mailboxes last; archived mailboxes stay out of scope unless a current mailbox explicitly points to an unresolved archived entry
 - mailbox handoff is the default coordination path for planning-sync material; `coding` should not replace it by running `scripts/check-plan-refresh.sh`
@@ -257,6 +258,7 @@ Minimum handoff quality:
 - continuation handoffs should explicitly include `Status: open`, `Current state`, and `Next suggested step`, because they are written under the assumption that the user may not assign another follow-up before pause or takeover
 - a mailbox should not accumulate multiple open current-state handoffs for the same scope; older ones should be closed as `superseded` before a newer open current-state handoff is added
 - if an agent wants a ready-made starting point for continuation instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
+- if an agent wants to render the tracked mailbox shapes directly, use `python3 scripts/mailbox_handoff.py create <agent-ref> <template> ...`
 
 Mailbox retention and archive policy:
 

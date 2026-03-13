@@ -8,7 +8,9 @@ For agent discovery and role lookup, read [AGENT-REGISTRY.md](./AGENT-REGISTRY.m
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, and `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`.
+Use `python3 scripts/mailbox_handoff.py create ...` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool prepends the new entry and automatically marks older `Status: open` entries in that mailbox as `superseded`.
+
+The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, and `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`.
 
 ## Modes
 
@@ -69,7 +71,7 @@ Mailbox retention and archive policy:
 ## Workflow
 
 1. an agent finishes one user-command work cycle.
-2. before appending a new current-state handoff, the agent updates any older open current-state handoff in the same mailbox and same scope to `Status: superseded` when the new entry replaces it.
+2. before appending a new current-state handoff, the agent updates any older open current-state handoff in the same mailbox and same scope to `Status: superseded` when the new entry replaces it; `scripts/mailbox_handoff.py create` automates that step for new open entries.
 3. every agent appends or updates one mailbox handoff entry in its own mailbox before ending the work cycle, so the mailbox records the latest state for that cycle.
 4. `coding` normally satisfies that requirement with one open `Work Continuation Handoff`, even if no doc follow-up is needed.
 5. if the landed work is planning-relevant, `coding` also appends a `Planning Sync Handoff` entry to its own mailbox or the intended peer mailbox named in `.agent-local/agents.json`.
@@ -154,7 +156,30 @@ When `doc` resolves or responds, either update the original entry status or appe
 - Remaining follow-up: none
 ```
 
-If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`.
+If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> planning-resolution ...`.
+
+## Doc Continuation Note
+
+When `doc` needs to leave the latest state for an unfinished sync batch or a completed bootstrap/read-only cycle, use a `Doc Continuation Note`.
+
+Copyable doc continuation template:
+
+```md
+## Doc Continuation Note
+
+- Status: open
+- Date: 2026-03-13 17:18 UTC+8
+- Source agent: doc-3
+- Scope: <scope>
+- Current state:
+  - <what was confirmed or refreshed in this cycle>
+- Evidence:
+  - <command or source consulted>
+- Next suggested step:
+  - <best next doc/planning action>
+```
+
+If `doc` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> doc-continuation ...`.
 
 ## Work Continuation Handoff
 
@@ -205,7 +230,7 @@ Copyable continuation template:
   - <optional short context>
 ```
 
-If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`.
+If `coding` wants a ready-made starting point, copy from `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, or use `python3 scripts/mailbox_handoff.py create <agent-ref> work-continuation ...`.
 
 ## Example
 

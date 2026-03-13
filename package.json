@@ -2,6 +2,7 @@
   "name": "mycel-docs-checks",
   "private": true,
   "scripts": {
+    "handoffs:create": "python3 scripts/mailbox_handoff.py create",
     "handoffs:inactive-coding": "python3 scripts/inactive_coding_handoffs.py",
     "lint:docs": "npm run lint:pages",
     "lint:pages": "npm run lint:pages:html && npm run lint:pages:css",
