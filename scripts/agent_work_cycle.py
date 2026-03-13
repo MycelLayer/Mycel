@@ -15,6 +15,7 @@ from item_id_checklist import (
     latest_agents_workcycle_batch_num,
     materialize_checklist,
 )
+from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_items
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -78,26 +79,11 @@ def resolve_agent_mailbox_path(agent_ref: str) -> Path:
     return ROOT_DIR / mailbox_rel
 
 
-def checklist_item_line(item_id: str, state: str) -> str:
-    return f"<!-- item-id: {item_id} -->", f"- [{state}]"
-
-
-def set_checklist_item_state(checklist_path: Path, item_id: str, state: str) -> None:
-    if not checklist_path.exists():
-        raise WorkCycleError(f"missing checklist file: {checklist_path.relative_to(ROOT_DIR)}")
-
-    lines = checklist_path.read_text(encoding="utf-8").splitlines()
-    marker, replacement = checklist_item_line(item_id, state)
-    for index, line in enumerate(lines):
-        if marker not in line:
-            continue
-        lines[index] = line.replace("- [ ]", replacement, 1)
-        lines[index] = lines[index].replace("- [X]", replacement, 1)
-        lines[index] = lines[index].replace("- [-]", replacement, 1)
-        lines[index] = lines[index].replace("- [!]", replacement, 1)
-        checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        return
-    raise WorkCycleError(f"checklist item not found: {item_id}")
+def set_checklist_item_states(checklist_path: Path, updates: list[tuple[str, str]]) -> None:
+    try:
+        update_checklist_items(checklist_path, updates)
+    except ItemIdChecklistMarkError as exc:
+        raise WorkCycleError(str(exc)) from exc
 
 
 def scan_unchecked_items(checklist_path: Path) -> list[str]:
@@ -172,9 +158,10 @@ def main() -> int:
         if not isinstance(workcycle_output, str):
             raise WorkCycleError("workcycle checklist generation did not return an output path")
         workcycle_path = ROOT_DIR / workcycle_output
-        set_checklist_item_state(workcycle_path, "workflow.touch-work-cycle", "X")
+        updates: list[tuple[str, str]] = [("workflow.touch-work-cycle", "checked")]
         if checklist_result.get("batch_num") == 1:
-            set_checklist_item_state(workcycle_path, "workflow.mailbox-handoff-each-cycle", "-")
+            updates.append(("workflow.mailbox-handoff-each-cycle", "not-needed"))
+        set_checklist_item_states(workcycle_path, updates)
         print(f"workcycle_output: {workcycle_output}")
         if "batch_num" in checklist_result:
             print(f"batch_num: {checklist_result['batch_num']}")
@@ -184,7 +171,7 @@ def main() -> int:
             raise WorkCycleError(f"no workcycle checklist found for {agent_uid}")
 
         workcycle_path = agents_workcycle_checklist_path(agent_uid, latest_batch)
-        set_checklist_item_state(workcycle_path, "workflow.finish-work-cycle", "X")
+        set_checklist_item_states(workcycle_path, [("workflow.finish-work-cycle", "checked")])
         checklist_paths.append(workcycle_path)
 
         bootstrap_path = agents_bootstrap_checklist_path(agent_uid)

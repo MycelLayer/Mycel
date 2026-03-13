@@ -191,6 +191,23 @@ def apply_updates(
     return results
 
 
+def update_checklist_items(
+    checklist_path: Path,
+    updates: list[tuple[str, str]],
+    *,
+    problem_overrides: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
+    resolved_path = resolve_checklist_path(checklist_path)
+    lines = resolved_path.read_text(encoding="utf-8").splitlines()
+    results = apply_updates(
+        lines=lines,
+        updates=updates,
+        problem_overrides=problem_overrides or {},
+    )
+    resolved_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return results
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="scripts/item_id_checklist_mark.py",
@@ -223,7 +240,6 @@ def main() -> int:
     args = parser.parse_args()
     try:
         checklist_path = resolve_checklist_path(args.checklist_md)
-        lines = checklist_path.read_text(encoding="utf-8").splitlines()
         if args.update:
             if args.item_id is not None:
                 raise ItemIdChecklistMarkError("batch mode cannot be combined with the single item_id argument")
@@ -234,8 +250,11 @@ def main() -> int:
 
             updates = [parse_batch_update(spec) for spec in args.update]
             problem_overrides = dict(parse_problem_override(spec) for spec in args.problem_update)
-            results = apply_updates(lines=lines, updates=updates, problem_overrides=problem_overrides)
-            checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            results = update_checklist_items(
+                checklist_path,
+                updates,
+                problem_overrides=problem_overrides,
+            )
             result = {
                 "status": "ok",
                 "path": relative_to_root(checklist_path),
@@ -244,16 +263,11 @@ def main() -> int:
         else:
             if args.item_id is None:
                 raise ItemIdChecklistMarkError("missing item_id; pass one item_id or use --update for batch mode")
-            item_index, current_mark, item_indent = find_item(lines, args.item_id)
-            state = apply_state(
-                lines,
-                item_index,
-                current_mark,
-                item_indent,
-                args.state or "checked",
-                args.problem,
-            )
-            checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            state = update_checklist_items(
+                checklist_path,
+                [(args.item_id, args.state or "checked")],
+                problem_overrides={args.item_id: args.problem} if args.problem else None,
+            )[0]["state"]
             result = {
                 "status": "ok",
                 "path": relative_to_root(checklist_path),

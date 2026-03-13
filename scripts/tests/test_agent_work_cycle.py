@@ -11,6 +11,7 @@ SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
+SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 
 
 class AgentWorkCycleCliTest(unittest.TestCase):
@@ -23,10 +24,12 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
+        shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
         (self.root / "scripts" / "agent_work_cycle.py").chmod(0o755)
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
         (self.root / "scripts" / "agent_timestamp.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
+        (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
