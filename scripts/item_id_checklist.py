@@ -166,6 +166,92 @@ def collect_relevant_lines(lines: list[str]) -> tuple[list[str], int]:
     return rendered_lines, item_count
 
 
+def split_heading_blocks(lines: list[str]) -> tuple[list[str], list[tuple[str, list[str]]]]:
+    root_lines: list[str] = []
+    blocks: list[tuple[str, list[str]]] = []
+    current_title: str | None = None
+    current_lines: list[str] = []
+
+    for line in lines:
+        heading_match = HEADING_RE.match(line)
+        if heading_match is None:
+            if current_title is None:
+                root_lines.append(line)
+            else:
+                current_lines.append(line)
+            continue
+
+        level = len(heading_match.group("marks"))
+        heading_text = heading_match.group("text").strip()
+        if level == 1:
+            if current_title is not None:
+                blocks.append((current_title, current_lines))
+                current_title = None
+                current_lines = []
+            root_lines.append(line)
+            continue
+
+        if current_title is not None:
+            blocks.append((current_title, current_lines))
+        current_title = heading_text
+        current_lines = [line]
+
+    if current_title is not None:
+        blocks.append((current_title, current_lines))
+
+    return root_lines, blocks
+
+
+def extract_existing_body_lines(output_path: Path) -> list[str]:
+    if not output_path.exists():
+        return []
+
+    lines = output_path.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        heading_match = HEADING_RE.match(line)
+        if heading_match is None:
+            continue
+        if heading_match.group("text").strip() == "Agent Item-ID Checklist Copy":
+            continue
+        return lines[index:]
+    return []
+
+
+def materialize_agents_checklist(
+    *,
+    source_lines: list[str],
+    output_path: Path,
+) -> list[str]:
+    root_lines, source_blocks = split_heading_blocks(source_lines)
+    source_block_map = {title: lines for title, lines in source_blocks}
+    source_bootstrap = source_block_map.get("New chat bootstrap")
+    source_workflow = source_block_map.get("Work Cycle Workflow")
+
+    if source_bootstrap is None or source_workflow is None:
+        return source_lines
+
+    existing_body_lines = extract_existing_body_lines(output_path)
+    existing_root_lines, existing_blocks = split_heading_blocks(existing_body_lines)
+    existing_bootstrap_blocks = [lines for title, lines in existing_blocks if title == "New chat bootstrap"]
+    existing_workflow_blocks = [lines for title, lines in existing_blocks if title == "Work Cycle Workflow"]
+
+    rendered: list[str] = []
+    rendered.extend(existing_root_lines or root_lines)
+
+    bootstrap_block = existing_bootstrap_blocks[0] if existing_bootstrap_blocks else source_bootstrap
+    if rendered and rendered[-1] != "":
+        rendered.append("")
+    rendered.extend(bootstrap_block)
+
+    workflow_blocks = existing_workflow_blocks + [source_workflow]
+    for workflow_block in workflow_blocks:
+        if rendered and rendered[-1] != "":
+            rendered.append("")
+        rendered.extend(workflow_block)
+
+    return rendered
+
+
 def materialize_checklist(
     *,
     agent_uid: str,
@@ -185,6 +271,11 @@ def materialize_checklist(
         raise ItemIdChecklistError(f"source file has no item-id markers: {relative_to_root(source_path)}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    rendered_lines = (
+        materialize_agents_checklist(source_lines=normalized_lines, output_path=output_path)
+        if source_path.name == "AGENTS.md"
+        else normalized_lines
+    )
     rendered = [
         "# Agent Item-ID Checklist Copy",
         "",
@@ -196,7 +287,7 @@ def materialize_checklist(
         "- Status meanings: `- [ ]` not checked, `- [X]` checked and completed without problems, `- [!]` checked but problems were found.",
         "- When an item is marked `- [!]`, add an indented subitem immediately below it explaining the problem.",
         "",
-        *normalized_lines,
+        *rendered_lines,
         "",
     ]
     output_path.write_text("\n".join(rendered), encoding="utf-8")

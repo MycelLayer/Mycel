@@ -131,6 +131,45 @@ Context line that should not be copied.
         self.assertNotIn("Context line that should not be copied.", content)
         self.assertNotIn("## Dropped Section", content)
 
+    def test_agents_checklist_keeps_one_bootstrap_and_appends_workflow_per_run(self) -> None:
+        self.write_registry()
+        self.write_source(
+            "AGENTS.md",
+            """# Repo Working Agreements
+
+## New chat bootstrap
+- Bootstrap one <!-- item-id: bootstrap.one -->
+- Bootstrap two <!-- item-id: bootstrap.two -->
+
+## Work Cycle Workflow
+- Workflow one <!-- item-id: workflow.one -->
+- Workflow two <!-- item-id: workflow.two -->
+""",
+        )
+
+        first = json.loads(self.run_cli("agt_doc", "AGENTS.md", "--json").stdout)
+        output_path = self.root / first["output"]
+        first_content = output_path.read_text(encoding="utf-8")
+        self.assertEqual(1, first_content.count("## New chat bootstrap"))
+        self.assertEqual(1, first_content.count("## Work Cycle Workflow"))
+
+        output_path.write_text(
+            first_content.replace(
+                "- [ ] Workflow one <!-- item-id: workflow.one -->",
+                "- [X] Workflow one <!-- item-id: workflow.one -->",
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+        self.run_cli("agt_doc", "AGENTS.md", "--json")
+        second_content = output_path.read_text(encoding="utf-8")
+
+        self.assertEqual(1, second_content.count("## New chat bootstrap"))
+        self.assertEqual(2, second_content.count("## Work Cycle Workflow"))
+        self.assertEqual(1, second_content.count("- [X] Workflow one <!-- item-id: workflow.one -->"))
+        self.assertEqual(1, second_content.count("- [ ] Workflow one <!-- item-id: workflow.one -->"))
+
     def test_accepts_display_id_as_agent_ref(self) -> None:
         self.write_registry()
         self.write_source(
