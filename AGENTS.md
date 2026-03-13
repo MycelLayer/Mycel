@@ -70,7 +70,7 @@
 - In that agent-local copy, every `item-id` line should use checklist-style prefixes such as `- [ ]`, `- [X]`, `- [-]`, and `- [!]` so the agent can mark work in place without changing the tracked source file.
 - Use these meanings consistently in the agent-local copy: `- [ ]` means not checked yet, `- [X]` means checked and completed without problems, `- [-]` means not needed for this work cycle, and `- [!]` means checked but problems were found.
 - When an item is marked `- [!]`, the agent should add an indented subitem immediately below it explaining the problem.
-- Agents may update their own checklist copy with `python3 scripts/item_id_checklist_mark.py <checklist-md> <item-id> --state checked|unchecked|not-needed|problem [--problem "..."]`.
+- Agents may update their own checklist copy with `python3 scripts/item_id_checklist_mark.py <checklist-md> <item-id> --state checked|unchecked|not-needed|problem [--problem "..."]` or batch multiple changes in one write with repeated `--update <item-id>=<state>` flags (plus `--problem-update <item-id>=...` when needed).
 - Only update checklist state in the agent's own checklist copy unless the source instructions themselves are being intentionally edited.
 
 ## .md

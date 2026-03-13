@@ -13,6 +13,7 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parent.parent
 AGENT_CHECKLIST_DIR = ROOT_DIR / ".agent-local" / "agents"
 LEGACY_CHECKLIST_DIR = ROOT_DIR / ".agent-local" / "checklists"
+STATE_CHOICES = ("checked", "unchecked", "not-needed", "problem", "toggle")
 ITEM_LINE_RE = re.compile(
     r"^(?P<indent>\s*)-\s\[(?P<mark>[X!\- ])\]\s.*?(?P<suffix>\s*<!-- item-id: (?P<item_id>.*?) -->\s*)$"
 )
@@ -128,8 +129,66 @@ def apply_state(
 
 def print_human(data: dict[str, Any]) -> None:
     print(f"path: {data['path']}")
+    updates = data.get("updates")
+    if isinstance(updates, list):
+        print(f"updated: {len(updates)}")
+        for update in updates:
+            print(f"item_id: {update['item_id']}")
+            print(f"state: {update['state']}")
+        return
+
     print(f"item_id: {data['item_id']}")
     print(f"state: {data['state']}")
+
+
+def parse_batch_update(spec: str) -> tuple[str, str]:
+    item_id, separator, state = spec.partition("=")
+    if separator == "" or not item_id.strip() or not state.strip():
+        raise ItemIdChecklistMarkError(
+            "batch update must use ITEM_ID=STATE format, for example workflow.do-thing=checked"
+        )
+    normalized_state = state.strip()
+    if normalized_state not in STATE_CHOICES:
+        allowed = ", ".join(STATE_CHOICES)
+        raise ItemIdChecklistMarkError(f"unsupported batch state {normalized_state!r}; expected one of: {allowed}")
+    return item_id.strip(), normalized_state
+
+
+def parse_problem_override(spec: str) -> tuple[str, str]:
+    item_id, separator, problem = spec.partition("=")
+    if separator == "" or not item_id.strip() or not problem.strip():
+        raise ItemIdChecklistMarkError(
+            "problem override must use ITEM_ID=TEXT format, for example workflow.do-thing=Latest verification failed"
+        )
+    return item_id.strip(), problem.strip()
+
+
+def apply_updates(
+    *,
+    lines: list[str],
+    updates: list[tuple[str, str]],
+    problem_overrides: dict[str, str],
+) -> list[dict[str, str]]:
+    results: list[dict[str, str]] = []
+    seen_item_ids: set[str] = set()
+
+    for item_id, state in updates:
+        if item_id in seen_item_ids:
+            raise ItemIdChecklistMarkError(f"duplicate batch update for item_id: {item_id}")
+        seen_item_ids.add(item_id)
+
+        item_index, current_mark, item_indent = find_item(lines, item_id)
+        problem = problem_overrides.get(item_id, "")
+        next_state = apply_state(lines, item_index, current_mark, item_indent, state, problem)
+        results.append({"item_id": item_id, "state": next_state})
+
+    unknown_problem_items = sorted(set(problem_overrides) - seen_item_ids)
+    if unknown_problem_items:
+        raise ItemIdChecklistMarkError(
+            "problem override without matching batch update: " + ", ".join(unknown_problem_items)
+        )
+
+    return results
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -138,9 +197,23 @@ def build_parser() -> argparse.ArgumentParser:
         description="Update one item-id checklist line in an agent-local checklist copy.",
     )
     parser.add_argument("checklist_md")
-    parser.add_argument("item_id")
-    parser.add_argument("--state", choices=["checked", "unchecked", "not-needed", "problem", "toggle"], default="checked")
+    parser.add_argument("item_id", nargs="?")
+    parser.add_argument("--state", choices=STATE_CHOICES)
     parser.add_argument("--problem", default="")
+    parser.add_argument(
+        "--update",
+        action="append",
+        default=[],
+        metavar="ITEM_ID=STATE",
+        help="apply one batch update; may be passed multiple times",
+    )
+    parser.add_argument(
+        "--problem-update",
+        action="append",
+        default=[],
+        metavar="ITEM_ID=TEXT",
+        help="problem text for a batch update; may be passed multiple times",
+    )
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -151,15 +224,42 @@ def main() -> int:
     try:
         checklist_path = resolve_checklist_path(args.checklist_md)
         lines = checklist_path.read_text(encoding="utf-8").splitlines()
-        item_index, current_mark, item_indent = find_item(lines, args.item_id)
-        state = apply_state(lines, item_index, current_mark, item_indent, args.state, args.problem)
-        checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        result = {
-            "status": "ok",
-            "path": relative_to_root(checklist_path),
-            "item_id": args.item_id,
-            "state": state,
-        }
+        if args.update:
+            if args.item_id is not None:
+                raise ItemIdChecklistMarkError("batch mode cannot be combined with the single item_id argument")
+            if args.state is not None:
+                raise ItemIdChecklistMarkError("batch mode cannot be combined with --state")
+            if args.problem:
+                raise ItemIdChecklistMarkError("batch mode cannot be combined with --problem")
+
+            updates = [parse_batch_update(spec) for spec in args.update]
+            problem_overrides = dict(parse_problem_override(spec) for spec in args.problem_update)
+            results = apply_updates(lines=lines, updates=updates, problem_overrides=problem_overrides)
+            checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            result = {
+                "status": "ok",
+                "path": relative_to_root(checklist_path),
+                "updates": results,
+            }
+        else:
+            if args.item_id is None:
+                raise ItemIdChecklistMarkError("missing item_id; pass one item_id or use --update for batch mode")
+            item_index, current_mark, item_indent = find_item(lines, args.item_id)
+            state = apply_state(
+                lines,
+                item_index,
+                current_mark,
+                item_indent,
+                args.state or "checked",
+                args.problem,
+            )
+            checklist_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            result = {
+                "status": "ok",
+                "path": relative_to_root(checklist_path),
+                "item_id": args.item_id,
+                "state": state,
+            }
     except ItemIdChecklistMarkError as exc:
         print(str(exc), file=sys.stderr)
         return 1

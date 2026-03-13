@@ -175,6 +175,63 @@ class ItemIdChecklistMarkCliTest(unittest.TestCase):
             proc.stderr,
         )
 
+    def test_batch_updates_multiple_items_in_one_write(self) -> None:
+        checklist = self.write_checklist(
+            ".agent-local/agents/agt_doc/checklists/test.md",
+            (
+                "- [ ] First <!-- item-id: workflow.first -->\n"
+                "- [ ] Second <!-- item-id: workflow.second -->\n"
+                "- [ ] Third <!-- item-id: workflow.third -->\n"
+            ),
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                str(checklist.relative_to(self.root)),
+                "--update",
+                "workflow.first=checked",
+                "--update",
+                "workflow.second=not-needed",
+                "--update",
+                "workflow.third=problem",
+                "--problem-update",
+                "workflow.third=Latest verification failed",
+                "--json",
+            ).stdout
+        )
+        content = checklist.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            [
+                {"item_id": "workflow.first", "state": "checked"},
+                {"item_id": "workflow.second", "state": "not-needed"},
+                {"item_id": "workflow.third", "state": "problem"},
+            ],
+            payload["updates"],
+        )
+        self.assertIn("- [X] First <!-- item-id: workflow.first -->", content)
+        self.assertIn("- [-] Second <!-- item-id: workflow.second -->", content)
+        self.assertIn("- [!] Third <!-- item-id: workflow.third -->", content)
+        self.assertIn("  - Problem: Latest verification failed", content)
+
+    def test_batch_rejects_problem_override_without_update(self) -> None:
+        checklist = self.write_checklist(
+            ".agent-local/agents/agt_doc/checklists/test.md",
+            "- [ ] First <!-- item-id: workflow.first -->\n",
+        )
+
+        proc = self.run_cli(
+            str(checklist.relative_to(self.root)),
+            "--update",
+            "workflow.first=checked",
+            "--problem-update",
+            "workflow.second=Latest verification failed",
+            check=False,
+        )
+
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("problem override without matching batch update", proc.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
