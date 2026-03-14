@@ -2553,7 +2553,10 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
     let json = parse_json_stdout(&output);
     assert_eq!(json["status"], Value::String("ok".to_string()));
     assert_eq!(json["selected_head"], revision_a["revision_id"]);
-    assert_eq!(json["tie_break_reason"], Value::String("higher_selector_score".to_string()));
+    assert_eq!(
+        json["tie_break_reason"],
+        Value::String("higher_selector_score".to_string())
+    );
     let eligible_heads = json["eligible_heads"]
         .as_array()
         .expect("eligible_heads should be array");
