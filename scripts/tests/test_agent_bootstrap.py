@@ -126,6 +126,21 @@ class AgentBootstrapCliTest(unittest.TestCase):
             payload["deferred_reads"],
         )
 
+    def test_concise_text_output_keeps_user_facing_summary_short(self) -> None:
+        proc = self.run_cli("coding", "--scope", "relay-ready", "--concise")
+
+        self.assertIn("claimed_agent: coding-1 (agt_", proc.stdout)
+        self.assertIn("role: coding", proc.stdout)
+        self.assertIn("scope: relay-ready", proc.stdout)
+        self.assertIn("startup_mode: fresh-chat-fast-path", proc.stdout)
+        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+\) \| relay-ready")
+        self.assertIn("repo_status:\n  ## No commits yet on main", proc.stdout)
+        self.assertIn("next_actions:", proc.stdout)
+        self.assertIn("deferred_reads:", proc.stdout)
+        self.assertNotIn("bootstrap_output:", proc.stdout)
+        self.assertNotIn("mailbox_link:", proc.stdout)
+        self.assertNotIn("fast_path_steps:", proc.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

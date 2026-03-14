@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scope", default="pending scope", help="scope label for the new agent")
     parser.add_argument("--assigned-by", default="user", help="registry assigned_by value")
     parser.add_argument("--json", action="store_true", help="emit a combined JSON payload")
+    parser.add_argument(
+        "--concise",
+        action="store_true",
+        help="emit a shorter text summary suited for relaying the bootstrap result to the user",
+    )
     return parser.parse_args()
 
 
@@ -176,11 +181,47 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         "fast_path_steps": fast_path_steps_for_role(role),
         "deferred_reads": deferred_reads_for_role(role),
         "next_actions": next_actions_for_role(role),
+        "claimed_agent_label": f"{claim_payload.get('display_id')} ({agent_uid})",
     }
     return result
 
 
-def print_text_result(result: dict[str, Any]) -> None:
+def print_concise_text_result(result: dict[str, Any]) -> None:
+    claimed_agent_label = result.get("claimed_agent_label")
+    if claimed_agent_label:
+        print(f"claimed_agent: {claimed_agent_label}")
+    for key in ["role", "scope", "startup_mode"]:
+        value = result.get(key)
+        if value is None:
+            continue
+        print(f"{key}: {value}")
+
+    before_work_line = result.get("before_work_line")
+    if before_work_line:
+        print(before_work_line)
+
+    print("repo_status:")
+    for line in result.get("repo_status", []):
+        print(f"  {line}")
+
+    next_actions = result.get("next_actions", [])
+    if next_actions:
+        print("next_actions:")
+        for action in next_actions:
+            print(f"  - {action}")
+
+    deferred_reads = result.get("deferred_reads", [])
+    if deferred_reads:
+        print("deferred_reads:")
+        for item in deferred_reads:
+            print(f"  - {item}")
+
+
+def print_text_result(result: dict[str, Any], *, concise: bool = False) -> None:
+    if concise:
+        print_concise_text_result(result)
+        return
+
     ordered_keys = [
         "agent_uid",
         "display_id",
@@ -239,7 +280,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(result, indent=2))
     else:
-        print_text_result(result)
+        print_text_result(result, concise=args.concise)
     return 0
 
 
