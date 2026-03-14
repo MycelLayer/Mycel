@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：late partial progress，已在最近一批 canonical-helper convergence、peer-store sync driver、CLI peer-sync、simulator integration，以及 optional-flow sync coverage 後刷新；`M4` 現在已有最小 peer-driven first-time / incremental sync proof coverage，並已補上 capability-gated `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling，但更廣的 peer-interop proof 與 production replication behavior 仍未完成
+狀態：late partial progress，已在先前 peer-store sync coverage 基礎上，隨著最近一批 local-policy separation、viewer status clarification 與 head-profile ergonomics 更新而刷新；`M3` 現在已補上更清楚的可用 profile 探索與 profile 錯誤回饋，但更廣的 governance persistence、剩餘的 profile ergonomics、獨立 dual-role 角色指派收尾，以及更廣的 `M4` peer-interop proof 仍未完成
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -285,7 +285,7 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、具備 editor-admission 感知的 inspect/render behavior，以及 head inspection 裡的 bounded viewer score surfaces；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior，以及 head inspection 裡的 bounded viewer score surfaces；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出這一輪初步打磨的 reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
 
 已在進行中或部分完成：
 
@@ -293,7 +293,7 @@ Implementation anchors：
 2. 以 typed arrays 呈現的 structured decision detail
 3. accepted-head inspection 的 store-backed selector object loading
 4. 可從 persisted store state 或 explicit bundle objects 產生 accepted-head render output
-5. 為 accepted-head inspection 與 render workflows 提供具名 fixed-profile selection
+5. 為 accepted-head inspection 與 render workflows 提供具名 fixed-profile selection，並補上更清楚的可用 profile 摘要與對稱的 profile 錯誤回饋
 6. 在具名 profile 與 store-backed 路徑中，提供具備 editor-admission 感知的 accepted-head inspect/render behavior
 7. 提供獨立於 reader-facing `head` commands 的 `view inspect` / `view list` / `view publish` governance workflows，並具備 listing filter、sort、time window、grouped summary 與 projection modes
 8. persisted governance reverse indexes，支援依 maintainer、profile 與 document 反查 view
@@ -304,7 +304,7 @@ Implementation anchors：
 
 1. 超出 selector、reverse view indexes 與 replay inputs 的更廣泛 governance-state persistence
 2. 超出目前初始 filtered / sorted / projected `view` inspection / listing / publication workflow 的專用 governance surfaces
-3. 超出最小具名 fixed-profile surface 的 reader-facing profile ergonomics
+3. 超出這一輪初步打磨的最小具名 fixed-profile surface 的 reader-facing profile ergonomics
 4. 後續可與 wire / sync 對齊的 governance-state tooling
 5. mixed-role 與 shared-key case 的最終 editor-maintainer / view-maintainer 獨立角色指派收尾，以及之後若要超出目前 head-inspect-local bundle surface，還需要哪些更廣泛的 governance persistence 決策
 

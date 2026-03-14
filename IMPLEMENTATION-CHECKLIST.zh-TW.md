@@ -136,7 +136,7 @@
 - [x] 實作規範中的 tie-break 順序。
 - [x] 輸出或保存最小 decision trace schema。
 - [x] 不提供會改變 active accepted head 的自由裁量本地 policy controls。
-- [x] 若支援多個固定 profiles，必須明確列舉，而不是允許 ad hoc local profiles。
+- [x] 若支援多個固定 profiles，必須明確列舉並在介面上清楚呈現，而不是允許 ad hoc local profiles。
 - [x] 確保僅有 editor-maintainer 身分不會自動取得 selector weight。
 - [x] 若 viewer signals 可影響 `selector_score`，必須把它們建模為 bounded、typed 的 score channels，並採用受 cap 限制的 viewer bonus / penalty paths，而不是 raw popularity counts。
 - [x] 若 viewer signals 可影響 `selector_score`，必須定義具 evidence 與 expiry semantics 的 `approval`、`objection`、`challenge` typed signals。

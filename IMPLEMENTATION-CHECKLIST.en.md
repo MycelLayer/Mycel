@@ -136,7 +136,7 @@ Defer if needed:
 - [x] Implement the normative tie-break order.
 - [x] Emit or persist the minimum decision trace schema.
 - [x] Do not expose discretionary local policy controls that alter the active accepted head.
-- [x] If multiple fixed profiles are supported, enumerate them explicitly rather than allowing ad hoc local profiles.
+- [x] If multiple fixed profiles are supported, enumerate and surface them explicitly rather than allowing ad hoc local profiles.
 - [x] Ensure editor-maintainer status alone never grants selector weight.
 - [x] If viewer signals can influence `selector_score`, model them as bounded, typed score channels with capped viewer bonus / penalty paths rather than raw popularity counts.
 - [x] If viewer signals can influence `selector_score`, define typed `approval`, `objection`, and `challenge` signals with evidence and expiry semantics.

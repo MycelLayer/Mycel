@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: late partial progress, refreshed after the recent canonical-helper convergence, peer-store sync-driver, CLI peer-sync, simulator integration, and optional-flow sync coverage batch; `M4` now has minimal peer-driven first-time and incremental sync proof coverage plus capability-gated `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling, while broader peer-interop proof and production replication behavior remain open
+Status: late partial progress, refreshed after the recent local-policy separation, viewer-status clarification, and head-profile ergonomics batch on top of the earlier peer-store sync coverage; `M3` now has clearer available-profile discovery and profile-error feedback, while broader governance persistence, remaining profile ergonomics, independent dual-role role-assignment closure, and broader `M4` peer-interop proof remain open
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -285,7 +285,7 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, now with accepted-head rendering, named fixed-profile selection, editor-admission-aware inspect/render behavior, and bounded viewer score surfaces in head inspection on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics, and final independent dual-role role-assignment closure.
+Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, and bounded viewer score surfaces in head inspection on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure.
 
 Already in progress or partially implemented:
 
@@ -293,7 +293,7 @@ Already in progress or partially implemented:
 2. Structured decision output with typed machine-readable arrays
 3. Store-backed accepted-head inspection using persisted store indexes
 4. Accepted-head render output from persisted store state or explicit bundle objects
-5. Named fixed-profile selection for accepted-head inspection and render workflows
+5. Named fixed-profile selection for accepted-head inspection and render workflows, including clearer available-profile summaries and symmetric profile-error feedback
 6. Editor-admission-aware accepted-head inspect/render behavior for named-profile and store-backed paths
 7. Dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
 8. Persisted governance reverse indexes for maintainer, profile, and document view lookups
@@ -328,7 +328,7 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, plus editor-admission-aware named-profile and store-backed flows and bounded viewer score surfaces in head inspection; broader governance persistence, reader-facing profile ergonomics, and final independent dual-role role-assignment closure remain.
+Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, plus clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, and bounded viewer score surfaces in head inspection; broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure remain.
 
 Already visible in the repo:
 
@@ -336,7 +336,7 @@ Already visible in the repo:
 2. structured decision detail in typed arrays
 3. store-backed selector object loading for accepted-head inspection
 4. accepted-head rendering from persisted store state or explicit bundle objects
-5. named fixed-profile selection for accepted-head inspection and render workflows
+5. named fixed-profile selection for accepted-head inspection and render workflows, including clearer available-profile summaries and symmetric profile-error feedback
 6. editor-admission-aware inspect/render behavior for named-profile and store-backed reader flows
 7. dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands, with filtered listing, sorting, time windows, grouped summaries, and projection modes
 8. persisted governance reverse indexes for maintainer, profile, and document-oriented view lookups
