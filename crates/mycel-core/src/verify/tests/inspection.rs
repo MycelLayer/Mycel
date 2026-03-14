@@ -1435,6 +1435,111 @@ fn inspect_warns_when_view_policy_contains_unknown_field() {
 }
 
 #[test]
+fn inspect_warns_when_view_policy_merge_rule_is_not_string() {
+    let path = write_test_file(
+        "view-policy-non-string-merge-rule-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": 7
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'policy.merge_rule' must be a string")),
+        "expected merge_rule type warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_view_policy_merge_rule_is_empty() {
+    let path = write_test_file(
+        "view-policy-empty-merge-rule-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": ""
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary.notes.iter().any(|message| {
+            message.contains("top-level 'policy.merge_rule' must not be an empty string")
+        }),
+        "expected empty merge_rule warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_view_policy_accept_keys_is_not_array() {
+    let path = write_test_file(
+        "view-policy-non-array-accept-keys-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "accept_keys": "pk:ed25519:test"
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary
+            .notes
+            .iter()
+            .any(|message| message.contains("top-level 'policy.accept_keys' must be an array")),
+        "expected accept_keys array-shape warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn inspect_warns_when_view_policy_accept_keys_contains_empty_entry() {
     let (signing_key, public_key) = signer_material();
     let path = write_test_file(
@@ -1539,6 +1644,41 @@ fn inspect_fails_when_view_policy_contains_floating_point_value() {
             )
         }),
         "expected nested float warning, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn inspect_warns_when_view_policy_preferred_branches_contains_non_string_entry() {
+    let path = write_test_file(
+        "view-policy-non-string-preferred-branch-inspect",
+        &serde_json::to_string_pretty(&json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:test",
+            "maintainer": "pk:ed25519:test",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": [7]
+            },
+            "timestamp": 12u64,
+            "signature": "sig:ed25519:test"
+        }))
+        .expect("test JSON should serialize"),
+    );
+
+    let summary = inspect_object_path(&path);
+
+    assert_eq!(summary.status, "warning");
+    assert!(
+        summary.notes.iter().any(|message| {
+            message.contains("top-level 'policy.preferred_branches[0]' must be a string")
+        }),
+        "expected preferred_branches type warning, got {summary:?}"
     );
 
     let _ = std::fs::remove_file(path);
