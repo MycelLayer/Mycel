@@ -98,6 +98,12 @@ fn print_head_inspect_text(summary: &HeadInspectSummary) -> i32 {
     if let Some(profile_id) = &summary.profile_id {
         println!("profile id: {profile_id}");
     }
+    if !summary.available_profile_ids.is_empty() {
+        println!(
+            "available profiles: {}",
+            summary.available_profile_ids.join(", ")
+        );
+    }
     if let Some(effective_selection_time) = summary.effective_selection_time {
         println!("effective selection time: {effective_selection_time}");
     }
@@ -202,6 +208,12 @@ fn print_head_render_text(summary: &HeadRenderSummary) -> i32 {
     println!("doc id: {}", summary.doc_id);
     if let Some(profile_id) = &summary.profile_id {
         println!("profile id: {profile_id}");
+    }
+    if !summary.available_profile_ids.is_empty() {
+        println!(
+            "available profiles: {}",
+            summary.available_profile_ids.join(", ")
+        );
     }
     if let Some(effective_selection_time) = summary.effective_selection_time {
         println!("effective selection time: {effective_selection_time}");

@@ -18,6 +18,7 @@ pub struct HeadInspectSummary {
     pub status: String,
     pub doc_id: String,
     pub profile_id: Option<String>,
+    pub available_profile_ids: Vec<String>,
     pub effective_selection_time: Option<u64>,
     pub selector_epoch: Option<i64>,
     pub selected_head: Option<String>,
@@ -147,6 +148,7 @@ pub struct HeadRenderSummary {
     pub status: String,
     pub doc_id: String,
     pub profile_id: Option<String>,
+    pub available_profile_ids: Vec<String>,
     pub effective_selection_time: Option<u64>,
     pub selected_head: Option<String>,
     pub recomputed_state_hash: Option<String>,
@@ -392,6 +394,7 @@ impl HeadInspectSummary {
             status: "ok".to_string(),
             doc_id: doc_id.to_string(),
             profile_id: None,
+            available_profile_ids: Vec::new(),
             effective_selection_time: None,
             selector_epoch: None,
             selected_head: None,
@@ -437,6 +440,7 @@ impl HeadRenderSummary {
             status: "ok".to_string(),
             doc_id: doc_id.to_string(),
             profile_id: None,
+            available_profile_ids: Vec::new(),
             effective_selection_time: None,
             selected_head: None,
             recomputed_state_hash: None,
@@ -507,6 +511,7 @@ pub fn render_head_from_store_path(
         inspect_heads_from_store_path(input_path, store_root, doc_id, requested_profile_id);
     let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, Some(store_root), doc_id);
     summary.profile_id = inspect_summary.profile_id.clone();
+    summary.available_profile_ids = inspect_summary.available_profile_ids.clone();
     summary.effective_selection_time = inspect_summary.effective_selection_time;
     summary.selected_head = inspect_summary.selected_head.clone();
     summary.notes = inspect_summary.notes.clone();
@@ -574,6 +579,7 @@ pub fn render_head_from_path(
     let inspect_summary = inspect_heads_from_path(input_path, doc_id, requested_profile_id);
     let mut summary = HeadRenderSummary::new(&inspect_summary.input_path, None, doc_id);
     summary.profile_id = inspect_summary.profile_id.clone();
+    summary.available_profile_ids = inspect_summary.available_profile_ids.clone();
     summary.effective_selection_time = inspect_summary.effective_selection_time;
     summary.selected_head = inspect_summary.selected_head.clone();
     summary.notes = inspect_summary.notes.clone();
@@ -699,6 +705,7 @@ fn inspect_heads_from_loaded_input(
     store_root: Option<&Path>,
 ) -> HeadInspectSummary {
     let mut summary = HeadInspectSummary::new(&resolved_input_path, doc_id);
+    summary.available_profile_ids = collect_available_profile_ids(&input.profiles);
     let (selected_profile_id, profile) =
         match resolve_head_inspect_profile(&input, requested_profile_id) {
             Ok(selected) => selected,
@@ -1165,8 +1172,12 @@ fn resolve_head_inspect_profile(
     }
 }
 
+fn collect_available_profile_ids(profiles: &BTreeMap<String, HeadInspectProfile>) -> Vec<String> {
+    profiles.keys().cloned().collect()
+}
+
 fn available_profile_ids(profiles: &BTreeMap<String, HeadInspectProfile>) -> String {
-    profiles.keys().cloned().collect::<Vec<_>>().join(", ")
+    collect_available_profile_ids(profiles).join(", ")
 }
 
 fn build_bundle_object_index(

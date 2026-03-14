@@ -678,6 +678,7 @@ fn head_inspect_requires_profile_id_for_multi_profile_bundle() {
     let output = run_mycel(&["head", "inspect", doc_id, "--input", &path_arg(&input.path)]);
 
     assert_exit_code(&output, 1);
+    assert_stdout_contains(&output, "available profiles: preview, stable");
     assert_stdout_contains(&output, "head inspection: failed");
     assert_stderr_contains(
         &output,
@@ -1008,6 +1009,7 @@ fn head_inspect_json_selects_requested_named_profile() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
+    assert_eq!(json["available_profile_ids"], json!(["preview", "stable"]));
     assert_eq!(json["profile_id"], "preview");
     assert_eq!(json["selected_head"], revision_b["revision_id"]);
     assert_eq!(json["effective_selection_time"], 30);
@@ -2083,6 +2085,7 @@ fn head_render_json_uses_requested_named_profile_from_bundle() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
+    assert_eq!(json["available_profile_ids"], json!(["preview", "stable"]));
     assert_eq!(json["profile_id"], "preview");
     assert_eq!(json["selected_head"], revision_b["revision_id"]);
     assert_eq!(json["rendered_text"], "Preview line");
