@@ -43,6 +43,7 @@
   - If `.agent-local/dev-setup-status.md` is missing or does not say `Status: ready`, read [`docs/DEV-SETUP.md`](docs/DEV-SETUP.md), ensure the required setup items are satisfied, and refresh `.agent-local/dev-setup-status.md` with the repo-local dev-setup status tool. <!-- item-id: bootstrap.refresh-dev-setup-when-needed -->
   - Use [`.agent-local/DEV-SETUP-STATUS.example.md`](.agent-local/DEV-SETUP-STATUS.example.md) as the template for the local status file. <!-- item-id: bootstrap.dev-setup-template -->
 - Agent startup:
+  - Before starting role-specific checklist work, read [`docs/ROLE-CHECKLISTS/README.md`](docs/ROLE-CHECKLISTS/README.md) as the entry point for canonical role checklist sources and per-agent checklist copy locations. <!-- item-id: bootstrap.read-role-checklists -->
   - For multi-agent startup and role assignment, read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) first, then read the local registry file `.agent-local/agents.json`, and use the registry tool for role assignment and startup state. <!-- item-id: bootstrap.read-agent-registry -->
   - Preferred fast path after reading the startup instructions: `scripts/agent_bootstrap.py` to perform the repo-standard bootstrap flow.
   - If the user did not assign a role for the new chat, use the registry tool to auto-claim a role, then tell the user which role was claimed before moving on to task work. <!-- item-id: bootstrap.claim-auto -->
