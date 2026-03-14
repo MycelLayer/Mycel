@@ -505,7 +505,229 @@ Tradeoff:
 
 - strongest control posture, but highest operational cost and support burden
 
-## 6. Why Mycel Fits This Layer
+## 6. Feature Map
+
+A typical enterprise IM usually needs to be planned across at least twelve capability groups.
+
+### 6.1 Identity and Account Governance
+
+Common capabilities:
+
+- `SSO`
+- automated joiner / mover / leaver provisioning
+- `SCIM` or HRIS / IdP roster sync
+- guest, contractor, and temporary accounts
+- suspension, reinstatement, and forced session invalidation
+
+This group determines who can enter the system, when access ends, and whether the directory stays aligned with the real enterprise org.
+
+### 6.2 Group and Conversation Space Management
+
+Common capabilities:
+
+- department groups
+- project groups
+- announcement channels
+- incident / war rooms
+- direct messages
+- guest rooms
+
+This group determines the communication boundary inside the enterprise and which rooms require stricter membership and retention policy.
+
+### 6.3 Messaging and Interaction
+
+Common capabilities:
+
+- threads
+- `@mention`
+- quoted reply
+- pinning
+- drafts
+- scheduled send
+- message edit and recall
+- read receipts
+- presence / status messages
+
+This group is closer to day-to-day user experience, but still has to stay compatible with compliance and retention policy.
+
+### 6.4 Collaboration Attachments and Workflow Objects
+
+Common capabilities:
+
+- file sharing
+- attachment preview
+- task cards
+- approval requests
+- polls
+- calendar invites
+- meeting links
+- knowledge-base or ticket links
+
+This group is what moves the product from "chat tool" toward "work coordination entry point."
+
+### 6.5 Search, Organization, and Knowledge Retention
+
+Common capabilities:
+
+- full-text search
+- filtering by person / group / label / date
+- favorites
+- pinned messages
+- archiving
+- summaries
+- history review
+
+This group determines whether messages become durable work knowledge rather than one-time chat noise.
+
+### 6.6 Compliance, Audit, and Legal Support
+
+Common capabilities:
+
+- audit logs
+- export
+- eDiscovery
+- legal hold
+- retention policy
+- review workflows
+- incident escalation
+- admin audit views
+
+This is one of the clearest boundaries between enterprise IM and ordinary consumer chat.
+
+### 6.7 Security and Data Protection
+
+Common capabilities:
+
+- DLP
+- sensitive-content classification
+- attachment quarantine
+- malware scanning
+- forwarding / copy / download restrictions
+- device binding
+- key revocation
+- encrypted blob purge
+
+This group maps directly to the `Compliance Decision`, `Retention Contract`, and `Destruction Receipt` objects in this design.
+
+### 6.8 Device, Session, and Endpoint Management
+
+Common capabilities:
+
+- multi-device login
+- session management
+- remote sign-out
+- device trust tiers
+- `BYOD` policy
+- `MDM` / `MAM` integration
+- offline-message policy
+
+This group determines how much control the enterprise has over endpoints and whether "who can see" can be governed separately from "which device can see."
+
+### 6.9 Notifications, On-Call, and Operational Coordination
+
+Common capabilities:
+
+- broadcast announcements
+- shift handoff
+- incident escalation
+- reply SLA reminders
+- cross-timezone notification control
+- do-not-disturb policy
+
+This group is often what makes enterprise IM operationally indispensable for support, SRE, or security teams.
+
+### 6.10 Integrations, Automation, and Bots
+
+Common capabilities:
+
+- bots
+- webhooks
+- workflow automation
+- ticketing integration
+- `CRM` / `ERP` / `HR` integrations
+- approval and reminder flows
+
+This group lets enterprise IM connect to existing internal systems rather than becoming an isolated island.
+
+### 6.11 Deployment, Tenancy, and Data Sovereignty
+
+Common capabilities:
+
+- multi-tenant isolation
+- data partitioning
+- data residency
+- backup and disaster recovery
+- `BYOK`
+- `KMS` / `HSM` integration
+
+This group determines whether the product can enter enterprises or public-sector environments with stricter sovereignty and compliance requirements.
+
+### 6.12 User Experience and Accessibility
+
+Common capabilities:
+
+- consistent desktop and mobile experience
+- multilingual support
+- translation
+- speech-to-text
+- accessibility support
+- noisy-channel mute and summarization
+
+This group looks more product-facing, but it often decides adoption success.
+
+## 7. Phased Planning
+
+If this enterprise messenger is treated as a product plan, it should be staged in at least three phases.
+
+### 7.1 MVP
+
+Start with the capabilities that prove the enterprise governance model:
+
+1. roster entries and roster sync
+2. managed groups and membership grants
+3. conversation metadata
+4. message envelopes with sealed blob references
+5. classification and quarantine decisions
+6. retention contracts and destruction receipts
+7. basic audit logging and admin review surfaces
+
+Tradeoff:
+
+- this proves the core enterprise value early, but intentionally keeps user experience and integration depth narrow
+
+### 7.2 Phase 2
+
+Add the capabilities most often required for real enterprise adoption:
+
+- `SSO` / `SCIM`
+- guest access
+- announcement channels
+- search / archive / pin / favorite
+- read receipts / presence
+- `BYOD` / device policy
+- webhook / bot / approval-request workflow
+- eDiscovery and legal-hold operator views
+
+Tradeoff:
+
+- adoption friction drops a lot, but runtime, policy, and admin-surface complexity rise
+
+### 7.3 Phase 3
+
+Expand toward high-control and high-operations environments:
+
+- incident / war-room package
+- stronger export restrictions
+- finer-grained data residency and tenant partitioning
+- deeper `BYOK` / `KMS` / `HSM` integration
+- advanced workflow orchestration and cross-system automation
+- calls, meetings, speech-to-text, and cross-system federation
+
+Tradeoff:
+
+- this opens higher-requirement markets, but both product and operational cost increase meaningfully
+
+## 8. Why Mycel Fits This Layer
 
 Mycel is a good fit for this messenger layer because it can preserve:
 
@@ -523,7 +745,7 @@ Mycel is not trying to replace:
 - notification gateways
 - archival blob stores
 
-## 7. Minimal Planning Slice
+## 9. Minimal Planning Slice
 
 If the team wants a narrow first version, start with:
 

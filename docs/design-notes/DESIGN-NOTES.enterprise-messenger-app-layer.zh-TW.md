@@ -505,7 +505,229 @@ Legal hold 行為：
 
 - 控制姿態最強，但營運成本與支援負擔最高
 
-## 6. Mycel 為何適合這一層
+## 6. 功能地圖
+
+一般企業 IM 常見能力，建議至少分成十二組功能面來規劃。
+
+### 6.1 身分與帳號治理
+
+常見能力：
+
+- `SSO`
+- 員工入職 / 離職自動佈建
+- `SCIM` 或 HRIS / IdP 名冊同步
+- 訪客、外包與臨時帳號
+- 停權、復權與 session 強制失效
+
+這一組決定誰能進系統、何時失去存取權，以及名冊是否能跟企業真實組織同步。
+
+### 6.2 群組與對話空間管理
+
+常見能力：
+
+- 部門群組
+- 專案群組
+- 公告頻道
+- incident / war room
+- direct message
+- guest room
+
+這一組決定企業內部的溝通邊界，以及哪些房間要走較嚴格的 membership 與 retention 政策。
+
+### 6.3 訊息與互動能力
+
+常見能力：
+
+- thread
+- `@mention`
+- 引用回覆
+- 置頂
+- 草稿
+- 排程發送
+- 訊息編輯與撤回
+- read receipt
+- presence / 狀態訊息
+
+這一組偏向日常使用體驗，但仍需跟合規與 retention 規則相容。
+
+### 6.4 協作附件與流程物件
+
+常見能力：
+
+- 檔案分享
+- 附件預覽
+- task card
+- approval request
+- poll / 投票
+- 行事曆邀請
+- 會議連結
+- 知識庫或工單連結
+
+這一組讓企業 IM 從「聊天工具」提升為「工作協作入口」。
+
+### 6.5 搜尋、整理與知識保存
+
+常見能力：
+
+- 全文搜尋
+- 依人員 / 群組 / 標籤 / 日期過濾
+- 收藏
+- pin / 置頂訊息
+- 封存
+- 摘要
+- 歷史回溯
+
+這一組決定訊息能不能在之後成為可檢索的工作知識，而不是一次性聊天噪音。
+
+### 6.6 合規、稽核與法務支持
+
+常見能力：
+
+- audit log
+- 匯出
+- eDiscovery
+- legal hold
+- retention policy
+- 審查流程
+- 事件升級處理
+- 管理員稽核視圖
+
+這一組是企業 IM 與一般消費型聊天工具最明顯的分界之一。
+
+### 6.7 安全與資料保護
+
+常見能力：
+
+- DLP
+- 敏感內容分類
+- 附件隔離
+- 惡意程式掃描
+- 禁止轉寄 / 複製 / 下載
+- 裝置綁定
+- 金鑰撤銷
+- 密文 blob purge
+
+這一組直接對應本設計中的 `Compliance Decision`、`Retention Contract` 與 `Destruction Receipt`。
+
+### 6.8 裝置、Session 與端點管理
+
+常見能力：
+
+- 多裝置登入
+- session 管理
+- 遠端登出
+- 裝置信任等級
+- `BYOD` 政策
+- `MDM` / `MAM` 整合
+- 離線訊息政策
+
+這一組決定企業對終端裝置的控制力，以及「誰能看」與「哪台設備能看」之間是否分離治理。
+
+### 6.9 通知、值班與營運協作
+
+常見能力：
+
+- 公告廣播
+- 值班交接
+- incident escalation
+- 回覆 SLA 提醒
+- 跨時區通知
+- do-not-disturb 政策
+
+這一組通常是企業 IM 在營運、客服、SRE 或資安場景中真正被依賴的部分。
+
+### 6.10 整合、自動化與 Bot
+
+常見能力：
+
+- bot
+- webhook
+- workflow automation
+- 工單系統整合
+- `CRM` / `ERP` / `HR` 系統整合
+- 核准與提醒工作流
+
+這一組讓企業 IM 可以接上原有內部系統，而不是成為資訊孤島。
+
+### 6.11 部署、租戶與資料主權
+
+常見能力：
+
+- 多租戶隔離
+- 資料分區
+- data residency
+- 備援與災難復原
+- `BYOK`
+- `KMS` / `HSM` 整合
+
+這一組決定產品是否能進入對資料主權與合規要求較高的企業或政府場景。
+
+### 6.12 使用體驗與無障礙
+
+常見能力：
+
+- 桌面與行動端一致體驗
+- 多語系
+- 翻譯
+- 語音轉文字
+- 無障礙支援
+- 高噪音頻道靜音與摘要
+
+這一組雖然看起來比較「產品化」，但常常決定導入成敗。
+
+## 7. 分階段規劃
+
+如果把這個 enterprise messenger app 當成產品規劃來看，建議至少分成三段。
+
+### 7.1 MVP
+
+先做能驗證企業治理模型的核心能力：
+
+1. roster entries 與名冊同步
+2. managed groups 與 membership grants
+3. conversation metadata
+4. 帶 sealed blob references 的 message envelopes
+5. classification 與 quarantine decisions
+6. retention contracts 與 destruction receipts
+7. 基本的 audit log 與管理端檢視
+
+取捨：
+
+- 能先驗證最關鍵的企業價值，但使用者體驗與整合深度會刻意收斂
+
+### 7.2 Phase 2
+
+補齊企業實際導入時最常被要求的能力：
+
+- `SSO` / `SCIM`
+- guest access
+- announcement channels
+- search / archive / pin / favorite
+- read receipt / presence
+- `BYOD` / 裝置政策
+- webhook / bot / approval-request workflow
+- eDiscovery 與 legal-hold operator view
+
+取捨：
+
+- 導入阻力會大幅下降，但 runtime、policy 與管理介面複雜度會上升
+
+### 7.3 Phase 3
+
+再往高控制、高營運需求場景擴張：
+
+- incident / war room 套件
+- 進階 export restrictions
+- 更細的 data residency 與 tenant partitioning
+- `BYOK` / `KMS` / `HSM` 深度整合
+- 進階工作流編排與跨系統自動化
+- 通話、會議、語音轉文字與跨系統 federation
+
+取捨：
+
+- 能打更高要求市場，但產品與運維成本都會明顯增加
+
+## 8. Mycel 為何適合這一層
 
 Mycel 適合這個 messenger layer，是因為它可以保留：
 
@@ -523,7 +745,7 @@ Mycel 並不是要取代：
 - 通知閘道
 - blob archive 儲存
 
-## 7. 最小規劃切片
+## 9. 最小規劃切片
 
 如果團隊想先做一個收斂的第一版，建議從這六塊開始：
 
