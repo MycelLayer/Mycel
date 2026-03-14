@@ -61,6 +61,122 @@ Use this delivery loop unless the user gives a narrower instruction:
 7. leave a `Delivery Continuation Note`, and add a `Planning Sync Handoff` only
    when the process change affects planning-visible status
 
+## Default CI Triage Commands
+
+Use this command ladder by default when a `delivery` chat starts CI triage.
+
+### 1. Check the latest completed workflow run
+
+Start with the latest completed run on `main`:
+
+```bash
+gh run list --branch main --limit 5 --json databaseId,status,conclusion,workflowName,displayTitle,headSha,updatedAt
+```
+
+Use this to answer:
+
+- which workflow failed
+- whether the run is completed rather than still in progress
+- which commit and title the failure belongs to
+
+For this repo, the most common workflow names are:
+
+- `CI`
+- `Pages`
+
+### 2. Inspect one failing run in detail
+
+After choosing one failing run id, inspect the run summary:
+
+```bash
+gh run view <run-id>
+```
+
+Then inspect the failing logs:
+
+```bash
+gh run view <run-id> --log-failed
+```
+
+Use this step to classify the failure before touching code.
+
+### 3. Map the failure to the checked-in workflow
+
+If the failing workflow is `CI`, read:
+
+```bash
+sed -n '1,220p' .github/workflows/ci.yml
+```
+
+If the failing workflow is `Pages`, read:
+
+```bash
+sed -n '1,220p' .github/workflows/pages.yml
+```
+
+This tells `delivery` whether the failure came from:
+
+- formatting, compile, workspace tests, or simulator smoke inside `CI`
+- Pages artifact or deployment flow inside `Pages`
+
+### 4. Reproduce only the relevant step locally
+
+For the `CI` workflow, the default local repro ladder is:
+
+```bash
+cargo fmt --all --check
+cargo check
+cargo test --workspace
+./sim/negative-validation/smoke.sh --summary-only
+```
+
+For the `Pages` workflow, the default local repro is:
+
+```bash
+npm run lint:pages
+```
+
+Then, if the question is deployment visibility rather than static-page content,
+check the live Pages surface:
+
+```bash
+curl -I -L https://ctf2090.github.io/Mycel/
+```
+
+Use only the narrowest command set needed to confirm the failing step.
+
+### 5. Check release-facing public surfaces when relevant
+
+If the work touches outward-facing surfaces such as `README` or `pages/`, use:
+
+```bash
+gh run list -R ctf2090/Mycel --limit 5
+gh api repos/ctf2090/Mycel/community/profile
+curl -I -L https://ctf2090.github.io/Mycel/
+curl -I https://ctf2090.github.io/Mycel/social-preview.png
+```
+
+Use [`docs/OUTWARD-RELEASE-CHECKLIST.md`](./OUTWARD-RELEASE-CHECKLIST.md) as
+the narrow companion checklist for this case.
+
+## Command Interpretation
+
+Use the first matching rule:
+
+1. `gh run list` shows the latest completed run is green
+   outcome: do not invent a CI problem; move to merge-readiness or blocker
+   triage instead
+2. `gh run view --log-failed` points to `cargo fmt`, `cargo check`, `cargo test`,
+   or simulator smoke
+   outcome: likely `coding`, unless the root cause is obviously CI-only wiring
+3. `gh run view --log-failed` points to workflow config, runner setup, caching,
+   artifact upload, or deployment wiring
+   outcome: likely `delivery`
+4. public-surface checks fail but the underlying content is already correct
+   outcome: likely `delivery`
+5. public-surface checks imply wording/status drift rather than tooling failure
+   outcome: hand off to `doc`
+
 ## Classification Rules
 
 Use these buckets first:
@@ -133,6 +249,9 @@ Prefer evidence that matches the scope:
 - failing-step logs when classifying
 - targeted local repro commands when confirming a workflow or script fix
 - focused automated tests when a delivery-owned code path changed
+
+When possible, record the exact `gh` or `curl` commands used in the mailbox
+handoff so the next agent can reproduce the same evidence quickly.
 
 Do not inflate the scope just to run a full repo validation pass unless the
 change really needs it.

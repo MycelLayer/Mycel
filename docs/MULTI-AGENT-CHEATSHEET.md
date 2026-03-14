@@ -74,6 +74,14 @@ Delivery default loop:
 4. route product fixes to `coding` and planning wording to `doc`
 5. leave one `Delivery Continuation Note` before ending the work cycle
 
+Delivery default commands:
+
+1. `gh run list --branch main --limit 5 --json databaseId,status,conclusion,workflowName,displayTitle,headSha,updatedAt`
+2. `gh run view <run-id>`
+3. `gh run view <run-id> --log-failed`
+4. `sed -n '1,220p' .github/workflows/ci.yml` or `sed -n '1,220p' .github/workflows/pages.yml`
+5. narrow local repro such as `cargo fmt --all --check`, `cargo check`, `cargo test --workspace`, `./sim/negative-validation/smoke.sh --summary-only`, or `npm run lint:pages`
+
 Use `doc` when the main output is syncing planning or explanatory docs after behavior is already settled.
 
 Multiple agents may share the same role. Read `.agent-local/agents.json` first to see how many agents are active and which role each one owns.
