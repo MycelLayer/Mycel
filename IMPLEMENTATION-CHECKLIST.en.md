@@ -45,7 +45,7 @@ Defer if needed:
 - [x] Reject any content-addressed object whose embedded derived ID does not match the recomputed canonical ID.
 - [x] Reject unknown top-level typed-object fields and invalid required field types in shared parsing and verification.
 - [ ] Finish the remaining malformed field-shape depth, semantic edge-case, and role-model closure still left after the recent strictness-surface expansion, replay-dependency CLI smoke growth, and ancestry-context proof expansion.
-- [ ] Model editor-maintainer and view-maintainer role assignment independently.
+- [ ] Model editor-maintainer and view-maintainer role assignment independently for mixed-role and shared-key cases.
 
 ## 3. Canonical Serialization and Hashing
 

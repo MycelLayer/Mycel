@@ -45,7 +45,7 @@
 - [x] 拒絕任何內嵌導出 ID 與重算 canonical ID 不一致的內容定址物件。
 - [x] 在 shared parsing 與 verification 中，拒絕 typed object 的未知頂層欄位與非法必要欄位型別。
 - [ ] 在最近 strictness-surface 擴張、replay-dependency CLI smoke 擴張，以及 ancestry-context proof 擴張後，完成剩餘 malformed field-shape depth、semantic edge case 與角色建模的收尾。
-- [ ] 將 editor-maintainer 與 view-maintainer 的角色指派分開建模。
+- [ ] 將 editor-maintainer 與 view-maintainer 的角色指派分開建模，並涵蓋 mixed-role 與 shared-key case。
 
 ## 3. Canonical Serialization 與 Hashing
 
