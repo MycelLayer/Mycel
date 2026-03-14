@@ -21,6 +21,16 @@ Local mailbox files:
 - fallback: `.agent-local/coding-to-doc.md`
 - fallback: `.agent-local/doc-to-coding.md`
 
+Role checklist sources:
+
+- `docs/ROLE-CHECKLISTS/coding.md`
+- `docs/ROLE-CHECKLISTS/doc.md`
+
+Per-agent checklist copies:
+
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-checklist.md`
+
 Mailbox retention:
 
 - active working-set uid-based mailboxes stay in `.agent-local/mailboxes/`
