@@ -534,11 +534,11 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
     assert!(
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-challenge-without-evidence".to_string())
-                && entry["selector_eligible"] == Value::Bool(true)
+                && entry["selector_eligible"] == Value::Bool(false)
                 && entry["effective_signal_weight"] == Value::from(0)
                 && entry["evidence_ref"] == Value::Null
         }),
-        "expected unevidenced challenge to avoid score contribution, stdout: {}",
+        "expected unevidenced challenge to stay gated, stdout: {}",
         stdout_text(&output)
     );
 
@@ -567,7 +567,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
     );
     assert_eq!(
         alternative_channel["challenge_signal_count"],
-        Value::from(2)
+        Value::from(1)
     );
     assert_eq!(
         alternative_channel["challenge_review_pressure"],
@@ -590,7 +590,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
                     && entry["detail"].as_str().is_some_and(|detail| {
                         detail.contains("mode=bounded-bonus-penalty")
                             && detail.contains("signals=7")
-                            && detail.contains("eligible=4")
+                            && detail.contains("eligible=3")
                             && detail.contains("contributing=2")
                             && detail.contains("bonus_cap=2")
                             && detail.contains("penalty_cap=2")
@@ -2799,6 +2799,92 @@ fn head_inspect_applies_bounded_viewer_score_channels() {
             })),
         "expected viewer_score_channels trace entry, stdout: {}",
         stdout_text(&output)
+    );
+}
+
+#[test]
+fn head_inspect_gates_low_confidence_challenge_from_review_path() {
+    let doc_id = "doc:viewer-low-confidence-challenge";
+    let revision_author = signing_key(141);
+    let maintainer_a = signing_key(142);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let revision_a = signed_revision(
+        &revision_author,
+        doc_id,
+        vec![],
+        10,
+        "hash:viewer-low-confidence",
+    );
+    let mut profile = head_profile(hash_json(&policy), 250);
+    profile["viewer_score"] = bounded_viewer_score_profile();
+    let mut challenge = viewer_signal(
+        "signal-challenge-low",
+        143,
+        &revision_a["revision_id"],
+        "challenge",
+        "low",
+        100,
+        400,
+    );
+    challenge["evidence_ref"] = Value::String("evidence:challenge-low".to_string());
+    let bundle = json!({
+        "profile": profile,
+        "revisions": [revision_a.clone()],
+        "views": [
+            signed_view(
+                &maintainer_a,
+                &policy,
+                documents_value(doc_id, &revision_a["revision_id"]),
+                100
+            )
+        ],
+        "viewer_signals": [challenge],
+        "critical_violations": []
+    });
+    let input = write_input_file(
+        "head-inspect-viewer-low-confidence-challenge",
+        "input.json",
+        bundle,
+    );
+    let output = run_mycel(&[
+        "head",
+        "inspect",
+        doc_id,
+        "--input",
+        &path_arg(&input.path),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["selected_head"], revision_a["revision_id"]);
+    let viewer_signals = json["viewer_signals"]
+        .as_array()
+        .expect("viewer_signals should be array");
+    let challenge_entry = viewer_signals
+        .iter()
+        .find(|entry| entry["signal_id"] == Value::String("signal-challenge-low".to_string()))
+        .expect("low-confidence challenge summary should exist");
+    assert_eq!(challenge_entry["selector_eligible"], Value::Bool(false));
+    assert_eq!(challenge_entry["effective_signal_weight"], Value::from(0));
+
+    let viewer_score_channels = json["viewer_score_channels"]
+        .as_array()
+        .expect("viewer_score_channels should be array");
+    let channel = viewer_score_channels
+        .iter()
+        .find(|entry| entry["revision_id"] == revision_a["revision_id"])
+        .expect("viewer score channel should exist");
+    assert_eq!(channel["challenge_signal_count"], Value::from(0));
+    assert_eq!(channel["challenge_review_pressure"], Value::from(0));
+    assert_eq!(channel["challenge_freeze_pressure"], Value::from(0));
+    assert_eq!(
+        channel["viewer_review_state"],
+        Value::String("none".to_string())
     );
 }
 

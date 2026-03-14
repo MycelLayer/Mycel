@@ -1779,7 +1779,7 @@ fn compute_viewer_score_channels(
     let mut contributing_signal_count = 0_u64;
 
     for signal in signals {
-        let selector_eligible = score_mode_enabled
+        let base_selector_eligible = score_mode_enabled
             && signal.signal_status == ViewerSignalStatus::Active
             && signal.created_at <= effective_selection_time
             && signal.expires_at > effective_selection_time
@@ -1788,6 +1788,17 @@ fn compute_viewer_score_channels(
                 || signal.viewer_admission_status == ViewerAdmissionStatus::Admitted)
             && signal.viewer_identity_tier >= profile.viewer_score.min_identity_tier
             && signal.viewer_reputation_band >= profile.viewer_score.min_reputation_band;
+        let selector_eligible = base_selector_eligible
+            && match signal.signal_type {
+                ViewerSignalType::Challenge => {
+                    signal.evidence_ref.is_some()
+                        && matches!(
+                            signal.confidence_level,
+                            ViewerConfidenceLevel::Medium | ViewerConfidenceLevel::High
+                        )
+                }
+                ViewerSignalType::Approval | ViewerSignalType::Objection => true,
+            };
 
         let signal_weight = confidence_weight(&signal.confidence_level).min(effective_weight_cap);
         let effective_signal_weight = if selector_eligible
