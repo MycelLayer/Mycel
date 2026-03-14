@@ -233,6 +233,139 @@ fn object_verify_json_fails_for_view_with_invalid_policy_accept_key_prefix() {
 }
 
 #[test]
+fn object_verify_json_fails_for_view_with_duplicate_policy_accept_keys() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "accept_keys": ["pk:ed25519:test", "pk:ed25519:test"],
+                "merge_rule": "manual-reviewed"
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file(
+        "object-verify-view-duplicate-policy-accept-keys",
+        "view.json",
+        view,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "top-level 'policy.accept_keys[1]' duplicates 'policy.accept_keys[0]'",
+                    )
+                })
+            })),
+        "expected duplicate accept_keys error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_with_duplicate_policy_preferred_branches() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": ["main", "main"]
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file(
+        "object-verify-view-duplicate-policy-preferred-branches",
+        "view.json",
+        view,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"].as_array().is_some_and(|errors| errors.iter().any(|entry| {
+            entry.as_str().is_some_and(|message| {
+                message.contains(
+                    "top-level 'policy.preferred_branches[1]' duplicates 'policy.preferred_branches[0]'",
+                )
+            })
+        })),
+        "expected duplicate preferred_branches error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
+fn object_verify_json_fails_for_view_with_empty_policy_preferred_branch() {
+    let view = signed_object(
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "documents": {
+                "doc:test": "rev:test"
+            },
+            "policy": {
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": [""]
+            },
+            "timestamp": 1777778891u64
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    let object = write_object_file(
+        "object-verify-view-empty-policy-preferred-branch",
+        "view.json",
+        view,
+    );
+    let path = path_arg(&object.path);
+    let output = run_mycel(&["object", "verify", &path, "--json"]);
+
+    assert_exit_code(&output, 1);
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["object_type"], "view");
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "top-level 'policy.preferred_branches[0]' must not be an empty string",
+                    )
+                })
+            })),
+        "expected empty preferred_branches error, stdout: {}",
+        stdout_text(&output)
+    );
+}
+
+#[test]
 fn object_verify_json_fails_for_view_with_non_string_signature() {
     let object = write_object_file(
         "object-verify-view-non-string-signature",

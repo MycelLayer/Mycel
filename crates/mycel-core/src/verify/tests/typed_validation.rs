@@ -228,6 +228,116 @@ pub(super) fn view_policy_empty_accept_key_is_rejected() {
 }
 
 #[test]
+pub(super) fn view_policy_duplicate_accept_keys_are_rejected() {
+    let (signing_key, public_key) = signer_material();
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": public_key,
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "accept_keys": ["pk:ed25519:test", "pk:ed25519:test"],
+            "merge_rule": "manual-reviewed"
+        },
+        "timestamp": 12u64
+    });
+    view["signature"] = Value::String(sign_value(&signing_key, &view));
+    let path = write_test_file(
+        "view-policy-duplicate-accept-keys",
+        &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains("top-level 'policy.accept_keys[1]' duplicates 'policy.accept_keys[0]'")
+        }),
+        "expected duplicate accept_keys semantic-edge error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+pub(super) fn view_policy_duplicate_preferred_branches_are_rejected() {
+    let (signing_key, public_key) = signer_material();
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": public_key,
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": ["main", "main"]
+        },
+        "timestamp": 12u64
+    });
+    view["signature"] = Value::String(sign_value(&signing_key, &view));
+    let path = write_test_file(
+        "view-policy-duplicate-preferred-branches",
+        &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains(
+                "top-level 'policy.preferred_branches[1]' duplicates 'policy.preferred_branches[0]'",
+            )
+        }),
+        "expected duplicate preferred_branches semantic-edge error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+pub(super) fn view_policy_empty_preferred_branch_is_rejected() {
+    let (signing_key, public_key) = signer_material();
+    let mut view = json!({
+        "type": "view",
+        "version": "mycel/0.1",
+        "view_id": "view:test",
+        "maintainer": public_key,
+        "documents": {
+            "doc:test": "rev:test"
+        },
+        "policy": {
+            "merge_rule": "manual-reviewed",
+            "preferred_branches": [""]
+        },
+        "timestamp": 12u64
+    });
+    view["signature"] = Value::String(sign_value(&signing_key, &view));
+    let path = write_test_file(
+        "view-policy-empty-preferred-branch",
+        &serde_json::to_string_pretty(&view).expect("test JSON should serialize"),
+    );
+
+    let summary = verify_object_path(&path);
+
+    assert!(!summary.is_ok(), "expected failure, got {summary:?}");
+    assert!(
+        summary.errors.iter().any(|message| {
+            message.contains("top-level 'policy.preferred_branches[0]' must not be an empty string")
+        }),
+        "expected empty preferred_branches semantic-edge error, got {summary:?}"
+    );
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 pub(super) fn invalid_signature_is_rejected() {
     let (_signing_key, public_key) = signer_material();
     let mut value = json!({
