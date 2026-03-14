@@ -448,14 +448,20 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
             .to_string_lossy()
             .into_owned()
     );
-    assert_eq!(json["status"], "ok");
     assert_eq!(json["doc_id"], "doc:sample");
     assert_eq!(json["viewer_signal_count"], Value::from(7));
     assert_eq!(
         json["selected_head"],
         "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
     );
-    assert_eq!(json["tie_break_reason"], "higher_selector_score");
+    assert_eq!(
+        json["status"],
+        Value::String("ok-with-viewer-freeze-block".to_string())
+    );
+    assert_eq!(
+        json["tie_break_reason"],
+        "higher_selector_score_after_viewer-freeze-block"
+    );
 
     let eligible_heads = json["eligible_heads"]
         .as_array()
@@ -2545,7 +2551,15 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
+    assert_eq!(
+        json["status"],
+        Value::String("ok-with-viewer-freeze-block".to_string())
+    );
     assert_eq!(json["selected_head"], revision_a["revision_id"]);
+    assert_eq!(
+        json["tie_break_reason"],
+        Value::String("higher_selector_score_after_viewer-freeze-block".to_string())
+    );
     let eligible_heads = json["eligible_heads"]
         .as_array()
         .expect("eligible_heads should be array");
@@ -3035,8 +3049,18 @@ fn head_inspect_skips_candidate_delayed_by_viewer_review_pressure() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
+    assert_eq!(
+        json["status"],
+        Value::String("ok-with-viewer-review-delay".to_string())
+    );
     assert_eq!(json["selected_head"], revision_b["revision_id"]);
+    assert_eq!(
+        json["tie_break_reason"],
+        Value::String(
+            "newer_revision_timestamp_or_lexicographic_tiebreak_after_viewer-review-delay"
+                .to_string(),
+        )
+    );
     assert!(
         json["notes"]
             .as_array()
@@ -3139,7 +3163,10 @@ fn head_inspect_fails_when_all_candidates_are_delayed_by_viewer_review_pressure(
 
     assert_exit_code(&output, 1);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "failed");
+    assert_eq!(
+        json["status"],
+        Value::String("blocked-by-viewer-review-delay".to_string())
+    );
     assert_eq!(json["selected_head"], Value::Null);
     assert!(
         json["errors"]
@@ -3214,8 +3241,18 @@ fn head_inspect_skips_candidate_blocked_by_viewer_freeze_pressure() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
+    assert_eq!(
+        json["status"],
+        Value::String("ok-with-viewer-freeze-block".to_string())
+    );
     assert_eq!(json["selected_head"], revision_b["revision_id"]);
+    assert_eq!(
+        json["tie_break_reason"],
+        Value::String(
+            "newer_revision_timestamp_or_lexicographic_tiebreak_after_viewer-freeze-block"
+                .to_string()
+        )
+    );
     assert!(
         json["notes"]
             .as_array()
@@ -3318,7 +3355,10 @@ fn head_inspect_fails_when_all_candidates_are_blocked_by_viewer_freeze_pressure(
 
     assert_exit_code(&output, 1);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "failed");
+    assert_eq!(
+        json["status"],
+        Value::String("blocked-by-viewer-freeze-block".to_string())
+    );
     assert_eq!(json["selected_head"], Value::Null);
     assert!(
         json["errors"]

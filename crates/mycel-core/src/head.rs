@@ -1034,6 +1034,10 @@ fn inspect_heads_from_loaded_input(
         );
     }
 
+    let viewer_gating = viewer_selection_gating(
+        !review_delayed_revision_ids.is_empty(),
+        !frozen_revision_ids.is_empty(),
+    );
     let selectable_heads = summary
         .eligible_heads
         .iter()
@@ -1049,15 +1053,16 @@ fn inspect_heads_from_loaded_input(
             .then_with(|| right.revision_id.cmp(&left.revision_id))
     }) else {
         summary.push_error("NO_ACTIVE_HEAD_AFTER_VIEWER_REVIEW_OR_FREEZE");
+        summary.status = blocked_status_for_viewer_gating(viewer_gating).to_string();
         return summary;
     };
 
     summary.selected_head = Some(selected.revision_id.clone());
-    summary.tie_break_reason = Some(if selected.selector_score > 0 {
-        "higher_selector_score".to_string()
-    } else {
-        "newer_revision_timestamp_or_lexicographic_tiebreak".to_string()
-    });
+    summary.status = success_status_for_viewer_gating(viewer_gating).to_string();
+    summary.tie_break_reason = Some(selection_tie_break_reason(
+        selected.selector_score > 0,
+        viewer_gating,
+    ));
     summary.push_trace(
         "selected_head",
         format!(
@@ -1993,6 +1998,50 @@ fn viewer_review_state_for_score(score: &ViewerHeadScore) -> ViewerReviewState {
         ViewerReviewState::ReviewPressure
     } else {
         ViewerReviewState::None
+    }
+}
+
+fn viewer_selection_gating(has_review_delay: bool, has_freeze_block: bool) -> Option<&'static str> {
+    match (has_review_delay, has_freeze_block) {
+        (false, false) => None,
+        (true, false) => Some("viewer-review-delay"),
+        (false, true) => Some("viewer-freeze-block"),
+        (true, true) => Some("viewer-review-delay-and-freeze-block"),
+    }
+}
+
+fn success_status_for_viewer_gating(viewer_gating: Option<&str>) -> &'static str {
+    match viewer_gating {
+        None => "ok",
+        Some("viewer-review-delay") => "ok-with-viewer-review-delay",
+        Some("viewer-freeze-block") => "ok-with-viewer-freeze-block",
+        Some("viewer-review-delay-and-freeze-block") => {
+            "ok-with-viewer-review-delay-and-freeze-block"
+        }
+        Some(_) => "ok",
+    }
+}
+
+fn blocked_status_for_viewer_gating(viewer_gating: Option<&str>) -> &'static str {
+    match viewer_gating {
+        Some("viewer-review-delay") => "blocked-by-viewer-review-delay",
+        Some("viewer-freeze-block") => "blocked-by-viewer-freeze-block",
+        Some("viewer-review-delay-and-freeze-block") => {
+            "blocked-by-viewer-review-delay-and-freeze-block"
+        }
+        _ => "failed",
+    }
+}
+
+fn selection_tie_break_reason(selected_by_score: bool, viewer_gating: Option<&str>) -> String {
+    let base = if selected_by_score {
+        "higher_selector_score"
+    } else {
+        "newer_revision_timestamp_or_lexicographic_tiebreak"
+    };
+    match viewer_gating {
+        None => base.to_string(),
+        Some(gating) => format!("{base}_after_{gating}"),
     }
 }
 
