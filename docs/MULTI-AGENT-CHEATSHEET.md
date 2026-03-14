@@ -8,6 +8,8 @@ Tracked registry spec: [AGENT-REGISTRY.md](./AGENT-REGISTRY.md)
 
 Tracked mailbox spec: [AGENT-HANDOFF.md](./AGENT-HANDOFF.md)
 
+Tracked delivery runbook: [DELIVERY-WORKFLOW.md](./DELIVERY-WORKFLOW.md)
+
 Local registry file:
 
 - `.agent-local/agents.json`
@@ -63,6 +65,14 @@ Doc cadence reminder:
 Use `coding` when the main output is behavior, tests, fixtures, parser/verifier work, or CLI changes.
 
 Use `delivery` when the main output is CI/process coordination rather than product behavior.
+
+Delivery default loop:
+
+1. check the latest completed CI result
+2. classify the blocker as product, test, workflow/infrastructure, or planning-visible process state
+3. fix delivery-owned workflow/process issues directly
+4. route product fixes to `coding` and planning wording to `doc`
+5. leave one `Delivery Continuation Note` before ending the work cycle
 
 Use `doc` when the main output is syncing planning or explanatory docs after behavior is already settled.
 
