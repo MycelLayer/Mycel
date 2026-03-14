@@ -285,7 +285,7 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, now with accepted-head rendering, named fixed-profile selection, editor-admission-aware inspect/render behavior, and bounded viewer score surfaces in head inspection on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics, and final dual-role closure.
+Early partial progress, now with accepted-head rendering, named fixed-profile selection, editor-admission-aware inspect/render behavior, and bounded viewer score surfaces in head inspection on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics, and final independent dual-role role-assignment closure.
 
 Already in progress or partially implemented:
 
@@ -306,7 +306,7 @@ Still missing or incomplete:
 2. Reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 3. Richer governance retrieval and publication surfaces beyond the initial filtered/sorted/projected `view` inspection/listing/publication surface
 4. Stronger dedicated governance-state tooling once wire and sync work begin to land
-5. Final dual-role admission closure for mixed-role and shared-key cases, plus any later decision about promoting viewer inputs beyond the current head-inspect-local bundle surface
+5. Final independent editor-maintainer / view-maintainer role-assignment closure for mixed-role and shared-key cases, plus any later decision about promoting viewer inputs beyond the current head-inspect-local bundle surface
 
 ### Milestones in This Phase
 
@@ -328,7 +328,7 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, plus editor-admission-aware named-profile and store-backed flows and bounded viewer score surfaces in head inspection; broader governance persistence, reader-facing profile ergonomics, and final dual-role closure remain.
+Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, plus editor-admission-aware named-profile and store-backed flows and bounded viewer score surfaces in head inspection; broader governance persistence, reader-facing profile ergonomics, and final independent dual-role role-assignment closure remain.
 
 Already visible in the repo:
 
@@ -349,7 +349,7 @@ Main remaining gaps:
 2. stronger dedicated governance inspection and publication surfaces beyond the initial `view` workflow
 3. reader-facing profile ergonomics beyond the minimal named fixed-profile surface
 4. governance-state tooling that can later align with wire/sync transport
-5. final dual-role admission closure for mixed-role and shared-key cases, plus any broader governance persistence we would need before moving beyond the current head-inspect-local viewer signal surface
+5. final independent editor-maintainer / view-maintainer role-assignment closure for mixed-role and shared-key cases, plus any broader governance persistence we would need before moving beyond the current head-inspect-local viewer signal surface
 
 Implementation anchors:
 

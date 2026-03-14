@@ -285,7 +285,7 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、具備 editor-admission 感知的 inspect/render behavior，以及 head inspection 裡的 bounded viewer score surfaces；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、reader-facing profile ergonomics，以及最後的 dual-role closure。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、具備 editor-admission 感知的 inspect/render behavior，以及 head inspection 裡的 bounded viewer score surfaces；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
 
 已在進行中或部分完成：
 
@@ -306,7 +306,7 @@ Implementation anchors：
 2. 超出目前初始 filtered / sorted / projected `view` inspection / listing / publication workflow 的專用 governance surfaces
 3. 超出最小具名 fixed-profile surface 的 reader-facing profile ergonomics
 4. 後續可與 wire / sync 對齊的 governance-state tooling
-5. mixed-role 與 shared-key case 的最終 dual-role admission closure，以及之後若要超出目前 head-inspect-local bundle surface，還需要哪些更廣泛的 governance persistence 決策
+5. mixed-role 與 shared-key case 的最終 editor-maintainer / view-maintainer 獨立角色指派收尾，以及之後若要超出目前 head-inspect-local bundle surface，還需要哪些更廣泛的 governance persistence 決策
 
 Implementation anchors：
 
