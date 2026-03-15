@@ -126,6 +126,13 @@ class AgentBootstrapCliTest(unittest.TestCase):
             payload["deferred_reads"],
         )
 
+    def test_model_id_appears_in_timestamp_and_claimed_agent_label(self) -> None:
+        proc = self.run_cli("coding", "--scope", "ci-triage", "--model-id", "claude-sonnet-4-6", "--concise")
+
+        self.assertIn("claimed_agent: coding-1 (agt_", proc.stdout)
+        self.assertIn("/claude-sonnet-4-6)", proc.stdout)
+        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+/claude-sonnet-4-6\) \| ci-triage")
+
     def test_concise_text_output_keeps_user_facing_summary_short(self) -> None:
         proc = self.run_cli("coding", "--scope", "relay-ready", "--concise")
 

@@ -14,9 +14,10 @@ def format_now(now: datetime | None = None) -> str:
     return current.astimezone(TAIPEI_TIMEZONE).replace(microsecond=0).strftime("%Y-%m-%d %H:%M:%S UTC+8")
 
 
-def format_agent_label(agent: str | None, agent_uid: str | None) -> str | None:
+def format_agent_label(agent: str | None, agent_uid: str | None, model_id: str | None = None) -> str | None:
     if agent and agent_uid and agent != agent_uid:
-        return f"{agent} ({agent_uid})"
+        uid_part = f"{agent_uid}/{model_id}" if model_id else agent_uid
+        return f"{agent} ({uid_part})"
     return agent or agent_uid
 
 
@@ -25,12 +26,13 @@ def build_message(
     *,
     agent: str | None,
     agent_uid: str | None = None,
+    model_id: str | None = None,
     scope: str | None,
     now: datetime | None = None,
 ) -> str:
     label = "Before work" if stage == "before" else "After work"
     message = f"[{format_now(now)}] {label}"
-    agent_label = format_agent_label(agent, agent_uid)
+    agent_label = format_agent_label(agent, agent_uid, model_id)
     if agent_label:
         message += f" | {agent_label}"
     if scope:
@@ -45,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("stage", choices=["before", "after"], help="whether the line is for the start or end of work")
     parser.add_argument("--agent", help="display id or agent uid to include in the message")
     parser.add_argument("--agent-uid", help="agent uid to pair with the display id in the message")
+    parser.add_argument("--model-id", help="model identifier to append inside the agent uid parens")
     parser.add_argument("--scope", help="scope label to include in the message")
     parser.add_argument(
         "--now",
@@ -72,6 +75,7 @@ def main() -> int:
             args.stage,
             agent=args.agent,
             agent_uid=args.agent_uid,
+            model_id=args.model_id,
             scope=args.scope,
             now=parse_now(args.now),
         )

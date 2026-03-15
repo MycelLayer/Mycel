@@ -174,6 +174,16 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertNotIn("checklist_paths:", proc.stdout)
         self.assertNotIn("open_handoff_lines:", proc.stdout)
 
+    def test_begin_includes_model_id_in_timestamp_when_set(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "delivery", "--scope", "ci-triage", "--model-id", "claude-sonnet-4-6")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+
+        proc = self.run_cli("begin", agent_uid, "--scope", "ci-triage")
+
+        self.assertIn(f"Before work | delivery-1 ({agent_uid}/claude-sonnet-4-6) | ci-triage", proc.stdout)
+
     def test_end_returns_pending_when_bootstrap_or_workcycle_items_are_unchecked(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")

@@ -519,6 +519,9 @@ def ensure_entry_v2(entry: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     elif entry.get("paused_at") is not None:
         entry["paused_at"] = None
         changed = True
+    if "model_id" not in entry:
+        entry["model_id"] = None
+        changed = True
     if "id" in entry:
         del entry["id"]
         changed = True
@@ -701,6 +704,7 @@ def normalized_entry(entry: dict[str, Any]) -> dict[str, Any]:
         "mailbox_exists": mailbox_exists,
         "recovery_of": entry.get("recovery_of"),
         "superseded_by": entry.get("superseded_by"),
+        "model_id": entry.get("model_id"),
     }
 
 
@@ -716,6 +720,8 @@ def print_claim(data: dict[str, Any]) -> None:
     print(f"assigned_by: {data['assigned_by']}")
     print(f"assigned_at: {data['assigned_at']}")
     print(f"mailbox: {data['mailbox']}")
+    if data.get("model_id"):
+        print(f"model_id: {data['model_id']}")
     print(f"next: scripts/agent_registry.py start {data['agent_uid']}")
 
 
@@ -927,6 +933,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
         "scope": args.scope,
         "files": [],
         "mailbox": mailbox_rel,
+        "model_id": getattr(args, "model_id", None),
         "last_touched_at": None,
         "inactive_at": None,
         "paused_at": now,
@@ -948,6 +955,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
         "assigned_by": args.assigned_by,
         "assigned_at": now,
         "mailbox": mailbox_rel,
+        "model_id": getattr(args, "model_id", None),
     }
     if args.json:
         print_json(result)
@@ -1232,6 +1240,7 @@ def cmd_takeover(args: argparse.Namespace) -> int:
         "scope": scope,
         "files": list(stale_entry.get("files", [])) if isinstance(stale_entry.get("files"), list) else [],
         "mailbox": replacement_mailbox_rel,
+        "model_id": getattr(args, "model_id", None),
         "last_touched_at": now,
         "inactive_at": None,
         "paused_at": None,
@@ -1442,6 +1451,7 @@ def build_parser() -> argparse.ArgumentParser:
     claim.add_argument("role")
     claim.add_argument("--scope", default="pending scope")
     claim.add_argument("--assigned-by", default="user")
+    claim.add_argument("--model-id", default=None, dest="model_id")
     claim.add_argument("--json", action="store_true")
     claim.add_argument("-h", "--help", action="help")
     claim.set_defaults(func=cmd_claim)
@@ -1483,6 +1493,7 @@ def build_parser() -> argparse.ArgumentParser:
     takeover.add_argument("stale_agent_ref")
     takeover.add_argument("--scope", default="")
     takeover.add_argument("--assigned-by", default="user")
+    takeover.add_argument("--model-id", default=None, dest="model_id")
     takeover.add_argument("--json", action="store_true")
     takeover.add_argument("-h", "--help", action="help")
     takeover.set_defaults(func=cmd_takeover)

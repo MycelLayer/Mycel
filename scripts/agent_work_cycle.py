@@ -100,6 +100,15 @@ def resolve_agent_role(agent_ref: str) -> str:
     return role
 
 
+def resolve_agent_model_id(agent_ref: str) -> str | None:
+    status_payload = run_registry("status", agent_ref)
+    agents = status_payload.get("agents")
+    if not isinstance(agents, list) or len(agents) != 1:
+        return None
+    model_id = agents[0].get("model_id")
+    return model_id if isinstance(model_id, str) and model_id.strip() else None
+
+
 def set_checklist_item_states(checklist_path: Path, updates: list[tuple[str, str]]) -> None:
     try:
         update_checklist_items(checklist_path, updates)
@@ -215,6 +224,7 @@ def main() -> int:
     agent_uid = payload.get("agent_uid") or args.agent_ref
     display_id = payload.get("display_id")
     agent_role = resolve_agent_role(agent_uid)
+    model_id = resolve_agent_model_id(agent_uid)
 
     checklist_paths: list[Path] = []
     unchecked_by_path: dict[Path, list[str]] = {}
@@ -260,7 +270,7 @@ def main() -> int:
         stage = "after"
         label = display_id or args.agent_ref
         emit_registry_summary(payload)
-        print(build_message(stage, agent=label, agent_uid=agent_uid, scope=args.scope))
+        print(build_message(stage, agent=label, agent_uid=agent_uid, model_id=model_id, scope=args.scope))
 
         for path in checklist_paths:
             unchecked_by_path[path] = scan_unchecked_items(path)
@@ -286,7 +296,7 @@ def main() -> int:
 
     stage = "before" if args.stage == "begin" else "after"
     label = display_id or args.agent_ref
-    print(build_message(stage, agent=label, agent_uid=agent_uid, scope=args.scope))
+    print(build_message(stage, agent=label, agent_uid=agent_uid, model_id=model_id, scope=args.scope))
     return 0
 
 
