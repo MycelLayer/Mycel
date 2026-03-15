@@ -2811,10 +2811,9 @@ pub(super) fn document_non_integer_created_at_is_rejected() {
 
     assert!(!summary.is_ok(), "expected failure, got {summary:?}");
     assert!(
-        summary
-            .errors
-            .iter()
-            .any(|message| message.contains("top-level 'created_at' must be a non-negative integer")),
+        summary.errors.iter().any(
+            |message| message.contains("top-level 'created_at' must be a non-negative integer")
+        ),
         "expected created_at integer type error, got {summary:?}"
     );
 
