@@ -31,7 +31,7 @@ Defer if needed:
 - [x] Choose one implementation language and package layout.
 - [x] Fix one canonical hash algorithm for the network profile.
 - [x] Fix one signature algorithm set for the client profile.
-- [ ] Finish extending the shared canonical JSON utility across hash, signature, the remaining wire-validation paths, and future wire code.
+- [x] Finish extending the shared canonical JSON utility across hash, signature, the remaining wire-validation paths, and future wire code.
 - [x] Add fixture loading for protocol examples and regression tests.
 
 ## 2. Object Types and IDs
@@ -55,7 +55,7 @@ Defer if needed:
 - [x] Reject duplicate keys.
 - [x] Reject unsupported value types such as `null` or floating-point numbers.
 - [x] Omit derived ID fields and `signature` when recomputing object IDs.
-- [ ] Finish reusing the same canonicalization rules for the remaining wire-validation paths and future wire envelope signatures.
+- [x] Finish reusing the same canonicalization rules for the remaining wire-validation paths and future wire envelope signatures.
 
 ## 4. Signature Verification
 
@@ -185,7 +185,7 @@ Treat the client as ready for a first interoperable build when all of the follow
 - [x] all required object types parse and validate
 - [x] canonical IDs and signatures are reproducible
 - [x] revision replay and `state_hash` verification pass
-- [ ] minimal wire sync succeeds end-to-end
+- [ ] minimal wire sync succeeds end-to-end  <!-- canonical layer complete; transport integration pending M4 -->
 - [x] deterministic head selection produces stable output
 - [x] merge generation can emit valid replayable patch operations
 - [x] the local store can be rebuilt from canonical objects alone
