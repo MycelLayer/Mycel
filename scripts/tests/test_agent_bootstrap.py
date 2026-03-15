@@ -69,7 +69,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         return proc
 
     def test_text_output_combines_claim_start_begin_and_git_status(self) -> None:
-        proc = self.run_cli("doc", "--scope", "fast-bootstrap")
+        proc = self.run_cli("doc", "--scope", "fast-bootstrap", "--model-id", "test-model")
 
         self.assertIn("agent_uid: agt_", proc.stdout)
         self.assertIn("display_id: doc-1", proc.stdout)
@@ -79,7 +79,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("workcycle_output: .agent-local/agents/", proc.stdout)
         self.assertIn("current_status: active", proc.stdout)
         self.assertIn("startup_mode: fresh-chat-fast-path", proc.stdout)
-        self.assertRegex(proc.stdout, r"Before work \| doc-1 \(agt_[a-z0-9]+\) \| fast-bootstrap")
+        self.assertRegex(proc.stdout, r"Before work \| doc-1 \(agt_[a-z0-9]+/test-model\) \| fast-bootstrap")
         self.assertIn("repo_status:\n  ## No commits yet on main", proc.stdout)
         self.assertIn("fast_path_steps:", proc.stdout)
         self.assertIn("next_actions:", proc.stdout)
@@ -88,7 +88,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertNotIn("latest completed CI result", proc.stdout)
 
     def test_json_output_returns_combined_payload(self) -> None:
-        proc = self.run_cli("--json")
+        proc = self.run_cli("--json", "--model-id", "test-model")
         payload = json.loads(proc.stdout)
 
         self.assertEqual("coding", payload["role"])
@@ -101,7 +101,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertEqual("fresh-chat-fast-path", payload["startup_mode"])
         self.assertRegex(
             payload["before_work_line"],
-            r"Before work \| coding-1 \(agt_[a-z0-9]+\) \| pending scope",
+            r"Before work \| coding-1 \(agt_[a-z0-9]+/test-model\) \| pending scope",
         )
         self.assertEqual("## No commits yet on main", payload["repo_status"][0])
         self.assertIn("?? .agent-local/", payload["repo_status"])
@@ -134,13 +134,14 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+/claude-sonnet-4-6\) \| ci-triage")
 
     def test_concise_text_output_keeps_user_facing_summary_short(self) -> None:
-        proc = self.run_cli("coding", "--scope", "relay-ready", "--concise")
+        proc = self.run_cli("coding", "--scope", "relay-ready", "--model-id", "test-model", "--concise")
 
         self.assertIn("claimed_agent: coding-1 (agt_", proc.stdout)
+        self.assertIn("/test-model)", proc.stdout)
         self.assertIn("role: coding", proc.stdout)
         self.assertIn("scope: relay-ready", proc.stdout)
         self.assertIn("startup_mode: fresh-chat-fast-path", proc.stdout)
-        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+\) \| relay-ready")
+        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+/test-model\) \| relay-ready")
         self.assertIn("repo_status:\n  ## No commits yet on main", proc.stdout)
         self.assertIn("next_actions:", proc.stdout)
         self.assertIn("deferred_reads:", proc.stdout)

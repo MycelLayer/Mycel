@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scope", default="pending scope", help="scope label for the new agent")
     parser.add_argument("--assigned-by", default="user", help="registry assigned_by value")
     parser.add_argument("--json", action="store_true", help="emit a combined JSON payload")
-    parser.add_argument("--model-id", default=None, dest="model_id", help="model identifier to record in the registry and include in timestamp lines")
+    parser.add_argument("--model-id", required=True, dest="model_id", help="model identifier to record in the registry and include in timestamp lines")
     parser.add_argument(
         "--concise",
         action="store_true",
@@ -142,10 +142,9 @@ def next_actions_for_role(role: str) -> list[str]:
 
 
 def build_result(args: argparse.Namespace) -> dict[str, Any]:
-    claim_cmd = ["claim", args.role, "--scope", args.scope, "--assigned-by", args.assigned_by]
-    if args.model_id:
-        claim_cmd += ["--model-id", args.model_id]
-    claim_payload = run_registry_json(*claim_cmd)
+    claim_payload = run_registry_json(
+        "claim", args.role, "--scope", args.scope, "--assigned-by", args.assigned_by, "--model-id", args.model_id
+    )
     agent_uid = claim_payload.get("agent_uid")
     if not isinstance(agent_uid, str) or not agent_uid.strip():
         raise BootstrapError("claim did not return agent_uid")
@@ -185,7 +184,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         "fast_path_steps": fast_path_steps_for_role(role),
         "deferred_reads": deferred_reads_for_role(role),
         "next_actions": next_actions_for_role(role),
-        "claimed_agent_label": f"{claim_payload.get('display_id')} ({agent_uid}/{args.model_id})" if args.model_id else f"{claim_payload.get('display_id')} ({agent_uid})",
+        "claimed_agent_label": f"{claim_payload.get('display_id')} ({agent_uid}/{args.model_id})",
     }
     return result
 
