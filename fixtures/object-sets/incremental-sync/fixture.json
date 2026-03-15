@@ -1,0 +1,21 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "incremental-sync",
+    "description": "Reader that already has the genesis revision receives a follow-up revision via incremental HEADS-based sync",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:incremental-test"
+        }
+    ],
+    "expected_outcomes": [
+        "incremental-sync-success",
+        "new-objects-verified"
+    ],
+    "notes": [
+        "Seed holds genesis revision plus a follow-up revision. Reader starts with only the genesis revision and syncs incrementally via HEADS to receive the follow-up."
+    ]
+}

@@ -185,7 +185,7 @@ Treat the client as ready for a first interoperable build when all of the follow
 - [x] all required object types parse and validate
 - [x] canonical IDs and signatures are reproducible
 - [x] revision replay and `state_hash` verification pass
-- [ ] minimal wire sync succeeds end-to-end  <!-- canonical layer complete; transport integration pending M4 -->
+- [x] minimal wire sync succeeds end-to-end
 - [x] deterministic head selection produces stable output
 - [x] merge generation can emit valid replayable patch operations
 - [x] the local store can be rebuilt from canonical objects alone

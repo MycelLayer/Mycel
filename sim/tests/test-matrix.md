@@ -2,9 +2,11 @@
 
 ## Positive
 
-- `first-sync-empty-reader`: empty reader syncs from `minimal-valid`
+- `first-sync-empty-reader`: empty reader syncs from `minimal-valid` (covered by `three-peer-consistency`)
 - `three-peer-consistency`: two readers converge on the same verified object set
   Reference JSON: `sim/tests/three-peer-consistency.example.json`
+- `incremental-sync`: reader already has genesis revision, receives follow-up revision via HEADS-based incremental sync
+  Reference JSON: `sim/tests/incremental-sync.example.json`
 
 ## Negative
 
@@ -17,6 +19,8 @@
 
 - `recover-missing-objects`: recover missing objects via `WANT`
   Reference JSON: `sim/tests/partial-want-recovery.example.json`
+- `mixed-reader-recovery`: mixed reader set converges after WANT-based recovery
+  Reference JSON: `sim/tests/mixed-reader-recovery.example.json`
 
 ## Deferred
 

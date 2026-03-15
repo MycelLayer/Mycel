@@ -283,8 +283,17 @@ fn simulate_peer_store_sync_report(
         .expected_outcomes
         .iter()
         .any(|outcome| outcome.contains("recovery") || outcome.contains("missing-objects"));
+    let uses_incremental = fixture
+        .expected_outcomes
+        .iter()
+        .any(|outcome| outcome.contains("incremental-sync"));
 
-    populate_seed_store(&seed_store_root, fixture, &signing_key, uses_recovery)?;
+    populate_seed_store(
+        &seed_store_root,
+        fixture,
+        &signing_key,
+        uses_recovery || uses_incremental,
+    )?;
     let seed_manifest = load_store_index_manifest(&seed_store_root)
         .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
     let seed_verified_object_ids = manifest_object_ids(&seed_manifest);
@@ -378,7 +387,7 @@ fn simulate_peer_store_sync_report(
         }
 
         let peer_store_root = stores.store_root(&peer.node_id);
-        let starts_with_partial_store = uses_recovery
+        let starts_with_partial_store = (uses_recovery || uses_incremental)
             && fixture.reader_peers.iter().any(|peer_ref| {
                 resolve_peer_ref(topology, peer_ref).as_deref() == Some(peer.node_id.as_str())
             });
@@ -403,7 +412,9 @@ fn simulate_peer_store_sync_report(
             .map(|record| record.object_id.clone())
             .collect::<Vec<_>>();
         let replay_hashes = store_head_replay_hashes(&peer_store_root)?;
-        let action = if starts_with_partial_store {
+        let action = if starts_with_partial_store && uses_incremental {
+            "incremental-accept"
+        } else if starts_with_partial_store {
             "request-missing-objects"
         } else {
             "reader-accept"
@@ -449,7 +460,9 @@ fn simulate_peer_store_sync_report(
             },
             Some(format!(
                 "Peer-store sync used {} and transferred {} OBJECT messages.",
-                if starts_with_partial_store {
+                if starts_with_partial_store && uses_incremental {
+                    "HEADS/WANT (incremental)"
+                } else if starts_with_partial_store {
                     "HEADS/WANT"
                 } else {
                     "MANIFEST/WANT"

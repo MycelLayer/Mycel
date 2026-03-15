@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "incremental-sync",
+    "description": "A reader that already has the genesis revision should receive a follow-up revision via HEADS-based incremental sync.",
+    "category": "sync",
+    "topology": "sim/topologies/incremental-sync.example.json",
+    "fixture_set": "fixtures/object-sets/incremental-sync",
+    "execution_mode": "single-process",
+    "expected_result": "pass",
+    "expected_outcomes": [
+        "incremental-sync-success",
+        "new-objects-verified"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "incremental-sync-success",
+            "description": "Reader successfully received follow-up revision objects via HEADS-based incremental sync.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "new-objects-verified",
+            "description": "Reader verified and stored the new follow-up revision objects after incremental sync.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Proves that incremental HEADS-based sync delivers new revisions to a reader that already has a complete base state.",
+        "The sync engine uses HEADS (not MANIFEST) when the local store is non-empty, transferring only the new objects."
+    ]
+}
