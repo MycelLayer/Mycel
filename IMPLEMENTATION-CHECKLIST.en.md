@@ -1,8 +1,13 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: late partial progress, refreshed after the recent canonical-helper convergence, peer-store sync-driver, CLI peer-sync, simulator integration, and optional-flow sync coverage batch; implementation state now includes replay `state_hash` helper convergence plus early `M4` peer-driven sync coverage and capability-gated optional-message handling, while broader peer interop and production replication behavior remain open
+Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M2` / `M3` / `M4` work, including broader governance persistence, broader peer interop, and production replication behavior
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
+
+It now has two roles:
+
+- Part A records the closed `M1` minimal-client gate and its completed proof points
+- Part B tracks the remaining follow-up work for `M2`, `M3`, and `M4`
 
 ## 0. Build Target
 
@@ -25,6 +30,10 @@ Defer if needed:
 - automatic key discovery
 - non-JSON encodings
 - custom merge plugins
+
+## Part A. Closed `M1` Minimal-Client Gate
+
+The following sections remain as the historical record of the closed minimal-client gate.
 
 ## 1. Repo and Build Setup
 
@@ -189,3 +198,34 @@ Treat the client as ready for a first interoperable build when all of the follow
 - [x] deterministic head selection produces stable output
 - [x] merge generation can emit valid replayable patch operations
 - [x] the local store can be rebuilt from canonical objects alone
+
+## Part B. Post-`M1` Follow-Up Checklist
+
+Use this section as the active implementation checklist for the still-open post-`M1` lane.
+
+## 14. `M2` Replay, Storage, and Rebuild Follow-Up
+
+- [ ] Broaden persisted-store index reuse across reader and recovery workflows so accepted-head and render paths rely less on ad hoc CLI-only glue.
+- [ ] Add stronger replay and store-rebuild fixture coverage beyond the current direct proof points, including more realistic multi-document and recovery-oriented fixture sets.
+- [ ] Move more authoring and replay helper ownership into `mycel-core` so storage-write and replay behavior are not disproportionately CLI-driven.
+- [ ] Expand conservative merge-authoring coverage for richer nested and reparenting conflict cases that still fall back to manual curation.
+- [ ] Define and verify the intended narrow object-authoring and storage-write path that remains open after the closed minimal-client gate.
+
+## 15. `M3` Reader and Governance Follow-Up
+
+- [ ] Add broader governance persistence beyond the current initial reverse-index and inspect/list/publish surfaces.
+- [ ] Extend governance tooling past the current initial `view inspect` / `view list` / `view publish` workflows.
+- [ ] Keep improving reader profile ergonomics beyond the current available-profile summaries and profile-error feedback.
+- [ ] Close the remaining independent dual-role role-assignment follow-up that still remains after separate admission validation landed.
+
+## 16. `M4` Wire Sync and Peer Interop Follow-Up
+
+- [ ] Broaden peer-interop proof beyond the current peer-store-driven first-time and incremental sync coverage.
+- [ ] Add localhost multi-process or equivalent transport proof so the current sync path is not validated only through narrow transcript or simulator-controlled paths.
+- [ ] Define and test the missing production replication behavior that still sits outside the current minimal sync proof.
+- [ ] Expand session, capability, and error-path interop coverage past the current positive-path and optional-message proof set.
+
+## 17. Cross-Surface Closure Rules
+
+- [ ] Keep `ROADMAP.md`, `ROADMAP.zh-TW.md`, and `docs/PROGRESS.md` aligned whenever any post-`M1` checklist section changes status.
+- [ ] Open or refresh narrowly-scoped GitHub Issues for durable follow-up gaps rather than leaving post-`M1` work only as summary prose.

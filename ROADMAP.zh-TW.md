@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：late partial progress，已在先前 peer-store sync coverage 基礎上，隨著最近一批 local-policy separation、viewer status clarification 與 head-profile ergonomics 更新而刷新；`M3` 現在已補上更清楚的可用 profile 探索與 profile 錯誤回饋，但更廣的 governance persistence、剩餘的 profile ergonomics、獨立 dual-role 角色指派收尾，以及更廣的 `M4` peer-interop proof 仍未完成
+狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence、peer interop proof 與 production replication behavior 仍未完成
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -38,10 +38,9 @@
 
 目前的 lane 是：
 
-1. 完成窄版的第一個客戶端核心
-2. 收掉 shared core 在 parsing 與 canonicalization 上剩餘的缺口
-3. 一邊持續擴充 fixtures、模擬器 coverage 與負向測試，一邊開始 reader-plus-governance 的讀取路徑
-4. 讓 `M4` 維持窄版範圍，把 peer-store sync proof 往更廣 interop closure 與未來 production replication behavior 收斂
+1. 在已關閉的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 與 narrow write path 的剩餘收尾
+2. 擴展 `M3` reader-plus-governance workflows，但不要重新打開已關閉的 minimal-client gate
+3. 讓 `M4` 從 peer-store proof 往更廣的 peer interop、localhost transport proof 與 production replication behavior 推進
 
 ### 下一步
 
@@ -102,7 +101,7 @@
 
 ### Current Status
 
-仍屬 late partial progress，已接近 phase 尾端，但還不能宣告 complete。
+Phase 1 exit criteria 現在已滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍維持全綠（7/7），而 checklist 也改成把這個 gate 當作已關閉歷史區塊保留，並另外追蹤活的 post-`M1` follow-up work。
 
 已在進行中或部分完成：
 

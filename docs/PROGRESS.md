@@ -1,6 +1,6 @@
 # Mycel Progress View
 
-Status: draft, refreshed after the recent local-policy separation, viewer-status clarification, and head-profile ergonomics batch on top of the earlier peer-store sync coverage
+Status: draft, refreshed after the implementation checklist was split into a closed `M1` gate plus a live post-`M1` follow-up checklist so the summary now reflects `M2` / `M3` / `M4` as the active planning lane
 
 This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.md`](../IMPLEMENTATION-CHECKLIST.en.md) into one quick progress view.
 
@@ -8,10 +8,9 @@ This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.
 
 The current build lane is:
 
-1. close `M1` parsing and canonicalization debt
-2. finish `M2` replay, rebuild, and merge-authoring closure
-3. expand `M3` reader workflows carefully on top of the now-usable accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, and bounded viewer score surfaces while keeping broader governance persistence, profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure explicit
-4. keep `M4` narrow while peer-store sync proof grows toward broader interop closure and future production replication behavior
+1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure
+2. expand `M3` reader workflows carefully on top of the now-usable accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, and bounded viewer score surfaces while keeping broader governance persistence, profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure explicit
+3. keep `M4` narrow while peer-store sync proof grows toward broader interop closure, localhost transport proof, and future production replication behavior
 
 ## Milestone Timeline
 
@@ -38,7 +37,7 @@ flowchart LR
 
 | Milestone | Status | Main focus now | Main gaps |
 |---|---|---|---|
-| `M1` | Mostly complete | shared parsing, canonical helpers, and stricter parser/replay/CLI proof coverage | malformed field-shape depth closure, remaining semantic-edge closure, final wire-path helper convergence, milestone-close proof points |
+| `M1` | Closed gate | minimal-client proof retained as a completed checklist section | no longer the active lane; follow-up work moved into `M2` / `M3` / `M4` tracking |
 | `M2` | Substantially underway | replay, `state_hash`, store rebuild, ancestry-aware render/store verification, narrow write path, and conservative merge authoring with broader structural coverage | stronger replay/store fixtures, broader core reuse, and richer nested/reparenting conflict classification |
 | `M3` | Early partial | accepted-head reader workflows, bundle/store rendering with clearer ancestry context, named fixed-profile reading with clearer available-profile and profile-error feedback, editor-admission-aware inspect/render flows, bounded viewer score surfaces in head inspection, initial filtered/sorted/projected `view` governance inspect/list/publish workflows, and persisted reverse governance indexes | broader governance persistence, richer governance tooling, reader profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure |
 | `M4` | Early partial | wire envelope validation, `OBJECT` body verification, session reachability, store-backed bootstrap, peer-store-driven first-time / incremental sync proofs, and capability-gated optional-message handling | broader peer interop proof and production replication behavior remain |
@@ -55,10 +54,10 @@ Legend:
 
 | Area | Status | Primary milestone | Current read |
 |---|---|---|---|
-| 1. Repo and Build Setup | Mostly done | `M1` | the build/test base is stable, and shared canonical helper ownership is converging on a dedicated core module; the remaining utility closure is mostly in wire-path reuse |
-| 2. Object Types and IDs | Partial | `M1` | all required v0.1 families are typed, and parser / verify / CLI dependency-proof coverage is broader; malformed field-shape depth, remaining semantic-edge closure, and role modeling remain |
-| 3. Canonical Serialization and Hashing | Partial | `M1` | core rules and reproducibility coverage exist, and canonical helper ownership is more centralized in a shared core module; the remaining closure is the wire-path canonicalization follow-up rather than replay-derived `state_hash` |
-| 4. Signature Verification | Partial | `M1` / `M4` | object signature rules are in place, generic wire-envelope signature verification exists, replay-derived `state_hash` now uses the shared helper path, `OBJECT` body hash / `object_id` recomputation runs in wire validation, and capability-gated optional messages are enforced; remaining closure is the broader wire follow-up and wider peer interop proof |
+| 1. Repo and Build Setup | Done | `M1` | this is now part of the closed minimal-client gate; no active follow-up remains here |
+| 2. Object Types and IDs | Done | `M1` | the required v0.1 families and minimal-client role modeling are now retained as closed gate proof, not active checklist debt |
+| 3. Canonical Serialization and Hashing | Done | `M1` | canonical rules and shared helper reuse needed for the minimal gate are closed; post-`M1` wire follow-up now belongs to the broader `M4` lane rather than this gate |
+| 4. Signature Verification | Done | `M1` / `M4` | minimal object and wire signature verification are closed for the gate; broader interop/error-path follow-up remains in `M4` |
 | 5. Patch and Revision Engine | Mostly done | `M2` | replay and `state_hash` are in place; dependency verification, wrong-type and multi-hop ancestry proofs, sibling declared-ID determinism, and render-path ancestry context are stronger |
 | 6. Local State and Storage | Mostly done | `M2` | store ingest, rebuild, and indexes exist; local transport/safety policy now persists in a separate local policy file while rebuild smoke preserves both replicated indexes and local policy state |
 | 7. Wire Protocol | Partial | `M4` | canonical wire-envelope parsing, field validation, RFC 3339 checks, minimal-message payload validation, sender checks, session sequencing/head tracking, reachability gating, store-backed bootstrap, `OBJECT` body verification, capability-gated optional-message handling, and a minimal peer-store sync driver now exist in `mycel-core`; broader peer interop remains |
@@ -67,7 +66,7 @@ Legend:
 | 10. Merge Generation | Partial | `M2` | replay verification and a conservative local merge-authoring profile exist, including structural move/reorder, new-parent reparenting, simple composed parent-chain coverage, and a broader nested structural matrix, but richer nested/reparenting conflict cases still fall back to manual curation |
 | 11. CLI or API Surface | Partial | `M2` / `M3` / `M4` | verification, authoring, conservative merge authoring, editor-admission-aware reader inspection/render, governance inspect/list/publish, persisted governance index query surfaces, transcript-backed `sync pull`, and internal `sync peer-store` all exist, including optional snapshot/view flows; broader replication behavior remains open |
 | 12. Interop Test Minimum | Partial | `M1` / `M2` / `M4` | fixture isolation, reproducibility, stricter parser/replay smoke coverage, direct wire-envelope/signature/session tests, peer-store first-time / incremental sync proofs, optional-message coverage, and simulator positive-path coverage exist, but broader peer-interop cases remain |
-| 13. Ready-to-Build Gate | Partial | whole plan | replay, head selection, rebuild, conservative merge authoring, and peer-store sync proofs are green; parse closure, broader peer interop, and production replication behavior are not |
+| 13. Ready-to-Build Gate | Done | `M1` | the minimal-client gate is closed; remaining work now lives in the post-`M1` follow-up checklist instead of this gate |
 
 ## Suggested Reading Path
 

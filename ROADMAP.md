@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after M1 gate fully closed, canonical JSON wire-reuse confirmed, dual-role key closure completed, incremental-sync and capability-gated SNAPSHOT_OFFER / VIEW_ANNOUNCE simulator tests added, and accepted-head comparison surfaced in reports; `M1` Ready-to-Build Gate is now all green, `M4` sim coverage expanded to 8 scenarios, while `M3` governance persistence and broader `M4` production replication behavior remain open
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence, peer interop proof, and production replication behavior remain open
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -38,10 +38,9 @@ The repository does not yet have:
 
 The current lane is:
 
-1. ~~finish the narrow first-client core~~ — done; M1 Ready-to-Build Gate fully green
-2. ~~close the remaining shared-core gaps in parsing and canonicalization~~ — done; canonical JSON reuse confirmed across all wire paths
-3. keep expanding fixtures, simulator coverage, and negative tests while advancing reader-plus-governance read paths
-4. advance `M4` toward localhost multi-process transport proof and production replication behavior
+1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate
+2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
+3. advance `M4` from peer-store proof toward broader peer interop, localhost transport proof, and production replication behavior
 
 ### Next
 
@@ -102,7 +101,7 @@ Goal: reach a narrow first client that can parse, verify, store, replay, and ins
 
 ### Current Status
 
-Phase 1 exit criteria now fully satisfied. The Ready-to-Build Gate in `IMPLEMENTATION-CHECKLIST.en.md` is all green (7/7 items).
+Phase 1 exit criteria are now fully satisfied. The Ready-to-Build Gate in `IMPLEMENTATION-CHECKLIST.en.md` remains all green (7/7 items), and the checklist now retains that gate as a closed historical section while tracking active post-`M1` follow-up work separately.
 
 Already complete:
 

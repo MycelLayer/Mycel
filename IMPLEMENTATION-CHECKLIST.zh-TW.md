@@ -1,8 +1,13 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：late partial progress，已在最近一批 canonical-helper convergence、peer-store sync driver、CLI peer-sync、simulator integration，以及 optional-flow sync coverage 後刷新；實作狀態現在已包含 replay `state_hash` helper convergence、早期 `M4` peer-driven sync coverage，以及 capability-gated optional-message handling，但更廣的 peer interop 與 production replication behavior 仍未完成
+狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，包括更廣的 governance persistence、更廣的 peer interop，以及 production replication behavior
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
+
+它現在分成兩個角色：
+
+- Part A 保留已關閉的 `M1` minimal-client gate 與其完成 proof points
+- Part B 追蹤 `M2`、`M3`、`M4` 仍未完成的 follow-up work
 
 ## 0. 建置目標
 
@@ -26,12 +31,16 @@
 - 非 JSON 編碼
 - 自訂 merge plugin
 
+## Part A. 已關閉的 `M1` Minimal-Client Gate
+
+以下章節保留為已關閉 minimal-client gate 的歷史記錄。
+
 ## 1. Repo 與建置設定
 
 - [x] 選定一個實作語言與 package layout。
 - [x] 為 network profile 固定一個 canonical hash algorithm。
 - [x] 為 client profile 固定一組 signature algorithms。
-- [ ] 完成 shared canonical JSON 工具，讓它可被 hash、signature、剩餘 wire-validation 路徑，以及未來 wire code 共用。
+- [x] 完成 shared canonical JSON 工具，讓它可被 hash、signature、剩餘 wire-validation 路徑，以及未來 wire code 共用。
 - [x] 加入 protocol examples 與 regression tests 的 fixture 載入機制。
 
 ## 2. 物件型別與 ID
@@ -44,8 +53,8 @@
 - [x] 實作帶導出 `snapshot_id` 的 `snapshot` 解析。
 - [x] 拒絕任何內嵌導出 ID 與重算 canonical ID 不一致的內容定址物件。
 - [x] 在 shared parsing 與 verification 中，拒絕 typed object 的未知頂層欄位與非法必要欄位型別。
-- [ ] 在最近 strictness-surface 擴張、replay-dependency CLI smoke 擴張，以及 ancestry-context proof 擴張後，完成剩餘 malformed field-shape depth、semantic edge case 與角色建模的收尾。
-- [ ] 將 editor-maintainer 與 view-maintainer 的角色指派分開建模，並涵蓋 mixed-role 與 shared-key case。
+- [x] 在最近 strictness-surface 擴張、replay-dependency CLI smoke 擴張，以及 ancestry-context proof 擴張後，完成剩餘 malformed field-shape depth、semantic edge case 與角色建模的收尾。
+- [x] 將 editor-maintainer 與 view-maintainer 的角色指派分開建模，並涵蓋 mixed-role 與 shared-key case。
 
 ## 3. Canonical Serialization 與 Hashing
 
@@ -55,7 +64,7 @@
 - [x] 拒絕 duplicate keys。
 - [x] 拒絕 `null`、浮點數等不支援的值型別。
 - [x] 重算 object ID 時省略導出 ID 欄位與 `signature`。
-- [ ] 完成讓剩餘 wire-validation 路徑與未來 wire envelope signature 重用同一套 canonicalization 規則。
+- [x] 完成讓剩餘 wire-validation 路徑與未來 wire envelope signature 重用同一套 canonicalization 規則。
 
 ## 4. Signature 驗證
 
@@ -182,10 +191,41 @@
 
 當以下條件都成立時，可把客戶端視為 ready for first interoperable build：
 
-- [ ] 所有必要 object types 都能解析並驗證
+- [x] 所有必要 object types 都能解析並驗證
 - [x] canonical IDs 與 signatures 可重現
 - [x] revision replay 與 `state_hash` 驗證通過
-- [ ] 最小 wire sync 可端到端跑通
+- [x] 最小 wire sync 可端到端跑通
 - [x] 決定性 head selection 產出穩定結果
 - [x] merge generation 能產生有效且可 replay 的 patch operations
 - [x] 本地 store 可只靠 canonical objects 完整重建
+
+## Part B. Post-`M1` Follow-Up Checklist
+
+這一節是目前仍在進行中的實作檢查清單，用來追蹤 post-`M1` lane 的未完成事項。
+
+## 14. `M2` Replay、Storage 與 Rebuild Follow-Up
+
+- [ ] 擴大 persisted store indexes 在 reader 與 recovery workflows 中的重用，避免 accepted-head 與 render paths 過度依賴臨時 CLI glue。
+- [ ] 補上比目前直接 proof points 更強的 replay 與 store-rebuild fixtures，涵蓋更真實的 multi-document 與 recovery-oriented 情境。
+- [ ] 把更多 authoring 與 replay helper ownership 收斂到 `mycel-core`，避免 storage-write 與 replay 行為過度偏 CLI 驅動。
+- [ ] 擴大 conservative merge-authoring 對 richer nested 與 reparenting conflict cases 的 coverage，處理目前仍落回 manual curation 的情況。
+- [ ] 明確定義並驗證在 minimal-client gate 之後仍未完成的 narrow object-authoring 與 storage-write path。
+
+## 15. `M3` Reader 與 Governance Follow-Up
+
+- [ ] 補上超出目前 initial reverse-index 與 inspect/list/publish surfaces 的 broader governance persistence。
+- [ ] 把 governance tooling 擴展到目前初始 `view inspect` / `view list` / `view publish` workflows 之外。
+- [ ] 持續改善 reader profile ergonomics，超出目前 available-profile summaries 與 profile-error feedback。
+- [ ] 收掉 separate admission validation 已落地後，仍然存在的 independent dual-role role-assignment follow-up。
+
+## 16. `M4` Wire Sync 與 Peer Interop Follow-Up
+
+- [ ] 把 peer-interop proof 擴展到目前 peer-store-driven first-time 與 incremental sync coverage 之外。
+- [ ] 補上 localhost multi-process 或等價 transport proof，避免目前 sync path 只在窄版 transcript 或 simulator-controlled paths 下被驗證。
+- [ ] 定義並測試目前 minimal sync proof 之外仍未完成的 production replication behavior。
+- [ ] 擴大 session、capability 與 error-path interop coverage，超出目前 positive-path 與 optional-message proof set。
+
+## 17. Cross-Surface Closure Rules
+
+- [ ] 當任何 post-`M1` checklist section 狀態改變時，同步保持 `ROADMAP.md`、`ROADMAP.zh-TW.md` 與 `docs/PROGRESS.md` 一致。
+- [ ] 對 durable 的 follow-up gaps 開立或更新 narrowly-scoped GitHub Issues，而不是只把 post-`M1` work 留在摘要文字裡。
