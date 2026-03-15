@@ -741,7 +741,7 @@ fn sim_run_rejects_unsupported_test_case_execution_mode() {
             .join("sim/topologies/hash-mismatch.example.json"),
     );
     topology["topology_id"] = Value::String("unsupported-test-execution-mode".to_owned());
-    topology["execution_mode"] = Value::String("multi-process".to_owned());
+    topology["execution_mode"] = Value::String("distributed".to_owned());
 
     let topology_path = write_json_fixture(
         &workspace,
@@ -752,7 +752,7 @@ fn sim_run_rejects_unsupported_test_case_execution_mode() {
     let mut test_case =
         load_json_value(&workspace.root.join("sim/tests/hash-mismatch.example.json"));
     test_case["test_id"] = Value::String("unsupported-test-execution-mode".to_owned());
-    test_case["execution_mode"] = Value::String("multi-process".to_owned());
+    test_case["execution_mode"] = Value::String("distributed".to_owned());
     test_case["topology"] = Value::String(
         topology_path
             .strip_prefix(&workspace.root)
@@ -772,7 +772,7 @@ fn sim_run_rejects_unsupported_test_case_execution_mode() {
     assert_exit_code(&output, 1);
     assert_stderr_contains(
         &output,
-        "unsupported execution_mode 'multi-process'; only 'single-process' is implemented",
+        "unsupported execution_mode 'distributed'; supported: single-process, multi-process",
     );
 }
 
@@ -786,10 +786,7 @@ fn sim_run_rejects_unsupported_topology_execution_mode() {
             .join("sim/topologies/hash-mismatch.example.json"),
     );
     topology["topology_id"] = Value::String("unsupported-topology-execution-mode".to_owned());
-    topology
-        .as_object_mut()
-        .expect("topology should be a json object")
-        .remove("execution_mode");
+    topology["execution_mode"] = Value::String("distributed".to_owned());
 
     let topology_path = write_json_fixture(
         &workspace,
@@ -819,7 +816,7 @@ fn sim_run_rejects_unsupported_topology_execution_mode() {
     assert_exit_code(&output, 1);
     assert_stderr_contains(
         &output,
-        "unsupported topology execution_mode 'None'; only 'single-process' is implemented",
+        "does not match topology execution_mode 'distributed'",
     );
 }
 
