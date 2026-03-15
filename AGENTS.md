@@ -37,11 +37,11 @@
 
 ## New chat bootstrap
 - Bootstrap fast path for a fresh chat:
-  1. scan the repo root with `ls`
-  2. read `AGENTS-LOCAL.md` if it exists, then read `.agent-local/dev-setup-status.md`
-  3. read [`docs/ROLE-CHECKLISTS/README.md`](docs/ROLE-CHECKLISTS/README.md), then read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) and `.agent-local/agents.json`
-  4. run `scripts/agent_bootstrap.py <role> --model-id <model_id>` or `scripts/agent_bootstrap.py auto --model-id <model_id>`
-  5. if the role is `coding` or `delivery`, check the latest completed CI result for the previous push before starting implementation or delivery follow-up
+  - scan the repo root with `ls`
+  - read `AGENTS-LOCAL.md` if it exists, then read `.agent-local/dev-setup-status.md`
+  - read [`docs/ROLE-CHECKLISTS/README.md`](docs/ROLE-CHECKLISTS/README.md), then read [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) and `.agent-local/agents.json`
+  - run `scripts/agent_bootstrap.py <role> --model-id <model_id>` or `scripts/agent_bootstrap.py auto --model-id <model_id>`
+  - if the role is `coding` or `delivery`, check the latest completed CI result for the previous push before starting implementation or delivery follow-up
 - The fast path is the default startup flow. Defer broad context gathering until task work begins unless recovery, takeover, or an explicit user request requires it sooner.
 - Default deferred reads after bootstrap:
   - `ROADMAP.md` and other broad planning docs
