@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: late partial progress, refreshed after the recent local-policy separation, viewer-status clarification, and head-profile ergonomics batch on top of the earlier peer-store sync coverage; `M3` now has clearer available-profile discovery and profile-error feedback, while broader governance persistence, remaining profile ergonomics, independent dual-role role-assignment closure, and broader `M4` peer-interop proof remain open
+Status: major progress, refreshed after M1 gate fully closed, canonical JSON wire-reuse confirmed, dual-role key closure completed, incremental-sync and capability-gated SNAPSHOT_OFFER / VIEW_ANNOUNCE simulator tests added, and accepted-head comparison surfaced in reports; `M1` Ready-to-Build Gate is now all green, `M4` sim coverage expanded to 8 scenarios, while `M3` governance persistence and broader `M4` production replication behavior remain open
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -38,10 +38,10 @@ The repository does not yet have:
 
 The current lane is:
 
-1. finish the narrow first-client core
-2. close the remaining shared-core gaps in parsing and canonicalization
-3. keep expanding fixtures, simulator coverage, and negative tests while beginning reader-plus-governance read paths
-4. keep `M4` narrow while peer-store sync proof grows toward broader interop closure and future production replication behavior
+1. ~~finish the narrow first-client core~~ — done; M1 Ready-to-Build Gate fully green
+2. ~~close the remaining shared-core gaps in parsing and canonicalization~~ — done; canonical JSON reuse confirmed across all wire paths
+3. keep expanding fixtures, simulator coverage, and negative tests while advancing reader-plus-governance read paths
+4. advance `M4` toward localhost multi-process transport proof and production replication behavior
 
 ### Next
 
@@ -102,9 +102,9 @@ Goal: reach a narrow first client that can parse, verify, store, replay, and ins
 
 ### Current Status
 
-Late partial progress, approaching the end of the phase but not ready to declare complete.
+Phase 1 exit criteria now fully satisfied. The Ready-to-Build Gate in `IMPLEMENTATION-CHECKLIST.en.md` is all green (7/7 items).
 
-Already in progress or partially implemented:
+Already complete:
 
 1. Shared object schema metadata
 2. Shared object-envelope parsing
@@ -113,14 +113,8 @@ Already in progress or partially implemented:
 5. Local object-store ingest, rebuild, persisted manifest indexing, and query surfaces
 6. Accepted-head inspection, including store-backed selector object loading
 7. Internal validation and simulator harness CLI
-
-Still missing or incomplete:
-
-1. Final closure work around malformed field-shape depth, remaining inspect-surface parity polish, and remaining semantic-edge strictness
-2. Narrow object-authoring and write path beyond verified ingest into the store
-3. A cleaner reader-facing profile surface on top of the accepted-head selector
-4. Shared canonicalization reuse extended into future wire-envelope work
-5. Final closure work that would justify marking Phase 1 exit criteria as complete
+8. Malformed field-shape depth and semantic-edge strictness closure (dual-role key, depth validation)
+9. Canonical JSON reuse confirmed across all wire-validation paths
 
 ### Milestones in This Phase
 
@@ -142,25 +136,23 @@ Completion gate:
 
 Current read:
 
-Nearly complete. The shared parsing, more converged canonical helper module, top-level core-version equality checks, path-preserving nested parser field errors, broad parser / verify / CLI strictness-surface coverage, broader inspect-surface parity, stronger replay dependency verification and sibling declared-ID determinism, direct CLI smoke coverage for invalid sibling/parent dependency IDs and signatures, clearer multi-hop ancestry failure context, isolated validate-peer fixtures, and canonical reproducibility coverage now exist; the remaining work is mostly the last malformed-field depth and semantic-edge closure plus a few milestone-close proof points.
+Complete. All implementation checklist items are marked `[x]`. The shared parsing, converged canonical helper module, top-level core-version equality checks, path-preserving nested parser field errors, broad parser / verify / CLI strictness-surface coverage, broader inspect-surface parity, stronger replay dependency verification and sibling declared-ID determinism, direct CLI smoke coverage for invalid sibling/parent dependency IDs and signatures, clearer multi-hop ancestry failure context, isolated validate-peer fixtures, canonical reproducibility coverage, field-shape depth and semantic-edge closure for all object families, dual-role key closure with independent role-assignment validation, and canonical JSON reuse confirmed across all wire-validation paths now all exist.
 
-Already visible in the repo:
+Already complete in the repo:
 
 1. shared schema metadata
 2. shared object-envelope parsing
-3. shared canonical JSON, derived-ID recomputation, and signed-payload helpers
+3. shared canonical JSON, derived-ID recomputation, and signed-payload helpers — reused by all wire-validation paths
 4. object inspection and verification
 5. protocol-level typed parsing for the supported object families, including `document`, `block`, `patch`, `revision`, `view`, and `snapshot`
 6. duplicate-key rejection and unsupported-value rejection in shared JSON loading
 7. canonical round-trip and reproducibility coverage for IDs, signed payloads, and signatures
 8. internal validation and simulator harness coverage
+9. field-shape depth validation, semantic-edge strictness, and dual-role key closure
 
 Main remaining gaps:
 
-1. final malformed-field depth and semantic-edge strictness closure after broad unknown-field and invalid-type rejection
-2. deeper `mycel-core`-level coverage for the remaining semantic edge cases outside the current revision / patch, replay, and view / snapshot batches
-3. finish collapsing the remaining wire-validation canonicalization paths onto the shared helper module
-4. clearer milestone-close criteria before widening more surfaces
+None that block M1 exit. Phase 2 work (M2/M3) is substantially underway.
 
 Implementation anchors:
 
@@ -429,7 +421,17 @@ Completion gate:
 
 Current read:
 
-Early groundwork exists in `mycel-core`: canonical envelope parsing, payload-shape validation, RFC 3339 timestamp enforcement, generic wire-signature verification, sender checks, inbound sequencing/head-tracking, reachability gating, store-backed session bootstrap, and `OBJECT` body-derived hash / `object_id` verification now exist. A peer-store-driven sync path in `mycel-core`, CLI entry points, and simulator positive-path coverage now prove first-time and incremental verify/store flows without hand-authored transcripts as the only integration surface, and capability-gated `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling is now covered through peer-store generation, fetch/store behavior, and simulator proof. What is still missing is broader peer-interop proof and production replication behavior.
+Substantially underway. All M4 completion-gate items are now satisfied at the simulator level. Canonical envelope parsing, payload-shape validation, RFC 3339 timestamp enforcement, generic wire-signature verification, sender checks, inbound sequencing/head-tracking, reachability gating, store-backed session bootstrap, and `OBJECT` body-derived hash / `object_id` verification exist in `mycel-core`. A peer-store-driven sync path, CLI entry points, and 8 simulator scenarios now prove the full required coverage:
+
+1. First-time sync with multi-peer convergence (`three-peer-consistency`)
+2. Incremental HEADS-based sync for follow-up revisions (`incremental-sync`)
+3. WANT-based recovery from partial store (`partial-want-recovery`, `mixed-reader-recovery`)
+4. Negative: hash-mismatch rejection, signature-mismatch rejection
+5. Capability-gated `SNAPSHOT_OFFER` delivery (`snapshot-catchup`)
+6. Capability-gated `VIEW_ANNOUNCE` delivery for governance views (`view-sync`)
+7. Per-peer accepted-head comparison surfaced in report (`matching-accepted-heads` outcome)
+
+What is still missing is localhost multi-process transport (real TCP/socket inter-process sync) and production replication behavior.
 
 Implementation anchors:
 
