@@ -38,7 +38,7 @@ Fast path:
   1. scan the repo root with `ls`
   2. read `AGENTS-LOCAL.md` if it exists, then read `.agent-local/dev-setup-status.md`
   3. read [`docs/ROLE-CHECKLISTS/README.md`](./ROLE-CHECKLISTS/README.md), then inspect [`docs/AGENT-REGISTRY.md`](./AGENT-REGISTRY.md) and `.agent-local/agents.json`
-  4. run `scripts/agent_bootstrap.py <role>` or `scripts/agent_bootstrap.py auto`
+  4. run `scripts/agent_bootstrap.py <role> --model-id <model_id>` or `scripts/agent_bootstrap.py auto --model-id <model_id>`
   5. if the claimed role is `coding` or `delivery`, check the latest completed CI result for the previous push before starting implementation or delivery follow-up
 - Defer broader reading until task work begins:
   - `coding`: postpone `ROADMAP.md`, wide mailbox scans, and broad repo markdown sweeps until the actual implementation slice needs them
@@ -306,7 +306,7 @@ Recommended startup sequence:
 1. read `AGENTS.md`, `AGENTS-LOCAL.md` if it exists locally, and `.agent-local/dev-setup-status.md`
 2. scan the repo root with `ls`
 3. read `docs/ROLE-CHECKLISTS/README.md`, then read `docs/AGENT-REGISTRY.md` and `.agent-local/agents.json`
-4. if the user assigned a role, prefer `scripts/agent_bootstrap.py <role>`; otherwise prefer `scripts/agent_bootstrap.py auto`
+4. if the user assigned a role, prefer `scripts/agent_bootstrap.py <role> --model-id <model_id>`; otherwise prefer `scripts/agent_bootstrap.py auto --model-id <model_id>`
 5. immediately tell the user which role was claimed for this chat
 6. begin the chat with `<display-id> | <scope-label>`
 7. when the first concrete task arrives, use the work-cycle tool to begin tracked work
