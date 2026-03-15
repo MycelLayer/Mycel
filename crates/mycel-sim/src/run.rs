@@ -1,4 +1,4 @@
-//! Minimal single-process simulator runner.
+//! Minimal single-process and multi-process simulator runner.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
@@ -118,19 +118,25 @@ pub fn run_test_case_with_options(
         !filtered_validation_warnings.is_empty(),
     );
 
-    if test_case.execution_mode != "single-process" {
+    let supported_modes = ["single-process", "multi-process"];
+    if !supported_modes.contains(&test_case.execution_mode.as_str()) {
         return Err(format!(
-            "unsupported execution_mode '{}'; only 'single-process' is implemented",
-            test_case.execution_mode
+            "unsupported execution_mode '{}'; supported: {}",
+            test_case.execution_mode,
+            supported_modes.join(", ")
         ));
     }
 
     let topology_path = root.join(&test_case.topology);
     let topology = load_json::<Topology>(&topology_path)?;
-    if topology.execution_mode.as_deref() != Some("single-process") {
+    let topology_mode = topology
+        .execution_mode
+        .as_deref()
+        .unwrap_or("single-process");
+    if !supported_modes.contains(&topology_mode) {
         return Err(format!(
-            "unsupported topology execution_mode '{:?}'; only 'single-process' is implemented",
-            topology.execution_mode
+            "unsupported topology execution_mode '{topology_mode}'; supported: {}",
+            supported_modes.join(", ")
         ));
     }
 
@@ -253,6 +259,9 @@ fn simulate_report(
         .any(|outcome| outcome.contains("hash-mismatch") || outcome.contains("signature"));
     if has_faults {
         return simulate_fault_report(test_case, topology, fixture, deterministic_seed, fault_plan);
+    }
+    if test_case.execution_mode == "multi-process" {
+        return simulate_multi_process_report(test_case, topology, fixture, deterministic_seed);
     }
     simulate_peer_store_sync_report(test_case, topology, fixture, deterministic_seed, fault_plan)
 }
@@ -545,6 +554,313 @@ fn simulate_peer_store_sync_report(
             "Reader-visible accepted head revisions were compared across synchronized peers."
                 .to_owned(),
         ),
+    );
+    push_event(
+        &mut events,
+        "finalize",
+        "write-report",
+        "ok",
+        None,
+        Vec::new(),
+        Some("Prepared machine-readable simulator report.".to_owned()),
+    );
+
+    Ok(Report {
+        schema: Some("../report.schema.json".to_owned()),
+        run_id: format!("run:{}", test_case.test_id),
+        topology_id: topology.topology_id.clone(),
+        fixture_id: fixture.fixture_id.clone(),
+        test_id: Some(test_case.test_id.clone()),
+        execution_mode: Some(test_case.execution_mode.clone()),
+        started_at: None,
+        finished_at: None,
+        peers,
+        result: derive_report_result(&failures),
+        events,
+        failures,
+        summary: Some(ReportSummary {
+            verified_object_count: Some(seed_verified_object_ids.len() as u64),
+            rejected_object_count: Some(0),
+            matched_expected_outcomes,
+        }),
+        metadata: None,
+    })
+}
+
+fn simulate_multi_process_report(
+    test_case: &TestCase,
+    topology: &Topology,
+    fixture: &Fixture,
+    deterministic_seed: &str,
+) -> Result<Report, String> {
+    let seed_node_id = resolve_peer_ref(topology, &fixture.seed_peer).ok_or_else(|| {
+        format!(
+            "fixture seed peer '{}' does not resolve in topology",
+            fixture.seed_peer
+        )
+    })?;
+    let matched_expected_outcomes = matched_expected_outcomes(test_case, topology, fixture);
+    let signing_key = parse_signing_key_seed(SIM_SIGNING_KEY_SEED)
+        .map_err(|err| format!("failed to parse simulator signing key seed: {err}"))?;
+    let signing_key_b64 = base64::engine::general_purpose::STANDARD.encode(signing_key.as_bytes());
+
+    let stores = SimulationStores::new(&fixture.fixture_id)?;
+    let seed_store_root = stores.store_root(&seed_node_id);
+
+    populate_seed_store(&seed_store_root, fixture, &signing_key, false)?;
+    let seed_manifest = load_store_index_manifest(&seed_store_root)
+        .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
+    let seed_verified_object_ids = manifest_object_ids(&seed_manifest);
+
+    // Write signing key to a temp file for child processes.
+    let key_file = stores.root.join("sim-signing-key.b64");
+    fs::write(&key_file, &signing_key_b64)
+        .map_err(|err| format!("failed to write signing key file: {err}"))?;
+
+    let mycel_bin = std::env::current_exe()
+        .map_err(|err| format!("failed to resolve current binary path: {err}"))?;
+
+    let mut events = Vec::new();
+    let mut failures = Vec::new();
+    let mut peers = Vec::with_capacity(topology.peers.len());
+    let mut reader_object_sets = BTreeMap::new();
+    let mut reader_replay_hashes = BTreeMap::new();
+    let mut reader_head_ids: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
+
+    push_event(
+        &mut events,
+        "load",
+        "load-fixture",
+        "ok",
+        None,
+        build_fixture_object_refs(fixture),
+        Some(format!("Loaded fixture '{}'.", fixture.fixture_id)),
+    );
+    push_event(
+        &mut events,
+        "init",
+        "build-topology",
+        "ok",
+        None,
+        Vec::new(),
+        Some(format!(
+            "Prepared topology '{}' with {} peers. Scheduler order: {}.",
+            topology.topology_id,
+            topology.peers.len(),
+            scheduled_peer_order(topology, deterministic_seed).join(" -> ")
+        )),
+    );
+    push_event(
+        &mut events,
+        "init",
+        "build-fault-plan",
+        "ok",
+        None,
+        Vec::new(),
+        Some("No injected faults are scheduled for this run.".to_owned()),
+    );
+
+    for peer in scheduled_peers(topology, deterministic_seed) {
+        let mut report_peer = ReportPeer {
+            node_id: peer.node_id.clone(),
+            status: "ok".to_owned(),
+            verified_object_ids: Vec::new(),
+            rejected_object_ids: Vec::new(),
+            head_revision_ids: Vec::new(),
+            notes: Vec::new(),
+        };
+        let is_seed = peer.node_id == seed_node_id || peer.role == "seed";
+        let is_reader = peer.role == "reader";
+
+        push_event(
+            &mut events,
+            "init",
+            "init-peer",
+            "ok",
+            Some(peer.node_id.clone()),
+            Vec::new(),
+            Some(format!("Initialized peer with role '{}'.", peer.role)),
+        );
+
+        if is_seed {
+            report_peer.verified_object_ids = seed_verified_object_ids.clone();
+            report_peer.notes.push(format!(
+                "Prepared peer-store source with {} verified objects.",
+                seed_verified_object_ids.len()
+            ));
+            push_event(
+                &mut events,
+                "sync",
+                "seed-advertise",
+                "ok",
+                Some(peer.node_id.clone()),
+                seed_verified_object_ids.clone(),
+                Some(
+                    "Seed advertised the current verified object set via multi-process stream."
+                        .to_owned(),
+                ),
+            );
+            peers.push(report_peer);
+            continue;
+        }
+
+        if !is_reader {
+            report_peer.status = "warning".to_owned();
+            report_peer
+                .notes
+                .push("Simulator did not schedule a sync for this peer role.".to_owned());
+            peers.push(report_peer);
+            continue;
+        }
+
+        let peer_store_root = stores.store_root(&peer.node_id);
+
+        // Spawn: mycel sync stream --store <seed> --signing-key <key> --node-id <id>
+        // Pipe stdout into: mycel sync pull --transcript - --into <reader_store>
+        let stream_child = process::Command::new(&mycel_bin)
+            .args([
+                "sync",
+                "stream",
+                "--store",
+                seed_store_root.to_str().unwrap_or_default(),
+                "--signing-key",
+                key_file.to_str().unwrap_or_default(),
+                "--node-id",
+                &seed_node_id,
+            ])
+            .stdout(process::Stdio::piped())
+            .stderr(process::Stdio::null())
+            .spawn()
+            .map_err(|err| format!("failed to spawn peer stream process: {err}"))?;
+
+        let stream_stdout = stream_child
+            .stdout
+            .ok_or_else(|| "peer stream process stdout not captured".to_owned())?;
+
+        let pull_output = process::Command::new(&mycel_bin)
+            .args([
+                "sync",
+                "pull",
+                "-",
+                "--into",
+                peer_store_root.to_str().unwrap_or_default(),
+            ])
+            .stdin(stream_stdout)
+            .output()
+            .map_err(|err| format!("failed to run peer pull process: {err}"))?;
+
+        let pull_ok = pull_output.status.success();
+        let outcome = if pull_ok { "ok" } else { "failed" };
+
+        if !pull_ok {
+            let stderr = String::from_utf8_lossy(&pull_output.stderr);
+            failures.push(ReportFailure {
+                failure_id: format!("multi-process-sync-failed:{}", peer.node_id),
+                node_id: Some(peer.node_id.clone()),
+                description: format!("Multi-process sync failed for '{}': {stderr}", peer.node_id),
+                severity: Some("error".to_owned()),
+            });
+        }
+
+        let manifest = load_store_index_manifest(&peer_store_root);
+        let verified_object_ids = manifest
+            .as_ref()
+            .map(manifest_object_ids)
+            .unwrap_or_default();
+        let replay_hashes = store_head_replay_hashes(&peer_store_root).unwrap_or_default();
+        let leaf_ids = store_leaf_revision_ids(&peer_store_root).unwrap_or_default();
+
+        report_peer.status = if pull_ok {
+            "ok".to_owned()
+        } else {
+            "failed".to_owned()
+        };
+        report_peer.verified_object_ids = verified_object_ids.clone();
+        report_peer.head_revision_ids = leaf_ids
+            .values()
+            .flat_map(|ids| ids.iter().cloned())
+            .collect();
+        report_peer.head_revision_ids.sort();
+        report_peer.notes.push(format!(
+            "multi-process sync via pipe: {} objects verified and stored.",
+            verified_object_ids.len()
+        ));
+
+        push_event(
+            &mut events,
+            "sync",
+            "reader-accept",
+            outcome,
+            Some(peer.node_id.clone()),
+            verified_object_ids.clone(),
+            Some(format!(
+                "Multi-process sync via pipe transported {} objects.",
+                verified_object_ids.len()
+            )),
+        );
+
+        reader_object_sets.insert(peer.node_id.clone(), verified_object_ids);
+        reader_replay_hashes.insert(peer.node_id.clone(), replay_hashes);
+        reader_head_ids.insert(peer.node_id.clone(), leaf_ids);
+        peers.push(report_peer);
+    }
+
+    for (node_id, object_ids) in &reader_object_sets {
+        if object_ids != &seed_verified_object_ids {
+            failures.push(ReportFailure {
+                failure_id: format!("object-set-mismatch:{node_id}"),
+                node_id: Some(node_id.clone()),
+                description: format!(
+                    "Reader '{}' diverged from the seed object set after multi-process sync.",
+                    node_id
+                ),
+                severity: Some("error".to_owned()),
+            });
+        }
+    }
+
+    let replay_outcome = if readers_match_replay(&reader_replay_hashes) {
+        "ok"
+    } else {
+        failures.push(ReportFailure {
+            failure_id: "replay-mismatch".to_owned(),
+            node_id: None,
+            description: "Reader-visible replay results diverged after multi-process sync."
+                .to_owned(),
+            severity: Some("error".to_owned()),
+        });
+        "failed"
+    };
+    push_event(
+        &mut events,
+        "replay",
+        "compare-replay-results",
+        replay_outcome,
+        None,
+        seed_verified_object_ids.clone(),
+        Some("Reader-visible replay results derived from synchronized peer stores.".to_owned()),
+    );
+
+    let heads_outcome = if readers_match_heads(&reader_head_ids) {
+        "ok"
+    } else {
+        failures.push(ReportFailure {
+            failure_id: "accepted-head-mismatch".to_owned(),
+            node_id: None,
+            description: "Reader accepted head revisions diverged after multi-process sync."
+                .to_owned(),
+            severity: Some("error".to_owned()),
+        });
+        "failed"
+    };
+    push_event(
+        &mut events,
+        "replay",
+        "compare-accepted-heads",
+        heads_outcome,
+        None,
+        seed_verified_object_ids.clone(),
+        Some("Reader accepted head revisions compared across synchronized peers.".to_owned()),
     );
     push_event(
         &mut events,

@@ -1,0 +1,34 @@
+{
+    "$schema": "./topology.schema.json",
+    "topology_id": "localhost-multi-process",
+    "description": "One seed and one reader exchange objects via OS-level pipe transport (mycel sync stream | mycel sync pull)",
+    "fixture_set": "fixtures/object-sets/localhost-multi-process",
+    "execution_mode": "multi-process",
+    "peers": [
+        {
+            "node_id": "node:peer-seed",
+            "role": "seed",
+            "bootstrap_peers": [],
+            "endpoint": "local:peer-seed"
+        },
+        {
+            "node_id": "node:peer-reader-a",
+            "role": "reader",
+            "bootstrap_peers": [
+                "node:peer-seed"
+            ],
+            "endpoint": "local:peer-reader-a"
+        }
+    ],
+    "expected_outcomes": [
+        "multi-process-sync-success",
+        "pipe-transport-verified",
+        "matching-replay-results",
+        "matching-accepted-heads"
+    ],
+    "notes": [
+        "Uses execution_mode: multi-process to spawn separate OS processes for each sync role.",
+        "Transport is a Unix pipe connecting mycel sync stream stdout to mycel sync pull stdin.",
+        "This is the minimal proof that the Mycel wire protocol works between separate processes."
+    ]
+}

@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "localhost-multi-process",
+    "description": "Two separate OS processes exchange a wire-protocol transcript via stdin/stdout pipe to prove multi-process sync",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:multi-process-test"
+        }
+    ],
+    "expected_outcomes": [
+        "multi-process-sync-success",
+        "pipe-transport-verified",
+        "matching-replay-results",
+        "matching-accepted-heads"
+    ],
+    "notes": [
+        "The seed process streams its wire transcript to stdout.",
+        "The reader process receives the transcript via stdin and ingests objects.",
+        "Proves the Mycel wire protocol works correctly between separate OS processes."
+    ]
+}

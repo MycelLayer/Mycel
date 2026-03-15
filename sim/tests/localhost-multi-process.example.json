@@ -1,0 +1,43 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "localhost-multi-process",
+    "description": "Two separate OS processes should successfully exchange Mycel wire-protocol messages via stdin/stdout pipe transport.",
+    "category": "sync",
+    "topology": "sim/topologies/localhost-multi-process.example.json",
+    "fixture_set": "fixtures/object-sets/localhost-multi-process",
+    "execution_mode": "multi-process",
+    "expected_result": "pass",
+    "expected_outcomes": [
+        "multi-process-sync-success",
+        "pipe-transport-verified",
+        "matching-replay-results",
+        "matching-accepted-heads"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "multi-process-sync-success",
+            "description": "Separate OS processes successfully exchanged objects via pipe transport.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "pipe-transport-verified",
+            "description": "The sync stream stdout was correctly consumed by sync pull stdin across process boundaries.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "matching-replay-results",
+            "description": "Reader replay result matches the seed state after multi-process sync.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "matching-accepted-heads",
+            "description": "Reader accepted head revisions match the seed state after multi-process sync.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "This test proves the wire protocol works between separate OS processes.",
+        "Transport is a stdin/stdout pipe: mycel sync stream | mycel sync pull --transcript -",
+        "Closes the last Deferred item in the M4 simulator test matrix."
+    ]
+}

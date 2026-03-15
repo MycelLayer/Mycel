@@ -29,6 +29,7 @@
 - `view-sync`: reader receives governance view objects via VIEW_ANNOUNCE from a view-capable seed
   Reference JSON: `sim/tests/view-sync.example.json`
 
-## Deferred
+## Multi-Process
 
-- localhost multi-process runs
+- `localhost-multi-process`: two OS processes exchange wire messages via stdin/stdout pipe (mycel sync stream | mycel sync pull)
+  Reference JSON: `sim/tests/localhost-multi-process.example.json`

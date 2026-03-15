@@ -1,12 +1,13 @@
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use clap::{Args, Subcommand};
 use mycel_core::author::{parse_signing_key_seed, signer_id};
 use mycel_core::protocol::parse_json_strict;
 use mycel_core::sync::{
-    sync_pull_from_peer_store, sync_pull_from_transcript, SyncPeer, SyncPullSummary,
-    SyncPullTranscript,
+    generate_sync_pull_transcript_from_peer_store, sync_pull_from_peer_store,
+    sync_pull_from_transcript, SyncPeer, SyncPullSummary, SyncPullTranscript,
 };
 use serde::Serialize;
 
@@ -24,6 +25,10 @@ enum SyncSubcommand {
     Pull(SyncPullCliArgs),
     #[command(about = "Run the minimal peer-store sync driver into a local store")]
     PeerStore(SyncPeerStoreCliArgs),
+    #[command(
+        about = "Stream a peer-store sync transcript to stdout for pipe-based multi-process sync"
+    )]
+    Stream(SyncStreamCliArgs),
     #[command(external_subcommand)]
     External(Vec<String>),
 }
@@ -86,6 +91,39 @@ struct SyncPeerStoreCliArgs {
     extra: Vec<String>,
 }
 
+#[derive(Args)]
+struct SyncStreamCliArgs {
+    #[arg(
+        long = "store",
+        value_name = "PEER_STORE_ROOT",
+        help = "Peer store root to generate and stream the sync transcript from",
+        required = true
+    )]
+    store: String,
+    #[arg(
+        long = "signing-key",
+        value_name = "FILE",
+        help = "Base64 Ed25519 signing key seed file for the peer-store source",
+        required = true
+    )]
+    signing_key: String,
+    #[arg(
+        long = "node-id",
+        value_name = "NODE_ID",
+        help = "Node ID to advertise for the peer-store source",
+        required = true
+    )]
+    node_id: String,
+    #[arg(
+        long = "local-store",
+        value_name = "LOCAL_STORE_ROOT",
+        help = "Optional local store root; used to generate an incremental transcript if non-empty"
+    )]
+    local_store: Option<String>,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct SyncPullCliSummary {
     source: PathBuf,
@@ -118,6 +156,20 @@ fn load_sync_transcript(path: &Path) -> Result<SyncPullTranscript, CliError> {
         CliError::usage(format!(
             "failed to parse sync transcript {}: {error}",
             path.display()
+        ))
+    })
+}
+
+fn load_sync_transcript_from_stdin() -> Result<SyncPullTranscript, CliError> {
+    let mut buf = String::new();
+    std::io::stdin().read_to_string(&mut buf).map_err(|error| {
+        CliError::usage(format!(
+            "failed to read sync transcript from stdin: {error}"
+        ))
+    })?;
+    parse_json_strict(&buf).map_err(|error| {
+        CliError::usage(format!(
+            "failed to parse sync transcript from stdin: {error}"
         ))
     })
 }
@@ -203,9 +255,13 @@ fn print_sync_pull_json(summary: &SyncPullCliSummary) -> Result<i32, CliError> {
 }
 
 fn sync_pull(args: SyncPullCliArgs) -> Result<i32, CliError> {
-    let source = PathBuf::from(args.transcript);
+    let source = PathBuf::from(&args.transcript);
     let store_root = PathBuf::from(args.into);
-    let transcript = load_sync_transcript(&source)?;
+    let transcript = if args.transcript == "-" {
+        load_sync_transcript_from_stdin()?
+    } else {
+        load_sync_transcript(&source)?
+    };
     let summary = sync_pull_from_transcript(&transcript, &store_root)
         .map_err(|error| CliError::usage(error.to_string()))?;
     let summary = cli_summary(source, summary);
@@ -292,6 +348,32 @@ fn sync_peer_store(args: SyncPeerStoreCliArgs) -> Result<i32, CliError> {
     }
 }
 
+fn stream_peer(args: SyncStreamCliArgs) -> Result<i32, CliError> {
+    let peer_store_root = PathBuf::from(args.store);
+    let signing_key_path = PathBuf::from(args.signing_key);
+    let signing_key = load_signing_key(&signing_key_path)?;
+    let peer = SyncPeer {
+        node_id: args.node_id,
+        public_key: signer_id(&signing_key),
+    };
+    let local_store_root = args
+        .local_store
+        .as_deref()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| peer_store_root.join(".nonexistent-empty-local-store"));
+    let transcript = generate_sync_pull_transcript_from_peer_store(
+        &peer,
+        &signing_key,
+        &peer_store_root,
+        &local_store_root,
+    )
+    .map_err(|error| CliError::usage(error.to_string()))?;
+    let rendered = serde_json::to_string_pretty(&transcript)
+        .map_err(|error| CliError::serialization("peer stream transcript", error))?;
+    println!("{rendered}");
+    Ok(0)
+}
+
 pub(crate) fn handle_sync_command(command: SyncCliArgs) -> Result<i32, CliError> {
     match command.command {
         Some(SyncSubcommand::Pull(args)) => {
@@ -307,6 +389,13 @@ pub(crate) fn handle_sync_command(command: SyncCliArgs) -> Result<i32, CliError>
             }
 
             sync_peer_store(args)
+        }
+        Some(SyncSubcommand::Stream(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "sync stream") {
+                return Err(CliError::usage(message));
+            }
+
+            stream_peer(args)
         }
         Some(SyncSubcommand::External(args)) => {
             let other = args.first().map(String::as_str).unwrap_or("<unknown>");
