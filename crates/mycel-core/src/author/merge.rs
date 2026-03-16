@@ -215,10 +215,8 @@ fn assess_merge_resolution(
 
         let resolved_parent_anchor_variant = (resolved_parent_variant != primary_parent_variant
             && !alternative_parent_variants.contains(&resolved_parent_variant))
-            .then(|| {
-                resolved_parent_anchor_variant(&block_id, &primary_blocks, &resolved_blocks)
-            })
-            .flatten();
+        .then(|| resolved_parent_anchor_variant(&block_id, &primary_blocks, &resolved_blocks))
+        .flatten();
         let root_only_alternatives = alternative_parent_variants.is_empty()
             || alternative_parent_variants
                 .iter()
@@ -368,7 +366,8 @@ fn resolved_parent_anchor_variant(
     loop {
         if let Some(primary_parent) = primary_blocks.get(&parent_block_id) {
             let resolved_parent = resolved_blocks.get(&parent_block_id)?;
-            if block_parent_variant(Some(resolved_parent)) == block_parent_variant(Some(primary_parent))
+            if block_parent_variant(Some(resolved_parent))
+                == block_parent_variant(Some(primary_parent))
             {
                 return Some(parent_block_id);
             }
