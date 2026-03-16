@@ -432,6 +432,7 @@ fn build_conservative_merge_ops(
         &mut simulated,
         None,
         &resolved_state.blocks,
+        &resolved_blocks,
         &new_ids,
         &mut ops,
     )?;
@@ -450,6 +451,7 @@ fn sync_child_list(
     simulated: &mut DocumentState,
     parent_block_id: Option<&str>,
     resolved_children: &[BlockObject],
+    resolved_blocks: &HashMap<String, BlockPlacement>,
     new_ids: &BTreeSet<String>,
     ops: &mut Vec<PatchOperation>,
 ) -> Result<(), StoreRebuildError> {
@@ -518,6 +520,7 @@ fn sync_child_list(
                 simulated,
                 Some(&resolved_block.block_id),
                 &resolved_block.children,
+                resolved_blocks,
                 new_ids,
                 ops,
             )?;
@@ -547,6 +550,7 @@ fn sync_child_list(
                 simulated,
                 Some(&resolved_block.block_id),
                 &resolved_block.children,
+                resolved_blocks,
                 new_ids,
                 ops,
             )?;
@@ -560,7 +564,9 @@ fn sync_child_list(
         .map(|block| block.block_id.as_str())
         .collect::<BTreeSet<_>>();
     for current_id in sibling_block_ids(simulated, parent_block_id)? {
-        if !resolved_ids.contains(current_id.as_str()) {
+        if !resolved_ids.contains(current_id.as_str())
+            && !resolved_blocks.contains_key(current_id.as_str())
+        {
             return Err(StoreRebuildError::new(format!(
                 "manual-curation-required: unresolved extra block '{}' remained under '{}'",
                 current_id,

@@ -1214,6 +1214,117 @@ fn merge_authoring_supports_nested_reparenting_of_multiple_existing_blocks() {
 }
 
 #[test]
+fn merge_authoring_supports_reparenting_into_a_later_sibling_parent() {
+    let store_root = temp_dir("merge-reparent-later-sibling");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-reparent-later-sibling".to_string(),
+            title: "Merge Reparent Later Sibling".to_string(),
+            language: "en".to_string(),
+            timestamp: 48,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-reparent-later-sibling",
+        &document.genesis_revision_id,
+        49,
+        50,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:sibling-parent-a",
+                    "block_type": "paragraph",
+                    "content": "Parent A",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:sibling-parent-b",
+                    "block_type": "paragraph",
+                    "content": "Parent B",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "parent_block_id": "blk:sibling-parent-a",
+                "new_block": {
+                    "block_id": "blk:sibling-leaf",
+                    "block_type": "paragraph",
+                    "content": "Leaf",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let moved_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-reparent-later-sibling",
+        &base_revision_id,
+        51,
+        52,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:sibling-leaf",
+                "parent_block_id": "blk:sibling-parent-b"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-reparent-later-sibling".to_string(),
+            parents: vec![base_revision_id, moved_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-reparent-later-sibling".to_string(),
+                blocks: vec![
+                    paragraph_block_with_children("blk:sibling-parent-a", "Parent A", vec![]),
+                    paragraph_block_with_children(
+                        "blk:sibling-parent-b",
+                        "Parent B",
+                        vec![paragraph_block("blk:sibling-leaf", "Leaf")],
+                    ),
+                ],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 53,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: None }
+        if block_id == "blk:sibling-leaf" && parent_block_id == "blk:sibling-parent-b"
+    )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_marks_non_primary_structural_parent_choice_as_multi_variant() {
     let store_root = temp_dir("merge-parent-choice");
     let signing_key = signing_key();
