@@ -193,10 +193,14 @@ def scan_scrutinized_not_needed_items(
     is the main mechanism by which agents silently skip required steps.
     """
     scrutinized = dict(SCRUTINIZED_NOT_NEEDED_ITEMS)
-    # reply-with-plan-and-status is legitimately not-needed in batch 1 because
-    # the work-cycle begin tool auto-marks it that way for bootstrap batches.
+    # Batch 1 is a bootstrap-only cycle: no source files are changed and no
+    # tests or scripts are run, so files-changed-summary and
+    # runtime-preflight-before-verification are legitimately not-needed.
+    # reply-with-plan-and-status is auto-marked not-needed by begin for batch 1.
     if batch_num == 1:
         scrutinized.pop("workflow.reply-with-plan-and-status", None)
+        scrutinized.pop("workflow.files-changed-summary", None)
+        scrutinized.pop("workflow.runtime-preflight-before-verification", None)
 
     violations: list[tuple[str, str]] = []
     for line in checklist_path.read_text(encoding="utf-8").splitlines():
