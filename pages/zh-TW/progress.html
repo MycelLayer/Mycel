@@ -47,31 +47,30 @@
         <p class="lead">
           Mycel 目前仍在窄版 first-client lane。眼前目標是先收掉最後一批 shared-core closure，同時讓
           <code>M4</code> 維持窄版範圍，聚焦在已驗證 wire-session reachability、最小 peer-sync
-          closure，以及建立在已落地 optional sync flows 之上的更廣 interop proof。
+          closure，以及在目前 production replication 子證明都已落地後，剩餘的 session/error-path interop proof。
         </p>
         <ol class="lane-list">
-          <li>收掉 <code>M1</code> 的 malformed-field depth 與 canonicalization debt。</li>
-          <li>完成 <code>M2</code> 的 replay、rebuild 與 merge-authoring closure。</li>
-          <li>在 accepted-head inspect/render 與具名 profile 基礎上，謹慎擴張 <code>M3</code> reader workflows。</li>
-          <li>讓 <code>M4</code> 維持窄版範圍，把 peer-store sync proof 往更廣 interop closure 與未來 production replication behavior 收斂。</li>
+          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure。</li>
+          <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base，以及 bounded viewer score surfaces 之上，謹慎擴張 <code>M3</code> reader workflows。</li>
+          <li>讓 <code>M4</code> 維持窄版範圍，把 peer-store sync proof 往剩餘的 session/error-path interop closure 收斂。</li>
         </ol>
       </header>
 
       <section class="panel section-panel">
         <h2>Milestone Timeline</h2>
         <p>
-          這份 roadmap 是序列式的：後面的 phase 都假設前面的 phase 已經穩定。現在的重心仍然是
-          <code>M1</code> 的收尾與 <code>M2</code> 的 closure。
+          這份 roadmap 是序列式的：後面的 phase 都假設前面的 phase 已經穩定。現在的重心是
+          <code>M2</code> 的 closure、<code>M3</code> 的謹慎擴張，以及剩餘的 <code>M4</code> interop proof。
         </p>
         <div class="milestones">
           <article class="card">
             <div class="stage">Minimal</div>
             <h3>M1</h3>
-            <div class="status mostly-done">大致完成</div>
+            <div class="status mostly-done">已關閉 gate</div>
             <ul>
-              <li>Shared parsing 與 schema layer</li>
-              <li>Canonical validation utilities</li>
-              <li>Strictness、replay proof 與 fixture coverage</li>
+              <li>minimal-client proof 已保留為完成的 checklist 歷史</li>
+              <li>Ready-to-Build Gate 仍維持全綠</li>
+              <li>活躍工作已轉到 <code>M2</code> / <code>M3</code> / <code>M4</code></li>
             </ul>
           </article>
           <article class="card">
@@ -106,6 +105,7 @@
               <li>Session reachability 與 store-backed bootstrap</li>
               <li>Peer-store 的 first-time / incremental sync proof</li>
               <li>Capability-gated 的 <code>SNAPSHOT_OFFER</code> / <code>VIEW_ANNOUNCE</code></li>
+              <li>localhost multi-process、re-sync idempotency、depth-N catchup 與 partial-doc selective sync proofs</li>
             </ul>
           </article>
           <article class="card">
@@ -138,81 +138,81 @@
           <tbody>
             <tr>
               <td data-label="Area">1. Repo and Build Setup</td>
-              <td data-label="Status">Mostly done</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">build/test 基礎已穩定，shared canonical helper ownership 也正收斂到獨立的 core module；完整 utility closure 仍未收尾。</td>
+              <td data-label="Current read">這一區現在屬於已關閉的 minimal-client gate；這裡已沒有活的 follow-up。</td>
             </tr>
             <tr>
               <td data-label="Area">2. Object Types and IDs</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">所有必要 v0.1 families 都已 typed，且 parser / verify / CLI dependency-proof coverage 更完整；剩餘工作是 malformed field-shape depth、剩餘 semantic-edge closure 與角色建模。</td>
+              <td data-label="Current read">必要的 v0.1 families 與 minimal-client role modeling 現在都保留為已關閉 gate 的 proof，不再是活的 checklist debt。</td>
             </tr>
             <tr>
               <td data-label="Area">3. Canonical Serialization and Hashing</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">核心規則與 reproducibility coverage 已存在，且 canonical helper ownership 已更集中到 shared core module；replay 衍生的 `state_hash` 與 wire 仍缺最後的共用化收尾。</td>
+              <td data-label="Current read">minimal gate 需要的 canonical rules 與 shared helper reuse 已關閉；post-<code>M1</code> 的 wire follow-up 現在屬於更廣的 <code>M4</code> lane。</td>
             </tr>
             <tr>
               <td data-label="Area">4. Signature Verification</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1 / M4</td>
-              <td data-label="Current read">Object signature rules 已到位，通用 wire-envelope signature verification 也已存在，<code>OBJECT</code> body 的 hash / <code>object_id</code> 重算現在已接進 wire validation，而且 capability-gated optional messages 也已受控；剩下的是更完整的 shared-helper convergence 與更廣 interop proof。</td>
+              <td data-label="Current read">minimal gate 所需的 object 與 wire signature verification 已關閉；更廣的 interop/error-path follow-up 仍在 <code>M4</code>。</td>
             </tr>
             <tr>
               <td data-label="Area">5. Patch and Revision Engine</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay 與 <code>state_hash</code> 已存在；dependency verification、wrong-type 與 multi-hop ancestry proof、sibling declared-ID determinism，以及 render 路徑的 ancestry context 都更完整。</td>
+              <td data-label="Current read">Replay 與 <code>state_hash</code> 已到位；dependency verification、wrong-type 與 multi-hop ancestry proofs、sibling declared-ID determinism，以及 render-path ancestry context 都更完整。</td>
             </tr>
             <tr>
               <td data-label="Area">6. Local State and Storage</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Store ingest、rebuild 與 indexes 已存在；rebuild smoke 現在也會在摘要回報中保留 nested ancestry context，但 local transport/safety separation 尚未完成。</td>
+              <td data-label="Current read">Store ingest、rebuild 與 indexes 已存在；local transport/safety policy 現在也會保存在獨立的 local policy file，而 rebuild smoke 會同時保留 replicated indexes 與 local policy state。</td>
             </tr>
             <tr>
               <td data-label="Area">7. Wire Protocol</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Canonical wire-envelope parsing、field validation、sender checks、session sequencing/head tracking、reachability gating、store-backed bootstrap、<code>OBJECT</code> body verification，以及 capability-gated optional messages 現在都已存在於 <code>mycel-core</code>；更完整的 peer interop 仍未完成。</td>
+              <td data-label="Current read">Canonical wire-envelope parsing、field validation、RFC 3339 checks、minimal-message payload validation、sender checks、session sequencing/head tracking、reachability gating、store-backed bootstrap、<code>OBJECT</code> body verification、capability-gated optional-message handling，以及最小 peer-store sync driver 都已存在於 <code>mycel-core</code>；主要剩餘 interop 工作是更廣的 session/error-path proof。</td>
             </tr>
             <tr>
               <td data-label="Area">8. Sync Workflow</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Peer-store 驅動的 first-time 與 incremental <code>sync pull</code> flow 現在已能 verify/store requested objects，並涵蓋 snapshot-assisted catch-up 與 announced-view fetching，且 <code>WireSession</code> 可從已驗證 store state bootstrap；更廣的 peer interop 仍待完成。</td>
+              <td data-label="Current read">Peer-store 驅動的 first-time 與 incremental sync 現在已透過 <code>mycel-core</code>、CLI 與 simulator positive-path coverage 證明 shared verify/store flow，並涵蓋 snapshot-assisted catch-up、announced-view fetching、localhost multi-process proof、re-sync idempotency、depth-N incremental catchup，以及 partial-doc selective sync；剩餘工作是更廣的 session/error-path proof。</td>
             </tr>
             <tr>
               <td data-label="Area">9. Views and Head Selection</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M3</td>
-              <td data-label="Current read">Deterministic selector core、具名 fixed-profile selection、具備 editor/view admission 感知的 inspect/render flows，以及 head inspection 中的 bounded viewer score channels 已存在；更廣泛的 governance persistence 與最後的 dual-role closure 仍待完成。</td>
+              <td data-label="Current read">Deterministic selector core、具名 fixed-profile selection、較清楚的 available-profile summaries 與 profile-error feedback、分開的 editor/view admission-aware inspect/render flows，以及 bounded viewer score channels 都已存在；更廣的 governance persistence 與最後的 independent dual-role role-assignment closure 仍待完成。</td>
             </tr>
             <tr>
               <td data-label="Area">10. Merge Generation</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay-based verification 與保守型 local merge authoring 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage，以及更廣的 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍會落回 manual curation。</td>
+              <td data-label="Current read">Replay verification 與保守型 local merge-authoring profile 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage，以及更廣的 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍會落回 manual curation。</td>
             </tr>
             <tr>
               <td data-label="Area">11. CLI or API Surface</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2 / M3 / M4</td>
-              <td data-label="Current read">Verification、authoring、保守型 merge authoring、具備 editor-admission 感知的 reader inspection/render、governance inspect/list/publish、persisted governance index query surfaces、transcript-backed <code>sync pull</code>，以及內部 peer-store sync 都已存在，並包含 optional snapshot/view flows；更廣的 replication behavior 仍未完成。</td>
+              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish、persisted governance index query surfaces、transcript-backed <code>sync pull</code>，以及內部 <code>sync peer-store</code> 都已存在，並包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup 與 partial-doc selective sync；剩餘的 <code>M4</code> gap 是更廣的 session/error-path interop proof。</td>
             </tr>
             <tr>
               <td data-label="Area">12. Interop Test Minimum</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1 / M2 / M4</td>
-              <td data-label="Current read">Fixture isolation、reproducibility、更嚴格的 parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store 的 first-time / incremental sync proofs、optional-message coverage，以及 simulator positive-path smokes 已存在，但更廣的 peer-interop cases 仍未完成。</td>
+              <td data-label="Current read">Fixture isolation、reproducibility、更嚴格的 parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store first-time / incremental sync proofs、optional-message coverage、localhost multi-process proof、re-sync idempotency coverage、depth-N incremental catchup coverage，以及 partial-doc selective sync coverage 都已存在，但更廣的 session/error-path cases 仍未完成。</td>
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">Whole plan</td>
-              <td data-label="Current read">Replay、head selection、rebuild、保守型 merge authoring，以及 peer-store sync proofs 已綠；parse closure、更廣的 peer interop，以及 production replication behavior 尚未完成。</td>
+              <td data-label="Status">Done</td>
+              <td data-label="Milestone">M1</td>
+              <td data-label="Current read">minimal-client gate 已關閉；剩餘工作現在都改由 post-<code>M1</code> follow-up checklist 追蹤，而不是留在這個 gate。</td>
             </tr>
           </tbody>
         </table>

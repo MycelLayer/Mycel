@@ -1,6 +1,6 @@
 # Mycel 路线图
 
-状态：late partial progress，已在最近一批 M1 inspect parity、signature-edge verify smoke、replay/verify smoke、malformed-field 和文档同步工作之后刷新
+状态：major progress，已在 implementation checklist 拆成已关闭的 `M1` minimal-client gate 与活跃的 post-`M1` follow-up checklist 之后刷新；当前 active lane 已明确转到 `M2` / `M3` / `M4`，而更广的 governance persistence 与剩余的 peer interop error/session proof 仍未完成；当前规划中的 production replication 子项已补齐
 
 这份路线图把当前 README 的优先级、implementation checklist 和 design-note 的 planning 指引整理成一份仓库级的构建顺序。
 
@@ -34,9 +34,9 @@
 
 当前这条 lane 是：
 
-1. 完成窄版 first-client core
-2. 收掉 shared core 在 parsing 和 canonicalization 上剩余的缺口
-3. 一边持续扩展 fixtures、模拟器覆盖和负向测试，一边开始 reader-plus-governance 的读取路径
+1. 在已经关闭的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 和 narrow write path 的剩余收尾
+2. 扩展 `M3` reader-plus-governance workflows，但不要重新打开已经关闭的 minimal-client gate
+3. 在当前规划中的 production replication 子项都已补齐之后，让 `M4` 从 peer-store proof 继续推进到剩余的 peer interop error/session coverage
 
 ### 下一步
 
@@ -97,9 +97,9 @@
 
 ### Current Status
 
-仍属于 late partial progress，已经接近 phase 末尾，但还不能宣布 complete。
+Phase 1 exit criteria 现在已经完全满足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍然保持全绿（7/7），而 checklist 现在把这个 gate 作为已关闭的历史区块保留，并另外追踪活跃的 post-`M1` follow-up work。
 
-已经在进行中或部分完成：
+已完成：
 
 1. Shared object schema metadata
 2. Shared object-envelope parsing
@@ -109,13 +109,8 @@
 6. Accepted-head inspection，包括 store-backed selector object loading
 7. Internal validation 和 simulator harness CLI
 
-仍然缺少或未完成：
-
-1. malformed field-shape depth、剩余 inspect-surface parity polish 和剩余 semantic-edge strictness 的最后收尾
-2. 除 verified ingest 之外的窄版 object-authoring 和 write path
-3. 建立在 accepted-head selector 之上的更干净 reader-facing profile surface
-4. 将 shared canonicalization reuse 扩展到未来的 wire-envelope work
-5. 足以支撑宣布 Phase 1 exit criteria 完成的最后收尾工作
+8. malformed field-shape depth 与 semantic-edge strictness closure
+9. Canonical JSON reuse 已在所有 wire-validation 路径确认完成
 
 ### 本 phase 的 milestones
 
@@ -137,7 +132,7 @@
 
 当前判断：
 
-接近完成。shared parsing、canonical helper、更广的 parser / verify / CLI strictness-surface coverage、更完整的 inspect-surface parity、针对 revision semantics 更强的 signature-edge 与 replay/verification smoke coverage、隔离后的 validate-peer fixtures，以及 canonical reproducibility coverage 都已经存在；剩余工作大多是最后的 malformed-field depth 与 semantic-edge 收尾，再加上一些 milestone-close proof points。
+Complete。shared parsing、更收敛的 canonical helper module、top-level core-version equality checks、保留路径信息的 nested parser field errors、更广的 parser / verify / CLI strictness-surface coverage、更完整的 inspect-surface parity、更强的 replay dependency verification 与 sibling declared-ID determinism、直接覆盖无效 sibling/parent dependency ID 与 signature 的 CLI smoke coverage、更清楚的 multi-hop ancestry failure context、隔离后的 validate-peer fixtures、canonical reproducibility coverage、field-shape depth 与 semantic-edge closure、dual-role key closure，以及 canonical JSON reuse across wire-validation paths 现在都已经存在。
 
 当前仓库里已经可以看到：
 
@@ -152,10 +147,7 @@
 
 主要剩余缺口：
 
-1. 在广泛 unknown-field 和 invalid-type rejection 之后，完成最终的 malformed-field depth 与 semantic-edge strictness closure
-2. 在当前 revision / patch、replay 和 view / snapshot batches 之外，补更深的 `mycel-core` 级语义边界覆盖
-3. 把 shared helper reuse 扩展到未来的 wire-validation work
-4. 在扩展更多 surface 之前，先收紧 milestone-close criteria
+没有会阻挡 `M1` exit 的缺口。接下来的活跃工作重点已经转到 `M2` / `M3`。
 
 Implementation anchors：
 
@@ -225,14 +217,11 @@ Implementation anchors：
 
 当前判断：
 
-已经大幅展开，但还没有达到可关闭状态。replay-based verification、store rebuild、persisted indexes 和直接的 store-backed replay proof point 都已经存在，但这个 milestone 仍然不能关闭。
+已经大幅展开，但仍未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring workflow、author 与 merge workflow 中更广的 document-level index reuse、persisted `doc_heads` index for sync，以及能保留 ancestry context 的 render/store verification 都已经存在，但这个 milestone 仍未达到可关闭状态。
 
 主要剩余缺口：
 
-1. 窄版 object-authoring 和 builder path
-2. persisted store indexes 在 reader workflows 中更广泛的 reuse
-3. 除当前直接 store-backed replay proof point 之外，继续补更贴近真实 fixture sets 的 replay 与 store reconstruction coverage
-4. 文档收尾，让路线图和 checklist 能正确反映当前的 store/replay baseline
+1. 保守型 merge authoring 现在已覆盖基本 move/reorder、insert/delete 组合、reparent 到新引入 parent 的 case、简单的 composed parent-chain reparenting，以及更广的初步 nested structural matrix，但更丰富的 nested/reparenting conflict cases 仍需 manual curation
 
 Implementation anchors：
 

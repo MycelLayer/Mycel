@@ -101,9 +101,9 @@
 
 ### Current Status
 
-Phase 1 exit criteria 現在已滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍維持全綠（7/7），而 checklist 也改成把這個 gate 當作已關閉歷史區塊保留，並另外追蹤活的 post-`M1` follow-up work。
+Phase 1 exit criteria 現在已完全滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍維持全綠（7/7），而 checklist 現在把這個 gate 保留為已關閉的歷史區塊，並另外追蹤活的 post-`M1` follow-up work。
 
-已在進行中或部分完成：
+已完成：
 
 1. Shared object schema metadata
 2. Shared object-envelope parsing
@@ -113,13 +113,8 @@ Phase 1 exit criteria 現在已滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 
 6. Accepted-head inspection，包括 store-backed selector object loading
 7. Internal validation 與 simulator harness CLI
 
-仍缺少或未完成：
-
-1. malformed field-shape depth、剩餘 inspect-surface parity polish 與剩餘 semantic-edge strictness 的最後收尾工作
-2. verified ingest 之外的窄版 object-authoring 與 write path
-3. 建立在 accepted-head selector 之上的更乾淨 reader-facing profile surface
-4. 將 shared canonicalization reuse 擴展到未來 wire-envelope work
-5. 足以宣告 Phase 1 exit criteria 完成的最後收尾工作
+8. malformed field-shape depth 與 semantic-edge strictness closure
+9. Canonical JSON reuse 已在所有 wire-validation 路徑確認完成
 
 ### 本 phase 的 milestones
 
@@ -141,7 +136,7 @@ Phase 1 exit criteria 現在已滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 
 
 目前判讀：
 
-接近完成。shared parsing、更收斂的 canonical helper module、top-level core-version equality checks、保留路徑資訊的 nested parser field errors、更廣的 parser / verify / CLI strictness-surface coverage、更完整的 inspect-surface parity、更嚴格的 replay dependency verification 與 sibling declared-ID determinism、直接涵蓋無效 sibling/parent dependency ID 與 signature 的 CLI smoke coverage、更清楚的 multi-hop ancestry failure context、isolate 過的 validate-peer fixtures，以及 canonical reproducibility coverage 都已存在；剩餘工作大多是最後的 malformed-field depth 與 semantic-edge 收尾，加上一些 milestone-close proof points。
+Complete。shared parsing、更收斂的 canonical helper module、top-level core-version equality checks、保留路徑資訊的 nested parser field errors、更廣的 parser / verify / CLI strictness-surface coverage、更完整的 inspect-surface parity、更強的 replay dependency verification 與 sibling declared-ID determinism、直接涵蓋無效 sibling/parent dependency ID 與 signature 的 CLI smoke coverage、更清楚的 multi-hop ancestry failure context、isolate 過的 validate-peer fixtures、canonical reproducibility coverage、field-shape depth 與 semantic-edge closure、dual-role key closure，以及 canonical JSON reuse across wire-validation paths 現在都已存在。
 
 目前 repo 已可見：
 
@@ -156,10 +151,7 @@ Phase 1 exit criteria 現在已滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 
 
 主要剩餘缺口：
 
-1. 在廣泛 unknown-field 與 invalid-type rejection 之後，final malformed-field depth 與 semantic-edge strictness closure
-2. 目前 revision / patch、replay 與 view / snapshot batches 之外，其餘 semantic edge cases 的更深 `mycel-core` coverage
-3. 把剩餘 wire-validation canonicalization 路徑收斂到 shared helper module 上
-4. 在擴大更多表面前，先釐清 milestone-close criteria
+沒有會阻擋 `M1` exit 的缺口。接下來的活躍工作重點已經轉到 `M2` / `M3`。
 
 Implementation anchors：
 
@@ -229,14 +221,11 @@ Implementation anchors：
 
 目前判讀：
 
-已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring workflow，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
+已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring workflow、author 與 merge workflow 中更廣的 document-level index reuse、persisted `doc_heads` index for sync，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
 
 主要剩餘缺口：
 
-1. 持久化 store indexes 在 reader workflows 中的更廣 reuse
-2. 在目前直接 store-backed replay proof point 之外，進一步補強與更真實 fixture sets 綁定的 replay 與 store reconstruction coverage
-3. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting，以及更廣的初步 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍需 manual curation
-4. 擴大 shared core reuse，避免 authoring 與 replay helpers 過度停留在 CLI-driven glue
+1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting，以及更廣的初步 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍需 manual curation
 
 Implementation anchors：
 

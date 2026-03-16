@@ -52,7 +52,7 @@
         </p>
         <ol class="lane-list">
           <li>Finish <code>M2</code> replay, rebuild, merge-authoring, and narrow write-path closure.</li>
-          <li>Expand <code>M3</code> reader workflows carefully on top of accepted-head inspection, render, clearer profile feedback, and editor-admission-aware profile base.</li>
+          <li>Expand <code>M3</code> reader workflows carefully on top of accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, and bounded viewer score surfaces.</li>
           <li>Keep <code>M4</code> narrow while peer-store sync proof grows toward the remaining session/error-path interop closure.</li>
         </ol>
       </header>
@@ -61,17 +61,18 @@
         <h2>Milestone Timeline</h2>
         <p>
           The roadmap is sequential: each later phase assumes the earlier one is already stable.
-          Right now, the center of gravity is the closure of <code>M2</code>, the careful expansion of <code>M3</code>, and the remaining <code>M4</code> interop proof.
+          Right now, the center of gravity is the closure of <code>M2</code>, the careful expansion
+          of <code>M3</code>, and the remaining <code>M4</code> interop proof.
         </p>
         <div class="milestones">
           <article class="card">
             <div class="stage">Minimal</div>
             <h3>M1</h3>
-            <div class="status mostly-done">Mostly complete</div>
+            <div class="status mostly-done">Closed gate</div>
             <ul>
-              <li>Shared parsing and schema layer</li>
-              <li>Canonical validation utilities</li>
-              <li>Strictness, replay proof, and fixture coverage</li>
+              <li>Minimal-client proof retained as completed checklist history</li>
+              <li>Ready-to-build gate remains all green</li>
+              <li>Active work moved into <code>M2</code> / <code>M3</code> / <code>M4</code></li>
             </ul>
           </article>
           <article class="card">
@@ -107,7 +108,7 @@
               <li>Session reachability and store-backed bootstrap</li>
               <li>Peer-store first-time and incremental sync proof</li>
               <li>Capability-gated <code>SNAPSHOT_OFFER</code> / <code>VIEW_ANNOUNCE</code></li>
-              <li>Localhost multi-process and production-replication proofs</li>
+              <li>Localhost multi-process, re-sync idempotency, depth-N catchup, and partial-doc selective sync proofs</li>
             </ul>
           </article>
           <article class="card">
@@ -141,27 +142,27 @@
           <tbody>
             <tr>
               <td data-label="Area">1. Repo and Build Setup</td>
-              <td data-label="Status">Mostly done</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">The build/test base is stable, and shared canonical helper ownership is converging on a dedicated core module; final utility closure still remains.</td>
+              <td data-label="Current read">This is now part of the closed minimal-client gate; no active follow-up remains here.</td>
             </tr>
             <tr>
               <td data-label="Area">2. Object Types and IDs</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">All required v0.1 families are typed, and parser / verify / CLI dependency-proof coverage is broader; malformed field-shape depth, remaining semantic-edge closure, and role modeling remain.</td>
+              <td data-label="Current read">The required v0.1 families and minimal-client role modeling are now retained as closed gate proof, not active checklist debt.</td>
             </tr>
             <tr>
               <td data-label="Area">3. Canonical Serialization and Hashing</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1</td>
-              <td data-label="Current read">Core rules and reproducibility coverage exist, and canonical helper ownership is more centralized in a shared core module; final adoption across replay-derived <code>state_hash</code> and wire remains open.</td>
+              <td data-label="Current read">Canonical rules and shared helper reuse needed for the minimal gate are closed; post-<code>M1</code> wire follow-up now belongs to the broader <code>M4</code> lane rather than this gate.</td>
             </tr>
             <tr>
               <td data-label="Area">4. Signature Verification</td>
-              <td data-label="Status">Partial</td>
+              <td data-label="Status">Done</td>
               <td data-label="Milestone">M1 / M4</td>
-              <td data-label="Current read">Object signature rules are in place, generic wire-envelope signature verification exists, <code>OBJECT</code> body hash / <code>object_id</code> recomputation now runs in wire validation, and capability-gated optional messages are enforced; broader shared-helper convergence and wider peer interop proof remain.</td>
+              <td data-label="Current read">Minimal object and wire signature verification are closed for the gate; broader interop/error-path follow-up remains in <code>M4</code>.</td>
             </tr>
             <tr>
               <td data-label="Area">5. Patch and Revision Engine</td>
@@ -173,25 +174,25 @@
               <td data-label="Area">6. Local State and Storage</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Store ingest, rebuild, and indexes exist; rebuild smoke now preserves nested ancestry context in summary reporting, but policy separation still remains.</td>
+              <td data-label="Current read">Store ingest, rebuild, and indexes exist; local transport/safety policy now persists in a separate local policy file while rebuild smoke preserves both replicated indexes and local policy state.</td>
             </tr>
             <tr>
               <td data-label="Area">7. Wire Protocol</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Canonical wire-envelope parsing, field validation, sender checks, session sequencing/head tracking, reachability gating, store-backed bootstrap, <code>OBJECT</code> body verification, and capability-gated optional messages now exist in <code>mycel-core</code>; broader peer interop remains.</td>
+              <td data-label="Current read">Canonical wire-envelope parsing, field validation, RFC 3339 checks, minimal-message payload validation, sender checks, session sequencing/head tracking, reachability gating, store-backed bootstrap, <code>OBJECT</code> body verification, capability-gated optional-message handling, and a minimal peer-store sync driver now exist in <code>mycel-core</code>; the main remaining interop work is broader session/error-path proof.</td>
             </tr>
             <tr>
               <td data-label="Area">8. Sync Workflow</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Peer-store-driven first-time and incremental sync now prove shared verify/store flows through <code>mycel-core</code>, the CLI, and simulator positive-path coverage, including snapshot-assisted catch-up, announced-view fetching, localhost multi-process transport proof, re-sync idempotency, depth-N incremental catchup, and partial-doc selective sync; remaining work is broader session/error-path proof.</td>
+              <td data-label="Current read">Peer-store-driven first-time and incremental sync now prove shared verify/store flows through <code>mycel-core</code>, the CLI, and simulator positive-path coverage, including snapshot-assisted catch-up, announced-view fetching, localhost multi-process proof, re-sync idempotency, depth-N incremental catchup, and partial-doc selective sync; remaining work is broader session/error-path proof.</td>
             </tr>
             <tr>
               <td data-label="Area">9. Views and Head Selection</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M3</td>
-              <td data-label="Current read">The deterministic selector core, named fixed-profile selection, editor/view admission-aware inspect/render flows, and bounded viewer score channels in head inspection exist; broader governance persistence and final dual-role closure remain.</td>
+              <td data-label="Current read">Deterministic selector core, named fixed-profile selection with clearer available-profile summaries and profile-error feedback, separate editor/view admission-aware inspect/render flows, and bounded viewer score channels in head inspection exist; broader governance persistence and final independent dual-role role-assignment closure remain.</td>
             </tr>
             <tr>
               <td data-label="Area">10. Merge Generation</td>
@@ -213,9 +214,9 @@
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">Whole plan</td>
-              <td data-label="Current read">Replay, head selection, rebuild, conservative merge authoring, and peer-store sync proofs are green; parse closure, broader peer interop, and production replication behavior are not.</td>
+              <td data-label="Status">Done</td>
+              <td data-label="Milestone">M1</td>
+              <td data-label="Current read">The minimal-client gate is closed; remaining work now lives in the post-<code>M1</code> follow-up checklist instead of this gate.</td>
             </tr>
           </tbody>
         </table>
