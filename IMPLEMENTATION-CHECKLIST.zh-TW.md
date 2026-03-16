@@ -206,7 +206,7 @@
 ## 14. `M2` Replay、Storage 與 Rebuild Follow-Up
 
 - [ ] 擴大 persisted store indexes 在 reader 與 recovery workflows 中的重用，避免 accepted-head 與 render paths 過度依賴臨時 CLI glue。
-- [ ] 補上比目前直接 proof points 更強的 replay 與 store-rebuild fixtures，涵蓋更真實的 multi-document 與 recovery-oriented 情境。
+- [x] 補上比目前直接 proof points 更強的 replay 與 store-rebuild fixtures，涵蓋更真實的 multi-document 與 recovery-oriented 情境。
 - [ ] 把更多 authoring 與 replay helper ownership 收斂到 `mycel-core`，避免 storage-write 與 replay 行為過度偏 CLI 驅動。
 - [ ] 擴大 conservative merge-authoring 對 richer nested 與 reparenting conflict cases 的 coverage，處理目前仍落回 manual curation 的情況。
 - [x] 明確定義並驗證在 minimal-client gate 之後仍未完成的 narrow object-authoring 與 storage-write path。

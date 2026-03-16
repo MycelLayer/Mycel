@@ -206,7 +206,7 @@ Use this section as the active implementation checklist for the still-open post-
 ## 14. `M2` Replay, Storage, and Rebuild Follow-Up
 
 - [ ] Broaden persisted-store index reuse across reader and recovery workflows so accepted-head and render paths rely less on ad hoc CLI-only glue.
-- [ ] Add stronger replay and store-rebuild fixture coverage beyond the current direct proof points, including more realistic multi-document and recovery-oriented fixture sets.
+- [x] Add stronger replay and store-rebuild fixture coverage beyond the current direct proof points, including more realistic multi-document and recovery-oriented fixture sets.
 - [ ] Move more authoring and replay helper ownership into `mycel-core` so storage-write and replay behavior are not disproportionately CLI-driven.
 - [ ] Expand conservative merge-authoring coverage for richer nested and reparenting conflict cases that still fall back to manual curation.
 - [x] Define and verify the intended narrow object-authoring and storage-write path that remains open after the closed minimal-client gate.

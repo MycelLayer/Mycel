@@ -2212,4 +2212,467 @@ mod tests {
 
         let _ = fs::remove_dir_all(store_dir);
     }
+
+    #[test]
+    fn rebuild_store_indexes_two_independent_documents() {
+        use crate::author::{
+            commit_revision_to_store, create_document_in_store, create_patch_in_store,
+            parse_signing_key_seed, DocumentCreateParams, PatchCreateParams, RevisionCommitParams,
+        };
+
+        let store_dir = write_temp_dir("rebuild-two-docs");
+        let key_seed = base64::engine::general_purpose::STANDARD.encode([9u8; 32]);
+        let signing_key = parse_signing_key_seed(&key_seed).expect("signing key should parse");
+
+        // Document A with one patch and one revision
+        let doc_a = create_document_in_store(
+            &store_dir,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:multi-a".to_string(),
+                title: "Doc A".to_string(),
+                language: "en".to_string(),
+                timestamp: 1,
+            },
+        )
+        .expect("doc A should be created");
+
+        let patch_a = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:multi-a".to_string(),
+                base_revision: doc_a.genesis_revision_id.clone(),
+                timestamp: 2,
+                ops: serde_json::json!([{
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:ma-001",
+                        "block_type": "paragraph",
+                        "content": "Doc A content",
+                        "attrs": {},
+                        "children": []
+                    }
+                }]),
+            },
+        )
+        .expect("patch A should be created");
+
+        let rev_a = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:multi-a".to_string(),
+                parents: vec![doc_a.genesis_revision_id.clone()],
+                patches: vec![patch_a.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 3,
+            },
+        )
+        .expect("revision A should be committed");
+
+        // Document B with one patch and one revision
+        let doc_b = create_document_in_store(
+            &store_dir,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:multi-b".to_string(),
+                title: "Doc B".to_string(),
+                language: "en".to_string(),
+                timestamp: 4,
+            },
+        )
+        .expect("doc B should be created");
+
+        let patch_b = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:multi-b".to_string(),
+                base_revision: doc_b.genesis_revision_id.clone(),
+                timestamp: 5,
+                ops: serde_json::json!([{
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:mb-001",
+                        "block_type": "paragraph",
+                        "content": "Doc B content",
+                        "attrs": {},
+                        "children": []
+                    }
+                }]),
+            },
+        )
+        .expect("patch B should be created");
+
+        let rev_b = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:multi-b".to_string(),
+                parents: vec![doc_b.genesis_revision_id.clone()],
+                patches: vec![patch_b.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 6,
+            },
+        )
+        .expect("revision B should be committed");
+
+        let summary = rebuild_store_from_path(&store_dir).expect("store rebuild should succeed");
+
+        assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
+
+        // Both documents should be indexed independently
+        let doc_a_revs = summary
+            .doc_revisions
+            .get("doc:multi-a")
+            .expect("doc A revisions should be indexed");
+        assert!(
+            doc_a_revs.contains(&doc_a.genesis_revision_id),
+            "doc A genesis revision should be indexed"
+        );
+        assert!(
+            doc_a_revs.contains(&rev_a.revision_id),
+            "doc A child revision should be indexed"
+        );
+
+        let doc_b_revs = summary
+            .doc_revisions
+            .get("doc:multi-b")
+            .expect("doc B revisions should be indexed");
+        assert!(
+            doc_b_revs.contains(&doc_b.genesis_revision_id),
+            "doc B genesis revision should be indexed"
+        );
+        assert!(
+            doc_b_revs.contains(&rev_b.revision_id),
+            "doc B child revision should be indexed"
+        );
+
+        // Doc A revisions should not appear in Doc B's index and vice versa
+        assert!(
+            !doc_a_revs.contains(&rev_b.revision_id),
+            "doc B revision should not appear in doc A index"
+        );
+        assert!(
+            !doc_b_revs.contains(&rev_a.revision_id),
+            "doc A revision should not appear in doc B index"
+        );
+
+        // Both patches should be indexed under the author
+        let author_patches = summary
+            .author_patches
+            .values()
+            .flatten()
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            author_patches.contains(&patch_a.patch_id),
+            "patch A should be indexed under author"
+        );
+        assert!(
+            author_patches.contains(&patch_b.patch_id),
+            "patch B should be indexed under author"
+        );
+
+        let _ = fs::remove_dir_all(store_dir);
+    }
+
+    #[test]
+    fn load_doc_replay_objects_does_not_cross_contaminate_documents() {
+        use crate::author::{
+            commit_revision_to_store, create_document_in_store, create_patch_in_store,
+            parse_signing_key_seed, DocumentCreateParams, PatchCreateParams, RevisionCommitParams,
+        };
+
+        let store_dir = write_temp_dir("doc-replay-no-cross-contamination");
+        let key_seed = base64::engine::general_purpose::STANDARD.encode([11u8; 32]);
+        let signing_key = parse_signing_key_seed(&key_seed).expect("signing key should parse");
+
+        // Populate doc A
+        let doc_a = create_document_in_store(
+            &store_dir,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:cc-alpha".to_string(),
+                title: "Alpha".to_string(),
+                language: "en".to_string(),
+                timestamp: 1,
+            },
+        )
+        .expect("doc alpha should be created");
+
+        let patch_a = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:cc-alpha".to_string(),
+                base_revision: doc_a.genesis_revision_id.clone(),
+                timestamp: 2,
+                ops: serde_json::json!([{
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:alpha-001",
+                        "block_type": "paragraph",
+                        "content": "Alpha text",
+                        "attrs": {},
+                        "children": []
+                    }
+                }]),
+            },
+        )
+        .expect("patch alpha should be created");
+
+        let rev_a = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:cc-alpha".to_string(),
+                parents: vec![doc_a.genesis_revision_id.clone()],
+                patches: vec![patch_a.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 3,
+            },
+        )
+        .expect("revision alpha should be committed");
+
+        // Populate doc B
+        let doc_b = create_document_in_store(
+            &store_dir,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:cc-beta".to_string(),
+                title: "Beta".to_string(),
+                language: "en".to_string(),
+                timestamp: 4,
+            },
+        )
+        .expect("doc beta should be created");
+
+        let patch_b = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:cc-beta".to_string(),
+                base_revision: doc_b.genesis_revision_id.clone(),
+                timestamp: 5,
+                ops: serde_json::json!([{
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:beta-001",
+                        "block_type": "paragraph",
+                        "content": "Beta text",
+                        "attrs": {},
+                        "children": []
+                    }
+                }]),
+            },
+        )
+        .expect("patch beta should be created");
+
+        let rev_b = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:cc-beta".to_string(),
+                parents: vec![doc_b.genesis_revision_id.clone()],
+                patches: vec![patch_b.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 6,
+            },
+        )
+        .expect("revision beta should be committed");
+
+        // Load objects scoped to doc alpha — must not include doc beta objects
+        let alpha_objects =
+            super::load_doc_replay_objects_from_store(&store_dir, "doc:cc-alpha")
+                .expect("alpha replay objects should load");
+
+        assert!(
+            alpha_objects.contains_key(&doc_a.genesis_revision_id),
+            "alpha genesis revision should be in alpha objects"
+        );
+        assert!(
+            alpha_objects.contains_key(&rev_a.revision_id),
+            "alpha child revision should be in alpha objects"
+        );
+        assert!(
+            alpha_objects.contains_key(&patch_a.patch_id),
+            "alpha patch should be in alpha objects"
+        );
+        assert!(
+            !alpha_objects.contains_key(&doc_b.genesis_revision_id),
+            "beta genesis revision must NOT appear in alpha objects"
+        );
+        assert!(
+            !alpha_objects.contains_key(&rev_b.revision_id),
+            "beta revision must NOT appear in alpha objects"
+        );
+        assert!(
+            !alpha_objects.contains_key(&patch_b.patch_id),
+            "beta patch must NOT appear in alpha objects"
+        );
+
+        // Load objects scoped to doc beta — must not include doc alpha objects
+        let beta_objects =
+            super::load_doc_replay_objects_from_store(&store_dir, "doc:cc-beta")
+                .expect("beta replay objects should load");
+
+        assert!(
+            beta_objects.contains_key(&doc_b.genesis_revision_id),
+            "beta genesis revision should be in beta objects"
+        );
+        assert!(
+            beta_objects.contains_key(&rev_b.revision_id),
+            "beta child revision should be in beta objects"
+        );
+        assert!(
+            beta_objects.contains_key(&patch_b.patch_id),
+            "beta patch should be in beta objects"
+        );
+        assert!(
+            !beta_objects.contains_key(&doc_a.genesis_revision_id),
+            "alpha genesis revision must NOT appear in beta objects"
+        );
+        assert!(
+            !beta_objects.contains_key(&rev_a.revision_id),
+            "alpha revision must NOT appear in beta objects"
+        );
+        assert!(
+            !beta_objects.contains_key(&patch_a.patch_id),
+            "alpha patch must NOT appear in beta objects"
+        );
+
+        let _ = fs::remove_dir_all(store_dir);
+    }
+
+    #[test]
+    fn load_doc_replay_objects_supports_deep_revision_chain() {
+        use crate::author::{
+            commit_revision_to_store, create_document_in_store, create_patch_in_store,
+            parse_signing_key_seed, DocumentCreateParams, PatchCreateParams, RevisionCommitParams,
+        };
+
+        let store_dir = write_temp_dir("doc-replay-deep-chain");
+        let key_seed = base64::engine::general_purpose::STANDARD.encode([13u8; 32]);
+        let signing_key = parse_signing_key_seed(&key_seed).expect("signing key should parse");
+
+        // Create document with genesis revision
+        let doc = create_document_in_store(
+            &store_dir,
+            &signing_key,
+            &DocumentCreateParams {
+                doc_id: "doc:deep-chain".to_string(),
+                title: "Deep Chain".to_string(),
+                language: "en".to_string(),
+                timestamp: 1,
+            },
+        )
+        .expect("document should be created");
+
+        // Revision 1: insert block
+        let patch1 = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:deep-chain".to_string(),
+                base_revision: doc.genesis_revision_id.clone(),
+                timestamp: 2,
+                ops: serde_json::json!([{
+                    "op": "insert_block",
+                    "new_block": {
+                        "block_id": "blk:dc-001",
+                        "block_type": "paragraph",
+                        "content": "Initial content",
+                        "attrs": {},
+                        "children": []
+                    }
+                }]),
+            },
+        )
+        .expect("patch 1 should be created");
+
+        let rev1 = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:deep-chain".to_string(),
+                parents: vec![doc.genesis_revision_id.clone()],
+                patches: vec![patch1.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 3,
+            },
+        )
+        .expect("revision 1 should be committed");
+
+        // Revision 2: replace block content
+        let patch2 = create_patch_in_store(
+            &store_dir,
+            &signing_key,
+            &PatchCreateParams {
+                doc_id: "doc:deep-chain".to_string(),
+                base_revision: rev1.revision_id.clone(),
+                timestamp: 4,
+                ops: serde_json::json!([{
+                    "op": "replace_block",
+                    "block_id": "blk:dc-001",
+                    "new_content": "Updated content"
+                }]),
+            },
+        )
+        .expect("patch 2 should be created");
+
+        let rev2 = commit_revision_to_store(
+            &store_dir,
+            &signing_key,
+            &RevisionCommitParams {
+                doc_id: "doc:deep-chain".to_string(),
+                parents: vec![rev1.revision_id.clone()],
+                patches: vec![patch2.patch_id.clone()],
+                merge_strategy: None,
+                timestamp: 5,
+            },
+        )
+        .expect("revision 2 should be committed");
+
+        // Load all objects for the document
+        let objects = super::load_doc_replay_objects_from_store(&store_dir, "doc:deep-chain")
+            .expect("deep chain replay objects should load");
+
+        // All revisions and patches in the chain must be present
+        assert!(
+            objects.contains_key(&doc.genesis_revision_id),
+            "genesis revision should be present"
+        );
+        assert!(
+            objects.contains_key(&patch1.patch_id),
+            "patch 1 should be present"
+        );
+        assert!(
+            objects.contains_key(&rev1.revision_id),
+            "revision 1 should be present"
+        );
+        assert!(
+            objects.contains_key(&patch2.patch_id),
+            "patch 2 should be present"
+        );
+        assert!(
+            objects.contains_key(&rev2.revision_id),
+            "revision 2 should be present"
+        );
+
+        // Replay the leaf revision (rev2) using the doc-scoped object index
+        let rev2_value = load_stored_object_value(&store_dir, &rev2.revision_id)
+            .expect("revision 2 should load from store");
+        let replay = replay_revision_from_index(&rev2_value, &objects)
+            .expect("deep-chain replay should succeed with doc-scoped object index");
+
+        assert_eq!(replay.revision_id, rev2.revision_id);
+        assert_eq!(replay.state.doc_id, "doc:deep-chain");
+        assert_eq!(replay.state.blocks.len(), 1);
+        assert_eq!(replay.state.blocks[0].content, "Updated content");
+        assert_eq!(replay.recomputed_state_hash, rev2.recomputed_state_hash);
+
+        let _ = fs::remove_dir_all(store_dir);
+    }
 }
