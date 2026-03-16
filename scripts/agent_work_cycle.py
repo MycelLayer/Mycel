@@ -32,6 +32,30 @@ ROLE_OPEN_HANDOFF_HEADINGS = {
     "doc": "Doc Continuation Note",
 }
 
+# Items that must almost always be `checked`, not `not-needed`, in a real work
+# cycle batch.  If any of these are `[-]` at `end` time the tool reports them
+# and returns exit code 2.
+#
+# Exclusions per batch are handled inside `scan_scrutinized_not_needed_items`:
+# • workflow.reply-with-plan-and-status is auto-set to not-needed in batch 1 by
+#   the tool itself, so it is excluded from scrutiny on batch 1.
+SCRUTINIZED_NOT_NEEDED_ITEMS: dict[str, str] = {
+    "workflow.files-changed-summary": (
+        "required when source files changed; paste render_files_changed_table.py output verbatim"
+    ),
+    "workflow.runtime-preflight-before-verification": (
+        "required before running cargo test, scripts, or cargo run in the cycle"
+    ),
+    "workflow.reply-with-plan-and-status": (
+        "required at the start of every non-bootstrap work cycle batch"
+    ),
+}
+
+# Registry scope values that are known placeholders and should not be used in
+# scope-consistency checks (a placeholder scope never matches a real scope, so
+# the check would always fail for newly claimed agents).
+PLACEHOLDER_SCOPES: frozenset[str] = frozenset({"pending scope", "", "none", "n/a"})
+
 
 class WorkCycleError(Exception):
     pass
@@ -159,6 +183,76 @@ def emit_checklist_summary(
             print(f"  - {item}")
 
 
+def scan_scrutinized_not_needed_items(
+    checklist_path: Path, *, batch_num: int
+) -> list[tuple[str, str]]:
+    """Return (item_id, reason) for scrutinized items marked `not-needed` (`[-]`).
+
+    Scrutinized items are those that should almost always be `checked` during
+    real implementation work.  Marking them `not-needed` without genuine cause
+    is the main mechanism by which agents silently skip required steps.
+    """
+    scrutinized = dict(SCRUTINIZED_NOT_NEEDED_ITEMS)
+    # reply-with-plan-and-status is legitimately not-needed in batch 1 because
+    # the work-cycle begin tool auto-marks it that way for bootstrap batches.
+    if batch_num == 1:
+        scrutinized.pop("workflow.reply-with-plan-and-status", None)
+
+    violations: list[tuple[str, str]] = []
+    for line in checklist_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- [-] "):
+            continue
+        for item_id, reason in scrutinized.items():
+            if f"item-id: {item_id}" in stripped:
+                violations.append((item_id, reason))
+    return violations
+
+
+def extract_open_handoff_scope(mailbox_path: Path, *, agent_role: str) -> str | None:
+    """Return the scope of the latest open same-role handoff, or None if absent."""
+    own_heading = ROLE_OPEN_HANDOFF_HEADINGS.get(agent_role)
+    if own_heading is None:
+        return None
+
+    current_heading: str | None = None
+    in_own = False
+    section_open = False
+    section_scope: str | None = None
+    last_open_scope: str | None = None
+
+    for line in mailbox_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            if in_own and section_open:
+                last_open_scope = section_scope
+            current_heading = line[3:].strip()
+            in_own = current_heading == own_heading
+            section_open = False
+            section_scope = None
+            continue
+        if not in_own:
+            continue
+        stripped = line.strip()
+        if stripped == "- Status: open":
+            section_open = True
+        elif stripped.startswith("- Scope: "):
+            section_scope = stripped[len("- Scope: "):].strip()
+
+    if in_own and section_open:
+        last_open_scope = section_scope
+    return last_open_scope
+
+
+def resolve_agent_scope(agent_ref: str) -> str | None:
+    """Return the scope field from the registry for the given agent, or None."""
+    status_payload = run_registry("status", agent_ref)
+    agents = status_payload.get("agents")
+    if not isinstance(agents, list) or len(agents) != 1:
+        return None
+    scope = agents[0].get("scope")
+    return scope if isinstance(scope, str) else None
+
+
 def scan_open_handoffs(mailbox_path: Path, *, agent_role: str) -> dict[str, list[int]]:
     if not mailbox_path.exists():
         raise WorkCycleError(f"missing mailbox file: {mailbox_path.relative_to(ROOT_DIR)}")
@@ -180,6 +274,34 @@ def scan_open_handoffs(mailbox_path: Path, *, agent_role: str) -> dict[str, list
             else:
                 other_role_open_lines.append(index)
     return {"same_role": same_role_open_lines, "other_role": other_role_open_lines}
+
+
+def emit_not_needed_scrutiny_summary(violations: list[tuple[str, str]]) -> None:
+    print(f"scrutinized_not_needed_violations: {len(violations)}")
+    if not violations:
+        return
+    print("scrutinized_not_needed_items:")
+    for item_id, reason in violations:
+        print(f"  - {item_id}: {reason}")
+
+
+def emit_scope_consistency_summary(
+    *, registry_scope: str | None, handoff_scope: str | None
+) -> None:
+    registry_display = registry_scope or "(not set)"
+    handoff_display = handoff_scope or "(not found)"
+    print(f"registry_scope: {registry_display}")
+    print(f"handoff_scope: {handoff_display}")
+    if (
+        registry_scope
+        and registry_scope.lower() not in PLACEHOLDER_SCOPES
+        and handoff_scope
+        and handoff_scope.lower() not in PLACEHOLDER_SCOPES
+        and registry_scope != handoff_scope
+    ):
+        print("scope_consistency: MISMATCH — registry scope differs from open handoff scope")
+    else:
+        print("scope_consistency: ok")
 
 
 def emit_mailbox_summary(mailbox_path: Path, open_handoff_lines: dict[str, list[int]]) -> None:
@@ -287,23 +409,47 @@ def main() -> int:
 
         for path in checklist_paths:
             unchecked_by_path[path] = scan_unchecked_items(path)
+
+        # Scrutinize not-needed markings on high-value required items.
+        not_needed_violations: list[tuple[str, str]] = []
+        for path in checklist_paths:
+            not_needed_violations.extend(
+                scan_scrutinized_not_needed_items(path, batch_num=latest_batch)
+            )
+
         mailbox_path = resolve_agent_mailbox_path(agent_uid)
         open_handoff_lines = scan_open_handoffs(mailbox_path, agent_role=agent_role)
+
+        # Scope consistency: registry scope vs open handoff scope.
+        registry_scope = resolve_agent_scope(agent_uid)
+        handoff_scope = extract_open_handoff_scope(mailbox_path, agent_role=agent_role)
+
         emit_checklist_summary(
             checklist_paths=checklist_paths,
             unchecked_by_path=unchecked_by_path,
             bootstrap_batch=bootstrap_batch,
         )
+        emit_not_needed_scrutiny_summary(not_needed_violations)
+        emit_scope_consistency_summary(registry_scope=registry_scope, handoff_scope=handoff_scope)
         emit_mailbox_summary(mailbox_path, open_handoff_lines)
         shared_fallback_records = scan_shared_fallback_mailboxes()
         emit_shared_fallback_summary(shared_fallback_records)
+
         same_role_open_count = len(open_handoff_lines["same_role"])
         other_role_open_count = len(open_handoff_lines["other_role"])
         mailbox_pending = other_role_open_count > 1
         if not bootstrap_batch:
             mailbox_pending = mailbox_pending or same_role_open_count != 1
         shared_fallback_pending = any(record["over_limit"] for record in shared_fallback_records)
-        return 2 if any(unchecked_by_path.values()) or mailbox_pending or shared_fallback_pending else 0
+        not_needed_pending = len(not_needed_violations) > 0
+        return (
+            2
+            if any(unchecked_by_path.values())
+            or mailbox_pending
+            or shared_fallback_pending
+            or not_needed_pending
+            else 0
+        )
 
     emit_registry_summary(payload)
 
