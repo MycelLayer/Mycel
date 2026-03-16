@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence, peer interop proof, and production replication behavior remain open
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence, remaining peer interop error/session proof, and the unfinished production replication sub-items remain open
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -40,7 +40,7 @@ The current lane is:
 
 1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate
 2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
-3. advance `M4` from peer-store proof toward broader peer interop, localhost transport proof, and production replication behavior
+3. advance `M4` from peer-store proof toward the remaining peer-interop error/session coverage and the unfinished production replication sub-items
 
 ### Next
 
@@ -430,7 +430,7 @@ Substantially underway. All M4 completion-gate items are now satisfied at the si
 6. Capability-gated `VIEW_ANNOUNCE` delivery for governance views (`view-sync`)
 7. Per-peer accepted-head comparison surfaced in report (`matching-accepted-heads` outcome)
 
-What is still missing is production replication behavior: re-sync idempotency (running sync twice when already current produces zero new writes), depth-N incremental catchup (reader at revision depth 1 catches up to a depth-3 seed in one pass), and partial-doc selective sync (reader requests only a subset of the seed's documents, per PROTOCOL §8).
+What is still missing is the remaining production replication behavior plus broader session/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. The remaining production replication sub-items are depth-N incremental catchup (reader at revision depth 1 catches up to a depth-3 seed in one pass) and partial-doc selective sync (reader requests only a subset of the seed's documents, per PROTOCOL §8).
 
 Implementation anchors:
 

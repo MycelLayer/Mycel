@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence、peer interop proof 與 production replication behavior 仍未完成
+狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence、剩餘的 peer interop error/session proof，以及尚未完成的 production replication 子項仍未完成
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -40,7 +40,7 @@
 
 1. 在已關閉的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 與 narrow write path 的剩餘收尾
 2. 擴展 `M3` reader-plus-governance workflows，但不要重新打開已關閉的 minimal-client gate
-3. 讓 `M4` 從 peer-store proof 往更廣的 peer interop、localhost transport proof 與 production replication behavior 推進
+3. 讓 `M4` 從 peer-store proof 往剩餘的 peer interop error/session coverage 與尚未完成的 production replication 子項推進
 
 ### 下一步
 
@@ -385,7 +385,7 @@ Implementation anchors：
 
 目前判讀：
 
-`mycel-core` 已有 early groundwork：canonical envelope parsing、payload shape validation、RFC 3339 timestamp enforcement、通用 wire signature verification、sender checks、對 `HELLO`、`MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`ERROR` 的 inbound sequencing/head-tracking、reachability gating、store-backed session bootstrap，以及 `OBJECT` body 衍生的 hash / `object_id` 驗證。現在也已有 `mycel-core` 內的 peer-store sync path、CLI entry points，以及 simulator 的 positive-path coverage，可在不把手寫 transcript 當成唯一整合表面的前提下，證明 first-time 與 incremental 的 verify/store flow；同時 capability-gated 的 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling 也已透過 peer-store generation、fetch/store behavior 與 simulator proof 落地。仍缺的是更廣的 peer-interop proof，以及 production replication behavior。
+`mycel-core` 已有 early groundwork：canonical envelope parsing、payload shape validation、RFC 3339 timestamp enforcement、通用 wire signature verification、sender checks、對 `HELLO`、`MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`ERROR` 的 inbound sequencing/head-tracking、reachability gating、store-backed session bootstrap，以及 `OBJECT` body 衍生的 hash / `object_id` 驗證。現在也已有 `mycel-core` 內的 peer-store sync path、CLI entry points，以及 simulator 的 positive-path coverage，可在不把手寫 transcript 當成唯一整合表面的前提下，證明 first-time 與 incremental 的 verify/store flow；同時 capability-gated 的 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling 也已透過 peer-store generation、fetch/store behavior 與 simulator proof 落地。Re-sync 冪等性也已經補上 proof：reader 已是最新狀態時，再跑一次 sync 會得到零次新寫入。剩下的則是 peer interop 的 session/error-path coverage，以及 production replication 的另外兩個子項：depth-N incremental catchup 與 partial-doc selective sync。
 
 Implementation anchors：
 
