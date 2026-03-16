@@ -405,8 +405,8 @@ fn simulate_peer_store_sync_report(
         let is_declared_reader_peer = fixture.reader_peers.iter().any(|peer_ref| {
             resolve_peer_ref(topology, peer_ref).as_deref() == Some(peer.node_id.as_str())
         });
-        let starts_with_partial_store = (uses_recovery || uses_incremental)
-            && is_declared_reader_peer;
+        let starts_with_partial_store =
+            (uses_recovery || uses_incremental) && is_declared_reader_peer;
         if starts_with_partial_store {
             let reader_start_extra = fixture_reader_start_extra_revisions(fixture);
             populate_partial_reader_store(
@@ -507,11 +507,8 @@ fn simulate_peer_store_sync_report(
                 &seed_store_root,
                 &peer_store_root,
             )
-            .map_err(|err| {
-                format!("re-sync check failed for '{}': {err}", peer.node_id)
-            })?;
-            let resync_ok =
-                resync_summary.is_ok() && resync_summary.written_object_count == 0;
+            .map_err(|err| format!("re-sync check failed for '{}': {err}", peer.node_id))?;
+            let resync_ok = resync_summary.is_ok() && resync_summary.written_object_count == 0;
             let resync_outcome = if resync_ok { "ok" } else { "failed" };
             if !resync_ok {
                 if resync_summary.written_object_count > 0 {
