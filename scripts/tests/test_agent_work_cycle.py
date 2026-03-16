@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
+SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
 SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
@@ -25,12 +26,14 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
+        shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
         shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
         (self.root / "scripts" / "agent_work_cycle.py").chmod(0o755)
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
         (self.root / "scripts" / "agent_timestamp.py").chmod(0o755)
+        (self.root / "scripts" / "agent_checklist_gc.py").chmod(0o755)
         (self.root / "scripts" / "mailbox_gc.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
@@ -436,6 +439,40 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("mailbox_gc_deleted: 1", proc.stdout)
         self.assertIn(".agent-local/mailboxes/agt_orphan.md (4 days)", proc.stdout)
         self.assertFalse((self.root / ".agent-local/mailboxes/agt_orphan.md").exists())
+
+    def test_end_auto_prunes_older_agent_workcycle_checklists(self) -> None:
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        template = self.root / f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md"
+        template_text = template.read_text(encoding="utf-8")
+        for batch in range(3, 8):
+            path = self.root / f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-{batch}.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(template_text, encoding="utf-8")
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("agent_checklist_gc_status: ok", proc.stdout)
+        self.assertIn("agent_checklist_gc_keep_workcycle_batches: 5", proc.stdout)
+        self.assertIn("agent_checklist_gc_deleted: 2", proc.stdout)
+        self.assertFalse(
+            (self.root / f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md").exists()
+        )
+        self.assertFalse(
+            (self.root / f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md").exists()
+        )
+        self.assertTrue(
+            (self.root / f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-7.md").exists()
+        )
 
 
 if __name__ == "__main__":

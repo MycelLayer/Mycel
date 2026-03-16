@@ -286,7 +286,9 @@ Mailbox retention and cleanup policy:
 - once an agent entry has been removed from `.agent-local/agents.json`, its uid-based mailbox becomes an orphaned mailbox candidate
 - orphaned uid-based mailboxes older than 3 days should be deleted; there is no archive step
 - `scripts/agent_work_cycle.py end` auto-runs mailbox orphan cleanup for stale uid-based mailboxes older than the retention window
+- `scripts/agent_work_cycle.py end` auto-runs checklist cleanup for retained agents and keeps only the most recent workcycle checklist batches per agent
 - use `scripts/mailbox_gc.py` when you need to inspect mailbox references directly or run mailbox cleanup outside the normal work-cycle closeout path
+- use `scripts/agent_checklist_gc.py` when you need to inspect checklist retention directly or run checklist cleanup outside the normal work-cycle closeout path
 - shared fallback mailbox files should stay small; each shared fallback file is limited to `1024` bytes
 - shared fallback mailbox files outside `.agent-local/mailboxes/` are not touched by `scripts/mailbox_gc.py`; remove those only with an explicit team decision
 

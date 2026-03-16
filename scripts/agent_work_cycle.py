@@ -8,6 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from agent_checklist_gc import (
+    DEFAULT_KEEP_WORKCYCLE_BATCHES,
+    AgentChecklistGcError,
+    prune_agent_checklists,
+)
 from agent_timestamp import build_message
 from mailbox_gc import DEFAULT_DELETE_AGE_DAYS, MailboxGcError, delete_stale_mailboxes
 from item_id_checklist import (
@@ -394,6 +399,26 @@ def emit_mailbox_gc_summary(result: dict[str, object] | None, *, error: str | No
                 print(f"  - {record['path']} ({record['age_days']} days)")
 
 
+def emit_checklist_gc_summary(result: dict[str, object] | None, *, error: str | None = None) -> None:
+    if error is not None:
+        print("agent_checklist_gc_status: error")
+        print(f"agent_checklist_gc_error: {error}")
+        return
+    if result is None:
+        return
+    print("agent_checklist_gc_status: ok")
+    print(f"agent_checklist_gc_keep_workcycle_batches: {result['keep_workcycle_batches']}")
+    print(f"agent_checklist_gc_deleted: {result['deleted_count']}")
+    deleted = result.get("deleted")
+    if isinstance(deleted, list) and deleted:
+        print("agent_checklist_gc_deleted_paths:")
+        for record in deleted:
+            if isinstance(record, dict):
+                print(
+                    f"  - {record['path']} ({record['agent_uid']} batch {record['batch']})"
+                )
+
+
 def main() -> int:
     args = parse_args()
     registry_command = "touch" if args.stage == "begin" else "finish"
@@ -488,6 +513,16 @@ def main() -> int:
         except MailboxGcError as exc:
             mailbox_gc_error = str(exc)
         emit_mailbox_gc_summary(mailbox_gc_result, error=mailbox_gc_error)
+        checklist_gc_result: dict[str, object] | None = None
+        checklist_gc_error: str | None = None
+        try:
+            checklist_gc_result = prune_agent_checklists(
+                dry_run=False,
+                keep_workcycle_batches=DEFAULT_KEEP_WORKCYCLE_BATCHES,
+            )
+        except AgentChecklistGcError as exc:
+            checklist_gc_error = str(exc)
+        emit_checklist_gc_summary(checklist_gc_result, error=checklist_gc_error)
 
         same_role_open_count = len(open_handoff_lines["same_role"])
         other_role_open_count = len(open_handoff_lines["other_role"])
