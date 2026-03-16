@@ -1107,11 +1107,10 @@ fn load_store_backed_selector_objects(
         })
         .collect::<Result<Vec<_>, _>>()?;
     let view_ids = manifest
-        .view_governance
-        .iter()
-        .filter(|record| record.profile_id == policy_hash)
-        .map(|record| record.view_id.clone())
-        .collect::<BTreeSet<_>>();
+        .profile_views
+        .get(policy_hash)
+        .cloned()
+        .unwrap_or_default();
     let views = view_ids
         .iter()
         .map(|view_id| {
