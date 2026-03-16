@@ -1160,11 +1160,7 @@ fn merge_authoring_supports_nested_reparenting_of_multiple_existing_blocks() {
         &signing_key,
         &MergeRevisionCreateParams {
             doc_id: "doc:merge-nested-reparent-multi".to_string(),
-            parents: vec![
-                base_revision_id,
-                wrapper_revision_id,
-                section_revision_id,
-            ],
+            parents: vec![base_revision_id, wrapper_revision_id, section_revision_id],
             resolved_state: crate::replay::DocumentState {
                 doc_id: "doc:merge-nested-reparent-multi".to_string(),
                 blocks: vec![paragraph_block_with_children(
@@ -1490,6 +1486,124 @@ fn merge_authoring_marks_nested_parent_choice_conflicts_as_multi_variant() {
         PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), .. }
         if block_id == "blk:nested-leaf" && parent_block_id == "blk:nested-left"
     )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
+fn merge_authoring_rejects_novel_nested_parent_choice_when_other_parent_moves_block() {
+    let store_root = temp_dir("merge-novel-nested-parent-manual");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-novel-nested-parent-manual".to_string(),
+            title: "Merge Novel Nested Parent Manual".to_string(),
+            language: "en".to_string(),
+            timestamp: 58,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-novel-nested-parent-manual",
+        &document.genesis_revision_id,
+        59,
+        60,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:manual-left",
+                    "block_type": "paragraph",
+                    "content": "Left",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:manual-leaf",
+                    "block_type": "paragraph",
+                    "content": "Leaf",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let wrapper_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-novel-nested-parent-manual",
+        &base_revision_id,
+        61,
+        62,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:manual-wrapper",
+                    "block_type": "paragraph",
+                    "content": "Wrapper",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let moved_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-novel-nested-parent-manual",
+        &base_revision_id,
+        63,
+        64,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:manual-leaf",
+                "parent_block_id": "blk:manual-left"
+            }
+        ]),
+    );
+
+    let error = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-novel-nested-parent-manual".to_string(),
+            parents: vec![base_revision_id, wrapper_revision_id, moved_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-novel-nested-parent-manual".to_string(),
+                blocks: vec![paragraph_block_with_children(
+                    "blk:manual-wrapper",
+                    "Wrapper",
+                    vec![
+                        paragraph_block("blk:manual-left", "Left"),
+                        paragraph_block("blk:manual-leaf", "Leaf"),
+                    ],
+                )],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 65,
+        },
+    )
+    .expect_err("merge revision should require manual curation");
+
+    assert!(
+        error
+            .to_string()
+            .contains("manual-curation-required: resolved block 'blk:manual-leaf' does not match any parent placement"),
+        "expected nested placement manual-curation error, got {error}"
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }
