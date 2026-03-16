@@ -231,4 +231,4 @@ Use this section as the active implementation checklist for the still-open post-
 ## 17. Cross-Surface Closure Rules
 
 - [ ] Keep `ROADMAP.md`, `ROADMAP.zh-TW.md`, and `docs/PROGRESS.md` aligned whenever any post-`M1` checklist section changes status.
-- [ ] Open or refresh narrowly-scoped GitHub Issues for durable follow-up gaps rather than leaving post-`M1` work only as summary prose.
+- [x] Open or refresh narrowly-scoped GitHub Issues for durable follow-up gaps rather than leaving post-`M1` work only as summary prose.

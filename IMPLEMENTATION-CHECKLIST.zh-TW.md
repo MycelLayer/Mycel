@@ -231,4 +231,4 @@
 ## 17. Cross-Surface Closure Rules
 
 - [ ] 當任何 post-`M1` checklist section 狀態改變時，同步保持 `ROADMAP.md`、`ROADMAP.zh-TW.md` 與 `docs/PROGRESS.md` 一致。
-- [ ] 對 durable 的 follow-up gaps 開立或更新 narrowly-scoped GitHub Issues，而不是只把 post-`M1` work 留在摘要文字裡。
+- [x] 對 durable 的 follow-up gaps 開立或更新 narrowly-scoped GitHub Issues，而不是只把 post-`M1` work 留在摘要文字裡。
