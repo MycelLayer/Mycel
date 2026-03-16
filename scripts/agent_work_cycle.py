@@ -245,6 +245,8 @@ def main() -> int:
         updates: list[tuple[str, str]] = [("workflow.touch-work-cycle", "checked")]
         if checklist_result.get("batch_num") == 1:
             updates.append(("workflow.mailbox-handoff-each-cycle", "not-needed"))
+            updates.append(("workflow.install-needed-tools", "not-needed"))
+            updates.append(("workflow.reply-with-plan-and-status", "not-needed"))
         set_checklist_item_states(workcycle_path, updates)
         print(f"workcycle_output: {workcycle_output}")
         if "batch_num" in checklist_result:
