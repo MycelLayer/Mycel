@@ -200,6 +200,21 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn(f"closeout_command: python3 scripts/agent_work_cycle.py end {agent_uid}", proc.stdout)
         self.assertIn(f"Before work | doc-1 ({agent_uid}) | timestamp-wrapper", proc.stdout)
 
+    def test_start_rejects_model_id_with_targeted_guidance(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "claude-sonnet-4-6")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+
+        proc = self.run_cli("start", agent_uid, "--model-id", "claude-sonnet-4-6", check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("model id is inferred from the agent registry entry created at claim/bootstrap time", proc.stderr)
+        self.assertIn(
+            f"Use `python3 scripts/agent_work_cycle.py begin {agent_uid}` --scope <scope>`.",
+            proc.stderr,
+        )
+
     def test_end_rejects_batch_flag_with_targeted_guidance(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")

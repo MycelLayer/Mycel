@@ -85,6 +85,15 @@ def parse_args() -> argparse.Namespace:
     argv = sys.argv[1:]
     if argv and argv[0] == "start":
         argv = ["begin", *argv[1:]]
+    if argv and "--model-id" in argv:
+        agent_ref = argv[1] if len(argv) > 1 else "<agent_ref>"
+        stage = argv[0] if argv else "begin"
+        raise WorkCycleError(
+            "model id is inferred from the agent registry entry created at claim/bootstrap time; "
+            "do not pass `--model-id` here. "
+            f"Use `python3 scripts/agent_work_cycle.py {stage} {agent_ref}`"
+            + (" --scope <scope>`." if stage == "begin" else "`.")
+        )
     if argv and argv[0] == "end" and "--batch" in argv:
         batch_index = argv.index("--batch")
         batch_value = None
