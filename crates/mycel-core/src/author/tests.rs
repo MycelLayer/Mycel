@@ -1593,6 +1593,205 @@ fn merge_authoring_supports_composed_parent_inserted_at_a_later_sibling_position
 }
 
 #[test]
+fn merge_authoring_supports_multiple_existing_blocks_reparented_into_a_deep_composed_branch() {
+    let store_root = temp_dir("merge-deep-composed-branch-multi");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-deep-composed-branch-multi".to_string(),
+            title: "Merge Deep Composed Branch Multi".to_string(),
+            language: "en".to_string(),
+            timestamp: 68,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-deep-composed-branch-multi",
+        &document.genesis_revision_id,
+        69,
+        70,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:deep-anchor",
+                    "block_type": "paragraph",
+                    "content": "Anchor",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:deep-leaf-a",
+                    "block_type": "paragraph",
+                    "content": "Leaf A",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:deep-leaf-b",
+                    "block_type": "paragraph",
+                    "content": "Leaf B",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let inserted_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-deep-composed-branch-multi",
+        &base_revision_id,
+        71,
+        72,
+        json!([
+            {
+                "op": "insert_block_after",
+                "after_block_id": "blk:deep-anchor",
+                "new_block": {
+                    "block_id": "blk:deep-wrapper",
+                    "block_type": "paragraph",
+                    "content": "Wrapper",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:deep-section",
+                            "block_type": "paragraph",
+                            "content": "Section",
+                            "attrs": {},
+                            "children": [
+                                {
+                                    "block_id": "blk:deep-subsection",
+                                    "block_type": "paragraph",
+                                    "content": "Subsection",
+                                    "attrs": {},
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]),
+    );
+
+    let reordered_a_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-deep-composed-branch-multi",
+        &base_revision_id,
+        73,
+        74,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:deep-leaf-a",
+                "after_block_id": "blk:deep-anchor"
+            }
+        ]),
+    );
+
+    let reordered_b_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-deep-composed-branch-multi",
+        &base_revision_id,
+        75,
+        76,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:deep-leaf-b",
+                "after_block_id": "blk:deep-leaf-a"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-deep-composed-branch-multi".to_string(),
+            parents: vec![
+                base_revision_id,
+                inserted_revision_id,
+                reordered_a_revision_id,
+                reordered_b_revision_id,
+            ],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-deep-composed-branch-multi".to_string(),
+                blocks: vec![
+                    paragraph_block("blk:deep-anchor", "Anchor"),
+                    paragraph_block_with_children(
+                        "blk:deep-wrapper",
+                        "Wrapper",
+                        vec![paragraph_block_with_children(
+                            "blk:deep-section",
+                            "Section",
+                            vec![paragraph_block_with_children(
+                                "blk:deep-subsection",
+                                "Subsection",
+                                vec![
+                                    paragraph_block("blk:deep-leaf-a", "Leaf A"),
+                                    paragraph_block("blk:deep-leaf-b", "Leaf B"),
+                                ],
+                            )],
+                        )],
+                    ),
+                ],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 77,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::AutoMerged);
+    assert_eq!(summary.patch_op_count, 3);
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+    assert_eq!(patch.ops.len(), 3);
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::InsertBlockAfter { after_block_id, new_block }
+        if after_block_id == "blk:deep-anchor"
+            && new_block.block_id == "blk:deep-wrapper"
+            && new_block.children.len() == 1
+            && new_block.children[0].block_id == "blk:deep-section"
+            && new_block.children[0].children.len() == 1
+            && new_block.children[0].children[0].block_id == "blk:deep-subsection"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: None }
+        if block_id == "blk:deep-leaf-a" && parent_block_id == "blk:deep-subsection"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: Some(after_block_id) }
+        if block_id == "blk:deep-leaf-b"
+            && parent_block_id == "blk:deep-subsection"
+            && after_block_id == "blk:deep-leaf-a"
+    )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_marks_non_primary_structural_parent_choice_as_multi_variant() {
     let store_root = temp_dir("merge-parent-choice");
     let signing_key = signing_key();
