@@ -1,0 +1,33 @@
+{
+  "$schema": "./topology.schema.json",
+  "topology_id": "depth-3-catchup",
+  "description": "Seed at revision depth 3; reader starts at depth 2 and catches up to depth 3 in a single HEADS/WANT pass",
+  "fixture_set": "fixtures/object-sets/depth-3-catchup",
+  "execution_mode": "single-process",
+  "peers": [
+    {
+      "node_id": "node:peer-seed",
+      "role": "seed",
+      "bootstrap_peers": [],
+      "endpoint": "local:peer-seed"
+    },
+    {
+      "node_id": "node:peer-reader-a",
+      "role": "reader",
+      "bootstrap_peers": [
+        "node:peer-seed"
+      ],
+      "endpoint": "local:peer-reader-a"
+    }
+  ],
+  "expected_outcomes": [
+    "incremental-sync-success",
+    "new-objects-verified",
+    "matching-object-sets",
+    "matching-replay-results",
+    "matching-accepted-heads"
+  ],
+  "notes": [
+    "Use this topology to verify that a reader behind by exactly one revision fetches only the missing delta in a single HEADS/WANT pass."
+  ]
+}

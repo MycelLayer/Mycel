@@ -295,13 +295,17 @@ fn simulate_peer_store_sync_report(
     let uses_incremental = fixture
         .expected_outcomes
         .iter()
-        .any(|outcome| outcome.contains("incremental-sync"));
+        .any(|outcome| outcome.contains("incremental-sync"))
+        || fixture_reader_start_extra_revisions(fixture) > 0;
+
+    let seed_extra_revisions =
+        fixture_seed_extra_revisions(fixture, uses_recovery || uses_incremental);
 
     populate_seed_store(
         &seed_store_root,
         fixture,
         &signing_key,
-        uses_recovery || uses_incremental,
+        seed_extra_revisions,
     )?;
     let seed_manifest = load_store_index_manifest(&seed_store_root)
         .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
@@ -398,12 +402,19 @@ fn simulate_peer_store_sync_report(
         }
 
         let peer_store_root = stores.store_root(&peer.node_id);
+        let is_declared_reader_peer = fixture.reader_peers.iter().any(|peer_ref| {
+            resolve_peer_ref(topology, peer_ref).as_deref() == Some(peer.node_id.as_str())
+        });
         let starts_with_partial_store = (uses_recovery || uses_incremental)
-            && fixture.reader_peers.iter().any(|peer_ref| {
-                resolve_peer_ref(topology, peer_ref).as_deref() == Some(peer.node_id.as_str())
-            });
+            && is_declared_reader_peer;
         if starts_with_partial_store {
-            populate_partial_reader_store(&peer_store_root, fixture, &signing_key)?;
+            let reader_start_extra = fixture_reader_start_extra_revisions(fixture);
+            populate_partial_reader_store(
+                &peer_store_root,
+                fixture,
+                &signing_key,
+                reader_start_extra,
+            )?;
         }
 
         let summary =
@@ -664,7 +675,7 @@ fn simulate_multi_process_report(
     let stores = SimulationStores::new(&fixture.fixture_id)?;
     let seed_store_root = stores.store_root(&seed_node_id);
 
-    populate_seed_store(&seed_store_root, fixture, &signing_key, false)?;
+    populate_seed_store(&seed_store_root, fixture, &signing_key, 0)?;
     let seed_manifest = load_store_index_manifest(&seed_store_root)
         .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
     let seed_verified_object_ids = manifest_object_ids(&seed_manifest);
@@ -1423,7 +1434,7 @@ fn populate_seed_store(
     store_root: &Path,
     fixture: &Fixture,
     signing_key: &ed25519_dalek::SigningKey,
-    with_follow_up_revision: bool,
+    extra_revision_count: usize,
 ) -> Result<(), String> {
     fs::create_dir_all(store_root).map_err(|err| {
         format!(
@@ -1451,14 +1462,14 @@ fn populate_seed_store(
         })?;
         let mut current_revision_id = created.genesis_revision_id.clone();
 
-        if with_follow_up_revision {
+        for i in 0..extra_revision_count {
             let patch = create_patch_in_store(
                 store_root,
                 signing_key,
                 &PatchCreateParams {
                     doc_id: document.doc_id.clone(),
-                    base_revision: created.genesis_revision_id.clone(),
-                    timestamp: timestamp + 1,
+                    base_revision: current_revision_id.clone(),
+                    timestamp: timestamp + 1 + (i as u64 * 2),
                     ops: json!([]),
                 },
             )
@@ -1468,10 +1479,10 @@ fn populate_seed_store(
                 signing_key,
                 &RevisionCommitParams {
                     doc_id: document.doc_id.clone(),
-                    parents: vec![created.genesis_revision_id],
+                    parents: vec![current_revision_id.clone()],
                     patches: vec![patch.patch_id],
                     merge_strategy: None,
-                    timestamp: timestamp + 2,
+                    timestamp: timestamp + 2 + (i as u64 * 2),
                 },
             )
             .map_err(|err| format!("failed to commit revision for '{}': {err}", document.doc_id))?;
@@ -1504,6 +1515,7 @@ fn populate_partial_reader_store(
     store_root: &Path,
     fixture: &Fixture,
     signing_key: &ed25519_dalek::SigningKey,
+    extra_revision_count: usize,
 ) -> Result<(), String> {
     fs::create_dir_all(store_root).map_err(|err| {
         format!(
@@ -1513,7 +1525,7 @@ fn populate_partial_reader_store(
     })?;
     for (index, document) in fixture_documents(fixture).iter().enumerate() {
         let timestamp = 1_700_000_000 + index as u64;
-        create_document_in_store(
+        let created = create_document_in_store(
             store_root,
             signing_key,
             &DocumentCreateParams {
@@ -1529,6 +1541,44 @@ fn populate_partial_reader_store(
                 document.doc_id
             )
         })?;
+        let mut current_revision_id = created.genesis_revision_id.clone();
+
+        for i in 0..extra_revision_count {
+            let patch = create_patch_in_store(
+                store_root,
+                signing_key,
+                &PatchCreateParams {
+                    doc_id: document.doc_id.clone(),
+                    base_revision: current_revision_id.clone(),
+                    timestamp: timestamp + 1 + (i as u64 * 2),
+                    ops: json!([]),
+                },
+            )
+            .map_err(|err| {
+                format!(
+                    "failed to preseed reader patch for '{}': {err}",
+                    document.doc_id
+                )
+            })?;
+            let revision = commit_revision_to_store(
+                store_root,
+                signing_key,
+                &RevisionCommitParams {
+                    doc_id: document.doc_id.clone(),
+                    parents: vec![current_revision_id.clone()],
+                    patches: vec![patch.patch_id],
+                    merge_strategy: None,
+                    timestamp: timestamp + 2 + (i as u64 * 2),
+                },
+            )
+            .map_err(|err| {
+                format!(
+                    "failed to preseed reader revision for '{}': {err}",
+                    document.doc_id
+                )
+            })?;
+            current_revision_id = revision.revision_id;
+        }
     }
     Ok(())
 }
@@ -1551,6 +1601,26 @@ fn fixture_requests_resync_check(fixture: &Fixture) -> bool {
         .and_then(|value| value.get("resync_check"))
         .and_then(Value::as_bool)
         .unwrap_or(false)
+}
+
+fn fixture_seed_extra_revisions(fixture: &Fixture, default_one: bool) -> usize {
+    fixture
+        .metadata
+        .as_ref()
+        .and_then(|value| value.get("seed_extra_revisions"))
+        .and_then(Value::as_u64)
+        .map(|v| v as usize)
+        .unwrap_or(if default_one { 1 } else { 0 })
+}
+
+fn fixture_reader_start_extra_revisions(fixture: &Fixture) -> usize {
+    fixture
+        .metadata
+        .as_ref()
+        .and_then(|value| value.get("reader_start_extra_revisions"))
+        .and_then(Value::as_u64)
+        .map(|v| v as usize)
+        .unwrap_or(0)
 }
 
 fn fixture_requests_seed_view_sync(fixture: &Fixture) -> bool {

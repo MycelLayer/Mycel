@@ -1,0 +1,29 @@
+{
+  "$schema": "../fixture.schema.json",
+  "fixture_id": "depth-3-catchup",
+  "description": "Reader at revision depth 1 catches up to a seed at depth 3 in a single HEADS/WANT pass, verifying that only the delta is fetched",
+  "seed_peer": "peer-seed",
+  "reader_peers": ["peer-reader-a"],
+  "documents": [
+    {
+      "doc_id": "doc:depth-catchup-test",
+      "notes": "Document used to verify depth-N incremental catchup behavior"
+    }
+  ],
+  "expected_outcomes": [
+    "incremental-sync-success",
+    "new-objects-verified",
+    "matching-object-sets",
+    "matching-replay-results",
+    "matching-accepted-heads"
+  ],
+  "metadata": {
+    "seed_extra_revisions": 2,
+    "reader_start_extra_revisions": 1
+  },
+  "notes": [
+    "seed_extra_revisions: 2 means the seed holds genesis + 2 follow-up revisions (depth 3 total).",
+    "reader_start_extra_revisions: 1 means the reader is pre-seeded with genesis + 1 follow-up revision (depth 2).",
+    "A single HEADS/WANT pass should deliver only the one missing delta revision to the reader."
+  ]
+}

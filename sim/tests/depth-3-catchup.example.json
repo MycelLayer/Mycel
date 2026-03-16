@@ -1,0 +1,49 @@
+{
+  "$schema": "./test-case.schema.json",
+  "test_id": "depth-3-catchup",
+  "description": "A reader at revision depth 1 catches up to a seed at depth 3 in a single HEADS/WANT pass, verifying that only the delta is fetched.",
+  "category": "production-replication",
+  "topology": "sim/topologies/depth-3-catchup.example.json",
+  "fixture_set": "fixtures/object-sets/depth-3-catchup",
+  "execution_mode": "single-process",
+  "expected_result": "pass",
+  "expected_outcomes": [
+    "incremental-sync-success",
+    "new-objects-verified",
+    "matching-object-sets",
+    "matching-replay-results",
+    "matching-accepted-heads"
+  ],
+  "assertions": [
+    {
+      "assertion_id": "incremental-sync-success",
+      "description": "Reader successfully received the missing delta revision via HEADS-based incremental sync.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "new-objects-verified",
+      "description": "Reader verified and stored the new delta revision objects after catchup.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "matching-object-sets",
+      "description": "Reader object set matches seed object set after catchup.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "matching-replay-results",
+      "description": "Reader replay results match seed replay results after catchup.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "matching-accepted-heads",
+      "description": "Reader accepted heads match seed accepted heads after catchup.",
+      "severity": "error"
+    }
+  ],
+  "notes": [
+    "Proves M4 production replication sub-item 2: depth-N incremental catchup.",
+    "Seed holds genesis + 2 follow-up revisions (depth 3). Reader is pre-seeded with genesis + 1 follow-up revision (depth 2).",
+    "A single HEADS/WANT pass delivers only the one missing revision, leaving reader fully caught up."
+  ]
+}

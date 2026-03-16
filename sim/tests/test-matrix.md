@@ -43,3 +43,5 @@
 
 - `resync-idempotency`: reader syncs once to get current, then syncs again; the second pass must write zero new objects and produce no errors
   Reference JSON: `sim/tests/resync-idempotency.example.json`
+- `depth-3-catchup`: reader at depth 2 catches up to seed at depth 3 in a single HEADS/WANT pass; only the delta revision is fetched
+  Reference JSON: `sim/tests/depth-3-catchup.example.json`

@@ -430,7 +430,7 @@ Substantially underway. All M4 completion-gate items are now satisfied at the si
 6. Capability-gated `VIEW_ANNOUNCE` delivery for governance views (`view-sync`)
 7. Per-peer accepted-head comparison surfaced in report (`matching-accepted-heads` outcome)
 
-What is still missing is the remaining production replication behavior plus broader session/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. The remaining production replication sub-items are depth-N incremental catchup (reader at revision depth 1 catches up to a depth-3 seed in one pass) and partial-doc selective sync (reader requests only a subset of the seed's documents, per PROTOCOL §8).
+What is still missing is the remaining production replication behavior plus broader session/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. Depth-N incremental catchup is now proved: a reader at revision depth 2 catches up to a depth-3 seed in a single HEADS/WANT pass, fetching only the delta. The remaining production replication sub-item is partial-doc selective sync (reader requests only a subset of the seed's documents, per PROTOCOL §8).
 
 Implementation anchors:
 
