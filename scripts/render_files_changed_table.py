@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -57,6 +58,11 @@ def load_numstat(git_ref: str, from_stdin: bool) -> str:
     return proc.stdout
 
 
+def diff_output_dir(git_ref: str) -> Path:
+    digest = hashlib.sha1(git_ref.encode("utf-8")).hexdigest()[:12]
+    return ROOT_DIR / ".agent-local" / "rendered-diffs" / digest
+
+
 def parse_note_overrides(raw_notes: list[str]) -> dict[str, str]:
     notes: dict[str, str] = {}
     for raw in raw_notes:
@@ -91,6 +97,25 @@ def render_count(value: str, prefix: str) -> str:
     return f"{prefix}{value}"
 
 
+def write_diff_file(git_ref: str, path: str) -> Path:
+    output_dir = diff_output_dir(git_ref)
+    diff_path = output_dir / f"{path}.diff"
+    diff_path.parent.mkdir(parents=True, exist_ok=True)
+
+    proc = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--binary", f"{git_ref}^!", "--", path],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise FilesChangedError(proc.stderr.strip() or f"git diff failed for {git_ref} -- {path}")
+
+    diff_path.write_text(proc.stdout, encoding="utf-8")
+    return diff_path
+
+
 def default_note(path: str, added: str, removed: str) -> str:
     if added == "-" or removed == "-":
         return "Binary or non-line diff in this commit."
@@ -103,13 +128,16 @@ def default_note(path: str, added: str, removed: str) -> str:
     return "Updated content in this commit."
 
 
-def render_table(rows: list[tuple[str, str, str]], note_overrides: dict[str, str]) -> str:
+def render_table(rows: list[tuple[str, str, str]], note_overrides: dict[str, str], *, git_ref: str | None = None) -> str:
     lines = [
         "| File | +/- | One-line note |",
         "|---|---:|---|",
     ]
     for path, added, removed in rows:
         delta = f"{render_count(added, '+')} / {render_count(removed, '-')}"
+        if git_ref is not None:
+            diff_path = write_diff_file(git_ref, path)
+            delta = f"[{delta}]({diff_path})"
         note = note_overrides.get(path, default_note(path, added, removed))
         lines.append(f"| {path} | {delta} | {note} |")
     return "\n".join(lines)
@@ -128,7 +156,7 @@ def main() -> int:
         print("No file changes found.", file=sys.stderr)
         return 1
 
-    print(render_table(rows, note_overrides))
+    print(render_table(rows, note_overrides, git_ref=None if args.stdin else args.git_ref))
     return 0
 
 

@@ -1,6 +1,5 @@
 import subprocess
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -17,6 +16,9 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
         target = self.root / "scripts" / "render_files_changed_table.py"
         target.write_text(SOURCE_SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
         target.chmod(0o755)
+        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.root, check=True, capture_output=True, text=True)
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -33,7 +35,7 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
             self.fail(f"command failed {args}: {proc.stderr or proc.stdout}")
         return proc
 
-    def test_renders_markdown_table_with_plain_deltas(self) -> None:
+    def test_renders_markdown_table_with_plain_deltas_from_stdin(self) -> None:
         proc = self.run_cli(
             "--stdin",
             stdin_text="12\t3\tAGENTS.md\n7\t0\tscripts/tool.py\n",
@@ -44,6 +46,23 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
         self.assertIn("| scripts/tool.py | +7 / -0 |", proc.stdout)
         self.assertIn("Updated content in this commit.", proc.stdout)
         self.assertIn("Added content in this commit.", proc.stdout)
+
+    def test_renders_clickable_delta_links_and_generates_diff_files(self) -> None:
+        tracked = self.root / "AGENTS.md"
+        tracked.write_text("before\n", encoding="utf-8")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=self.root, check=True, capture_output=True, text=True)
+        tracked.write_text("before\nafter\n", encoding="utf-8")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "update"], cwd=self.root, check=True, capture_output=True, text=True)
+
+        proc = self.run_cli("HEAD")
+
+        self.assertIn("| AGENTS.md | [+1 / -0](", proc.stdout)
+        diff_path = self.root / ".agent-local" / "rendered-diffs"
+        generated = list(diff_path.rglob("AGENTS.md.diff"))
+        self.assertEqual(1, len(generated))
+        self.assertIn("+after", generated[0].read_text(encoding="utf-8"))
 
     def test_supports_note_overrides(self) -> None:
         proc = self.run_cli(
