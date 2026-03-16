@@ -33,15 +33,15 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
             self.fail(f"command failed {args}: {proc.stderr or proc.stdout}")
         return proc
 
-    def test_renders_markdown_table_with_colored_deltas(self) -> None:
+    def test_renders_markdown_table_with_plain_deltas(self) -> None:
         proc = self.run_cli(
             "--stdin",
             stdin_text="12\t3\tAGENTS.md\n7\t0\tscripts/tool.py\n",
         )
 
         self.assertIn("| File | +/- | One-line note |", proc.stdout)
-        self.assertIn('<span style="color: #1a7f37;">+12</span>', proc.stdout)
-        self.assertIn('<span style="color: #cf222e;">-3</span>', proc.stdout)
+        self.assertIn("| AGENTS.md | +12 / -3 |", proc.stdout)
+        self.assertIn("| scripts/tool.py | +7 / -0 |", proc.stdout)
         self.assertIn("Updated content in this commit.", proc.stdout)
         self.assertIn("Added content in this commit.", proc.stdout)
 
@@ -61,8 +61,7 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
             stdin_text="-\t-\tassets/logo.png\n",
         )
 
-        self.assertIn('<span style="color: #6e7781;">+n/a</span>', proc.stdout)
-        self.assertIn('<span style="color: #6e7781;">-n/a</span>', proc.stdout)
+        self.assertIn("| assets/logo.png | +n/a / -n/a |", proc.stdout)
         self.assertIn("Binary or non-line diff in this commit.", proc.stdout)
 
     def test_rejects_invalid_note_argument(self) -> None:

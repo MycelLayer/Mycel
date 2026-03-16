@@ -9,9 +9,6 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-GREEN = "#1a7f37"
-RED = "#cf222e"
-GRAY = "#6e7781"
 
 
 class FilesChangedError(Exception):
@@ -88,10 +85,10 @@ def parse_numstat(text: str) -> list[tuple[str, str, str]]:
     return rows
 
 
-def render_count(value: str, color: str, prefix: str) -> str:
+def render_count(value: str, prefix: str) -> str:
     if value == "-":
-        return f'<span style="color: {GRAY};">{prefix}n/a</span>'
-    return f'<span style="color: {color};">{prefix}{value}</span>'
+        return f"{prefix}n/a"
+    return f"{prefix}{value}"
 
 
 def default_note(path: str, added: str, removed: str) -> str:
@@ -112,7 +109,7 @@ def render_table(rows: list[tuple[str, str, str]], note_overrides: dict[str, str
         "|---|---:|---|",
     ]
     for path, added, removed in rows:
-        delta = f"{render_count(added, GREEN, '+')} / {render_count(removed, RED, '-')}"
+        delta = f"{render_count(added, '+')} / {render_count(removed, '-')}"
         note = note_overrides.get(path, default_note(path, added, removed))
         lines.append(f"| {path} | {delta} | {note} |")
     return "\n".join(lines)
