@@ -1,0 +1,38 @@
+{
+  "$schema": "./test-case.schema.json",
+  "test_id": "partial-doc-sync",
+  "description": "A reader requests only a subset of the seed's documents, ends with a stable partial store, and accepted heads are correct for the requested subset only (PROTOCOL §8).",
+  "category": "production-replication",
+  "topology": "sim/topologies/partial-doc-sync.example.json",
+  "fixture_set": "fixtures/object-sets/partial-doc-sync",
+  "execution_mode": "single-process",
+  "expected_result": "pass",
+  "expected_outcomes": [
+    "partial-doc-sync-success",
+    "partial-store-stable",
+    "partial-accepted-heads-correct"
+  ],
+  "assertions": [
+    {
+      "assertion_id": "partial-doc-sync-success",
+      "description": "Reader successfully synced the requested document subset without errors.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "partial-store-stable",
+      "description": "Reader store contains only objects for the requested documents; no objects for excluded documents are present.",
+      "severity": "error"
+    },
+    {
+      "assertion_id": "partial-accepted-heads-correct",
+      "description": "Reader accepted heads for the requested document match the seed's heads for that document.",
+      "severity": "error"
+    }
+  ],
+  "notes": [
+    "Proves M4 production replication sub-item 3: partial-doc selective sync.",
+    "PROTOCOL §8 states partial replication is supported: a reader may request only a subset of the seed's documents.",
+    "Seed holds doc:partial-alpha and doc:partial-beta. Reader requests only doc:partial-alpha.",
+    "After sync: reader store has objects only for doc:partial-alpha; accepted heads match seed."
+  ]
+}

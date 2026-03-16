@@ -21,7 +21,9 @@ use mycel_core::store::{
     load_store_index_manifest, load_store_object_index, write_object_value_to_store,
     StoreIndexManifest,
 };
-use mycel_core::sync::{sync_pull_from_peer_store, SyncPeer};
+use mycel_core::sync::{
+    sync_pull_from_peer_store, sync_pull_from_peer_store_with_doc_filter, SyncPeer,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -297,6 +299,8 @@ fn simulate_peer_store_sync_report(
         .iter()
         .any(|outcome| outcome.contains("incremental-sync"))
         || fixture_reader_start_extra_revisions(fixture) > 0;
+    let partial_doc_ids = fixture_requested_doc_ids(fixture);
+    let uses_partial_doc_sync = partial_doc_ids.is_some();
 
     let seed_extra_revisions =
         fixture_seed_extra_revisions(fixture, uses_recovery || uses_incremental);
@@ -310,6 +314,8 @@ fn simulate_peer_store_sync_report(
     let seed_manifest = load_store_index_manifest(&seed_store_root)
         .map_err(|err| format!("failed to read seed store manifest: {err}"))?;
     let seed_verified_object_ids = manifest_object_ids(&seed_manifest);
+    let seed_leaf_ids = store_leaf_revision_ids(&seed_store_root)
+        .map_err(|err| format!("failed to load seed leaf revision IDs: {err}"))?;
 
     let mut events = Vec::new();
     let mut failures = Vec::new();
@@ -317,7 +323,6 @@ fn simulate_peer_store_sync_report(
     let mut reader_object_sets = BTreeMap::new();
     let mut reader_replay_hashes = BTreeMap::new();
     let mut reader_head_ids: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
-
     push_event(
         &mut events,
         "load",
@@ -417,9 +422,19 @@ fn simulate_peer_store_sync_report(
             )?;
         }
 
-        let summary =
+        let summary = if let Some(ref ids) = partial_doc_ids {
+            sync_pull_from_peer_store_with_doc_filter(
+                &seed_peer,
+                &signing_key,
+                &seed_store_root,
+                &peer_store_root,
+                ids,
+            )
+            .map_err(|err| format!("partial-doc sync failed for '{}': {err}", peer.node_id))?
+        } else {
             sync_pull_from_peer_store(&seed_peer, &signing_key, &seed_store_root, &peer_store_root)
-                .map_err(|err| format!("peer-store sync failed for '{}': {err}", peer.node_id))?;
+                .map_err(|err| format!("peer-store sync failed for '{}': {err}", peer.node_id))?
+        };
 
         let manifest = load_store_index_manifest(&peer_store_root).map_err(|err| {
             format!(
@@ -435,7 +450,9 @@ fn simulate_peer_store_sync_report(
             .collect::<Vec<_>>();
         let replay_hashes = store_head_replay_hashes(&peer_store_root)?;
         let leaf_ids = store_leaf_revision_ids(&peer_store_root)?;
-        let action = if starts_with_partial_store && uses_incremental {
+        let action = if uses_partial_doc_sync {
+            "partial-doc-accept"
+        } else if starts_with_partial_store && uses_incremental {
             "incremental-accept"
         } else if starts_with_partial_store {
             "request-missing-objects"
@@ -553,9 +570,65 @@ fn simulate_peer_store_sync_report(
             );
         }
 
-        reader_object_sets.insert(peer.node_id.clone(), verified_object_ids);
-        reader_replay_hashes.insert(peer.node_id.clone(), replay_hashes);
-        reader_head_ids.insert(peer.node_id.clone(), leaf_ids);
+        if uses_partial_doc_sync {
+            // Partial-doc readers: check store isolation and correct heads for the requested subset.
+            if let Some(ref ids) = partial_doc_ids {
+                let manifest = load_store_index_manifest(&peer_store_root).map_err(|err| {
+                    format!(
+                        "failed to read partial reader store manifest '{}': {err}",
+                        peer.node_id
+                    )
+                })?;
+                // Verify: no excluded docs are present in the reader's store.
+                for present_doc_id in manifest.doc_revisions.keys() {
+                    if !ids.contains(present_doc_id) {
+                        failures.push(ReportFailure {
+                            failure_id: format!(
+                                "partial-doc-isolation-violated:{}:{}",
+                                peer.node_id, present_doc_id
+                            ),
+                            node_id: Some(peer.node_id.clone()),
+                            description: format!(
+                                "Partial-doc reader '{}' received objects for excluded document '{}'; expected only {:?}.",
+                                peer.node_id, present_doc_id, ids
+                            ),
+                            severity: Some("error".to_owned()),
+                        });
+                    }
+                }
+                // Verify: accepted heads for requested docs match seed's heads for those docs.
+                for requested_doc_id in ids {
+                    let reader_heads = leaf_ids.get(requested_doc_id).cloned().unwrap_or_default();
+                    let seed_heads = seed_leaf_ids
+                        .get(requested_doc_id)
+                        .cloned()
+                        .unwrap_or_default();
+                    if reader_heads != seed_heads {
+                        failures.push(ReportFailure {
+                            failure_id: format!(
+                                "partial-doc-head-mismatch:{}:{}",
+                                peer.node_id, requested_doc_id
+                            ),
+                            node_id: Some(peer.node_id.clone()),
+                            description: format!(
+                                "Partial-doc reader '{}' heads for '{}' ({:?}) do not match seed heads ({:?}).",
+                                peer.node_id, requested_doc_id, reader_heads, seed_heads
+                            ),
+                            severity: Some("error".to_owned()),
+                        });
+                    }
+                }
+                report_peer.notes.push(format!(
+                    "Partial-doc sync: requested {:?}; reader doc_revisions keys: {:?}.",
+                    ids,
+                    manifest.doc_revisions.keys().collect::<Vec<_>>()
+                ));
+            }
+        } else {
+            reader_object_sets.insert(peer.node_id.clone(), verified_object_ids);
+            reader_replay_hashes.insert(peer.node_id.clone(), replay_hashes);
+            reader_head_ids.insert(peer.node_id.clone(), leaf_ids);
+        }
         peers.push(report_peer);
     }
 
@@ -1636,6 +1709,23 @@ fn fixture_requests_seed_snapshot_sync(fixture: &Fixture) -> bool {
         .and_then(|value| value.get("publish_seed_snapshot"))
         .and_then(Value::as_bool)
         .unwrap_or(false)
+}
+
+fn fixture_requested_doc_ids(fixture: &Fixture) -> Option<Vec<String>> {
+    let arr = fixture
+        .metadata
+        .as_ref()
+        .and_then(|value| value.get("requested_doc_ids"))
+        .and_then(Value::as_array)?;
+    let ids: Vec<String> = arr
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_owned))
+        .collect();
+    if ids.is_empty() {
+        None
+    } else {
+        Some(ids)
+    }
 }
 
 fn write_governance_view_to_store(

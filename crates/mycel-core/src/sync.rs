@@ -404,11 +404,12 @@ fn sorted_object_ids_for_type(manifest: &StoreIndexManifest, object_type: &str) 
     object_ids
 }
 
-pub fn generate_sync_pull_transcript_from_peer_store(
+fn generate_sync_pull_transcript_filtered(
     peer: &SyncPeer,
     peer_signing_key: &SigningKey,
     peer_store_root: &Path,
     local_store_root: &Path,
+    requested_doc_ids: Option<&[String]>,
 ) -> Result<SyncPullTranscript, StoreRebuildError> {
     let derived_public_key = sender_public_key(peer_signing_key);
     if derived_public_key != peer.public_key {
@@ -419,13 +420,23 @@ pub fn generate_sync_pull_transcript_from_peer_store(
     }
 
     let remote_manifest = load_store_index_manifest(peer_store_root)?;
-    let remote_heads = head_map_from_manifest(&remote_manifest);
+    let all_remote_heads = head_map_from_manifest(&remote_manifest);
+    let remote_heads: BTreeMap<String, Vec<String>> = match requested_doc_ids {
+        Some(ids) => {
+            let ids_set: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+            all_remote_heads
+                .into_iter()
+                .filter(|(doc_id, _)| ids_set.contains(doc_id.as_str()))
+                .collect()
+        }
+        None => all_remote_heads,
+    };
     let remote_snapshot_ids = sorted_object_ids_for_type(&remote_manifest, "snapshot");
     let remote_view_ids = sorted_object_ids_for_type(&remote_manifest, "view");
     let advertised_capabilities = advertised_sync_capabilities(&remote_manifest);
     if remote_heads.is_empty() {
         return Err(StoreRebuildError::new(format!(
-            "peer store {} does not expose any document heads",
+            "peer store {} does not expose any document heads for the requested scope",
             peer_store_root.display()
         )));
     }
@@ -718,17 +729,33 @@ pub fn sync_pull_from_transcript(
     sync_pull_from_transcript_with_policy(transcript, store_root, true)
 }
 
+pub fn generate_sync_pull_transcript_from_peer_store(
+    peer: &SyncPeer,
+    peer_signing_key: &SigningKey,
+    peer_store_root: &Path,
+    local_store_root: &Path,
+) -> Result<SyncPullTranscript, StoreRebuildError> {
+    generate_sync_pull_transcript_filtered(
+        peer,
+        peer_signing_key,
+        peer_store_root,
+        local_store_root,
+        None,
+    )
+}
+
 pub fn sync_pull_from_peer_store(
     peer: &SyncPeer,
     peer_signing_key: &SigningKey,
     peer_store_root: &Path,
     local_store_root: &Path,
 ) -> Result<SyncPullSummary, StoreRebuildError> {
-    let transcript = generate_sync_pull_transcript_from_peer_store(
+    let transcript = generate_sync_pull_transcript_filtered(
         peer,
         peer_signing_key,
         peer_store_root,
         local_store_root,
+        None,
     )?;
     let generated_object_messages = transcript
         .messages
@@ -743,6 +770,39 @@ pub fn sync_pull_from_peer_store(
     if generated_object_messages == 0 && summary.is_ok() {
         summary.notes.push(
             "local store already satisfied the peer's advertised heads; no WANT messages were generated"
+                .to_string(),
+        );
+    }
+    Ok(summary)
+}
+
+pub fn sync_pull_from_peer_store_with_doc_filter(
+    peer: &SyncPeer,
+    peer_signing_key: &SigningKey,
+    peer_store_root: &Path,
+    local_store_root: &Path,
+    requested_doc_ids: &[String],
+) -> Result<SyncPullSummary, StoreRebuildError> {
+    let transcript = generate_sync_pull_transcript_filtered(
+        peer,
+        peer_signing_key,
+        peer_store_root,
+        local_store_root,
+        Some(requested_doc_ids),
+    )?;
+    let generated_object_messages = transcript
+        .messages
+        .iter()
+        .filter(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
+        .count();
+    let mut summary = sync_pull_from_transcript_with_policy(
+        &transcript,
+        local_store_root,
+        generated_object_messages > 0,
+    )?;
+    if generated_object_messages == 0 && summary.is_ok() {
+        summary.notes.push(
+            "partial-doc sync: local store already satisfied the requested document heads; no WANT messages were generated"
                 .to_string(),
         );
     }

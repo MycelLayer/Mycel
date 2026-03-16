@@ -1,0 +1,31 @@
+{
+  "$schema": "../fixture.schema.json",
+  "fixture_id": "partial-doc-sync",
+  "description": "Seed holds two documents; reader requests only the first document and ends with a stable partial store and correct accepted heads for the requested subset only",
+  "seed_peer": "peer-seed",
+  "reader_peers": ["peer-reader-a"],
+  "documents": [
+    {
+      "doc_id": "doc:partial-alpha",
+      "notes": "Requested document: reader will sync this one"
+    },
+    {
+      "doc_id": "doc:partial-beta",
+      "notes": "Excluded document: reader must not receive objects for this document"
+    }
+  ],
+  "expected_outcomes": [
+    "partial-doc-sync-success",
+    "partial-store-stable",
+    "partial-accepted-heads-correct"
+  ],
+  "metadata": {
+    "requested_doc_ids": ["doc:partial-alpha"]
+  },
+  "notes": [
+    "Proves M4 production replication sub-item 3: partial-doc selective sync (PROTOCOL §8).",
+    "Seed holds two documents with one extra revision each.",
+    "Reader requests only doc:partial-alpha; the resulting store must contain no objects for doc:partial-beta.",
+    "Reader accepted heads for doc:partial-alpha must match the seed's heads for that document."
+  ]
+}
