@@ -213,20 +213,34 @@ fn assess_merge_resolution(
             .filter(|variant| variant != &primary_parent_variant)
             .collect::<BTreeSet<_>>();
 
-        let resolved_parent_is_novel_composed = (alternative_parent_variants.is_empty()
+        let resolved_parent_anchor_variant = (resolved_parent_variant != primary_parent_variant
+            && !alternative_parent_variants.contains(&resolved_parent_variant))
+            .then(|| {
+                resolved_parent_anchor_variant(&block_id, &primary_blocks, &resolved_blocks)
+            })
+            .flatten();
+        let root_only_alternatives = alternative_parent_variants.is_empty()
             || alternative_parent_variants
                 .iter()
-                .all(|variant| variant == "<root>"))
-            && resolved_parent_variant != primary_parent_variant
-            && !alternative_parent_variants.contains(&resolved_parent_variant)
-            && resolved_parent_is_composed_in_resolved(
-                &block_id,
-                &primary_blocks,
-                &resolved_blocks,
-            );
+                .all(|variant| variant == "<root>");
 
-        if resolved_parent_is_novel_composed {
-            continue;
+        if let Some(anchor_variant) = resolved_parent_anchor_variant.as_deref() {
+            if anchor_variant == "<root>" && root_only_alternatives {
+                continue;
+            }
+
+            if anchor_variant != "<root>" && anchor_variant == primary_parent_variant {
+                continue;
+            }
+
+            if alternative_parent_variants.contains(anchor_variant) {
+                saw_multi_variant = true;
+                reasons.push(format!(
+                    "block '{}' selected a non-primary parent placement",
+                    block_id
+                ));
+                continue;
+            }
         }
 
         if resolved_parent_variant != primary_parent_variant
@@ -341,26 +355,31 @@ fn block_parent_variant(block: Option<&BlockPlacement>) -> String {
     }
 }
 
-fn resolved_parent_is_composed_in_resolved(
+fn resolved_parent_anchor_variant(
     block_id: &str,
     primary_blocks: &HashMap<String, BlockPlacement>,
     resolved_blocks: &HashMap<String, BlockPlacement>,
-) -> bool {
-    let Some(parent_block_id) = resolved_blocks
+) -> Option<String> {
+    let mut parent_block_id = resolved_blocks
         .get(block_id)
         .and_then(|placement| placement.parent_block_id.as_ref())
-    else {
-        return false;
-    };
+        .cloned()?;
 
-    let Some(resolved_parent) = resolved_blocks.get(parent_block_id) else {
-        return false;
-    };
-    let Some(primary_parent) = primary_blocks.get(parent_block_id) else {
-        return true;
-    };
+    loop {
+        if let Some(primary_parent) = primary_blocks.get(&parent_block_id) {
+            let resolved_parent = resolved_blocks.get(&parent_block_id)?;
+            if block_parent_variant(Some(resolved_parent)) == block_parent_variant(Some(primary_parent))
+            {
+                return Some(parent_block_id);
+            }
+        }
 
-    block_parent_variant(Some(resolved_parent)) != block_parent_variant(Some(primary_parent))
+        let resolved_parent = resolved_blocks.get(&parent_block_id)?;
+        let Some(next_parent_id) = resolved_parent.parent_block_id.as_ref() else {
+            return Some("<root>".to_string());
+        };
+        parent_block_id = next_parent_id.clone();
+    }
 }
 
 fn metadata_variant(value: Option<&Value>) -> Result<String, StoreRebuildError> {

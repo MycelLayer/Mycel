@@ -2187,6 +2187,141 @@ fn merge_authoring_rejects_novel_nested_parent_choice_when_other_parent_moves_bl
 }
 
 #[test]
+fn merge_authoring_marks_composed_descendant_of_non_primary_parent_as_multi_variant() {
+    let store_root = temp_dir("merge-composed-non-primary-parent-choice");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-composed-non-primary-parent-choice".to_string(),
+            title: "Merge Composed Non Primary Parent Choice".to_string(),
+            language: "en".to_string(),
+            timestamp: 66,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-composed-non-primary-parent-choice",
+        &document.genesis_revision_id,
+        67,
+        68,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:composed-parent",
+                    "block_type": "paragraph",
+                    "content": "Parent",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:composed-leaf",
+                    "block_type": "paragraph",
+                    "content": "Leaf",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let subsection_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-composed-non-primary-parent-choice",
+        &base_revision_id,
+        69,
+        70,
+        json!([
+            {
+                "op": "insert_block",
+                "parent_block_id": "blk:composed-parent",
+                "new_block": {
+                    "block_id": "blk:composed-subsection",
+                    "block_type": "paragraph",
+                    "content": "Subsection",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let moved_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-composed-non-primary-parent-choice",
+        &base_revision_id,
+        71,
+        72,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:composed-leaf",
+                "parent_block_id": "blk:composed-parent"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-composed-non-primary-parent-choice".to_string(),
+            parents: vec![base_revision_id, subsection_revision_id, moved_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-composed-non-primary-parent-choice".to_string(),
+                blocks: vec![paragraph_block_with_children(
+                    "blk:composed-parent",
+                    "Parent",
+                    vec![paragraph_block_with_children(
+                        "blk:composed-subsection",
+                        "Subsection",
+                        vec![paragraph_block("blk:composed-leaf", "Leaf")],
+                    )],
+                )],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 73,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains("selected a non-primary parent placement")),
+        "expected composed non-primary parent multi-variant reason, got {summary:?}"
+    );
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::InsertBlock { parent_block_id: Some(parent_block_id), new_block, .. }
+        if parent_block_id == "blk:composed-parent" && new_block.block_id == "blk:composed-subsection"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: None }
+        if block_id == "blk:composed-leaf" && parent_block_id == "blk:composed-subsection"
+    )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_rejects_parent_matched_attr_variant_as_manual_curation_required() {
     let store_root = temp_dir("merge-attrs-manual");
     let signing_key = signing_key();
