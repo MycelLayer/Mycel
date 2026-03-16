@@ -69,6 +69,29 @@ class RenderFilesChangedTableCliTest(unittest.TestCase):
         self.assertEqual(1, len(generated))
         self.assertIn("+after", generated[0].read_text(encoding="utf-8"))
 
+    def test_reuses_git_ref_bucket_but_cleans_stale_diff_files(self) -> None:
+        tracked = self.root / "AGENTS.md"
+        tracked.write_text("before\n", encoding="utf-8")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=self.root, check=True, capture_output=True, text=True)
+
+        tracked.write_text("before\nafter\n", encoding="utf-8")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "update agents"], cwd=self.root, check=True, capture_output=True, text=True)
+        self.run_cli("HEAD")
+
+        tool = self.root / "scripts" / "tool.py"
+        tool.write_text("print('hi')\n", encoding="utf-8")
+        subprocess.run(["git", "add", "scripts/tool.py"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "add tool"], cwd=self.root, check=True, capture_output=True, text=True)
+        self.run_cli("HEAD")
+
+        diff_root = self.root / ".agent-local" / "rendered-diffs"
+        self.assertEqual([], list(diff_root.rglob("AGENTS.md.diff")))
+        generated = list(diff_root.rglob("scripts/tool.py.diff"))
+        self.assertEqual(1, len(generated))
+        self.assertIn("+print('hi')", generated[0].read_text(encoding="utf-8"))
+
     def test_supports_note_overrides(self) -> None:
         proc = self.run_cli(
             "--stdin",

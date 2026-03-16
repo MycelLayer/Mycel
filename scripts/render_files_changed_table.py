@@ -63,6 +63,14 @@ def diff_output_dir(git_ref: str) -> Path:
     return ROOT_DIR / ".agent-local" / "rendered-diffs" / digest
 
 
+def clear_diff_output_dir(git_ref: str) -> Path:
+    output_dir = diff_output_dir(git_ref)
+    if output_dir.exists():
+        for diff_path in output_dir.rglob("*.diff"):
+            diff_path.unlink()
+    return output_dir
+
+
 def parse_note_overrides(raw_notes: list[str]) -> dict[str, str]:
     notes: dict[str, str] = {}
     for raw in raw_notes:
@@ -140,6 +148,8 @@ def render_table(rows: list[tuple[str, str, str]], note_overrides: dict[str, str
         "| File | +/- | One-line note |",
         "|---|---:|---|",
     ]
+    if git_ref is not None:
+        clear_diff_output_dir(git_ref)
     for path, added, removed in rows:
         delta = f"{render_count(added, '+')} / {render_count(removed, '-')}"
         if git_ref is not None:
