@@ -1472,6 +1472,24 @@ mod tests {
         value
     }
 
+    fn signed_error_message(signing_key: &SigningKey, sender: &str, in_reply_to: &str) -> Value {
+        let mut value = json!({
+            "type": "ERROR",
+            "version": "mycel-wire/0.1",
+            "msg_id": "msg:error-signed-001",
+            "timestamp": "2026-03-08T20:02:00+08:00",
+            "from": sender,
+            "payload": {
+                "in_reply_to": in_reply_to,
+                "code": "ERR_UNKNOWN",
+                "detail": "test error"
+            },
+            "sig": "sig:placeholder"
+        });
+        value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+        value
+    }
+
     fn signed_bye_message(signing_key: &SigningKey, sender: &str) -> Value {
         let mut value = json!({
             "type": "BYE",
@@ -2670,5 +2688,51 @@ mod tests {
         let error = session.verify_incoming(&want).unwrap_err();
 
         assert_eq!(error, "wire session for 'node:alpha' is already closed");
+    }
+
+    #[test]
+    fn wire_session_rejects_duplicate_hello() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+
+        session
+            .verify_incoming(&hello)
+            .expect("first HELLO should verify");
+        let error = session.verify_incoming(&hello).unwrap_err();
+
+        assert_eq!(
+            error,
+            "wire session already received HELLO from 'node:alpha'"
+        );
+    }
+
+    #[test]
+    fn wire_session_accepts_error_before_hello() {
+        let signing_key = signing_key();
+        let sender_key = sender_public_key(&signing_key);
+        let mut session = WireSession::default();
+        session
+            .register_known_peer("node:alpha", &sender_key)
+            .expect("known peer should register");
+        let error_msg = signed_error_message(&signing_key, "node:alpha", "msg:some-prior-msg");
+
+        // ERROR must be accepted even before HELLO has been received,
+        // because it carries no sequencing restriction.
+        session
+            .verify_incoming(&error_msg)
+            .expect("ERROR should be accepted before HELLO");
+
+        let state = session
+            .peer_session("node:alpha")
+            .expect("peer session should exist");
+        assert!(
+            !state.hello_received(),
+            "hello_received must remain false after an ERROR-only exchange"
+        );
     }
 }
