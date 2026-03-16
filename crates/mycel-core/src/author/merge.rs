@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use crate::canonical::canonical_json;
 use crate::protocol::{BlockObject, PatchObject, PatchOperation};
 use crate::replay::{apply_patch_ops, replay_revision_from_index, DocumentState};
-use crate::store::{load_store_object_index, StoreRebuildError};
+use crate::store::{load_doc_replay_objects_from_store, StoreRebuildError};
 
 use super::shared::{ensure_document_exists, ensure_object_exists};
 use super::types::{
@@ -39,7 +39,7 @@ pub fn create_merge_revision_in_store(
         )));
     }
 
-    let object_index = load_store_object_index(store_root)?;
+    let object_index = load_doc_replay_objects_from_store(store_root, &params.doc_id)?;
     let mut parent_states = Vec::new();
     for parent_id in &params.parents {
         ensure_object_exists(store_root, parent_id, "parent revision")?;

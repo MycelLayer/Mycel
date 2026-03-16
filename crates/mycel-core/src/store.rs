@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,6 +62,8 @@ pub struct StoreIndexManifest {
     #[serde(default)]
     pub document_views: BTreeMap<String, Vec<String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    #[serde(default)]
+    pub doc_heads: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,6 +101,7 @@ pub struct StoreRebuildSummary {
     pub profile_views: BTreeMap<String, Vec<String>>,
     pub document_views: BTreeMap<String, Vec<String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    pub doc_heads: BTreeMap<String, Vec<String>>,
     pub index_manifest_path: Option<PathBuf>,
     pub notes: Vec<String>,
     pub errors: Vec<String>,
@@ -161,6 +164,7 @@ impl StoreRebuildSummary {
             profile_views: BTreeMap::new(),
             document_views: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
+            doc_heads: BTreeMap::new(),
             index_manifest_path: None,
             notes: Vec::new(),
             errors: Vec::new(),
@@ -281,6 +285,25 @@ pub fn rebuild_store_from_path(target: &Path) -> Result<StoreRebuildSummary, Sto
     sort_string_map_values(&mut summary.profile_views);
     sort_string_map_values(&mut summary.document_views);
     sort_profile_heads(&mut summary.profile_heads);
+
+    let all_parent_ids: BTreeSet<String> = summary
+        .revision_parents
+        .values()
+        .flatten()
+        .cloned()
+        .collect();
+    for (doc_id, revision_ids) in &summary.doc_revisions {
+        let mut heads: Vec<String> = revision_ids
+            .iter()
+            .filter(|revision_id| !all_parent_ids.contains(*revision_id))
+            .cloned()
+            .collect();
+        heads.sort();
+        heads.dedup();
+        if !heads.is_empty() {
+            summary.doc_heads.insert(doc_id.clone(), heads);
+        }
+    }
 
     if summary.is_ok() {
         if let Some(store_root) = discovery.store_root {
@@ -404,6 +427,7 @@ pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, Stor
         profile_views: BTreeMap::new(),
         document_views: BTreeMap::new(),
         profile_heads: BTreeMap::new(),
+        doc_heads: BTreeMap::new(),
     };
     let manifest_path = write_store_index_manifest(&store_root, &manifest)?;
 
@@ -1069,6 +1093,7 @@ impl StoreIndexManifest {
             profile_views: summary.profile_views.clone(),
             document_views: summary.document_views.clone(),
             profile_heads: summary.profile_heads.clone(),
+            doc_heads: summary.doc_heads.clone(),
         }
     }
 }

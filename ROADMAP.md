@@ -221,14 +221,11 @@ Completion gate:
 
 Current read:
 
-Substantially underway. Replay-based verification, store rebuild, persisted indexes, a narrow store write path, an initial conservative merge-authoring workflow, and ancestry-context-preserving render/store verification now exist, but the milestone is still not closeable.
+Substantially underway. Replay-based verification, store rebuild, persisted indexes, a narrow store write path, an initial conservative merge-authoring workflow, ancestry-context-preserving render/store verification, scoped document-level index reuse in author and merge workflows, and a persisted `doc_heads` index for sync now exist, but the milestone is still not closeable.
 
 Main remaining gaps:
 
-1. broader reuse of persisted store indexes across reader workflows
-2. broader replay and store reconstruction coverage tied to more realistic fixture sets beyond the current direct store-backed replay proof point
-3. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, and a broader initial nested structural matrix, but richer nested/reparenting conflict cases still require manual curation
-4. broader core reuse so authoring and replay helpers do not remain disproportionately CLI-driven
+1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, and a broader initial nested structural matrix, but richer nested/reparenting conflict cases still require manual curation
 
 Implementation anchors:
 

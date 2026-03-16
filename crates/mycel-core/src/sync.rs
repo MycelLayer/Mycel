@@ -336,8 +336,12 @@ fn local_store_object_index_or_empty(
 }
 
 fn head_map_from_manifest(manifest: &StoreIndexManifest) -> BTreeMap<String, Vec<String>> {
-    let mut heads = BTreeMap::new();
+    if !manifest.doc_heads.is_empty() {
+        return manifest.doc_heads.clone();
+    }
 
+    // Fallback for stores with older manifests that lack doc_heads.
+    let mut heads = BTreeMap::new();
     for (doc_id, revision_ids) in &manifest.doc_revisions {
         let parent_ids = revision_ids
             .iter()

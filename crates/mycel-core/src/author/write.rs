@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use crate::protocol::{recompute_object_id, RevisionObject, CORE_PROTOCOL_VERSION};
 use crate::replay::{compute_state_hash, replay_revision, DocumentState, GENESIS_BASE_REVISION};
 use crate::store::{
-    load_store_object_index, load_stored_object_value, write_object_value_to_store,
+    load_doc_replay_objects_from_store, load_stored_object_value, write_object_value_to_store,
     StoreRebuildError,
 };
 
@@ -158,7 +158,13 @@ pub fn commit_revision_to_store(
         ensure_object_exists(store_root, patch_id, "patch")?;
     }
 
-    let object_index = load_store_object_index(store_root)?;
+    let mut object_index = load_doc_replay_objects_from_store(store_root, &params.doc_id)?;
+    for patch_id in &params.patches {
+        if !object_index.contains_key(patch_id) {
+            let patch_value = load_stored_object_value(store_root, patch_id)?;
+            object_index.insert(patch_id.clone(), patch_value);
+        }
+    }
     let author = signer_id(signing_key);
     let replay_revision_object = RevisionObject {
         revision_id: "rev:pending".to_string(),
