@@ -112,6 +112,7 @@ Use `docs/PROGRESS.md`, `pages/progress.html`, and localized `pages/*/progress.h
 
 Pages must stay summary-first. They should compress planning state, not define it.
 When a Pages summary exists in multiple maintained languages, those localized variants should stay semantically aligned even if the phrasing is not word-for-word identical.
+For localized Pages, a `sync web` review should also check visible UI labels such as section headings, stage labels, and status pills for stray source-language text.
 
 ## 4. Sync Rules
 
@@ -243,6 +244,7 @@ When the planning state changes:
 - update maintained localized `pages/*/progress.html` variants in the same batch
 
 If there is disagreement, fix the HTML to match the Markdown summary, not the other way around. A `sync web` or `sync plan` pass that touches one maintained progress page should leave the sibling language variants semantically aligned before the batch is considered complete.
+That review should include obvious localized-UI checks, especially headings, milestone card stage labels, and status-chip text, so content sync does not leave behind visible untranslated fragments.
 
 ## 7. Cadence
 
@@ -277,6 +279,7 @@ If it reports `due`, refresh the reported surfaces:
 - Markdown planning surfaces such as `docs/PROGRESS.md` when `sync doc` is due
 - aligned GitHub Issues and landing-page contributor-entry issue links when `sync issue` is due
 - GitHub Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording when `sync web` is due
+- maintained localized Pages variants should be checked for both semantic alignment and obvious untranslated UI text when `sync web` is due
 
 in the next planning-sync batch, even if no single change forced an update.
 
