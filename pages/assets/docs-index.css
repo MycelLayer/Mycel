@@ -30,6 +30,11 @@
   text-decoration: underline;
 }
 
+.docs-page .nav-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .docs-page .hero-copy,
 .docs-page .hero-sidebar {
   padding: 34px;
