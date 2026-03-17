@@ -715,7 +715,17 @@ fn store_merge_authoring_flow_supports_structural_move_and_insert() {
     ]);
     assert_success(&merge);
     let merge_json = assert_json_status(&merge, "ok");
-    assert_eq!(merge_json["merge_outcome"], "auto-merged");
+    assert_eq!(merge_json["merge_outcome"], "multi-variant");
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("selected a non-primary sibling placement")
+                })
+            })),
+        "expected structural sibling multi-variant reason, got {merge_json}"
+    );
     assert_eq!(merge_json["patch_op_count"], 2);
     assert_eq!(
         merge_json["parent_revision_ids"].as_array().map(Vec::len),
