@@ -248,6 +248,58 @@ fn write_nested_parent_manual_resolved_state_file(prefix: &str) -> (common::Temp
     (dir, path)
 }
 
+fn write_nested_sibling_manual_resolved_state_file(prefix: &str) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("resolved-state.json");
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!({
+            "doc_id": "doc:author-smoke-nested-sibling-manual",
+            "blocks": [
+                {
+                    "block_id": "blk:nested-parent",
+                    "block_type": "paragraph",
+                    "content": "Parent",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:nested-child-b",
+                            "block_type": "paragraph",
+                            "content": "Child B",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-d",
+                            "block_type": "paragraph",
+                            "content": "Child D",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-a",
+                            "block_type": "paragraph",
+                            "content": "Child A",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-c",
+                            "block_type": "paragraph",
+                            "content": "Child C",
+                            "attrs": {},
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }))
+        .expect("nested sibling manual resolved state JSON should serialize"),
+    )
+    .expect("nested sibling manual resolved state JSON should write");
+    (dir, path)
+}
+
 #[test]
 fn store_authoring_flow_creates_document_patch_and_revision() {
     let store_dir = create_temp_dir("store-author-root");
@@ -1511,5 +1563,293 @@ fn store_merge_authoring_flow_rejects_novel_nested_parent_choice_as_manual_curat
     assert_stderr_contains(
         &merge,
         "merge resolution is manual-curation-required: resolved block 'blk:manual-leaf' does not match any parent placement",
+    );
+}
+
+#[test]
+fn store_merge_authoring_flow_rejects_novel_nested_sibling_choice_as_manual_curation_required() {
+    let store_dir = create_temp_dir("store-merge-nested-sibling-manual-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-sibling-manual-key");
+    let (_resolved_dir, resolved_state_path) =
+        write_nested_sibling_manual_resolved_state_file("store-merge-nested-sibling-manual-state");
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let key_file = path_arg(&key_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--title",
+        "Author Smoke Nested Sibling Manual",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "50",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let base_ops_dir = create_temp_dir("store-merge-nested-sibling-manual-base-ops");
+    let base_ops_path = base_ops_dir.path().join("ops.json");
+    fs::write(
+        &base_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:nested-parent",
+                    "block_type": "paragraph",
+                    "content": "Parent",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:nested-child-a",
+                            "block_type": "paragraph",
+                            "content": "Child A",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-b",
+                            "block_type": "paragraph",
+                            "content": "Child B",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-c",
+                            "block_type": "paragraph",
+                            "content": "Child C",
+                            "attrs": {},
+                            "children": []
+                        }
+                    ]
+                }
+            }
+        ]))
+        .expect("nested sibling manual base ops JSON should serialize"),
+    )
+    .expect("nested sibling manual base ops JSON should write");
+    let base_ops_file = path_arg(&base_ops_path);
+
+    let insert_ops_dir = create_temp_dir("store-merge-nested-sibling-manual-insert-ops");
+    let insert_ops_path = insert_ops_dir.path().join("ops.json");
+    fs::write(
+        &insert_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "insert_block_after",
+                "after_block_id": "blk:nested-child-b",
+                "new_block": {
+                    "block_id": "blk:nested-child-d",
+                    "block_type": "paragraph",
+                    "content": "Child D",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]))
+        .expect("nested sibling manual insert ops JSON should serialize"),
+    )
+    .expect("nested sibling manual insert ops JSON should write");
+    let insert_ops_file = path_arg(&insert_ops_path);
+
+    let move_ops_dir = create_temp_dir("store-merge-nested-sibling-manual-move-ops");
+    let move_ops_path = move_ops_dir.path().join("ops.json");
+    fs::write(
+        &move_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:nested-child-a",
+                "parent_block_id": "blk:nested-parent",
+                "after_block_id": "blk:nested-child-b"
+            }
+        ]))
+        .expect("nested sibling manual move ops JSON should serialize"),
+    )
+    .expect("nested sibling manual move ops JSON should write");
+    let move_ops_file = path_arg(&move_ops_path);
+
+    let base_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &base_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "51",
+        "--json",
+    ]);
+    assert_success(&base_patch);
+    let base_patch_json = assert_json_status(&base_patch, "ok");
+    let base_patch_id = base_patch_json["patch_id"]
+        .as_str()
+        .expect("base patch_id should be string")
+        .to_string();
+
+    let base_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &base_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "52",
+        "--json",
+    ]);
+    assert_success(&base_revision);
+    let base_revision_json = assert_json_status(&base_revision, "ok");
+    let base_revision_id = base_revision_json["revision_id"]
+        .as_str()
+        .expect("base revision_id should be string")
+        .to_string();
+
+    let insert_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &insert_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "53",
+        "--json",
+    ]);
+    assert_success(&insert_patch);
+    let insert_patch_json = assert_json_status(&insert_patch, "ok");
+    let insert_patch_id = insert_patch_json["patch_id"]
+        .as_str()
+        .expect("insert patch_id should be string")
+        .to_string();
+
+    let insert_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &insert_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "54",
+        "--json",
+    ]);
+    assert_success(&insert_revision);
+    let insert_revision_json = assert_json_status(&insert_revision, "ok");
+    let insert_revision_id = insert_revision_json["revision_id"]
+        .as_str()
+        .expect("insert revision_id should be string")
+        .to_string();
+
+    let move_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &move_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "55",
+        "--json",
+    ]);
+    assert_success(&move_patch);
+    let move_patch_json = assert_json_status(&move_patch, "ok");
+    let move_patch_id = move_patch_json["patch_id"]
+        .as_str()
+        .expect("move patch_id should be string")
+        .to_string();
+
+    let move_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &move_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "56",
+        "--json",
+    ]);
+    assert_success(&move_revision);
+    let move_revision_json = assert_json_status(&move_revision, "ok");
+    let move_revision_id = move_revision_json["revision_id"]
+        .as_str()
+        .expect("move revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-sibling-manual",
+        "--parent",
+        &base_revision_id,
+        "--parent",
+        &insert_revision_id,
+        "--parent",
+        &move_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "57",
+    ]);
+
+    assert!(
+        !merge.status.success(),
+        "expected manual-curation failure, stdout: {}, stderr: {}",
+        String::from_utf8_lossy(&merge.stdout),
+        String::from_utf8_lossy(&merge.stderr)
+    );
+    assert_stderr_contains(
+        &merge,
+        "merge resolution is manual-curation-required: resolved block 'blk:nested-child-a' does not match any parent sibling placement",
     );
 }
