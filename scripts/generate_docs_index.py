@@ -318,7 +318,7 @@ def render_page(entries: list[DocEntry]) -> str:
   <body class="landing-page docs-page">
     <div class="page">
       <nav class="nav">
-        <div class="brand">Mycel</div>
+        <div class="brand"><a href="/Mycel/">Mycel</a></div>
         <div class="nav-links">
           <a href="https://ctf2090.github.io/Mycel/zh-TW/">繁體中文</a>
           <a href="https://ctf2090.github.io/Mycel/zh-CN/">简体中文</a>
