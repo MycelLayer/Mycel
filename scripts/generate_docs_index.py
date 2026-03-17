@@ -128,8 +128,24 @@ def extract_status(lines: list[str]) -> str | None:
     for line in lines:
         stripped = line.strip()
         if stripped.startswith("Status:"):
-            return cleanup_markdown_inline(stripped.partition(":")[2].strip())
+            raw_status = cleanup_markdown_inline(stripped.partition(":")[2].strip())
+            return normalize_status(raw_status)
     return None
+
+
+def normalize_status(status: str) -> str | None:
+    if not status:
+        return None
+
+    first_clause = re.split(r"[;,:]", status, maxsplit=1)[0].strip()
+    candidate = first_clause or status.strip()
+    candidate = re.sub(r"\s+", " ", candidate).strip(" .")
+    if not candidate:
+        return None
+    if len(candidate) <= 56:
+        return candidate
+    shortened = candidate[:53].rstrip()
+    return shortened + "..."
 
 
 def is_paragraph_break(stripped: str) -> bool:
