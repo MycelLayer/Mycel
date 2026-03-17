@@ -36,9 +36,9 @@
 }
 
 .docs-page h1 {
-  font-size: clamp(1.9rem, 4.2vw, 3.1rem);
+  font-size: clamp(1.6rem, 3.2vw, 2.45rem);
   margin-bottom: 18px;
-  max-width: 12ch;
+  max-width: 11ch;
   text-wrap: balance;
 }
 
