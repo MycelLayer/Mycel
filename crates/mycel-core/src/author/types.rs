@@ -136,5 +136,6 @@ pub(crate) struct MergeAssessment {
 pub(crate) struct BlockPlacement {
     pub(crate) block: BlockObject,
     pub(crate) parent_block_id: Option<String>,
+    pub(crate) previous_sibling_id: Option<String>,
     pub(crate) depth: usize,
 }

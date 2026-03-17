@@ -263,6 +263,47 @@ fn assess_merge_resolution(
                 block_id
             ));
         }
+
+        let primary_sibling_variant = block_sibling_variant(primary_blocks.get(&block_id));
+        let resolved_sibling_variant = block_sibling_variant(resolved_blocks.get(&block_id));
+        let alternative_sibling_variants = parent_states
+            .iter()
+            .skip(1)
+            .map(|(_, state)| flatten_blocks(&state.blocks))
+            .filter(|blocks| block_parent_variant(blocks.get(&block_id)) == resolved_parent_variant)
+            .map(|blocks| block_sibling_variant(blocks.get(&block_id)))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter(|variant| variant != &primary_sibling_variant)
+            .collect::<BTreeSet<_>>();
+
+        if resolved_parent_variant == primary_parent_variant
+            && resolved_sibling_variant != primary_sibling_variant
+            && !alternative_sibling_variants.contains(&resolved_sibling_variant)
+        {
+            reasons.push(format!(
+                "resolved block '{}' does not match any parent sibling placement",
+                block_id
+            ));
+        } else if resolved_parent_variant == primary_parent_variant
+            && primary_sibling_variant != "<absent>"
+            && resolved_sibling_variant != primary_sibling_variant
+            && alternative_sibling_variants.contains(&resolved_sibling_variant)
+        {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' selected a non-primary sibling placement",
+                block_id
+            ));
+        } else if resolved_parent_variant == primary_parent_variant
+            && alternative_sibling_variants.len() > 1
+        {
+            saw_multi_variant = true;
+            reasons.push(format!(
+                "block '{}' has multiple competing sibling placements",
+                block_id
+            ));
+        }
     }
 
     let metadata_keys = primary_state
@@ -349,6 +390,16 @@ fn block_parent_variant(block: Option<&BlockPlacement>) -> String {
             .parent_block_id
             .clone()
             .unwrap_or_else(|| "<root>".to_string()),
+        None => "<absent>".to_string(),
+    }
+}
+
+fn block_sibling_variant(block: Option<&BlockPlacement>) -> String {
+    match block {
+        Some(placement) => placement
+            .previous_sibling_id
+            .clone()
+            .unwrap_or_else(|| "<start>".to_string()),
         None => "<absent>".to_string(),
     }
 }
@@ -707,12 +758,13 @@ fn flatten_blocks_into(
     depth: usize,
     placements: &mut HashMap<String, BlockPlacement>,
 ) {
-    for block in blocks {
+    for (index, block) in blocks.iter().enumerate() {
         placements.insert(
             block.block_id.clone(),
             BlockPlacement {
                 block: block.clone(),
                 parent_block_id: parent_block_id.map(str::to_string),
+                previous_sibling_id: (index > 0).then(|| blocks[index - 1].block_id.clone()),
                 depth,
             },
         );
