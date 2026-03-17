@@ -731,6 +731,76 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
 }
 
 #[test]
+fn sync_pull_json_reports_missing_bye_as_session_note() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-missing-bye");
+    let transcript_path = transcript_dir.path().join("missing-bye-transcript.json");
+    let store_root = create_temp_dir("sync-pull-missing-bye-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                revision_object,
+                signed_want_message(&signing_key, sender, &[&patch_id]),
+                patch_object
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(&store_root.path().to_path_buf()),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "warning");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 6);
+    assert_eq!(json["verified_message_count"], 6);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["verified_object_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+    assert_eq!(json["existing_object_count"], 0);
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(
+            |note| note.as_str().is_some_and(
+                |message| message.contains("sync transcript ended without BYE from 'node:alpha'")
+            )
+        )),
+        "expected missing-BYE session note, stdout: {}",
+        stdout_text(&output)
+    );
+
+    let manifest_path = store_root.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 2);
+}
+
+#[test]
 fn sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised() {
     let signing_key = signing_key();
     let sender = "node:alpha";
