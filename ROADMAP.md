@@ -417,7 +417,7 @@ Completion gate:
 
 Current read:
 
-Substantially underway. All M4 completion-gate items are now satisfied at the simulator level. Canonical envelope parsing, payload-shape validation, RFC 3339 timestamp enforcement, generic wire-signature verification, sender checks, inbound sequencing/head-tracking, reachability gating, store-backed session bootstrap, and `OBJECT` body-derived hash / `object_id` verification exist in `mycel-core`. A peer-store-driven sync path, CLI entry points, and 8 simulator scenarios now prove the full required coverage:
+Substantially underway. All M4 completion-gate items are now satisfied at the simulator level. Canonical envelope parsing, payload-shape validation, RFC 3339 timestamp enforcement, generic wire-signature verification, sender checks, inbound sequencing/head-tracking, reachability gating, store-backed session bootstrap, and `OBJECT` body-derived hash / `object_id` verification exist in `mycel-core`. A peer-store-driven sync path, CLI entry points, and 9 simulator scenarios now prove the full required coverage:
 
 1. First-time sync with multi-peer convergence (`three-peer-consistency`)
 2. Incremental HEADS-based sync for follow-up revisions (`incremental-sync`)
@@ -426,8 +426,9 @@ Substantially underway. All M4 completion-gate items are now satisfied at the si
 5. Capability-gated `SNAPSHOT_OFFER` delivery (`snapshot-catchup`)
 6. Capability-gated `VIEW_ANNOUNCE` delivery for governance views (`view-sync`)
 7. Per-peer accepted-head comparison surfaced in report (`matching-accepted-heads` outcome)
+8. Localhost multi-process transport proof via `mycel sync stream | mycel sync pull --transcript -` (`localhost-multi-process`)
 
-What is still missing is broader session/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. Depth-N incremental catchup is now proved: a reader at revision depth 2 catches up to a depth-3 seed in a single HEADS/WANT pass, fetching only the delta. Partial-doc selective sync is now also proved: a reader can request only a subset of the seed's documents, maintain a stable partial store, and compute accepted heads only for the requested subset, matching PROTOCOL §8 partial replication support.
+What is still missing is broader session/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. Depth-N incremental catchup is now proved: a reader at revision depth 2 catches up to a depth-3 seed in a single HEADS/WANT pass, fetching only the delta. Partial-doc selective sync is now also proved: a reader can request only a subset of the seed's documents, maintain a stable partial store, and compute accepted heads only for the requested subset, matching PROTOCOL §8 partial replication support. The localhost proof also confirms the current wire flow works across real process boundaries instead of only inside transcript fixtures or in-process simulator hooks.
 
 Implementation anchors:
 
