@@ -2466,6 +2466,196 @@ fn merge_authoring_marks_composed_descendant_of_non_primary_parent_as_multi_vari
 }
 
 #[test]
+fn merge_authoring_supports_multiple_existing_blocks_in_anchored_composed_branch() {
+    let store_root = temp_dir("merge-anchored-composed-branch-multi");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-anchored-composed-branch-multi".to_string(),
+            title: "Merge Anchored Composed Branch Multi".to_string(),
+            language: "en".to_string(),
+            timestamp: 82,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-anchored-composed-branch-multi",
+        &document.genesis_revision_id,
+        83,
+        84,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:anchored-left",
+                    "block_type": "paragraph",
+                    "content": "Left",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:anchored-leaf-a",
+                    "block_type": "paragraph",
+                    "content": "Leaf A",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:anchored-leaf-b",
+                    "block_type": "paragraph",
+                    "content": "Leaf B",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let wrapper_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-anchored-composed-branch-multi",
+        &base_revision_id,
+        85,
+        86,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:anchored-wrapper",
+                    "block_type": "paragraph",
+                    "content": "Wrapper",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:anchored-section",
+                            "block_type": "paragraph",
+                            "content": "Section",
+                            "attrs": {},
+                            "children": []
+                        }
+                    ]
+                }
+            }
+        ]),
+    );
+
+    let moved_a_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-anchored-composed-branch-multi",
+        &base_revision_id,
+        87,
+        88,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:anchored-leaf-a",
+                "parent_block_id": "blk:anchored-left"
+            }
+        ]),
+    );
+
+    let moved_b_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-anchored-composed-branch-multi",
+        &moved_a_revision_id,
+        89,
+        90,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:anchored-leaf-b",
+                "parent_block_id": "blk:anchored-left",
+                "after_block_id": "blk:anchored-leaf-a"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-anchored-composed-branch-multi".to_string(),
+            parents: vec![base_revision_id, wrapper_revision_id, moved_b_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-anchored-composed-branch-multi".to_string(),
+                blocks: vec![paragraph_block_with_children(
+                    "blk:anchored-wrapper",
+                    "Wrapper",
+                    vec![paragraph_block_with_children(
+                        "blk:anchored-section",
+                        "Section",
+                        vec![
+                            paragraph_block("blk:anchored-left", "Left"),
+                            paragraph_block("blk:anchored-leaf-a", "Leaf A"),
+                            paragraph_block("blk:anchored-leaf-b", "Leaf B"),
+                        ],
+                    )],
+                )],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 91,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains("selected a non-primary parent placement")),
+        "expected anchored composed branch multi-variant reason, got {summary:?}"
+    );
+    assert_eq!(summary.patch_op_count, 4);
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::InsertBlock { new_block, .. }
+        if new_block.block_id == "blk:anchored-wrapper"
+            && new_block.children.len() == 1
+            && new_block.children[0].block_id == "blk:anchored-section"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: None }
+        if block_id == "blk:anchored-left" && parent_block_id == "blk:anchored-section"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: Some(after_block_id) }
+        if block_id == "blk:anchored-leaf-a"
+            && parent_block_id == "blk:anchored-section"
+            && after_block_id == "blk:anchored-left"
+    )));
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: Some(after_block_id) }
+        if block_id == "blk:anchored-leaf-b"
+            && parent_block_id == "blk:anchored-section"
+            && after_block_id == "blk:anchored-leaf-a"
+    )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_marks_multiple_siblings_under_composed_non_primary_parent_as_multi_variant() {
     let store_root = temp_dir("merge-composed-non-primary-parent-siblings");
     let signing_key = signing_key();
