@@ -15,9 +15,9 @@ It exists to prevent drift between the authoritative build plan, the open task q
 Use these terms consistently:
 
 - `sync doc`: Markdown-only sync. This covers planning/public-summary `.md` files such as `ROADMAP.*`, `IMPLEMENTATION-CHECKLIST.*`, `docs/PROGRESS.md`, and any related README wording.
-- `sync web`: GitHub Pages-only sync. This covers Pages HTML summary surfaces such as `pages/progress.html` and non-issue landing-page wording.
+- `sync web`: GitHub Pages-only sync. This covers Pages HTML summary surfaces such as `pages/progress.html`, localized progress pages, and non-issue landing-page wording. A `sync web` batch is only complete when every maintained language variant of the touched Pages surface is updated together.
 - `sync issue`: GitHub Issues plus the contributor-entry issue links in GitHub Pages entry pages such as `pages/index.html`, `pages/zh-TW/index.html`, and `pages/zh-CN/index.html`.
-- `sync plan`: the full sync. This means `sync doc` + `sync web` + `sync issue`.
+- `sync plan`: the full sync. This means `sync doc` + `sync web` + `sync issue`. Any multilingual completeness rule that applies to a component sync target also applies to `sync plan`.
 
 ## 1. Scope
 
@@ -29,6 +29,8 @@ This plan applies to:
 - [`IMPLEMENTATION-CHECKLIST.zh-TW.md`](../IMPLEMENTATION-CHECKLIST.zh-TW.md)
 - [`docs/PROGRESS.md`](./PROGRESS.md)
 - [`pages/progress.html`](../pages/progress.html)
+- [`pages/zh-TW/progress.html`](../pages/zh-TW/progress.html)
+- [`pages/zh-CN/progress.html`](../pages/zh-CN/progress.html)
 - contributor-entry issue links in [`pages/index.html`](../pages/index.html), [`pages/zh-TW/index.html`](../pages/zh-TW/index.html), and [`pages/zh-CN/index.html`](../pages/zh-CN/index.html)
 - GitHub Issues, especially `ai-ready` task issues
 
@@ -55,7 +57,7 @@ Interpretation:
 - `ROADMAP.md` and `ROADMAP.zh-TW.md` jointly own milestone order, phase boundaries, and build sequence.
 - `IMPLEMENTATION-CHECKLIST.*` owns section-level closure state and concrete implementation gates.
 - GitHub Issues represent executable slices of the remaining gaps.
-- `docs/PROGRESS.md` and `pages/progress.html` are derived summaries and must not invent project state.
+- `docs/PROGRESS.md`, `pages/progress.html`, and localized `pages/*/progress.html` summaries are derived surfaces and must not invent project state.
 - contributor-entry issue links in `pages/index.html` and localized landing pages are public contributor-entry summaries and must point at currently valid `ai-ready` work.
 
 ## 3. Surface Roles
@@ -102,13 +104,14 @@ Issues should not replace roadmap or checklist state. They should reflect it.
 
 ### 3.4 Pages Progress Surfaces
 
-Use `docs/PROGRESS.md` and `pages/progress.html` to answer:
+Use `docs/PROGRESS.md`, `pages/progress.html`, and localized `pages/*/progress.html` surfaces to answer:
 
 - what a reader should understand quickly
 - which milestone lane is active
 - which checklist sections are mostly done, partial, or not started
 
 Pages must stay summary-first. They should compress planning state, not define it.
+When a Pages summary exists in multiple maintained languages, those localized variants should stay semantically aligned even if the phrasing is not word-for-word identical.
 
 ## 4. Sync Rules
 
@@ -119,7 +122,7 @@ Update in this order:
 1. `ROADMAP.md`
 2. `IMPLEMENTATION-CHECKLIST.*`
 3. `docs/PROGRESS.md`
-4. `pages/progress.html`
+4. `pages/progress.html` and localized `pages/*/progress.html`
 5. open or close related GitHub Issues
 
 Example:
@@ -134,7 +137,7 @@ Update in this order:
 1. `IMPLEMENTATION-CHECKLIST.*`
 2. related GitHub Issue status
 3. `docs/PROGRESS.md` if section-level status changed
-4. `pages/progress.html` if public summary wording changed
+4. `pages/progress.html` and localized `pages/*/progress.html` if public summary wording changed
 
 Example:
 
@@ -148,7 +151,7 @@ Update in this order:
 1. `IMPLEMENTATION-CHECKLIST.*` if the gap is real and durable
 2. open a GitHub Issue if the gap is narrow enough to execute
 3. do not update `ROADMAP.md` unless the milestone emphasis changed
-4. update progress summaries only if section status materially changed
+4. update progress summaries only if section status materially changed, and keep all maintained Pages language variants aligned when those summaries change
 
 ### 4.4 If issue triage changes only execution shape
 
@@ -167,7 +170,7 @@ Do not update roadmap, checklist, or pages if:
 Update:
 
 1. `docs/PROGRESS.md`
-2. `pages/progress.html`
+2. `pages/progress.html` and any maintained localized `pages/*/progress.html` counterparts
 
 Do not change roadmap or checklist unless the underlying status changed.
 
@@ -229,16 +232,17 @@ It should not:
 - mark a checklist area complete if the checklist does not
 - speculate about future phases beyond what roadmap already says
 
-### 6.2 `pages/progress.html`
+### 6.2 `pages/progress.html` and localized progress pages
 
-This file should be treated as a presentation layer over `docs/PROGRESS.md`.
+These files should be treated as presentation layers over `docs/PROGRESS.md`.
 
 When the planning state changes:
 
 - update `docs/PROGRESS.md` first
 - update `pages/progress.html` second
+- update maintained localized `pages/*/progress.html` variants in the same batch
 
-If there is disagreement, fix the HTML to match the Markdown summary, not the other way around.
+If there is disagreement, fix the HTML to match the Markdown summary, not the other way around. A `sync web` or `sync plan` pass that touches one maintained progress page should leave the sibling language variants semantically aligned before the batch is considered complete.
 
 ## 7. Cadence
 
