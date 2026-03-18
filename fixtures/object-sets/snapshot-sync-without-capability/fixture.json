@@ -1,0 +1,29 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "snapshot-sync-without-capability",
+    "description": "Seed publishes a snapshot but suppresses the advertised snapshot-sync capability so the reader rejects SNAPSHOT_OFFER",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:snapshot-capability-test"
+        }
+    ],
+    "expected_outcomes": [
+        "snapshot-offer-capability-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "publish_seed_snapshot": true,
+        "suppress_seed_capabilities": [
+            "snapshot-sync"
+        ]
+    },
+    "notes": [
+        "Seed still publishes a snapshot object into the peer store.",
+        "Simulator suppresses advertised snapshot-sync capability from HELLO and MANIFEST while leaving SNAPSHOT_OFFER in the generated transcript.",
+        "Reader must reject the optional SNAPSHOT_OFFER message under the normal wire capability gate."
+    ]
+}

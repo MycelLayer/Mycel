@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "snapshot-sync-without-capability",
+    "description": "A reader should fail sync when the seed emits SNAPSHOT_OFFER without first advertising snapshot-sync capability.",
+    "category": "negative",
+    "topology": "sim/topologies/snapshot-sync-without-capability.example.json",
+    "fixture_set": "fixtures/object-sets/snapshot-sync-without-capability",
+    "execution_mode": "single-process",
+    "expected_result": "fail",
+    "expected_outcomes": [
+        "snapshot-offer-capability-rejected",
+        "no-invalid-index-write"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "snapshot-offer-capability-rejected",
+            "description": "Reader rejects SNAPSHOT_OFFER because the seed did not advertise snapshot-sync capability.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "no-invalid-index-write",
+            "description": "Reader does not write an invalid manifest or snapshot object after the capability violation.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with the snapshot-side capability-negative optional-message proof.",
+        "The seed still publishes a snapshot object, but the generated transcript intentionally suppresses snapshot-sync from HELLO and MANIFEST."
+    ]
+}

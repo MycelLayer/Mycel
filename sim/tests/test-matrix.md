@@ -16,6 +16,8 @@
   Reference JSON: `sim/tests/signature-mismatch.example.json`
 - `view-sync-without-capability`: reject VIEW_ANNOUNCE when the seed omitted the required `view-sync` capability
   Reference JSON: `sim/tests/view-sync-without-capability.example.json`
+- `snapshot-sync-without-capability`: reject SNAPSHOT_OFFER when the seed omitted the required `snapshot-sync` capability
+  Reference JSON: `sim/tests/snapshot-sync-without-capability.example.json`
 
 ## Recovery
 
