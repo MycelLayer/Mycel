@@ -1,10 +1,10 @@
 # Mycel Roadmap
 
-狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence、`M2` 中剩餘的較豐富 merge-authoring conflict 分類，以及 `M4` 剩餘的 peer interop error/session proof 仍未完成；目前規劃中的 production replication 子項已補齊
+狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` follow-up checklist。現在的主線已清楚轉到 `M2` / `M3` / `M4`，而更完整的 governance persistence、`M2` 剩餘的較細緻 merge-authoring conflict 分類，以及 `M4` 尚未補齊的 peer interop error/session proof，仍是目前未完成的部分；原先規劃的 production replication 子項則都已補上
 
-這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
+這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的實作推進順序。
 
-它刻意維持窄版範圍：
+這份規劃刻意維持在窄版範圍：
 
 - 先做第一個可互通客戶端
 - 對協定核心變更保持保守
@@ -12,7 +12,7 @@
 
 ## 目前位置
 
-目前 repository 已具備：
+目前 repo 已具備：
 
 - 持續成長中的 v0.1 protocol 與 wire-spec 文件集
 - 適合做內部驗證與決定性模擬器工作流程的 Rust CLI
@@ -25,7 +25,7 @@
 - 以 `assert_cmd`、`predicates`、`tempfile` 與小範圍 `rstest` 建立的較可維護 CLI test base
 - simulator fixtures、topologies、tests 與 reports，作為 regression coverage
 
-目前 repository 尚未具備：
+目前 repo 尚未具備：
 
 - 完整可互通的節點實作
 - 完成的 object-authoring 與 storage-write path
@@ -36,15 +36,15 @@
 
 ### 現在
 
-目前的 lane 是：
+目前主線是：
 
-1. 在已關閉的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 與 narrow write path 的剩餘收尾；目前焦點已縮窄到 recent manual-curation smoke 成長之後仍未補齊的 richer nested / reparenting conflict 分類
-2. 擴展 `M3` reader-plus-governance workflows，但不要重新打開已關閉的 minimal-client gate
-3. 在目前規劃中的 production replication 子項都已補齊後，讓 `M4` 從 peer-store proof 往剩餘的 peer interop error/session coverage 推進
+1. 在已關閉的 `M1` gate 之上，把 `M2` 的 replay、rebuild、merge-authoring 與 narrow write path 剩餘收尾做完；目前焦點已縮到 recent manual-curation smoke 擴充後，仍待補齊的 richer nested / reparenting conflict 分類
+2. 擴展 `M3` 的 reader-plus-governance workflows，但不要重新打開已經關閉的 minimal-client gate
+3. 在目前規劃中的 production replication 子項都已補齊後，讓 `M4` 從 peer-store proof 繼續往剩餘的 peer interop error/session coverage 推進
 
 ### 下一步
 
-當窄版 core 穩定後，下一條 lane 是：
+等窄版 core 穩定後，下一條主線會是：
 
 1. 面向 reader 的 accepted-head 與 governance 工作流程
 2. fixed-profile accepted reading
@@ -52,7 +52,7 @@
 
 ### 之後
 
-更後面的 lane 是：
+更後面的階段則會是：
 
 1. canonical wire sync
 2. 端到端 peer replication

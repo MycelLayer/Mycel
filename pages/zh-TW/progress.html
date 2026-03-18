@@ -43,15 +43,15 @@
 
       <header class="panel hero">
         <div class="eyebrow">公開進度摘要</div>
-        <h1>用一頁看懂 Roadmap 順序與 implementation 狀態。</h1>
+        <h1>用一頁快速看懂 Roadmap 順序與實作進度。</h1>
         <p class="lead">
-          Mycel 目前仍在窄版 first-client lane。眼前目標是先收掉最後一批 shared-core closure，同時讓
-          <code>M4</code> 維持窄版範圍，聚焦在已驗證 wire-session reachability、最小 peer-sync
-          closure，以及在目前 production replication 子證明都已落地後，剩餘的 session/error-path interop proof。
+          Mycel 目前仍在窄版 first-client 主線上。眼前目標是先補齊最後一批 shared-core 收尾，同時讓
+          <code>M4</code> 維持窄版範圍，聚焦在已驗證的 wire-session reachability、最小 peer-sync
+          closure，以及 production replication 子證明都已落地後，剩餘的 session/error-path interop proof。
         </p>
         <ol class="lane-list">
           <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure。</li>
-          <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base，以及 bounded viewer score surfaces 之上，謹慎擴張 <code>M3</code> reader workflows。</li>
+          <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base，以及 bounded viewer score surfaces 之上，謹慎擴張 <code>M3</code> 的 reader workflows。</li>
           <li>讓 <code>M4</code> 維持窄版範圍，把 peer-store sync proof 往剩餘的 session/error-path interop closure 收斂。</li>
         </ol>
       </header>
@@ -59,7 +59,7 @@
       <section class="panel section-panel">
         <h2>里程碑時間線</h2>
         <p>
-          這份 roadmap 是序列式的：後面的 phase 都假設前面的 phase 已經穩定。現在的重心是
+          這份 roadmap 是序列式推進的：後面的 phase 都假設前面的 phase 已經穩定。現在的重心是
           <code>M2</code> 的收尾、<code>M3</code> 的謹慎擴張，以及剩餘的 <code>M4</code> 互通性 proof。
         </p>
         <div class="milestones">
@@ -68,7 +68,7 @@
             <h3>M1</h3>
             <div class="status mostly-done">已關閉門檻</div>
             <ul>
-              <li>minimal-client proof 已保留為完成的 checklist 歷史</li>
+              <li>minimal-client proof 已保留為已完成的 checklist 歷史</li>
               <li>Ready-to-Build Gate 仍維持全綠</li>
               <li>活躍工作已轉到 <code>M2</code> / <code>M3</code> / <code>M4</code></li>
             </ul>
@@ -79,7 +79,7 @@
             <div class="status partial">已大幅展開</div>
             <ul>
               <li>Replay 與 <code>state_hash</code></li>
-              <li>Store rebuild、indexes，以及具 ancestry-aware 的 render/store verification</li>
+              <li>Store rebuild、indexes，以及保留 ancestry context 的 render/store verification</li>
               <li>Narrow write-path closure</li>
               <li>具更廣 structural coverage，且已補上較新 manual-curation smoke proof 的 conservative merge authoring</li>
             </ul>
