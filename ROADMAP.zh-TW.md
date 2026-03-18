@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` follow-up checklist。現在的主線已清楚轉到 `M2` / `M3` / `M4`，而更完整的 governance persistence、`M2` 剩餘的較細緻 merge-authoring conflict 分類，以及 `M4` 尚未補齊的 peer interop error/session proof，仍是目前未完成的部分；原先規劃的 production replication 子項則都已補上
+狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。現在的主線已清楚轉到 `M2` / `M3` / `M4`，而更完整的治理狀態持久化、`M2` 剩餘的較細緻 merge-authoring 衝突分類，以及 `M4` 尚未補齊的 peer interop error/session proof，仍是目前未完成的部分；原先規劃的 production replication 子項則都已補上
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的實作推進順序。
 
@@ -8,7 +8,7 @@
 
 - 先做第一個可互通客戶端
 - 對協定核心變更保持保守
-- 在擴大範圍前，先把成熟想法落成 profiles、schemas 與 tests
+- 在擴大範圍前，先把成熟想法落成 profiles、schemas 與測試
 
 ## 目前位置
 
@@ -38,17 +38,17 @@
 
 目前主線是：
 
-1. 在已關閉的 `M1` gate 之上，把 `M2` 的 replay、rebuild、merge-authoring 與 narrow write path 剩餘收尾做完；目前焦點已縮到 recent manual-curation smoke 擴充後，仍待補齊的 richer nested / reparenting conflict 分類
-2. 擴展 `M3` 的 reader-plus-governance workflows，但不要重新打開已經關閉的 minimal-client gate
+1. 在已關閉的 `M1` gate 之上，把 `M2` 的 replay、rebuild、merge-authoring 與 narrow write path 剩餘收尾做完；目前焦點已縮到 recent manual-curation smoke 擴充後，仍待補齊的更細緻 nested / reparenting 衝突分類
+2. 擴展 `M3` 的 reader-plus-governance 工作流程，但不要重新打開已經關閉的 minimal-client gate
 3. 在目前規劃中的 production replication 子項都已補齊後，讓 `M4` 從 peer-store proof 繼續往剩餘的 peer interop error/session coverage 推進
 
 ### 下一步
 
 等窄版 core 穩定後，下一條主線會是：
 
-1. 面向 reader 的 accepted-head 與 governance 工作流程
+1. 面向 reader 的 accepted-head 與治理工作流程
 2. fixed-profile accepted reading
-3. reader-first 的 text reconstruction 與 inspection
+3. 以 reader 為先的 text reconstruction 與 inspection
 
 ### 之後
 
@@ -80,7 +80,7 @@
 
 ## Phase 1: Minimal
 
-目標：達到一個窄版的第一個客戶端，能夠以決定性的方式 parse、verify、store、replay，並 inspect Mycel objects。
+目標：做出一個窄版的第一個客戶端，能夠以可重現的方式 parse、verify、store、replay，並 inspect Mycel objects。
 
 ### Deliverables
 
@@ -101,7 +101,7 @@
 
 ### Current Status
 
-Phase 1 exit criteria 現在已完全滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍維持全綠（7/7），而 checklist 現在把這個 gate 保留為已關閉的歷史區塊，並另外追蹤活的 post-`M1` follow-up work。
+Phase 1 exit criteria 現在已完全滿足。`IMPLEMENTATION-CHECKLIST.en.md` 中的 Ready-to-Build Gate 仍維持全綠（7/7），而 checklist 現在把這個 gate 保留為已關閉的歷史區塊，並另外追蹤仍在進行中的 post-`M1` 後續工作。
 
 已完成：
 
@@ -221,11 +221,11 @@ Implementation anchors：
 
 目前判讀：
 
-已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring workflow、author 與 merge workflow 中更廣的 document-level index reuse、persisted `doc_heads` index for sync，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
+已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring 工作流程、author 與 merge 工作流程中更廣的 document-level index reuse、供 sync 使用的 persisted `doc_heads` index，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
 
 主要剩餘缺口：
 
-1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting、更廣的初步 nested structural matrix，以及 manual-curation-required 的 nested parent-choice、nested sibling-choice、composed-branch placement conflicts 的 CLI smoke proof；但更豐富的 nested/reparenting conflict 分類仍未完成
+1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting、更廣的初步 nested structural matrix，以及 manual-curation-required 的 nested parent-choice、nested sibling-choice、composed-branch placement conflicts 的 CLI smoke proof；但更細緻的 nested / reparenting 衝突分類仍未完成
 
 Implementation anchors：
 
