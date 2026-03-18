@@ -606,11 +606,10 @@ fn sim_run_rejects_snapshot_offer_without_advertised_capability() {
         .as_array()
         .expect("failures should be an array");
     assert!(
-        failures.iter().any(|entry| entry["description"].as_str().is_some_and(
-            |description| description.contains(
-                "wire SNAPSHOT_OFFER requires advertised capability 'snapshot-sync'"
-            )
-        )),
+        failures.iter().any(|entry| entry["description"]
+            .as_str()
+            .is_some_and(|description| description
+                .contains("wire SNAPSHOT_OFFER requires advertised capability 'snapshot-sync'"))),
         "expected capability error in report failures, report: {report}"
     );
     let reader = report["peers"]
@@ -620,9 +619,12 @@ fn sim_run_rejects_snapshot_offer_without_advertised_capability() {
         .find(|peer| peer["node_id"] == "node:peer-reader-a")
         .expect("expected reader peer in report");
     assert!(
-        reader["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
-            note.as_str().is_some_and(|text| text.contains("suppressed advertised capabilities"))
-        })),
+        reader["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|note| {
+                note.as_str()
+                    .is_some_and(|text| text.contains("suppressed advertised capabilities"))
+            })),
         "expected reader notes to mention suppressed capabilities, report: {report}"
     );
 }
@@ -661,9 +663,10 @@ fn sim_run_rejects_messages_after_bye() {
         .as_array()
         .expect("failures should be an array");
     assert!(
-        failures.iter().any(|entry| entry["description"].as_str().is_some_and(
-            |description| description.contains("wire session for 'node:peer-seed' is already closed")
-        )),
+        failures.iter().any(|entry| entry["description"]
+            .as_str()
+            .is_some_and(|description| description
+                .contains("wire session for 'node:peer-seed' is already closed"))),
         "expected closed-session error in report failures, report: {report}"
     );
     let reader = report["peers"]
@@ -679,9 +682,12 @@ fn sim_run_rejects_messages_after_bye() {
         "expected no verified objects after closed-session rejection, report: {report}"
     );
     assert!(
-        reader["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
-            note.as_str().is_some_and(|text| text.contains("session fault"))
-        })),
+        reader["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|note| {
+                note.as_str()
+                    .is_some_and(|text| text.contains("session fault"))
+            })),
         "expected reader notes to mention the injected session fault, report: {report}"
     );
 }
