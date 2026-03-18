@@ -3176,8 +3176,13 @@ fn head_inspect_human_mode_groups_summary_candidates_and_decision() {
     assert_stdout_contains(&output, "Decision");
     assert_stdout_contains(
         &output,
-        "reason: higher_selector_score_after_viewer-freeze-block",
+        "status: selection succeeded after blocking candidates under viewer freeze pressure",
     );
+    assert_stdout_contains(
+        &output,
+        "reason: higher selector score after another candidate was frozen",
+    );
+    assert_stdout_contains(&output, "state=freeze pressure");
     assert!(
         !stdout_text(&output).contains("trace: selector_epoch"),
         "expected human mode to avoid full debug trace, stdout: {}",

@@ -112,6 +112,62 @@ enum HeadOutputMode {
     Debug,
 }
 
+fn humanize_tokenized_label(value: &str) -> String {
+    value.replace(['-', '_'], " ")
+}
+
+fn human_head_status(status: &str) -> String {
+    match status {
+        "ok" => "selection succeeded".to_string(),
+        "ok-with-viewer-review-delay" => {
+            "selection succeeded after delaying candidates under viewer review".to_string()
+        }
+        "ok-with-viewer-freeze-block" => {
+            "selection succeeded after blocking candidates under viewer freeze pressure".to_string()
+        }
+        "ok-with-viewer-review-delay-and-freeze-block" => {
+            "selection succeeded after delaying reviewed candidates and blocking frozen candidates"
+                .to_string()
+        }
+        "blocked-by-viewer-review-delay" => {
+            "selection was blocked because all candidates were under viewer review".to_string()
+        }
+        "blocked-by-viewer-freeze-block" => {
+            "selection was blocked because all candidates were frozen by viewer pressure"
+                .to_string()
+        }
+        "blocked-by-viewer-review-delay-and-freeze-block" => {
+            "selection was blocked because all candidates were delayed or frozen by viewer pressure"
+                .to_string()
+        }
+        "failed" => "selection failed".to_string(),
+        other => humanize_tokenized_label(other),
+    }
+}
+
+fn human_tie_break_reason(reason: &str) -> String {
+    match reason {
+        "higher_selector_score" => "higher selector score".to_string(),
+        "higher_selector_score_after_viewer-freeze-block" => {
+            "higher selector score after another candidate was frozen".to_string()
+        }
+        "newer_revision_timestamp_or_lexicographic_tiebreak" => {
+            "newer revision timestamp, with lexicographic fallback".to_string()
+        }
+        "newer_revision_timestamp_or_lexicographic_tiebreak_after_viewer-review-delay" => {
+            "newer revision timestamp after candidates under viewer review were delayed"
+                .to_string()
+        }
+        "newer_revision_timestamp_or_lexicographic_tiebreak_after_viewer-freeze-block" => {
+            "newer revision timestamp after another candidate was frozen".to_string()
+        }
+        "newer_revision_timestamp_or_lexicographic_tiebreak_after_viewer-review-delay-and-freeze-block" => {
+            "newer revision timestamp after other candidates were delayed or frozen".to_string()
+        }
+        other => humanize_tokenized_label(other),
+    }
+}
+
 fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
     println!("input path: {}", summary.input_path.display());
     println!("doc id: {}", summary.doc_id);
@@ -229,7 +285,7 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
     if summary.viewer_signal_count > 0 {
         println!("- viewer signals: {}", summary.viewer_signal_count);
     }
-    println!("- status: {}", summary.status);
+    println!("- status: {}", human_head_status(&summary.status));
 
     if !summary.eligible_heads.is_empty() {
         println!();
@@ -274,9 +330,11 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
                     channel.challenge_signal_count,
                     channel.challenge_review_pressure,
                     channel.challenge_freeze_pressure,
-                    serde_json::to_string(&channel.viewer_review_state)
-                        .unwrap_or_else(|_| "\"unknown\"".to_string())
-                        .trim_matches('"')
+                    humanize_tokenized_label(
+                        serde_json::to_string(&channel.viewer_review_state)
+                            .unwrap_or_else(|_| "\"unknown\"".to_string())
+                            .trim_matches('"')
+                    )
                 );
             }
         }
@@ -288,7 +346,7 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
         println!("- selected head: {selected_head}");
     }
     if let Some(tie_break_reason) = &summary.tie_break_reason {
-        println!("- reason: {tie_break_reason}");
+        println!("- reason: {}", human_tie_break_reason(tie_break_reason));
     }
     if let Some(selection_trace) = summary
         .decision_trace
