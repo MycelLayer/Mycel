@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence 與剩餘的 peer interop error/session proof 仍未完成；目前規劃中的 production replication 子項已補齊
+狀態：major progress，已在 implementation checklist 拆成已關閉的 `M1` minimal-client gate 與活的 post-`M1` follow-up checklist 後刷新；目前 active lane 已清楚轉到 `M2` / `M3` / `M4`，而更廣的 governance persistence、`M2` 中剩餘的較豐富 merge-authoring conflict 分類，以及 `M4` 剩餘的 peer interop error/session proof 仍未完成；目前規劃中的 production replication 子項已補齊
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的建置順序。
 
@@ -38,7 +38,7 @@
 
 目前的 lane 是：
 
-1. 在已關閉的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 與 narrow write path 的剩餘收尾
+1. 在已關閉的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 與 narrow write path 的剩餘收尾；目前焦點已縮窄到 recent manual-curation smoke 成長之後仍未補齊的 richer nested / reparenting conflict 分類
 2. 擴展 `M3` reader-plus-governance workflows，但不要重新打開已關閉的 minimal-client gate
 3. 在目前規劃中的 production replication 子項都已補齊後，讓 `M4` 從 peer-store proof 往剩餘的 peer interop error/session coverage 推進
 
@@ -225,7 +225,7 @@ Implementation anchors：
 
 主要剩餘缺口：
 
-1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting，以及更廣的初步 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍需 manual curation
+1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting、更廣的初步 nested structural matrix，以及 manual-curation-required 的 nested parent-choice、nested sibling-choice、composed-branch placement conflicts 的 CLI smoke proof；但更豐富的 nested/reparenting conflict 分類仍未完成
 
 Implementation anchors：
 

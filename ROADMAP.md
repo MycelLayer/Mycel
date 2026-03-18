@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence and the remaining peer interop error/session proof stay open after the current production replication sub-items were completed
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence, the remaining richer merge-authoring conflict classification in `M2`, and the remaining peer interop error/session proof in `M4` stay open after the current production replication sub-items were completed
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -38,7 +38,7 @@ The repository does not yet have:
 
 The current lane is:
 
-1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate
+1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate, with the remaining focus now narrowed to richer nested/reparenting conflict classification after the recent manual-curation smoke growth
 2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
 3. advance `M4` from peer-store proof toward the remaining peer-interop error/session coverage now that the currently tracked production replication sub-items are proved
 
@@ -225,7 +225,7 @@ Substantially underway. Replay-based verification, store rebuild, persisted inde
 
 Main remaining gaps:
 
-1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, and a broader initial nested structural matrix, but richer nested/reparenting conflict cases still require manual curation
+1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, a broader initial nested structural matrix, and CLI smoke proof for manual-curation-required nested parent-choice, nested sibling-choice, and composed-branch placement conflicts, but richer nested/reparenting conflict classification still remains open
 
 Implementation anchors:
 
