@@ -17,7 +17,7 @@ Recommended startup and lifecycle tools:
 
 - `scripts/agent_bootstrap.py` for the repo-standard bootstrap flow
 - `scripts/agent_registry.py` for role claim, startup confirmation, lifecycle state, recovery, takeover, cleanup, and checklist management
-- `scripts/agent_work_cycle.py` for tracked per-command activity transitions
+- `scripts/agent_work_cycle.py` for tracked per-command activity transitions via `begin` / `end`
 - `scripts/agent_timestamp.py` for canonical timestamp lines when no registry transition is needed
 
 Transition note:
@@ -32,7 +32,7 @@ Recommended startup self-label:
 
 Fast path:
 
-- `scripts/agent_bootstrap.py` is the preferred thin wrapper when a new chat wants the repo-standard claim/start/work-cycle bootstrap in one call.
+- `scripts/agent_bootstrap.py` is the preferred thin wrapper when a new chat wants the repo-standard claim/begin-work-cycle bootstrap in one call.
 - The wrapper does not replace reading [`AGENTS.md`](../AGENTS.md) or local overlays first; it only reduces command round-trips after those inputs are loaded.
 - Use this default 5-step startup sequence for a fresh chat unless recovery, takeover, or a direct user request needs more upfront context:
   1. scan the repo root with `ls`
@@ -330,9 +330,9 @@ Keep startup output narrow:
 1. before starting work, read `.agent-local/agents.json`
 2. confirm the current scopes and active peers
 3. use the mailbox declared in the registry for coordination
-4. before each user-command work cycle, prefer `scripts/agent_work_cycle.py`; it advances the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
+4. before each user-command work cycle, prefer `python3 scripts/agent_work_cycle.py begin <agent_ref>`; it advances the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
 5. before ending that completed work cycle, append or update one mailbox handoff entry in the agent's declared mailbox so the latest state for the cycle is captured
-6. after that command's work is complete, prefer `scripts/agent_work_cycle.py`; it closes the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
+6. after that command's work is complete, prefer `python3 scripts/agent_work_cycle.py end <agent_ref>`; it closes the work cycle together with the canonical timestamp line, and that exact line should be visible in user-facing commentary
 7. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same work cycle
 8. if you need only the timestamp line without the registry change, use `scripts/agent_timestamp.py` and paste the emitted line directly; do not hand-write, reformat, or replace it with dual-timezone text
 9. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
