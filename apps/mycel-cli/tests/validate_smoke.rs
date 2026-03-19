@@ -74,7 +74,9 @@ fn expected_topology_count() -> u64 {
 }
 
 fn expected_fixture_count() -> u64 {
-    count_matching_paths("fixtures/object-sets", |path| path.join("fixture.json").is_file())
+    count_matching_paths("fixtures/object-sets", |path| {
+        path.join("fixture.json").is_file()
+    })
 }
 
 #[test]
