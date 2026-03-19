@@ -443,6 +443,12 @@ fn assess_merge_resolution(
                 "metadata key '{}' selected a non-primary parent variant",
                 key
             ));
+            if alternative_variants.len() > 1 {
+                reasons.push(format!(
+                    "metadata key '{}' has multiple competing parent variants",
+                    key
+                ));
+            }
         } else if alternative_variants.len() > 1 {
             saw_multi_variant = true;
             reasons.push(format!(
@@ -937,7 +943,7 @@ fn patch_ops_to_value(ops: &[PatchOperation]) -> Value {
                 }),
                 PatchOperation::SetMetadata { entries } => json!({
                     "op": "set_metadata",
-                    "entries": entries
+                    "metadata": entries
                 }),
                 PatchOperation::InsertBlockAfter {
                     after_block_id,
