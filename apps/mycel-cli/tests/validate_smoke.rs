@@ -44,6 +44,39 @@ fn validate_peer_fixture_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
+fn count_matching_paths(path: &str, predicate: impl Fn(&std::path::Path) -> bool) -> u64 {
+    fs::read_dir(repo_root().join(path))
+        .expect("catalog directory should exist")
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|entry_path| predicate(entry_path))
+        .count() as u64
+}
+
+fn expected_test_case_count() -> u64 {
+    count_matching_paths("sim/tests", |path| {
+        path.extension().is_some_and(|ext| ext == "json")
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".example.json"))
+    })
+}
+
+fn expected_topology_count() -> u64 {
+    count_matching_paths("sim/topologies", |path| {
+        path.extension().is_some_and(|ext| ext == "json")
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".example.json"))
+    })
+}
+
+fn expected_fixture_count() -> u64 {
+    count_matching_paths("fixtures/object-sets", |path| path.join("fixture.json").is_file())
+}
+
 #[test]
 fn repo_validate_json_reports_ok_status() {
     let output = run_validate(&["validate", "--json"]);
@@ -129,8 +162,8 @@ fn tests_directory_validate_json_reports_ok_status() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["peer_count"], 1);
-    assert_eq!(json["test_case_count"], 16);
-    assert_eq!(json["topology_count"], 16);
+    assert_eq!(json["test_case_count"], expected_test_case_count());
+    assert_eq!(json["topology_count"], expected_topology_count());
 }
 
 #[test]
@@ -140,8 +173,8 @@ fn peer_file_validate_json_scopes_related_artifacts() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["peer_count"], 1);
-    assert_eq!(json["topology_count"], 16);
-    assert_eq!(json["test_case_count"], 16);
+    assert_eq!(json["topology_count"], expected_topology_count());
+    assert_eq!(json["test_case_count"], expected_test_case_count());
     assert!(
         json["report_count"]
             .as_u64()
@@ -261,8 +294,8 @@ fn peers_directory_validate_json_scopes_related_artifacts() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["peer_count"], 1);
-    assert_eq!(json["topology_count"], 16);
-    assert_eq!(json["test_case_count"], 16);
+    assert_eq!(json["topology_count"], expected_topology_count());
+    assert_eq!(json["test_case_count"], expected_test_case_count());
     assert!(
         json["report_count"]
             .as_u64()
@@ -299,10 +332,10 @@ fn topologies_directory_validate_json_reports_ok_status() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
-    assert_eq!(json["fixture_count"], 15);
+    assert_eq!(json["fixture_count"], expected_fixture_count());
     assert_eq!(json["peer_count"], 1);
-    assert_eq!(json["topology_count"], 16);
-    assert_eq!(json["test_case_count"], 16);
+    assert_eq!(json["topology_count"], expected_topology_count());
+    assert_eq!(json["test_case_count"], expected_test_case_count());
 }
 
 #[test]
