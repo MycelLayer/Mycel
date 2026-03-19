@@ -202,6 +202,54 @@ fn write_nested_parent_choice_resolved_state_file(prefix: &str) -> (common::Temp
     (dir, path)
 }
 
+fn write_nested_parent_anchor_choice_resolved_state_file(
+    prefix: &str,
+) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("resolved-state.json");
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!({
+            "doc_id": "doc:author-smoke-nested-parent-anchor-choice",
+            "blocks": [
+                {
+                    "block_id": "blk:nested-left",
+                    "block_type": "paragraph",
+                    "content": "Left",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:nested-subsection",
+                            "block_type": "paragraph",
+                            "content": "Subsection",
+                            "attrs": {},
+                            "children": [
+                                {
+                                    "block_id": "blk:nested-leaf",
+                                    "block_type": "paragraph",
+                                    "content": "Leaf",
+                                    "attrs": {},
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "block_id": "blk:nested-right",
+                    "block_type": "paragraph",
+                    "content": "Right",
+                    "attrs": {},
+                    "children": []
+                }
+            ]
+        }))
+        .expect("nested parent anchor choice resolved state JSON should serialize"),
+    )
+    .expect("nested parent anchor choice resolved state JSON should write");
+    (dir, path)
+}
+
 fn write_nested_parent_manual_resolved_state_file(prefix: &str) -> (common::TempDir, PathBuf) {
     let dir = create_temp_dir(prefix);
     let path = dir.path().join("resolved-state.json");
@@ -1374,6 +1422,370 @@ fn store_merge_authoring_flow_reports_nested_parent_choice_as_multi_variant() {
             .as_array()
             .map(Vec::len),
         Some(6)
+    );
+}
+
+#[test]
+fn store_merge_authoring_flow_reports_anchor_nested_parent_choice_as_multi_variant() {
+    let store_dir = create_temp_dir("store-merge-nested-parent-anchor-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-parent-anchor-key");
+    let (_resolved_dir, resolved_state_path) =
+        write_nested_parent_anchor_choice_resolved_state_file(
+            "store-merge-nested-parent-anchor-state",
+        );
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let key_file = path_arg(&key_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--title",
+        "Author Smoke Nested Parent Anchor Choice",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "30",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let base_ops_dir = create_temp_dir("store-merge-nested-parent-anchor-base-ops");
+    let base_ops_path = base_ops_dir.path().join("ops.json");
+    fs::write(
+        &base_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:nested-left",
+                    "block_type": "paragraph",
+                    "content": "Left",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:nested-right",
+                    "block_type": "paragraph",
+                    "content": "Right",
+                    "attrs": {},
+                    "children": []
+                }
+            },
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:nested-leaf",
+                    "block_type": "paragraph",
+                    "content": "Leaf",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]))
+        .expect("nested parent anchor base ops JSON should serialize"),
+    )
+    .expect("nested parent anchor base ops JSON should write");
+    let base_ops_file = path_arg(&base_ops_path);
+
+    let subsection_ops_dir = create_temp_dir("store-merge-nested-parent-anchor-subsection-ops");
+    let subsection_ops_path = subsection_ops_dir.path().join("ops.json");
+    fs::write(
+        &subsection_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "insert_block",
+                "parent_block_id": "blk:nested-left",
+                "new_block": {
+                    "block_id": "blk:nested-subsection",
+                    "block_type": "paragraph",
+                    "content": "Subsection",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]))
+        .expect("nested parent anchor subsection ops JSON should serialize"),
+    )
+    .expect("nested parent anchor subsection ops JSON should write");
+    let subsection_ops_file = path_arg(&subsection_ops_path);
+
+    let left_ops_dir = create_temp_dir("store-merge-nested-parent-anchor-left-ops");
+    let left_ops_path = left_ops_dir.path().join("ops.json");
+    fs::write(
+        &left_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:nested-leaf",
+                "parent_block_id": "blk:nested-left"
+            }
+        ]))
+        .expect("nested parent anchor left ops JSON should serialize"),
+    )
+    .expect("nested parent anchor left ops JSON should write");
+    let left_ops_file = path_arg(&left_ops_path);
+
+    let right_ops_dir = create_temp_dir("store-merge-nested-parent-anchor-right-ops");
+    let right_ops_path = right_ops_dir.path().join("ops.json");
+    fs::write(
+        &right_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:nested-leaf",
+                "parent_block_id": "blk:nested-right"
+            }
+        ]))
+        .expect("nested parent anchor right ops JSON should serialize"),
+    )
+    .expect("nested parent anchor right ops JSON should write");
+    let right_ops_file = path_arg(&right_ops_path);
+
+    let base_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &base_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "31",
+        "--json",
+    ]);
+    assert_success(&base_patch);
+    let base_patch_json = assert_json_status(&base_patch, "ok");
+    let base_patch_id = base_patch_json["patch_id"]
+        .as_str()
+        .expect("base patch_id should be string")
+        .to_string();
+
+    let base_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &base_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "32",
+        "--json",
+    ]);
+    assert_success(&base_revision);
+    let base_revision_json = assert_json_status(&base_revision, "ok");
+    let base_revision_id = base_revision_json["revision_id"]
+        .as_str()
+        .expect("base revision_id should be string")
+        .to_string();
+
+    let subsection_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &subsection_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "33",
+        "--json",
+    ]);
+    assert_success(&subsection_patch);
+    let subsection_patch_json = assert_json_status(&subsection_patch, "ok");
+    let subsection_patch_id = subsection_patch_json["patch_id"]
+        .as_str()
+        .expect("subsection patch_id should be string")
+        .to_string();
+
+    let subsection_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &subsection_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "34",
+        "--json",
+    ]);
+    assert_success(&subsection_revision);
+    let subsection_revision_json = assert_json_status(&subsection_revision, "ok");
+    let subsection_revision_id = subsection_revision_json["revision_id"]
+        .as_str()
+        .expect("subsection revision_id should be string")
+        .to_string();
+
+    let left_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &left_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "35",
+        "--json",
+    ]);
+    assert_success(&left_patch);
+    let left_patch_json = assert_json_status(&left_patch, "ok");
+    let left_patch_id = left_patch_json["patch_id"]
+        .as_str()
+        .expect("left patch_id should be string")
+        .to_string();
+
+    let left_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &left_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "36",
+        "--json",
+    ]);
+    assert_success(&left_revision);
+    let left_revision_json = assert_json_status(&left_revision, "ok");
+    let left_revision_id = left_revision_json["revision_id"]
+        .as_str()
+        .expect("left revision_id should be string")
+        .to_string();
+
+    let right_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &right_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "37",
+        "--json",
+    ]);
+    assert_success(&right_patch);
+    let right_patch_json = assert_json_status(&right_patch, "ok");
+    let right_patch_id = right_patch_json["patch_id"]
+        .as_str()
+        .expect("right patch_id should be string")
+        .to_string();
+
+    let right_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &right_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "38",
+        "--json",
+    ]);
+    assert_success(&right_revision);
+    let right_revision_json = assert_json_status(&right_revision, "ok");
+    let right_revision_id = right_revision_json["revision_id"]
+        .as_str()
+        .expect("right revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-nested-parent-anchor-choice",
+        "--parent",
+        &base_revision_id,
+        "--parent",
+        &subsection_revision_id,
+        "--parent",
+        &left_revision_id,
+        "--parent",
+        &right_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "39",
+        "--json",
+    ]);
+    assert_success(&merge);
+    let merge_json = assert_json_status(&merge, "ok");
+    assert_eq!(merge_json["merge_outcome"], "multi-variant");
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("selected a non-primary parent placement")
+                })
+            })),
+        "expected anchor nested parent multi-variant reason, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason
+                    .as_str()
+                    .is_some_and(|reason| reason.contains("multiple competing parent placements"))
+            })),
+        "expected competing anchor nested parent placement reason, got {merge_json}"
     );
 }
 

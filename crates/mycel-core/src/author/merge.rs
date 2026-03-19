@@ -251,6 +251,12 @@ fn assess_merge_resolution(
                         "block '{}' selected a non-primary parent placement",
                         block_id
                     ));
+                    if alternative_parent_variants.len() > 1 {
+                        reasons.push(format!(
+                            "block '{}' has multiple competing parent placements",
+                            block_id
+                        ));
+                    }
                 }
                 continue;
             }
@@ -281,6 +287,12 @@ fn assess_merge_resolution(
                     "block '{}' selected a non-primary parent placement",
                     block_id
                 ));
+                if alternative_parent_variants.len() > 1 {
+                    reasons.push(format!(
+                        "block '{}' has multiple competing parent placements",
+                        block_id
+                    ));
+                }
                 continue;
             }
 
@@ -290,6 +302,12 @@ fn assess_merge_resolution(
                     "block '{}' selected a non-primary parent placement",
                     block_id
                 ));
+                if alternative_parent_variants.len() > 1 {
+                    reasons.push(format!(
+                        "block '{}' has multiple competing parent placements",
+                        block_id
+                    ));
+                }
                 continue;
             }
         }
@@ -340,6 +358,12 @@ fn assess_merge_resolution(
                     "block '{}' selected a non-primary sibling placement",
                     block_id
                 ));
+                if alternative_sibling_variants.len() > 1 {
+                    reasons.push(format!(
+                        "block '{}' has multiple competing sibling placements",
+                        block_id
+                    ));
+                }
                 continue;
             }
             reasons.push(format!(
