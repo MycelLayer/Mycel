@@ -309,6 +309,12 @@ fn assess_merge_resolution(
                 "block '{}' selected a non-primary parent placement",
                 block_id
             ));
+            if alternative_parent_variants.len() > 1 {
+                reasons.push(format!(
+                    "block '{}' has multiple competing parent placements",
+                    block_id
+                ));
+            }
         } else if alternative_parent_variants.len() > 1 {
             saw_multi_variant = true;
             reasons.push(format!(
@@ -350,6 +356,12 @@ fn assess_merge_resolution(
                 "block '{}' selected a non-primary sibling placement",
                 block_id
             ));
+            if alternative_sibling_variants.len() > 1 {
+                reasons.push(format!(
+                    "block '{}' has multiple competing sibling placements",
+                    block_id
+                ));
+            }
         } else if resolved_parent_variant == primary_parent_variant
             && alternative_sibling_variants.len() > 1
         {

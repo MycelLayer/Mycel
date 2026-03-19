@@ -2053,6 +2053,13 @@ fn merge_authoring_marks_nested_parent_choice_conflicts_as_multi_variant() {
             .any(|reason| reason.contains("selected a non-primary parent placement")),
         "expected nested structural multi-variant reason, got {summary:?}"
     );
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains("multiple competing parent placements")),
+        "expected competing parent placement reason, got {summary:?}"
+    );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");
     let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
@@ -2070,6 +2077,157 @@ fn merge_authoring_marks_nested_parent_choice_conflicts_as_multi_variant() {
         op,
         PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), .. }
         if block_id == "blk:nested-leaf" && parent_block_id == "blk:nested-left"
+    )));
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
+fn merge_authoring_marks_multiple_competing_nested_sibling_placements_as_multi_variant() {
+    let store_root = temp_dir("merge-nested-sibling-competing");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-nested-sibling-competing".to_string(),
+            title: "Merge Nested Sibling Competing".to_string(),
+            language: "en".to_string(),
+            timestamp: 58,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-nested-sibling-competing",
+        &document.genesis_revision_id,
+        59,
+        60,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:nested-parent",
+                    "block_type": "paragraph",
+                    "content": "Parent",
+                    "attrs": {},
+                    "children": [
+                        {
+                            "block_id": "blk:nested-child-a",
+                            "block_type": "paragraph",
+                            "content": "Child A",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-b",
+                            "block_type": "paragraph",
+                            "content": "Child B",
+                            "attrs": {},
+                            "children": []
+                        },
+                        {
+                            "block_id": "blk:nested-child-c",
+                            "block_type": "paragraph",
+                            "content": "Child C",
+                            "attrs": {},
+                            "children": []
+                        }
+                    ]
+                }
+            }
+        ]),
+    );
+
+    let moved_after_b_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-nested-sibling-competing",
+        &base_revision_id,
+        61,
+        62,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:nested-child-a",
+                "parent_block_id": "blk:nested-parent",
+                "after_block_id": "blk:nested-child-b"
+            }
+        ]),
+    );
+
+    let moved_after_c_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-nested-sibling-competing",
+        &base_revision_id,
+        63,
+        64,
+        json!([
+            {
+                "op": "move_block",
+                "block_id": "blk:nested-child-a",
+                "parent_block_id": "blk:nested-parent",
+                "after_block_id": "blk:nested-child-c"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-nested-sibling-competing".to_string(),
+            parents: vec![
+                base_revision_id,
+                moved_after_b_revision_id,
+                moved_after_c_revision_id,
+            ],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-nested-sibling-competing".to_string(),
+                blocks: vec![paragraph_block_with_children(
+                    "blk:nested-parent",
+                    "Parent",
+                    vec![
+                        paragraph_block("blk:nested-child-b", "Child B"),
+                        paragraph_block("blk:nested-child-c", "Child C"),
+                        paragraph_block("blk:nested-child-a", "Child A"),
+                    ],
+                )],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 65,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains("selected a non-primary sibling placement")),
+        "expected nested sibling multi-variant reason, got {summary:?}"
+    );
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains("multiple competing sibling placements")),
+        "expected competing sibling placement reason, got {summary:?}"
+    );
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
+    assert!(patch.ops.iter().any(|op| matches!(
+        op,
+        PatchOperation::MoveBlock { block_id, parent_block_id: Some(parent_block_id), after_block_id: Some(after_block_id) }
+        if block_id == "blk:nested-child-a"
+            && parent_block_id == "blk:nested-parent"
+            && after_block_id == "blk:nested-child-c"
     )));
 
     let _ = fs::remove_dir_all(store_root);

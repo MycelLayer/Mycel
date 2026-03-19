@@ -1337,6 +1337,16 @@ fn store_merge_authoring_flow_reports_nested_parent_choice_as_multi_variant() {
             })),
         "expected nested parent multi-variant reason, got {merge_json}"
     );
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason
+                    .as_str()
+                    .is_some_and(|reason| reason.contains("multiple competing parent placements"))
+            })),
+        "expected competing nested parent placement reason, got {merge_json}"
+    );
     assert_eq!(merge_json["patch_op_count"], 4);
     assert_eq!(
         merge_json["parent_revision_ids"].as_array().map(Vec::len),
