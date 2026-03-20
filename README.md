@@ -106,6 +106,7 @@ If you want the design layer behind current decisions:
 - Full-stack map: [docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.en.md)
 - Protocol upgrade philosophy: [docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.en.md)
 - Feature design checklist: [docs/FEATURE-REVIEW-CHECKLIST.md](./docs/FEATURE-REVIEW-CHECKLIST.md)
+- Code quality checklist: [docs/CODE-QUALITY-CHECKLIST.md](./docs/CODE-QUALITY-CHECKLIST.md)
 
 ## Key Documents
 

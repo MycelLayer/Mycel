@@ -1,0 +1,210 @@
+# Mycel Code Quality Checklist
+
+Status: working checklist
+
+This document is a recurring review list for implementation quality across the
+Mycel workspace.
+
+Use it when we are:
+
+- reviewing a pull request or landed diff
+- planning a refactor
+- deciding whether a file should be split
+- deciding whether repeated literals or helpers should be extracted
+- checking whether tests are independent enough from product logic
+
+It is meant to keep the codebase reviewable, composable, and easier to change
+without hidden regressions.
+
+## 1. Fast Gate
+
+Before spending much time polishing a change, ask:
+
+1. Is the scope small enough to review confidently?
+2. Is this file or function trying to solve more than one problem?
+3. Is this change repeating logic that already exists elsewhere?
+4. Is this change introducing literals or structure that will be hard to update later?
+5. Will the next person understand where to modify this behavior?
+
+If the answer is unclear, narrow the change first.
+
+## 2. Core Review Concepts
+
+Check these concepts every time.
+
+### 2.1 Scope and File Size
+
+- Is the file still easy to scan in one sitting?
+- Does the file mix unrelated responsibilities?
+- Would splitting by concern make future review easier?
+- Is one test file quietly becoming a second implementation surface?
+
+Default bias:
+
+- prefer smaller, purpose-shaped modules over catch-all files
+
+Suggested warning signs:
+
+- files growing past roughly `300-500` lines
+- long sections separated only by comments instead of module boundaries
+- one file containing CLI parsing, domain logic, and output formatting together
+
+### 2.2 Function Size and Intent
+
+- Does each function do one job?
+- Is the function long because of necessary domain detail, or because it lacks helpers?
+- Can repeated setup or branching be named and extracted?
+- Does the function name describe intent instead of mechanics only?
+
+Default bias:
+
+- prefer short functions with explicit names over long procedural blocks
+
+Suggested warning signs:
+
+- functions growing past roughly `40-60` lines without strong reason
+- deeply nested branching that hides the main path
+- setup, execution, and rendering mixed in one function
+
+### 2.3 Hard-Coded Values and Repeated Literals
+
+- Is this literal stable domain truth, test fixture data, or an avoidable magic value?
+- If the same string, number, or JSON fragment appears several times, should it become a constant or helper?
+- Does the literal encode policy that belongs in a profile, config surface, or shared builder?
+- Would changing this value later require touching many files?
+
+Default bias:
+
+- keep fixture literals local when they improve readability
+- extract repeated or policy-bearing literals when they become maintenance risks
+
+Suggested warning signs:
+
+- repeated IDs, prefixes, timestamps, or magic numbers across many tests
+- duplicated protocol version strings or object-type strings
+- policy defaults copied into multiple places by hand
+
+### 2.4 Shared Logic vs Local Reimplementation
+
+- Is this code reimplementing canonicalization, hashing, signing, parsing, replay, or selection logic that already exists in shared code?
+- Is a test independently verifying behavior, or silently rebuilding the same implementation rules?
+- Could a shared helper express the same setup with less drift risk?
+- Is this "small helper" actually a second copy of product logic?
+
+Default bias:
+
+- prefer shared production or test-support helpers over local reimplementation
+
+Suggested warning signs:
+
+- local canonical JSON or signature code in tests
+- copy-pasted derived ID or hash computation
+- multiple modules building the same object shape by hand
+
+### 2.5 Layer Boundaries
+
+- Does CLI code stay thin while core logic stays reusable?
+- Is formatting logic leaking into protocol or storage code?
+- Are tests using the right layer for setup?
+- Are profile or app-layer semantics leaking into shared core without need?
+
+Default bias:
+
+- keep boundaries explicit
+- keep the core reusable and the CLI thin
+
+### 2.6 Error Surfaces and Debuggability
+
+- Do errors say what failed and where?
+- Will CLI-visible failures help a user recover?
+- Are assertions and `expect(...)` messages specific enough to debug quickly?
+- Is failure behavior covered where the user can actually see it?
+
+Default bias:
+
+- prefer clear failures over vague success/failure states
+
+### 2.7 Test Quality
+
+- Does the test describe behavior instead of implementation trivia?
+- Does the test keep fixtures readable?
+- Is the test overfitted to exact formatting that is not contractually important?
+- Does the test duplicate production logic enough to risk false confidence?
+
+Default bias:
+
+- prefer behavior-focused tests with small, named builders
+
+Suggested warning signs:
+
+- large inline JSON blobs repeated across tests
+- helper functions that reconstruct product algorithms
+- assertions on incidental output instead of stable behavior
+
+### 2.8 Changeability
+
+- If we need to adjust this behavior next week, where would we edit it?
+- Would the change require touching one place or many?
+- Is the code organized around likely future changes?
+- Are names and module boundaries helping or blocking that change?
+
+Default bias:
+
+- organize around expected change points, not only current convenience
+
+## 3. Repeated Review Questions
+
+When we revisit a module, ask these six questions again:
+
+1. Is any file or function larger than it needs to be?
+2. Which literals are real fixture data, and which are maintenance debt?
+3. Are we reimplementing shared logic locally?
+4. Are module boundaries still clear?
+5. Will failures be understandable at the user-facing surface?
+6. If behavior changes, will we know the single right place to edit?
+
+## 4. Decision Heuristics
+
+Use these default heuristics unless there is a strong reason not to.
+
+- Prefer one-purpose files over broad utility dumping grounds.
+- Prefer named helpers over repeated setup blocks.
+- Prefer shared protocol helpers over local copies of canonical rules.
+- Prefer readable fixture literals over premature abstraction.
+- Prefer extracting a constant only when it carries shared meaning or repeated maintenance cost.
+- Prefer CLI-visible tests for user-facing behavior, and core tests for algorithmic behavior.
+- Prefer refactors that reduce future edit count, not only current line count.
+
+## 5. Minimum Review Write-Up
+
+When we call out a code quality issue, the write-up should usually answer:
+
+- Surface:
+- Why it is hard to maintain:
+- Whether it is a readability issue, drift risk, or boundary issue:
+- Whether the problem is local or repeated elsewhere:
+- Proposed smallest safe improvement:
+- Verification plan:
+
+## 6. Suggested Starter Checks
+
+These are not hard rules, but they are useful default prompts:
+
+- File size warning: around `300-500` lines
+- Function size warning: around `40-60` lines
+- Repeated literal warning: same non-trivial literal appears `3+` times
+- Drift warning: tests or CLI helpers reimplement canonicalization, signatures, hashing, replay, or selector logic
+- Boundary warning: one module mixes parsing, domain decisions, and rendering
+
+## 7. Relation to Other Surfaces
+
+Use this checklist together with:
+
+- [ROADMAP.md](../ROADMAP.md)
+- [RUST-WORKSPACE.md](../RUST-WORKSPACE.md)
+- [IMPLEMENTATION-CHECKLIST.en.md](../IMPLEMENTATION-CHECKLIST.en.md)
+- [docs/FEATURE-REVIEW-CHECKLIST.md](./FEATURE-REVIEW-CHECKLIST.md)
+- [AI-CO-WORKING-MODEL.md](./AI-CO-WORKING-MODEL.md)
+
+If those surfaces disagree, follow the current planning-sync process in
+[PLANNING-SYNC-PLAN.md](./PLANNING-SYNC-PLAN.md).

@@ -105,6 +105,8 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 - First-client 邊界：[docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md](./docs/design-notes/DESIGN-NOTES.first-client-scope-v0.1.zh-TW.md)
 - Full-stack 地圖：[docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-full-stack-map.zh-TW.md)
 - Protocol 升級哲學：[docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md](./docs/design-notes/DESIGN-NOTES.mycel-protocol-upgrade-philosophy.zh-TW.md)
+- 功能審查檢查清單：[docs/FEATURE-REVIEW-CHECKLIST.zh-TW.md](./docs/FEATURE-REVIEW-CHECKLIST.zh-TW.md)
+- 程式碼品質檢查清單：[docs/CODE-QUALITY-CHECKLIST.zh-TW.md](./docs/CODE-QUALITY-CHECKLIST.zh-TW.md)
 
 ## 主要文件
 
