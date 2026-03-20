@@ -141,6 +141,32 @@ fn write_metadata_variant_ops_file(prefix: &str, topic: &str) -> (common::TempDi
     (dir, path)
 }
 
+fn write_metadata_entries_ops_file(
+    prefix: &str,
+    entries: &[(&str, &str)],
+) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("ops.json");
+    let metadata = serde_json::Map::from_iter(entries.iter().map(|(key, value)| {
+        (
+            (*key).to_string(),
+            serde_json::Value::String((*value).to_string()),
+        )
+    }));
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "set_metadata",
+                "metadata": metadata
+            }
+        ]))
+        .expect("metadata entries ops JSON should serialize"),
+    )
+    .expect("metadata entries ops JSON should write");
+    (dir, path)
+}
+
 fn write_metadata_variant_resolved_state_file(
     prefix: &str,
     topic: &str,
@@ -181,6 +207,32 @@ fn write_metadata_variant_resolved_state_for_doc_file(
         .expect("metadata variant resolved state JSON should serialize"),
     )
     .expect("metadata variant resolved state JSON should write");
+    (dir, path)
+}
+
+fn write_metadata_entries_resolved_state_for_doc_file(
+    prefix: &str,
+    doc_id: &str,
+    entries: &[(&str, &str)],
+) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("resolved-state.json");
+    let metadata = serde_json::Map::from_iter(entries.iter().map(|(key, value)| {
+        (
+            (*key).to_string(),
+            serde_json::Value::String((*value).to_string()),
+        )
+    }));
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!({
+            "doc_id": doc_id,
+            "blocks": [],
+            "metadata": metadata
+        }))
+        .expect("metadata entries resolved state JSON should serialize"),
+    )
+    .expect("metadata entries resolved state JSON should write");
     (dir, path)
 }
 
@@ -2116,6 +2168,193 @@ fn store_merge_authoring_flow_requires_manual_curation_for_metadata_removal() {
         &merge,
         "manual-curation-required: resolved metadata key 'topic' removes primary metadata but v0.1 patch ops cannot express metadata deletion",
     );
+}
+
+#[test]
+fn store_merge_authoring_flow_preserves_distinct_reasons_for_mixed_metadata_keys() {
+    let store_dir = create_temp_dir("store-merge-metadata-mixed-keys-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-metadata-mixed-keys-key");
+    let (_resolved_dir, resolved_state_path) = write_metadata_entries_resolved_state_for_doc_file(
+        "store-merge-metadata-mixed-keys-state",
+        "doc:author-smoke-metadata-mixed-keys",
+        &[("topic", "right")],
+    );
+    let (_topic_ops_dir, topic_ops_path) = write_metadata_entries_ops_file(
+        "store-merge-metadata-mixed-keys-topic-ops",
+        &[("topic", "right")],
+    );
+    let (_priority_ops_dir, priority_ops_path) = write_metadata_entries_ops_file(
+        "store-merge-metadata-mixed-keys-priority-ops",
+        &[("priority", "high")],
+    );
+    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let key_file = path_arg(&key_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+    let topic_ops_file = path_arg(&topic_ops_path);
+    let priority_ops_file = path_arg(&priority_ops_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--title",
+        "Author Smoke Metadata Mixed Keys",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "40",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let topic_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &topic_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "41",
+        "--json",
+    ]);
+    assert_success(&topic_patch);
+    let topic_patch_json = assert_json_status(&topic_patch, "ok");
+    let topic_patch_id = topic_patch_json["patch_id"]
+        .as_str()
+        .expect("topic patch_id should be string")
+        .to_string();
+
+    let topic_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &topic_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "42",
+        "--json",
+    ]);
+    assert_success(&topic_revision);
+    let topic_revision_json = assert_json_status(&topic_revision, "ok");
+    let topic_revision_id = topic_revision_json["revision_id"]
+        .as_str()
+        .expect("topic revision_id should be string")
+        .to_string();
+
+    let priority_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &priority_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "43",
+        "--json",
+    ]);
+    assert_success(&priority_patch);
+    let priority_patch_json = assert_json_status(&priority_patch, "ok");
+    let priority_patch_id = priority_patch_json["patch_id"]
+        .as_str()
+        .expect("priority patch_id should be string")
+        .to_string();
+
+    let priority_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &priority_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "44",
+        "--json",
+    ]);
+    assert_success(&priority_revision);
+    let priority_revision_json = assert_json_status(&priority_revision, "ok");
+    let priority_revision_id = priority_revision_json["revision_id"]
+        .as_str()
+        .expect("priority revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-mixed-keys",
+        "--parent",
+        &genesis_revision_id,
+        "--parent",
+        &topic_revision_id,
+        "--parent",
+        &priority_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "45",
+        "--json",
+    ]);
+    assert_success(&merge);
+    let merge_json = assert_json_status(&merge, "ok");
+    assert_eq!(merge_json["merge_outcome"], "multi-variant");
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("metadata key 'topic' selected a non-primary parent variant")
+                })
+            })),
+        "expected topic selection reason, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|reason| {
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("metadata key 'priority' kept the primary parent variant over a competing non-primary alternative")
+                })
+            })),
+        "expected priority keep-primary reason, got {merge_json}"
+    );
+    assert_eq!(merge_json["patch_op_count"], 1);
 }
 
 #[test]
