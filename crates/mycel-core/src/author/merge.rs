@@ -448,12 +448,19 @@ fn assess_merge_resolution(
                     key
                 ));
             }
-        } else if alternative_variants.len() > 1 {
+        } else if !alternative_variants.is_empty() {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "metadata key '{}' has multiple competing parent variants",
-                key
-            ));
+            if alternative_variants.len() > 1 {
+                reasons.push(format!(
+                    "metadata key '{}' has multiple competing parent variants",
+                    key
+                ));
+            } else {
+                reasons.push(format!(
+                    "metadata key '{}' kept the primary parent variant over a competing non-primary alternative",
+                    key
+                ));
+            }
         }
     }
 

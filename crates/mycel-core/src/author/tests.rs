@@ -718,6 +718,78 @@ fn merge_authoring_reports_multi_variant_when_metadata_key_is_added_from_non_pri
 }
 
 #[test]
+fn merge_authoring_reports_multi_variant_when_metadata_keeps_primary_over_non_primary_addition() {
+    let store_root = temp_dir("merge-metadata-keep-primary-over-addition");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-metadata-keep-primary-over-addition".to_string(),
+            title: "Merge Metadata Keep Primary Over Addition".to_string(),
+            language: "en".to_string(),
+            timestamp: 20,
+        },
+    )
+    .expect("document should be created");
+
+    let right_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-keep-primary-over-addition",
+        &document.genesis_revision_id,
+        21,
+        22,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "right"
+                }
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-metadata-keep-primary-over-addition".to_string(),
+            parents: vec![document.genesis_revision_id.clone(), right_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-metadata-keep-primary-over-addition".to_string(),
+                blocks: Vec::new(),
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 23,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert_eq!(summary.patch_op_count, 0);
+    assert!(
+        summary
+            .merge_reasons
+            .iter()
+            .any(|reason| reason.contains(
+                "metadata key 'topic' kept the primary parent variant over a competing non-primary alternative"
+            )),
+        "expected metadata keep-primary multi-variant reason, got {summary:?}"
+    );
+
+    let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
+        .expect("generated merge patch should be stored");
+    let ops = patch_value["ops"]
+        .as_array()
+        .expect("generated patch ops should be an array");
+    assert!(ops.is_empty(), "expected zero-op merge patch, got {ops:?}");
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_updates_only_target_document_in_multi_doc_store() {
     let store_root = temp_dir("merge-multi-doc");
     let signing_key = signing_key();
