@@ -4,7 +4,7 @@ id: no-local-canonical-json-helper-in-cli-smoke-tests
 message: >-
   CLI smoke tests should not define a local canonical_json helper; prefer shared
   canonical helpers or shared test support instead.
-severity: warning
+severity: error
 language: Rust
 files:
   - apps/mycel-cli/tests/**/*.rs

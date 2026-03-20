@@ -79,5 +79,5 @@ jobs:
       - name: Install ast-grep
         run: cargo install ast-grep
 
-      - name: Run ast-grep quality scan (non-blocking)
+      - name: Run ast-grep quality scan
         run: sg scan --config sgconfig.yml --report-style short --format github
