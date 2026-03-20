@@ -81,8 +81,8 @@ fn signed_revision_with_patches(
         "author": signer_id(signing_key),
         "timestamp": timestamp
     });
-    let id = recompute_object_id(&value, "revision_id", "rev")
-        .expect("revision id should recompute");
+    let id =
+        recompute_object_id(&value, "revision_id", "rev").expect("revision id should recompute");
     value["revision_id"] = Value::String(id);
     value["signature"] = Value::String(sign_value(signing_key, &value));
     value

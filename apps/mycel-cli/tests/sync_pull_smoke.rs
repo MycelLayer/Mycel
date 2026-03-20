@@ -970,10 +970,7 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
     assert_eq!(json["peer_node_id"], sender);
-    assert_eq!(
-        json["source_store"],
-        path_arg(remote_store.path())
-    );
+    assert_eq!(json["source_store"], path_arg(remote_store.path()));
     assert_eq!(json["message_count"], 7);
     assert_eq!(json["object_message_count"], 2);
     assert_eq!(json["written_object_count"], 2);

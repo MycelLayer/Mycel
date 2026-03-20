@@ -371,9 +371,21 @@ fn filtered_view_governance(
     manifest
         .view_governance
         .iter()
-        .filter(|record| maintainer.as_ref().map_or(true, |requested| requested == &record.maintainer))
-        .filter(|record| view_id.as_ref().map_or(true, |requested| requested == &record.view_id))
-        .filter(|record| profile_id.as_ref().map_or(true, |requested| requested == &record.profile_id))
+        .filter(|record| {
+            maintainer
+                .as_ref()
+                .map_or(true, |requested| requested == &record.maintainer)
+        })
+        .filter(|record| {
+            view_id
+                .as_ref()
+                .map_or(true, |requested| requested == &record.view_id)
+        })
+        .filter(|record| {
+            profile_id
+                .as_ref()
+                .map_or(true, |requested| requested == &record.profile_id)
+        })
         .filter_map(|record| {
             let mut filtered = record.clone();
             if let Some(doc_id) = doc_id {

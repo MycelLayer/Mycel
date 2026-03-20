@@ -210,12 +210,7 @@ fn store_ingest_json_writes_verified_objects_into_store_layout() {
         "expected manifest doc revision index"
     );
 
-    let rebuild = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(store_dir.path()),
-        "--json",
-    ]);
+    let rebuild = run_mycel(&["store", "rebuild", &path_arg(store_dir.path()), "--json"]);
     assert_success(&rebuild);
     let rebuild_json = assert_json_status(&rebuild, "ok");
     assert_eq!(rebuild_json["stored_object_count"], 2);

@@ -659,13 +659,11 @@ impl ReportQuery {
     }
 
     fn matches_valid_report(self, report: &ReportListEntry) -> bool {
-        self.result_filter
-            .map_or(true, |expected| report.result.as_deref() == Some(expected.as_str()))
-            && self
-                .validation_status_filter
-                .map_or(true, |expected| {
-                    report.validation_status.as_deref() == Some(expected.as_str())
-                })
+        self.result_filter.map_or(true, |expected| {
+            report.result.as_deref() == Some(expected.as_str())
+        }) && self.validation_status_filter.map_or(true, |expected| {
+            report.validation_status.as_deref() == Some(expected.as_str())
+        })
     }
 
     fn describe_missing(self) -> String {

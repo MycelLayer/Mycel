@@ -119,9 +119,9 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
     assert!(
         promoted["valid_view_counts"]
             .as_array()
-            .is_some_and(|counts| counts.iter().any(|entry| {
-                entry["epoch"] == 1 && entry["count"] == 2
-            })),
+            .is_some_and(|counts| counts
+                .iter()
+                .any(|entry| { entry["epoch"] == 1 && entry["count"] == 2 })),
         "expected epoch 1 valid_view_counts entry, stdout: {}",
         stdout_text(&output)
     );
@@ -130,8 +130,7 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
         .expect("maintainer_support should be array");
     assert!(
         maintainer_support.iter().any(|entry| {
-            entry["revision_id"] == revision_a["revision_id"]
-                && entry["effective_weight"] == 2
+            entry["revision_id"] == revision_a["revision_id"] && entry["effective_weight"] == 2
         }),
         "expected weighted maintainer_support entry, stdout: {}",
         stdout_text(&output)
@@ -1065,9 +1064,9 @@ fn head_inspect_penalizes_critical_violations() {
             entry["critical_violation_counts"]
                 .as_array()
                 .is_some_and(|counts| {
-                    counts.iter().any(|count| {
-                        count["epoch"] == 1 && count["count"] == 1
-                    })
+                    counts
+                        .iter()
+                        .any(|count| count["epoch"] == 1 && count["count"] == 1)
                 })
         })
         .expect("expected penalized effective weight entry");

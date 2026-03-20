@@ -198,12 +198,7 @@ fn store_rebuild_json_indexes_verified_object_graph() {
     )
     .expect("view should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -424,12 +419,7 @@ fn store_rebuild_store_root_persists_index_manifest() {
     ]);
     assert_success(&ingest);
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(store_dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(store_dir.path()), "--json"]);
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -483,12 +473,7 @@ fn store_rebuild_json_fails_for_duplicate_declared_object_ids() {
     )
     .expect("second patch should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
@@ -529,12 +514,7 @@ fn store_rebuild_json_fails_for_missing_revision_patch_dependency() {
     )
     .expect("revision should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
@@ -578,12 +558,7 @@ fn store_rebuild_json_fails_for_missing_parent_revision_dependency() {
     )
     .expect("revision should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
@@ -656,12 +631,7 @@ fn store_rebuild_json_reports_multi_hop_ancestry_context_for_parent_missing_patc
     )
     .expect("revision should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
@@ -735,12 +705,7 @@ fn store_rebuild_json_fails_for_cross_document_parent_revision_dependency() {
     )
     .expect("child revision should write");
 
-    let output = run_mycel(&[
-        "store",
-        "rebuild",
-        &path_arg(dir.path()),
-        "--json",
-    ]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path()), "--json"]);
 
     assert_exit_code(&output, 1);
     let json = assert_json_status(&output, "failed");
