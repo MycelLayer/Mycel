@@ -9,7 +9,7 @@ This page turns [`ROADMAP.md`](../ROADMAP.md) and [`IMPLEMENTATION-CHECKLIST.en.
 The current build lane is:
 
 1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure, with the remaining focus now narrowed to richer competing-variant classification for the still-coarse content and metadata branches after the recent nested/anchor placement classification growth
-2. expand `M3` reader workflows carefully on top of the now-usable accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, and bounded viewer score surfaces while keeping broader governance persistence, profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure explicit
+2. expand `M3` reader-plus-governance workflows carefully on top of the now-usable accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, bounded viewer score surfaces, and initial governance inspect/list/publish surfaces while keeping broader governance persistence, richer governance tooling beyond this initial base, profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure explicit
 3. keep `M4` narrow while peer-store sync proof grows toward the remaining session/error-path interop closure now that the current production replication sub-items are landed and a first messages-after-BYE proof exists
 
 ## Milestone Timeline
