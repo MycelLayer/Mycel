@@ -5,7 +5,7 @@ fn store_authoring_flow_creates_document_patch_and_revision() {
     let store_dir = create_temp_dir("store-author-root");
     let (_key_dir, key_path) = write_signing_key_file("store-author-key");
     let (_ops_dir, ops_path) = write_ops_file("store-author-ops");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let ops_file = path_arg(&ops_path);
 
@@ -127,7 +127,7 @@ fn store_merge_authoring_flow_creates_merge_patch_and_revision() {
     let (_key_dir, key_path) = write_signing_key_file("store-merge-key");
     let (_ops_dir, ops_path) = write_ops_file("store-merge-ops");
     let (_resolved_dir, resolved_state_path) = write_resolved_state_file("store-merge-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let ops_file = path_arg(&ops_path);
     let resolved_state_file = path_arg(&resolved_state_path);
@@ -350,7 +350,7 @@ fn store_merge_authoring_flow_supports_structural_move_and_insert() {
         write_structural_move_ops_file("store-merge-structural-move-ops");
     let (_insert_ops_dir, insert_ops_path) =
         write_structural_insert_ops_file("store-merge-structural-insert-ops");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let move_ops_file = path_arg(&move_ops_path);

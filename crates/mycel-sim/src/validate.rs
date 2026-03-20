@@ -10,18 +10,13 @@ use serde::Serialize;
 
 use crate::model::{Fixture, Peer, Report, TestCase, Topology};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ValidationStatus {
+    #[default]
     Ok,
     Warning,
     Failed,
-}
-
-impl Default for ValidationStatus {
-    fn default() -> Self {
-        Self::Ok
-    }
 }
 
 impl fmt::Display for ValidationStatus {

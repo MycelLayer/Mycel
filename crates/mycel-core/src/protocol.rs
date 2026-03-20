@@ -1488,9 +1488,10 @@ fn validate_block_type(value: &str) -> Result<(), TypedObjectError> {
     match value {
         "title" | "heading" | "paragraph" | "quote" | "verse" | "list" | "annotation"
         | "metadata" => Ok(()),
-        _ => Err(TypedObjectError::new(format!(
+        _ => Err(TypedObjectError::new(
             "top-level 'block_type' must be one of: title, heading, paragraph, quote, verse, list, annotation, metadata"
-        ))),
+                .to_string(),
+        )),
     }
 }
 

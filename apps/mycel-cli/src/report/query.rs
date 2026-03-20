@@ -421,32 +421,28 @@ pub(super) fn filter_events(
 ) -> Vec<ReportEvent> {
     let filtered: Vec<_> = events
         .iter()
-        .filter(|event| {
-            filters
-                .phase
-                .as_deref()
-                .is_none_or(|phase| event.phase == phase)
+        .filter(|event| match filters.phase.as_deref() {
+            Some(phase) => event.phase == phase,
+            None => true,
+        })
+        .filter(|event| match filters.action.as_deref() {
+            Some(action) => event.action == action,
+            None => true,
+        })
+        .filter(|event| match filters.outcome.as_deref() {
+            Some(outcome) => event.outcome == outcome,
+            None => true,
+        })
+        .filter(|event| match filters.step {
+            Some(step) => event.step == step,
+            None => true,
+        })
+        .filter(|event| match filters.step_range {
+            Some((start, end)) => start <= event.step && event.step <= end,
+            None => true,
         })
         .filter(|event| {
-            filters
-                .action
-                .as_deref()
-                .is_none_or(|action| event.action == action)
-        })
-        .filter(|event| {
-            filters
-                .outcome
-                .as_deref()
-                .is_none_or(|outcome| event.outcome == outcome)
-        })
-        .filter(|event| filters.step.is_none_or(|step| event.step == step))
-        .filter(|event| {
-            filters
-                .step_range
-                .is_none_or(|(start, end)| start <= event.step && event.step <= end)
-        })
-        .filter(|event| {
-            filters.node.as_deref().is_none_or(|node| {
+            filters.node.as_deref().map_or(true, |node| {
                 event
                     .node_id
                     .as_deref()
@@ -477,7 +473,7 @@ pub(super) fn filter_failures(
     failures
         .iter()
         .filter(|failure| {
-            filters.node.as_deref().is_none_or(|node| {
+            filters.node.as_deref().map_or(true, |node| {
                 failure
                     .node_id
                     .as_deref()

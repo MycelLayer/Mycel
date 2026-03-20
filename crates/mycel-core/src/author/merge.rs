@@ -940,14 +940,13 @@ fn find_children<'a>(
 
 fn flatten_blocks(blocks: &[BlockObject]) -> HashMap<String, BlockPlacement> {
     let mut placements = HashMap::new();
-    flatten_blocks_into(blocks, None, 0, &mut placements);
+    flatten_blocks_into(blocks, None, &mut placements);
     placements
 }
 
 fn flatten_blocks_into(
     blocks: &[BlockObject],
     parent_block_id: Option<&str>,
-    depth: usize,
     placements: &mut HashMap<String, BlockPlacement>,
 ) {
     for (index, block) in blocks.iter().enumerate() {
@@ -957,15 +956,9 @@ fn flatten_blocks_into(
                 block: block.clone(),
                 parent_block_id: parent_block_id.map(str::to_string),
                 previous_sibling_id: (index > 0).then(|| blocks[index - 1].block_id.clone()),
-                depth,
             },
         );
-        flatten_blocks_into(
-            &block.children,
-            Some(&block.block_id),
-            depth + 1,
-            placements,
-        );
+        flatten_blocks_into(&block.children, Some(&block.block_id), placements);
     }
 }
 

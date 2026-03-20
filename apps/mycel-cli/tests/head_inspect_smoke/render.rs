@@ -107,7 +107,7 @@ fn head_render_json_replays_selected_head_from_store() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -252,7 +252,7 @@ fn head_render_store_backed_reports_multi_hop_ancestry_context() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -390,7 +390,7 @@ fn head_render_store_backed_applies_editor_admission_from_profile() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -534,7 +534,7 @@ fn head_render_store_backed_accepts_shared_dual_role_key_with_independent_admiss
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -624,7 +624,7 @@ fn head_render_text_reports_rendered_text() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
 
     assert_success(&output);

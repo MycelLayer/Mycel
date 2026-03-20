@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use serde_json::json;
@@ -10,7 +10,7 @@ use common::{
     assert_json_status, assert_stderr_contains, assert_success, create_temp_dir, run_mycel,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 

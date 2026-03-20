@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -13,7 +13,7 @@ use common::{
     create_temp_dir, parse_json_stdout, run_mycel,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
@@ -140,7 +140,7 @@ fn write_json_file(prefix: &str, name: &str, value: &Value) -> (common::TempDir,
     (dir, path)
 }
 
-fn publish_view(source_path: &PathBuf, store_root: &str) -> Value {
+fn publish_view(source_path: &Path, store_root: &str) -> Value {
     let output = run_mycel(&[
         "view",
         "publish",
@@ -156,7 +156,7 @@ fn publish_view(source_path: &PathBuf, store_root: &str) -> Value {
 #[test]
 fn view_publish_json_writes_verified_view_into_store() {
     let store_dir = create_temp_dir("view-publish-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -214,7 +214,7 @@ fn view_publish_json_writes_verified_view_into_store() {
 #[test]
 fn view_publish_reports_existing_view_on_repeat_publish() {
     let store_dir = create_temp_dir("view-publish-repeat-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -262,7 +262,7 @@ fn view_publish_reports_existing_view_on_repeat_publish() {
 #[test]
 fn view_list_json_filters_governance_records() {
     let store_dir = create_temp_dir("view-list-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -404,7 +404,7 @@ fn view_list_json_filters_governance_records() {
 #[test]
 fn view_list_json_supports_sorting_time_windows_and_grouped_summaries() {
     let store_dir = create_temp_dir("view-list-summary-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -578,7 +578,7 @@ fn view_list_json_supports_sorting_time_windows_and_grouped_summaries() {
 #[test]
 fn view_list_json_supports_limit_latest_per_profile_and_summary_only() {
     let store_dir = create_temp_dir("view-list-projection-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -702,7 +702,7 @@ fn view_list_json_supports_limit_latest_per_profile_and_summary_only() {
 #[test]
 fn view_publish_rejects_non_view_object() {
     let store_dir = create_temp_dir("view-publish-invalid-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -726,7 +726,7 @@ fn view_publish_rejects_non_view_object() {
 #[test]
 fn view_list_rejects_inverted_timestamp_window() {
     let store_dir = create_temp_dir("view-list-bad-window-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 
@@ -751,7 +751,7 @@ fn view_list_rejects_inverted_timestamp_window() {
 #[test]
 fn view_inspect_reports_missing_view_id() {
     let store_dir = create_temp_dir("view-inspect-missing-store");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let init = run_mycel(&["store", "init", &store_root, "--json"]);
     assert_success(&init);
 

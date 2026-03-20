@@ -6,7 +6,7 @@ fn store_merge_authoring_flow_reports_nested_parent_choice_as_multi_variant() {
     let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-parent-key");
     let (_resolved_dir, resolved_state_path) =
         write_nested_parent_choice_resolved_state_file("store-merge-nested-parent-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 
@@ -397,7 +397,7 @@ fn store_merge_authoring_flow_reports_anchor_nested_parent_choice_as_multi_varia
         write_nested_parent_anchor_choice_resolved_state_file(
             "store-merge-nested-parent-anchor-state",
         );
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 
@@ -760,7 +760,7 @@ fn store_merge_authoring_flow_marks_nested_sibling_choice_through_inserted_sibli
     let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-sibling-manual-key");
     let (_resolved_dir, resolved_state_path) =
         write_nested_sibling_manual_resolved_state_file("store-merge-nested-sibling-manual-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 
@@ -1053,7 +1053,7 @@ fn store_merge_authoring_flow_marks_deep_composed_branch_reuse_as_multi_variant(
     let (_key_dir, key_path) = write_signing_key_file("store-merge-composed-manual-key");
     let (_resolved_dir, resolved_state_path) =
         write_composed_branch_manual_resolved_state_file("store-merge-composed-manual-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 

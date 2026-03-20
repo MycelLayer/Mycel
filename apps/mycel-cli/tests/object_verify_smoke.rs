@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -34,7 +34,7 @@ fn write_raw_object_file(prefix: &str, name: &str, content: &str) -> TempObjectF
     TempObjectFile { _dir: dir, path }
 }
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 

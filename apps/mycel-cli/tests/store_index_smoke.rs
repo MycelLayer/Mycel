@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -13,7 +13,7 @@ use common::{
     assert_success, create_temp_dir, run_mycel, stdout_text,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
@@ -200,9 +200,9 @@ fn build_store_with_view() -> StoreFixtureInfo {
     let ingest = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
     assert_success(&ingest);
 
@@ -225,7 +225,7 @@ fn store_index_json_reads_persisted_manifest() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--json",
     ]);
 
@@ -292,7 +292,7 @@ fn store_index_json_filters_common_indexes() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-id",
         "doc:index",
         "--author",
@@ -373,7 +373,7 @@ fn store_index_json_filters_by_revision_and_view() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--revision-id",
         &fixture.revision_id,
         "--view-id",
@@ -433,7 +433,7 @@ fn store_index_text_reports_summary() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-id",
         "doc:index",
     ]);
@@ -459,7 +459,7 @@ fn store_index_path_only_prints_manifest_path() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--path-only",
     ]);
 
@@ -483,7 +483,7 @@ fn store_index_path_only_rejects_json() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--path-only",
         "--json",
     ]);
@@ -501,7 +501,7 @@ fn store_index_filters_only_json_emits_query_metadata() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-id",
         "doc:index",
         "--head-only",
@@ -534,7 +534,7 @@ fn store_index_counts_only_json_emits_section_counts() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--counts-only",
         "--json",
     ]);
@@ -567,7 +567,7 @@ fn store_index_manifest_only_json_emits_manifest_metadata() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--manifest-only",
         "--json",
     ]);
@@ -603,7 +603,7 @@ fn store_index_doc_only_json_prunes_other_sections() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-only",
         "--json",
     ]);
@@ -655,7 +655,7 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--governance-only",
         "--json",
     ]);
@@ -707,7 +707,7 @@ fn store_index_head_only_json_prunes_non_head_sections() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--head-only",
         "--json",
     ]);
@@ -755,7 +755,7 @@ fn store_index_patches_only_json_prunes_non_patch_sections() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--patches-only",
         "--json",
     ]);
@@ -785,7 +785,7 @@ fn store_index_parents_only_text_reports_projection() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--parents-only",
     ]);
 
@@ -820,7 +820,7 @@ fn store_index_empty_query_fails_without_empty_ok() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-id",
         "doc:missing",
         "--json",
@@ -840,7 +840,7 @@ fn store_index_empty_query_succeeds_with_empty_ok() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-id",
         "doc:missing",
         "--empty-ok",
@@ -861,7 +861,7 @@ fn store_index_rejects_multiple_projection_flags() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--doc-only",
         "--head-only",
         "--governance-only",
@@ -880,7 +880,7 @@ fn store_index_rejects_multiple_output_modes() {
     let output = run_mycel(&[
         "store",
         "index",
-        &path_arg(&fixture.store_dir.path().to_path_buf()),
+        &path_arg(fixture.store_dir.path()),
         "--filters-only",
         "--counts-only",
     ]);
@@ -895,7 +895,7 @@ fn store_index_rejects_multiple_output_modes() {
 #[test]
 fn store_index_missing_manifest_fails_cleanly() {
     let store_dir = create_temp_dir("store-index-missing");
-    let output = run_mycel(&["store", "index", &path_arg(&store_dir.path().to_path_buf())]);
+    let output = run_mycel(&["store", "index", &path_arg(store_dir.path())]);
 
     assert_exit_code(&output, 2);
     assert_stderr_contains(&output, "failed to read store index manifest");

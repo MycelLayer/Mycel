@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -13,11 +13,11 @@ use common::{
     assert_success, create_temp_dir, run_mycel, stdout_text,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-fn local_policy_path(store_root: &PathBuf) -> PathBuf {
+fn local_policy_path(store_root: &Path) -> PathBuf {
     store_root.join("local").join("policy.json")
 }
 
@@ -201,7 +201,7 @@ fn store_rebuild_json_indexes_verified_object_graph() {
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 
@@ -314,7 +314,7 @@ fn store_rebuild_leaves_local_policy_file_intact() {
     let ingest = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
         &path_arg(&store_root),
         "--json",
@@ -385,7 +385,7 @@ fn store_rebuild_text_reports_summary() {
     )
     .expect("patch should write");
 
-    let output = run_mycel(&["store", "rebuild", &path_arg(&dir.path().to_path_buf())]);
+    let output = run_mycel(&["store", "rebuild", &path_arg(dir.path())]);
 
     assert_success(&output);
     assert_empty_stderr(&output);
@@ -418,16 +418,16 @@ fn store_rebuild_store_root_persists_index_manifest() {
     let ingest = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
     assert_success(&ingest);
 
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -486,7 +486,7 @@ fn store_rebuild_json_fails_for_duplicate_declared_object_ids() {
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 
@@ -532,7 +532,7 @@ fn store_rebuild_json_fails_for_missing_revision_patch_dependency() {
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 
@@ -581,7 +581,7 @@ fn store_rebuild_json_fails_for_missing_parent_revision_dependency() {
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 
@@ -659,7 +659,7 @@ fn store_rebuild_json_reports_multi_hop_ancestry_context_for_parent_missing_patc
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 
@@ -738,7 +738,7 @@ fn store_rebuild_json_fails_for_cross_document_parent_revision_dependency() {
     let output = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 

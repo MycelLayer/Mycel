@@ -129,19 +129,19 @@ struct StoreIndexQueryFilters {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StoreIndexProjection {
-    DocOnly,
-    HeadOnly,
-    GovernanceOnly,
-    PatchesOnly,
-    ParentsOnly,
+    Doc,
+    Head,
+    Governance,
+    Patches,
+    Parents,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StoreIndexOutputMode {
-    PathOnly,
-    FiltersOnly,
-    CountsOnly,
-    ManifestOnly,
+    Path,
+    Filters,
+    Counts,
+    Manifest,
 }
 
 fn print_store_rebuild_text(summary: &StoreRebuildSummary) -> i32 {
@@ -371,21 +371,9 @@ fn filtered_view_governance(
     manifest
         .view_governance
         .iter()
-        .filter(|record| {
-            maintainer
-                .as_ref()
-                .is_none_or(|requested| requested == &record.maintainer)
-        })
-        .filter(|record| {
-            view_id
-                .as_ref()
-                .is_none_or(|requested| requested == &record.view_id)
-        })
-        .filter(|record| {
-            profile_id
-                .as_ref()
-                .is_none_or(|requested| requested == &record.profile_id)
-        })
+        .filter(|record| maintainer.as_ref().map_or(true, |requested| requested == &record.maintainer))
+        .filter(|record| view_id.as_ref().map_or(true, |requested| requested == &record.view_id))
+        .filter(|record| profile_id.as_ref().map_or(true, |requested| requested == &record.profile_id))
         .filter_map(|record| {
             let mut filtered = record.clone();
             if let Some(doc_id) = doc_id {
@@ -429,7 +417,7 @@ fn apply_projection(
     projection: Option<StoreIndexProjection>,
 ) {
     match projection {
-        Some(StoreIndexProjection::DocOnly) => {
+        Some(StoreIndexProjection::Doc) => {
             summary.object_ids_by_type.clear();
             summary.revision_parents.clear();
             summary.author_patches.clear();
@@ -440,7 +428,7 @@ fn apply_projection(
             summary.profile_heads.clear();
             summary.projection = Some("doc-only".to_string());
         }
-        Some(StoreIndexProjection::HeadOnly) => {
+        Some(StoreIndexProjection::Head) => {
             summary.object_ids_by_type.clear();
             summary.doc_revisions.clear();
             summary.revision_parents.clear();
@@ -451,14 +439,14 @@ fn apply_projection(
             summary.document_views.clear();
             summary.projection = Some("head-only".to_string());
         }
-        Some(StoreIndexProjection::GovernanceOnly) => {
+        Some(StoreIndexProjection::Governance) => {
             summary.object_ids_by_type.clear();
             summary.doc_revisions.clear();
             summary.revision_parents.clear();
             summary.author_patches.clear();
             summary.projection = Some("governance-only".to_string());
         }
-        Some(StoreIndexProjection::PatchesOnly) => {
+        Some(StoreIndexProjection::Patches) => {
             summary.object_ids_by_type.clear();
             summary.doc_revisions.clear();
             summary.revision_parents.clear();
@@ -469,7 +457,7 @@ fn apply_projection(
             summary.profile_heads.clear();
             summary.projection = Some("patches-only".to_string());
         }
-        Some(StoreIndexProjection::ParentsOnly) => {
+        Some(StoreIndexProjection::Parents) => {
             summary.object_ids_by_type.clear();
             summary.doc_revisions.clear();
             summary.author_patches.clear();
@@ -876,19 +864,19 @@ fn print_store_index_manifest_only_json(
 fn selected_projection(args: &StoreIndexCliArgs) -> Result<Option<StoreIndexProjection>, CliError> {
     let mut selected = Vec::new();
     if args.doc_only {
-        selected.push(StoreIndexProjection::DocOnly);
+        selected.push(StoreIndexProjection::Doc);
     }
     if args.head_only {
-        selected.push(StoreIndexProjection::HeadOnly);
+        selected.push(StoreIndexProjection::Head);
     }
     if args.governance_only {
-        selected.push(StoreIndexProjection::GovernanceOnly);
+        selected.push(StoreIndexProjection::Governance);
     }
     if args.patches_only {
-        selected.push(StoreIndexProjection::PatchesOnly);
+        selected.push(StoreIndexProjection::Patches);
     }
     if args.parents_only {
-        selected.push(StoreIndexProjection::ParentsOnly);
+        selected.push(StoreIndexProjection::Parents);
     }
 
     if selected.len() > 1 {
@@ -905,16 +893,16 @@ fn selected_output_mode(
 ) -> Result<Option<StoreIndexOutputMode>, CliError> {
     let mut selected = Vec::new();
     if args.path_only {
-        selected.push(StoreIndexOutputMode::PathOnly);
+        selected.push(StoreIndexOutputMode::Path);
     }
     if args.filters_only {
-        selected.push(StoreIndexOutputMode::FiltersOnly);
+        selected.push(StoreIndexOutputMode::Filters);
     }
     if args.counts_only {
-        selected.push(StoreIndexOutputMode::CountsOnly);
+        selected.push(StoreIndexOutputMode::Counts);
     }
     if args.manifest_only {
-        selected.push(StoreIndexOutputMode::ManifestOnly);
+        selected.push(StoreIndexOutputMode::Manifest);
     }
 
     if selected.len() > 1 {
@@ -960,7 +948,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
     let projection = selected_projection(&args)?;
     let output_mode = selected_output_mode(&args)?;
     let store_root = PathBuf::from(args.store_root);
-    if matches!(output_mode, Some(StoreIndexOutputMode::PathOnly)) {
+    if matches!(output_mode, Some(StoreIndexOutputMode::Path)) {
         if args.json {
             return Err(CliError::usage(
                 "store index --path-only cannot be used with --json",
@@ -971,7 +959,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
     let manifest = load_store_index_manifest(&store_root)
         .map_err(|error| CliError::usage(error.to_string()))?;
 
-    if matches!(output_mode, Some(StoreIndexOutputMode::ManifestOnly)) {
+    if matches!(output_mode, Some(StoreIndexOutputMode::Manifest)) {
         let summary =
             build_store_index_manifest_only_summary(store_root, "ok".to_string(), &manifest);
         return if args.json {
@@ -1000,7 +988,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
     }
 
     match output_mode {
-        Some(StoreIndexOutputMode::FiltersOnly) => {
+        Some(StoreIndexOutputMode::Filters) => {
             let output = build_store_index_filters_only_summary(&summary);
             if args.json {
                 print_store_index_filters_only_json(&output)
@@ -1008,7 +996,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
                 Ok(print_store_index_filters_only_text(&output))
             }
         }
-        Some(StoreIndexOutputMode::CountsOnly) => {
+        Some(StoreIndexOutputMode::Counts) => {
             let output = build_store_index_counts_summary(&summary);
             if args.json {
                 print_store_index_counts_json(&output)
@@ -1016,7 +1004,7 @@ pub(super) fn store_index(args: StoreIndexCliArgs) -> Result<i32, CliError> {
                 Ok(print_store_index_counts_text(&output))
             }
         }
-        Some(StoreIndexOutputMode::PathOnly | StoreIndexOutputMode::ManifestOnly) => {
+        Some(StoreIndexOutputMode::Path | StoreIndexOutputMode::Manifest) => {
             Err(CliError::usage("unreachable store index output mode"))
         }
         None => {

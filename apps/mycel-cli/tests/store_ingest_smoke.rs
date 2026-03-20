@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -14,11 +14,11 @@ use common::{
     assert_success, create_temp_dir, run_mycel, stdout_text,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-fn local_policy_path(store_root: &PathBuf) -> PathBuf {
+fn local_policy_path(store_root: &Path) -> PathBuf {
     store_root.join("local").join("policy.json")
 }
 
@@ -141,9 +141,9 @@ fn store_ingest_json_writes_verified_objects_into_store_layout() {
     let output = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -213,7 +213,7 @@ fn store_ingest_json_writes_verified_objects_into_store_layout() {
     let rebuild = run_mycel(&[
         "store",
         "rebuild",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
     assert_success(&rebuild);
@@ -332,7 +332,7 @@ fn store_ingest_preserves_local_policy_file_and_keeps_it_out_of_manifest() {
     let output = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
         &path_arg(&store_root),
         "--json",
@@ -387,9 +387,9 @@ fn store_ingest_text_reports_existing_objects_on_repeat_ingest() {
     let first = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
     assert_success(&first);
     assert_empty_stderr(&first);
@@ -397,9 +397,9 @@ fn store_ingest_text_reports_existing_objects_on_repeat_ingest() {
     let second = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
     assert_success(&second);
     assert_empty_stderr(&second);
@@ -419,7 +419,7 @@ fn store_ingest_missing_source_fails_cleanly() {
         "ingest",
         "missing-store-ingest-source",
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
 
     assert_exit_code(&output, 2);

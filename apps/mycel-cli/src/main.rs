@@ -232,9 +232,7 @@ fn print_validation_json(
 
 fn validate(target: PathBuf, json: bool, strict: bool) -> Result<i32, CliError> {
     let summary = validate_path(&target);
-    let exit_code = if !summary.is_ok() {
-        1
-    } else if strict && summary.has_warnings() {
+    let exit_code = if !summary.is_ok() || (strict && summary.has_warnings()) {
         1
     } else {
         0

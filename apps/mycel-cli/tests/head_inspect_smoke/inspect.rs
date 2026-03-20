@@ -33,7 +33,7 @@ fn head_inspect_json_selects_highest_supported_head() {
     assert_eq!(effective_weights.len(), 3);
     assert!(effective_weights.iter().all(|entry| {
         entry["admitted"] == Value::Bool(true)
-            && entry["effective_weight"] == Value::from(1)
+            && entry["effective_weight"] == 1
             && entry["critical_violation_counts"]
                 .as_array()
                 .is_some_and(|counts| counts.is_empty())
@@ -43,7 +43,7 @@ fn head_inspect_json_selects_highest_supported_head() {
         .expect("maintainer_support should be array");
     assert_eq!(maintainer_support.len(), 3);
     assert!(maintainer_support.iter().all(|entry| {
-        entry["effective_weight"] == Value::from(1)
+        entry["effective_weight"] == 1
             && entry["maintainer"].as_str().is_some()
             && entry["revision_id"].as_str().is_some()
     }));
@@ -200,7 +200,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-expired-approval".to_string())
                 && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == Value::from(0)
+                && entry["effective_signal_weight"] == 0
         }),
         "expected expired approval signal to stay inactive, stdout: {}",
         stdout_text(&output)
@@ -209,7 +209,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-pending-admission".to_string())
                 && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == Value::from(0)
+                && entry["effective_signal_weight"] == 0
         }),
         "expected pending admission signal to stay gated, stdout: {}",
         stdout_text(&output)
@@ -218,7 +218,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-no-identity".to_string())
                 && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == Value::from(0)
+                && entry["effective_signal_weight"] == 0
         }),
         "expected none-tier objection signal to stay gated, stdout: {}",
         stdout_text(&output)
@@ -227,7 +227,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-challenge-alternative-high".to_string())
                 && entry["selector_eligible"] == Value::Bool(true)
-                && entry["effective_signal_weight"] == Value::from(0)
+                && entry["effective_signal_weight"] == 0
                 && entry["evidence_ref"] == Value::String("evidence:challenge-alt-1".to_string())
         }),
         "expected evidenced challenge to contribute review pressure only, stdout: {}",
@@ -237,7 +237,7 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
         viewer_signals.iter().any(|entry| {
             entry["signal_id"] == Value::String("signal-challenge-without-evidence".to_string())
                 && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == Value::from(0)
+                && entry["effective_signal_weight"] == 0
                 && entry["evidence_ref"] == Value::Null
         }),
         "expected unevidenced challenge to stay gated, stdout: {}",
@@ -464,7 +464,7 @@ fn head_inspect_json_can_source_objects_from_store_index() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -558,7 +558,7 @@ fn head_inspect_store_backed_falls_back_to_view_governance_when_profile_views_mi
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -606,7 +606,7 @@ fn head_inspect_store_backed_applies_editor_admission_from_profile() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -696,7 +696,7 @@ fn head_inspect_store_backed_accepts_shared_dual_role_key_with_independent_admis
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -710,7 +710,7 @@ fn head_inspect_store_backed_accepts_shared_dual_role_key_with_independent_admis
                 entry["maintainer"] == Value::String(signer_id(&dual_role_author))
                     && entry["view_admitted"] == Value::Bool(true)
                     && entry["admitted"] == Value::Bool(true)
-                    && entry["effective_weight"] == Value::from(1_u64)
+                    && entry["effective_weight"] == 1_u64
             })),
         "expected shared dual-role maintainer to pass view admission, stdout: {}",
         stdout_text(&output)
@@ -957,7 +957,7 @@ fn head_inspect_named_profile_separates_editor_and_view_admission() {
                 entry["maintainer"] == Value::String(signer_id(&editor_only_author))
                     && entry["view_admitted"] == Value::Bool(false)
                     && entry["admitted"] == Value::Bool(false)
-                    && entry["effective_weight"] == Value::from(0_u64)
+                    && entry["effective_weight"] == 0_u64
             })),
         "expected editor-only key to lose selector weight, stdout: {}",
         stdout_text(&output)
@@ -969,7 +969,7 @@ fn head_inspect_named_profile_separates_editor_and_view_admission() {
                 entry["maintainer"] == Value::String(signer_id(&view_only_author))
                     && entry["view_admitted"] == Value::Bool(true)
                     && entry["admitted"] == Value::Bool(true)
-                    && entry["effective_weight"] == Value::from(1_u64)
+                    && entry["effective_weight"] == 1_u64
             })),
         "expected view-only key to retain selector weight, stdout: {}",
         stdout_text(&output)
@@ -980,7 +980,7 @@ fn head_inspect_named_profile_separates_editor_and_view_admission() {
             .is_some_and(|support| support.iter().any(|entry| {
                 entry["maintainer"] == Value::String(signer_id(&editor_only_author))
                     && entry["revision_id"] == editor_revision["revision_id"]
-                    && entry["effective_weight"] == Value::from(0_u64)
+                    && entry["effective_weight"] == 0_u64
             })),
         "expected editor-only support to remain zero-weight, stdout: {}",
         stdout_text(&output)
@@ -1021,7 +1021,7 @@ fn head_inspect_store_root_reports_missing_manifest() {
         "--input",
         &path_arg(&input.path),
         "--store-root",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
         "--json",
     ]);
 
@@ -1094,7 +1094,7 @@ fn head_inspect_directory_resolves_input_json() {
         "inspect",
         "doc:sample",
         "--input",
-        &path_arg(&dir.path().to_path_buf()),
+        &path_arg(dir.path()),
         "--json",
     ]);
 

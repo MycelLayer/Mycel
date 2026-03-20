@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -17,7 +17,7 @@ use common::{
     stdout_text,
 };
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
@@ -456,7 +456,7 @@ fn signed_error_message(signing_key: &SigningKey, sender: &str, in_reply_to: &st
     value
 }
 
-fn write_transcript(path: &PathBuf, transcript: &Value) {
+fn write_transcript(path: &Path, transcript: &Value) {
     fs::write(
         path,
         serde_json::to_string_pretty(transcript).expect("transcript should serialize"),
@@ -464,7 +464,7 @@ fn write_transcript(path: &PathBuf, transcript: &Value) {
     .expect("transcript should write");
 }
 
-fn write_signing_key(path: &PathBuf, signing_key: &SigningKey) {
+fn write_signing_key(path: &Path, signing_key: &SigningKey) {
     fs::write(
         path,
         base64::engine::general_purpose::STANDARD.encode(signing_key.to_bytes()),
@@ -513,7 +513,7 @@ fn sync_pull_json_replays_verified_wire_transcript_into_store() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -590,7 +590,7 @@ fn sync_pull_json_replays_first_time_heads_transcript_into_store() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -692,7 +692,7 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -770,7 +770,7 @@ fn sync_pull_json_reports_missing_bye_as_session_note() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -847,7 +847,7 @@ fn sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -905,9 +905,9 @@ fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
         "sync",
         "peer-store",
         "--from",
-        &path_arg(&remote_store.path().to_path_buf()),
+        &path_arg(remote_store.path()),
         "--into",
-        &path_arg(&local_store.path().to_path_buf()),
+        &path_arg(local_store.path()),
         "--peer-node-id",
         sender,
         "--signing-key",
@@ -957,9 +957,9 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
         "sync",
         "peer-store",
         "--from",
-        &path_arg(&remote_store.path().to_path_buf()),
+        &path_arg(remote_store.path()),
         "--into",
-        &path_arg(&local_store.path().to_path_buf()),
+        &path_arg(local_store.path()),
         "--peer-node-id",
         sender,
         "--signing-key",
@@ -972,7 +972,7 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
     assert_eq!(json["peer_node_id"], sender);
     assert_eq!(
         json["source_store"],
-        path_arg(&remote_store.path().to_path_buf())
+        path_arg(remote_store.path())
     );
     assert_eq!(json["message_count"], 7);
     assert_eq!(json["object_message_count"], 2);
@@ -1024,9 +1024,9 @@ fn sync_peer_store_json_fetches_announced_views_into_governance_indexes() {
         "sync",
         "peer-store",
         "--from",
-        &path_arg(&remote_store.path().to_path_buf()),
+        &path_arg(remote_store.path()),
         "--into",
-        &path_arg(&local_store.path().to_path_buf()),
+        &path_arg(local_store.path()),
         "--peer-node-id",
         sender,
         "--signing-key",
@@ -1080,9 +1080,9 @@ fn sync_peer_store_json_reports_noop_when_local_store_is_current() {
         "sync",
         "peer-store",
         "--from",
-        &path_arg(&remote_store.path().to_path_buf()),
+        &path_arg(remote_store.path()),
         "--into",
-        &path_arg(&local_store.path().to_path_buf()),
+        &path_arg(local_store.path()),
         "--peer-node-id",
         sender,
         "--signing-key",
@@ -1147,7 +1147,7 @@ fn sync_pull_text_reports_verification_failure_without_storing_objects() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
     ]);
 
     assert!(
@@ -1205,7 +1205,7 @@ fn sync_pull_json_reports_object_id_mismatch_without_storing_objects() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1262,7 +1262,7 @@ fn sync_pull_json_rejects_messages_after_bye() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1322,7 +1322,7 @@ fn sync_pull_json_rejects_duplicate_hello() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1382,7 +1382,7 @@ fn sync_pull_json_rejects_want_before_manifest_or_heads() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1443,7 +1443,7 @@ fn sync_pull_json_allows_error_before_hello_but_still_requires_sync_messages() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1522,7 +1522,7 @@ fn sync_pull_json_rejects_unrequested_object_message() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1585,7 +1585,7 @@ fn sync_pull_json_rejects_snapshot_offer_without_advertised_capability() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1648,7 +1648,7 @@ fn sync_pull_json_rejects_view_announce_without_advertised_capability() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
         "--json",
     ]);
 
@@ -1719,7 +1719,7 @@ fn sync_pull_text_reports_pending_requested_object_failure() {
         "pull",
         &path_arg(&transcript_path),
         "--into",
-        &path_arg(&store_root.path().to_path_buf()),
+        &path_arg(store_root.path()),
     ]);
 
     assert!(

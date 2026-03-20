@@ -4,7 +4,7 @@ use super::*;
 fn store_merge_authoring_flow_requires_manual_curation_for_metadata_removal() {
     let store_dir = create_temp_dir("store-merge-metadata-removal-root");
     let (_key_dir, key_path) = write_signing_key_file("store-merge-metadata-removal-key");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let (_base_ops_dir, base_ops_path) =
         write_metadata_variant_ops_file("store-merge-metadata-removal-base-ops", "base");
@@ -181,7 +181,7 @@ fn store_merge_authoring_flow_rejects_novel_nested_parent_choice_as_manual_curat
     let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-parent-manual-key");
     let (_resolved_dir, resolved_state_path) =
         write_nested_parent_manual_resolved_state_file("store-merge-nested-parent-manual-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 
@@ -466,7 +466,7 @@ fn store_merge_authoring_flow_rejects_attr_variant_as_manual_curation_required()
     let (_key_dir, key_path) = write_signing_key_file("store-merge-attrs-manual-key");
     let (_resolved_dir, resolved_state_path) =
         write_attrs_manual_resolved_state_file("store-merge-attrs-manual-state");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
 

@@ -269,7 +269,7 @@ fn delete_block(blocks: &mut Vec<BlockObject>, block_id: &str) -> Result<bool, R
 }
 
 fn replace_block(
-    blocks: &mut Vec<BlockObject>,
+    blocks: &mut [BlockObject],
     block_id: &str,
     new_content: &str,
 ) -> Result<(), ReplayError> {
@@ -349,7 +349,7 @@ fn move_block(
 }
 
 fn annotate_block(
-    blocks: &mut Vec<BlockObject>,
+    blocks: &mut [BlockObject],
     block_id: &str,
     annotation: BlockObject,
 ) -> Result<(), ReplayError> {

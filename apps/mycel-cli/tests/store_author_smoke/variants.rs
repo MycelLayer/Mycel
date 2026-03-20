@@ -14,7 +14,7 @@ fn store_merge_authoring_flow_reports_content_variant_choice_as_multi_variant() 
         write_content_variant_ops_file("store-merge-content-variant-right-ops", "Right variant");
     let (_center_ops_dir, center_ops_path) =
         write_content_variant_ops_file("store-merge-content-variant-center-ops", "Center variant");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let left_ops_file = path_arg(&left_ops_path);
@@ -314,7 +314,7 @@ fn store_merge_authoring_flow_reports_metadata_variant_choice_as_multi_variant()
         write_metadata_variant_ops_file("store-merge-metadata-variant-right-ops", "right");
     let (_center_ops_dir, center_ops_path) =
         write_metadata_variant_ops_file("store-merge-metadata-variant-center-ops", "center");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let left_ops_file = path_arg(&left_ops_path);
@@ -543,7 +543,7 @@ fn store_merge_authoring_flow_reports_block_added_from_non_primary_parent_as_mul
         write_content_variant_resolved_state_file("store-merge-content-added-state", "right");
     let (_right_ops_dir, right_ops_path) =
         write_content_addition_ops_file("store-merge-content-added-right-ops", "right");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let right_ops_file = path_arg(&right_ops_path);
@@ -674,7 +674,7 @@ fn store_merge_authoring_flow_reports_kept_primary_absence_over_non_primary_bloc
     let (_key_dir, key_path) = write_signing_key_file("store-merge-content-keep-primary-key");
     let (_right_ops_dir, right_ops_path) =
         write_content_addition_ops_file("store-merge-content-keep-primary-right-ops", "right");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let right_ops_file = path_arg(&right_ops_path);
 
@@ -811,7 +811,7 @@ fn store_merge_authoring_flow_reports_added_metadata_from_non_primary_parent_as_
     );
     let (_right_ops_dir, right_ops_path) =
         write_metadata_variant_ops_file("store-merge-metadata-added-right-ops", "right");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let right_ops_file = path_arg(&right_ops_path);
@@ -942,7 +942,7 @@ fn store_merge_authoring_flow_reports_kept_primary_metadata_over_non_primary_add
     let (_key_dir, key_path) = write_signing_key_file("store-merge-metadata-keep-primary-key");
     let (_right_ops_dir, right_ops_path) =
         write_metadata_variant_ops_file("store-merge-metadata-keep-primary-right-ops", "right");
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let right_ops_file = path_arg(&right_ops_path);
 
@@ -1083,7 +1083,7 @@ fn store_merge_authoring_flow_preserves_distinct_reasons_for_mixed_metadata_keys
         "store-merge-metadata-mixed-keys-priority-ops",
         &[("priority", "high")],
     );
-    let store_root = path_arg(&store_dir.path().to_path_buf());
+    let store_root = path_arg(store_dir.path());
     let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let topic_ops_file = path_arg(&topic_ops_path);

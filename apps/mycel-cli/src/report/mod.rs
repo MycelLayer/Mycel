@@ -660,10 +660,12 @@ impl ReportQuery {
 
     fn matches_valid_report(self, report: &ReportListEntry) -> bool {
         self.result_filter
-            .is_none_or(|expected| report.result.as_deref() == Some(expected.as_str()))
-            && self.validation_status_filter.is_none_or(|expected| {
-                report.validation_status.as_deref() == Some(expected.as_str())
-            })
+            .map_or(true, |expected| report.result.as_deref() == Some(expected.as_str()))
+            && self
+                .validation_status_filter
+                .map_or(true, |expected| {
+                    report.validation_status.as_deref() == Some(expected.as_str())
+                })
     }
 
     fn describe_missing(self) -> String {
@@ -840,6 +842,17 @@ fn unexpected_extra(extra: &[String], context: &str) -> Option<String> {
         .map(|arg| format!("unexpected {context} argument: {arg}"))
 }
 
+struct ReportDiffArgs {
+    left: PathBuf,
+    right: PathBuf,
+    json: bool,
+    events: bool,
+    event_align: ReportEventAlign,
+    fields: Vec<ReportDiffIgnoreField>,
+    ignore_fields: Vec<ReportDiffIgnoreField>,
+    fail_on_diff: bool,
+}
+
 pub(crate) fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliError> {
     match command.command {
         Some(ReportSubcommand::Diff(args)) => {
@@ -847,16 +860,16 @@ pub(crate) fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliEr
                 return Err(CliError::usage(message));
             }
 
-            report_diff(
-                PathBuf::from(args.left),
-                PathBuf::from(args.right),
-                args.json,
-                args.events,
-                args.event_align,
-                &args.fields,
-                &args.ignore_fields,
-                args.fail_on_diff,
-            )
+            report_diff(ReportDiffArgs {
+                left: PathBuf::from(args.left),
+                right: PathBuf::from(args.right),
+                json: args.json,
+                events: args.events,
+                event_align: args.event_align,
+                fields: args.fields,
+                ignore_fields: args.ignore_fields,
+                fail_on_diff: args.fail_on_diff,
+            })
         }
         Some(ReportSubcommand::Inspect(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "report inspect") {
@@ -969,29 +982,26 @@ pub(crate) fn handle_report_command(command: ReportCliArgs) -> Result<i32, CliEr
     }
 }
 
-fn report_diff(
-    left: PathBuf,
-    right: PathBuf,
-    json: bool,
-    events: bool,
-    event_align: ReportEventAlign,
-    fields: &[ReportDiffIgnoreField],
-    ignore_fields: &[ReportDiffIgnoreField],
-    fail_on_diff: bool,
-) -> Result<i32, CliError> {
-    if events {
-        let summary = diff_report_events(left, right, event_align, fields, ignore_fields);
-        if json {
-            print_report_event_diff_json(&summary, fail_on_diff)
+fn report_diff(args: ReportDiffArgs) -> Result<i32, CliError> {
+    if args.events {
+        let summary = diff_report_events(
+            args.left,
+            args.right,
+            args.event_align,
+            &args.fields,
+            &args.ignore_fields,
+        );
+        if args.json {
+            print_report_event_diff_json(&summary, args.fail_on_diff)
         } else {
-            Ok(print_report_event_diff_text(&summary, fail_on_diff))
+            Ok(print_report_event_diff_text(&summary, args.fail_on_diff))
         }
     } else {
-        let summary = diff_reports(left, right, fields, ignore_fields);
-        if json {
-            print_report_diff_json(&summary, fail_on_diff)
+        let summary = diff_reports(args.left, args.right, &args.fields, &args.ignore_fields);
+        if args.json {
+            print_report_diff_json(&summary, args.fail_on_diff)
         } else {
-            Ok(print_report_diff_text(&summary, fail_on_diff))
+            Ok(print_report_diff_text(&summary, args.fail_on_diff))
         }
     }
 }

@@ -471,7 +471,7 @@ pub fn inspect_heads_from_path(
 ) -> HeadInspectSummary {
     let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
         Ok(loaded) => loaded,
-        Err(summary) => return summary,
+        Err(summary) => return *summary,
     };
 
     inspect_heads_from_loaded_input(
@@ -491,7 +491,7 @@ pub fn inspect_heads_from_store_path(
 ) -> HeadInspectSummary {
     let (resolved_input_path, input) = match load_head_inspect_input(input_path, doc_id) {
         Ok(loaded) => loaded,
-        Err(summary) => return summary,
+        Err(summary) => return *summary,
     };
 
     inspect_heads_from_loaded_input(
@@ -671,13 +671,13 @@ fn verify_selected_head_for_render(
 fn load_head_inspect_input(
     input_path: &Path,
     doc_id: &str,
-) -> Result<(PathBuf, HeadInspectInput), HeadInspectSummary> {
+) -> Result<(PathBuf, HeadInspectInput), Box<HeadInspectSummary>> {
     let resolved_input_path = match resolve_head_inspect_input_path(input_path) {
         Ok(path) => path,
         Err(message) => {
             let mut summary = HeadInspectSummary::new(input_path, doc_id);
             summary.push_error(message);
-            return Err(summary);
+            return Err(Box::new(summary));
         }
     };
 
@@ -686,7 +686,7 @@ fn load_head_inspect_input(
         Ok(content) => content,
         Err(err) => {
             summary.push_error(format!("failed to read head-inspect input: {err}"));
-            return Err(summary);
+            return Err(Box::new(summary));
         }
     };
 
@@ -694,7 +694,7 @@ fn load_head_inspect_input(
         Ok(input) => input,
         Err(err) => {
             summary.push_error(format!("failed to parse head-inspect input JSON: {err}"));
-            return Err(summary);
+            return Err(Box::new(summary));
         }
     };
 

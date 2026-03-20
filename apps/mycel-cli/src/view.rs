@@ -755,7 +755,7 @@ fn build_view_group_summary(
     ViewListGroupSummary { group_by, groups }
 }
 
-fn view_list(
+struct ViewListArgs {
     filters: ViewListFilters,
     sort: ViewListSort,
     summary_only: bool,
@@ -764,21 +764,23 @@ fn view_list(
     group_by: Vec<ViewListGroupBy>,
     store_root: PathBuf,
     json: bool,
-) -> Result<i32, CliError> {
+}
+
+fn view_list(args: ViewListArgs) -> Result<i32, CliError> {
     let mut summary = ViewListSummary::new(
-        &store_root,
-        filters,
-        sort,
-        summary_only,
-        latest_per_profile,
-        limit,
-        group_by,
+        &args.store_root,
+        args.filters,
+        args.sort,
+        args.summary_only,
+        args.latest_per_profile,
+        args.limit,
+        args.group_by,
     );
-    let manifest = match load_store_index_manifest(&store_root) {
+    let manifest = match load_store_index_manifest(&args.store_root) {
         Ok(manifest) => manifest,
         Err(error) => {
             summary.push_error(format!("failed to read store index manifest: {error}"));
-            return if json {
+            return if args.json {
                 print_view_list_json(&summary)
             } else {
                 Ok(print_view_list_text(&summary))
@@ -794,14 +796,14 @@ fn view_list(
         .collect::<Vec<_>>();
 
     for record in matching_records {
-        let value = match load_stored_object_value(&store_root, &record.view_id) {
+        let value = match load_stored_object_value(&args.store_root, &record.view_id) {
             Ok(value) => value,
             Err(error) => {
                 summary.push_error(format!(
                     "failed to load stored view '{}' while listing governance records: {error}",
                     record.view_id
                 ));
-                return if json {
+                return if args.json {
                     print_view_list_json(&summary)
                 } else {
                     Ok(print_view_list_text(&summary))
@@ -815,7 +817,7 @@ fn view_list(
                     "failed to parse stored view '{}' while listing governance records: {error}",
                     record.view_id
                 ));
-                return if json {
+                return if args.json {
                     print_view_list_json(&summary)
                 } else {
                     Ok(print_view_list_text(&summary))
@@ -864,7 +866,7 @@ fn view_list(
         summary.records.clear();
     }
 
-    if json {
+    if args.json {
         print_view_list_json(&summary)
     } else {
         Ok(print_view_list_text(&summary))
@@ -1085,8 +1087,8 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
                 }
             }
 
-            view_list(
-                ViewListFilters {
+            view_list(ViewListArgs {
+                filters: ViewListFilters {
                     view_id,
                     profile_id,
                     maintainer,
@@ -1100,9 +1102,9 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
                 latest_per_profile,
                 limit,
                 group_by,
-                PathBuf::from(store_root),
+                store_root: PathBuf::from(store_root),
                 json,
-            )
+            })
         }
         Some(ViewSubcommand::Publish(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "view publish") {

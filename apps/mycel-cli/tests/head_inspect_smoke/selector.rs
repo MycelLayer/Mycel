@@ -113,14 +113,14 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
         .expect("effective_weights should be array");
     let promoted = effective_weights
         .iter()
-        .find(|entry| entry["effective_weight"] == Value::from(2))
+        .find(|entry| entry["effective_weight"] == 2)
         .expect("expected promoted effective weight entry");
     assert_eq!(promoted["admitted"], Value::Bool(true));
     assert!(
         promoted["valid_view_counts"]
             .as_array()
             .is_some_and(|counts| counts.iter().any(|entry| {
-                entry["epoch"] == Value::from(1) && entry["count"] == Value::from(2)
+                entry["epoch"] == 1 && entry["count"] == 2
             })),
         "expected epoch 1 valid_view_counts entry, stdout: {}",
         stdout_text(&output)
@@ -131,7 +131,7 @@ fn head_inspect_uses_effective_weight_in_selector_score() {
     assert!(
         maintainer_support.iter().any(|entry| {
             entry["revision_id"] == revision_a["revision_id"]
-                && entry["effective_weight"] == Value::from(2)
+                && entry["effective_weight"] == 2
         }),
         "expected weighted maintainer_support entry, stdout: {}",
         stdout_text(&output)
@@ -1066,7 +1066,7 @@ fn head_inspect_penalizes_critical_violations() {
                 .as_array()
                 .is_some_and(|counts| {
                     counts.iter().any(|count| {
-                        count["epoch"] == Value::from(1) && count["count"] == Value::from(1)
+                        count["epoch"] == 1 && count["count"] == 1
                     })
                 })
         })
@@ -1079,7 +1079,7 @@ fn head_inspect_penalizes_critical_violations() {
     assert!(
         maintainer_support
             .iter()
-            .all(|entry| entry["effective_weight"] != Value::from(0)),
+            .all(|entry| entry["effective_weight"] != 0),
         "expected penalized maintainer to be absent from maintainer_support, stdout: {}",
         stdout_text(&output)
     );

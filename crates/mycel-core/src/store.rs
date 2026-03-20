@@ -2036,7 +2036,7 @@ mod tests {
         };
         persist_local_store_policy(&store_dir, &custom_policy)
             .expect("custom local policy should persist");
-        let original_policy_bytes = fs::read(&local_store_policy_path(&store_dir))
+        let original_policy_bytes = fs::read(local_store_policy_path(&store_dir))
             .expect("local policy should be readable before rebuild");
 
         ingest_store_from_path(&source_dir, &store_dir).expect("ingest should succeed");

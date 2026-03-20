@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -29,7 +29,7 @@ fn write_input_file(prefix: &str, name: &str, value: Value) -> TempInputFile {
     TempInputFile { _dir: dir, path }
 }
 
-fn path_arg(path: &PathBuf) -> String {
+fn path_arg(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
@@ -234,14 +234,14 @@ fn write_store_source_objects(prefix: &str, objects: &[Value]) -> common::TempDi
 }
 
 fn build_store_from_objects(objects: &[Value]) -> common::TempDir {
-    let source_dir = write_store_source_objects("head-inspect-store-source", &objects);
+    let source_dir = write_store_source_objects("head-inspect-store-source", objects);
     let store_dir = create_temp_dir("head-inspect-store-root");
     let ingest = run_mycel(&[
         "store",
         "ingest",
-        &path_arg(&source_dir.path().to_path_buf()),
+        &path_arg(source_dir.path()),
         "--into",
-        &path_arg(&store_dir.path().to_path_buf()),
+        &path_arg(store_dir.path()),
     ]);
     assert_success(&ingest);
     store_dir

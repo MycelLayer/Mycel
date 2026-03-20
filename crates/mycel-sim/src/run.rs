@@ -71,6 +71,22 @@ pub struct FaultPlanEntry {
     pub target_node_id: Option<String>,
 }
 
+struct RunMetadataArgs<'a> {
+    root: &'a Path,
+    test_case_path: &'a Path,
+    topology_path: &'a Path,
+    fixture_path: &'a Path,
+    validation_status: ValidationStatus,
+    run_duration_ms: u128,
+    deterministic_seed: &'a str,
+    seed_source: &'a str,
+    events_per_second: f64,
+    ms_per_event: f64,
+    scheduled_peer_order: &'a [String],
+    fault_plan: &'a [FaultPlanEntry],
+    run_mode: &'a str,
+}
+
 const SIM_SIGNING_KEY_SEED: &str = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
 
 pub fn run_test_case(target_path: &Path) -> Result<SimulationRunSummary, String> {
@@ -182,21 +198,21 @@ pub fn run_test_case_with_options(
     };
     report.started_at = Some(started_at.clone());
     report.finished_at = Some(finished_at.clone());
-    report.metadata = Some(build_run_metadata(
-        &root,
-        &target,
-        &topology_path,
-        &fixture_path,
-        filtered_validation_status,
+    report.metadata = Some(build_run_metadata(RunMetadataArgs {
+        root: &root,
+        test_case_path: &target,
+        topology_path: &topology_path,
+        fixture_path: &fixture_path,
+        validation_status: filtered_validation_status,
         run_duration_ms,
-        &deterministic_seed,
-        &seed_source,
+        deterministic_seed: &deterministic_seed,
+        seed_source: &seed_source,
         events_per_second,
         ms_per_event,
-        &scheduled_peer_order,
-        &fault_plan,
+        scheduled_peer_order: &scheduled_peer_order,
+        fault_plan: &fault_plan,
         run_mode,
-    ));
+    }));
     if let Some(parent) = report_path.parent() {
         fs::create_dir_all(parent).map_err(|err| {
             format!(
@@ -1514,38 +1530,24 @@ where
     parse_json_strict(&body).map_err(|err| format!("failed to parse {}: {err}", path.display()))
 }
 
-fn build_run_metadata(
-    root: &Path,
-    test_case_path: &Path,
-    topology_path: &Path,
-    fixture_path: &Path,
-    validation_status: ValidationStatus,
-    run_duration_ms: u128,
-    deterministic_seed: &str,
-    seed_source: &str,
-    events_per_second: f64,
-    ms_per_event: f64,
-    scheduled_peer_order: &[String],
-    fault_plan: &[FaultPlanEntry],
-    run_mode: &str,
-) -> serde_json::Value {
+fn build_run_metadata(args: RunMetadataArgs<'_>) -> serde_json::Value {
     json!({
         "generator": "mycel-cli/sim-run-v0",
         "deterministic": true,
-        "run_mode": run_mode,
+        "run_mode": args.run_mode,
         "trace_version": "v0",
         "timezone": "Asia/Taipei (UTC+8)",
-        "validation_status": validation_status.to_string(),
-        "run_duration_ms": run_duration_ms,
-        "deterministic_seed": deterministic_seed,
-        "seed_source": seed_source,
-        "events_per_second": events_per_second,
-        "ms_per_event": ms_per_event,
-        "scheduled_peer_order": scheduled_peer_order,
-        "fault_plan": fault_plan,
-        "source_test_case": relative_path_string(root, test_case_path),
-        "source_topology": relative_path_string(root, topology_path),
-        "source_fixture": relative_path_string(root, fixture_path),
+        "validation_status": args.validation_status.to_string(),
+        "run_duration_ms": args.run_duration_ms,
+        "deterministic_seed": args.deterministic_seed,
+        "seed_source": args.seed_source,
+        "events_per_second": args.events_per_second,
+        "ms_per_event": args.ms_per_event,
+        "scheduled_peer_order": args.scheduled_peer_order,
+        "fault_plan": args.fault_plan,
+        "source_test_case": relative_path_string(args.root, args.test_case_path),
+        "source_topology": relative_path_string(args.root, args.topology_path),
+        "source_fixture": relative_path_string(args.root, args.fixture_path),
     })
 }
 
@@ -2147,7 +2149,7 @@ fn readers_match_heads(head_ids: &BTreeMap<String, BTreeMap<String, Vec<String>>
 }
 
 fn sanitize_path_component(value: &str) -> String {
-    value.replace(':', "-").replace('/', "-")
+    value.replace([':', '/'], "-")
 }
 
 fn derive_validation_status(has_errors: bool, has_warnings: bool) -> ValidationStatus {

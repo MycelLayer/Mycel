@@ -87,7 +87,7 @@ fn normalized_event_value(
     fields: &[ReportDiffIgnoreField],
     ignore_fields: &[ReportDiffIgnoreField],
 ) -> serde_json::Value {
-    let mut value = serde_json::to_value(event).unwrap_or_else(|_| serde_json::Value::Null);
+    let mut value = serde_json::to_value(event).unwrap_or(serde_json::Value::Null);
     let Some(object) = value.as_object_mut() else {
         return value;
     };
