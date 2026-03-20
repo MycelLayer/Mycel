@@ -252,6 +252,13 @@ Starter check tools/modules:
 - broad structural search-and-rewrite experiments: `comby`
 - complexity and lint signals: `clippy`
 
+Current CI-backed `ast-grep` gates:
+
+- blocking: no local `canonical_json` helper definitions in `apps/mycel-cli/tests`
+- blocking: no local `recompute_id` helper definitions in `apps/mycel-cli/tests`
+- blocking: no local `sign_value` helper definitions in `apps/mycel-cli/tests`
+- intent: keep CLI smoke tests on shared canonicalization, ID recomputation, and signing helpers so protocol drift is caught early
+
 ## 7. Relation to Other Surfaces
 
 Use this checklist together with:

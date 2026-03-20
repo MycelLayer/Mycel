@@ -250,6 +250,13 @@
 - 廣義結構搜尋 / 重寫實驗：`comby`
 - 複雜度與 lint 訊號：`clippy`
 
+目前已接入 CI 的 `ast-grep` gate：
+
+- blocking：禁止在 `apps/mycel-cli/tests` 裡本地定義 `canonical_json` helper
+- blocking：禁止在 `apps/mycel-cli/tests` 裡本地定義 `recompute_id` helper
+- blocking：禁止在 `apps/mycel-cli/tests` 裡本地定義 `sign_value` helper
+- 目的：讓 CLI smoke tests 持續走共用 canonicalization、ID 重算與 signing helper，提早攔下 protocol drift
+
 ## 7. 與其他表面的關係
 
 請搭配下列文件一起使用這份檢查清單：
