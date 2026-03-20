@@ -3,8 +3,10 @@ use std::path::PathBuf;
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
+use mycel_core::author::signer_id;
+use mycel_core::canonical::{prefixed_canonical_hash, signed_payload_bytes};
+use mycel_core::protocol::{recompute_object_id, CORE_PROTOCOL_VERSION};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 
 mod common;
 
@@ -35,66 +37,9 @@ fn signing_key(seed: u8) -> SigningKey {
     SigningKey::from_bytes(&[seed; 32])
 }
 
-fn signer_id(signing_key: &SigningKey) -> String {
-    format!(
-        "pk:ed25519:{}",
-        base64::engine::general_purpose::STANDARD.encode(signing_key.verifying_key().as_bytes())
-    )
-}
-
-fn canonical_json(value: &Value) -> String {
-    match value {
-        Value::Null => panic!("test objects should not use null"),
-        Value::Bool(boolean) => boolean.to_string(),
-        Value::Number(number) => number.to_string(),
-        Value::String(string) => serde_json::to_string(string).expect("string should encode"),
-        Value::Array(values) => format!(
-            "[{}]",
-            values
-                .iter()
-                .map(canonical_json)
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        Value::Object(entries) => {
-            let mut keys: Vec<&String> = entries.keys().collect();
-            keys.sort_unstable();
-            let parts = keys
-                .into_iter()
-                .map(|key| {
-                    format!(
-                        "{}:{}",
-                        serde_json::to_string(key).expect("key should encode"),
-                        canonical_json(&entries[key])
-                    )
-                })
-                .collect::<Vec<_>>();
-            format!("{{{}}}", parts.join(","))
-        }
-    }
-}
-
-fn recompute_id(value: &Value, id_field: &str, prefix: &str) -> String {
-    let mut object = value
-        .as_object()
-        .cloned()
-        .expect("test object should be JSON object");
-    object.remove(id_field);
-    object.remove("signature");
-    let canonical = canonical_json(&Value::Object(object));
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    format!("{prefix}:{:x}", hasher.finalize())
-}
-
 fn sign_value(signing_key: &SigningKey, value: &Value) -> String {
-    let mut object = value
-        .as_object()
-        .cloned()
-        .expect("test object should be JSON object");
-    object.remove("signature");
-    let canonical = canonical_json(&Value::Object(object));
-    let signature = signing_key.sign(canonical.as_bytes());
+    let payload = signed_payload_bytes(value).expect("signed payload should canonicalize");
+    let signature = signing_key.sign(&payload);
     format!(
         "sig:ed25519:{}",
         base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
@@ -128,7 +73,7 @@ fn signed_revision_with_patches(
 ) -> Value {
     let mut value = json!({
         "type": "revision",
-        "version": "mycel/0.1",
+        "version": CORE_PROTOCOL_VERSION,
         "doc_id": doc_id,
         "parents": parents,
         "patches": patches,
@@ -136,7 +81,8 @@ fn signed_revision_with_patches(
         "author": signer_id(signing_key),
         "timestamp": timestamp
     });
-    let id = recompute_id(&value, "revision_id", "rev");
+    let id = recompute_object_id(&value, "revision_id", "rev")
+        .expect("revision id should recompute");
     value["revision_id"] = Value::String(id);
     value["signature"] = Value::String(sign_value(signing_key, &value));
     value
@@ -151,24 +97,21 @@ fn signed_patch(
 ) -> Value {
     let mut value = json!({
         "type": "patch",
-        "version": "mycel/0.1",
+        "version": CORE_PROTOCOL_VERSION,
         "doc_id": doc_id,
         "base_revision": base_revision,
         "author": signer_id(signing_key),
         "timestamp": timestamp,
         "ops": ops
     });
-    let id = recompute_id(&value, "patch_id", "patch");
+    let id = recompute_object_id(&value, "patch_id", "patch").expect("patch id should recompute");
     value["patch_id"] = Value::String(id);
     value["signature"] = Value::String(sign_value(signing_key, &value));
     value
 }
 
 fn hash_json(value: &Value) -> String {
-    let canonical = canonical_json(value);
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    format!("hash:{:x}", hasher.finalize())
+    prefixed_canonical_hash(value, "hash").expect("JSON hash should compute")
 }
 
 fn head_profile(policy_hash: String, effective_selection_time: u64) -> Value {
@@ -212,13 +155,13 @@ fn signed_view(
 ) -> Value {
     let mut value = json!({
         "type": "view",
-        "version": "mycel/0.1",
+        "version": CORE_PROTOCOL_VERSION,
         "maintainer": signer_id(signing_key),
         "policy": policy,
         "documents": documents,
         "timestamp": timestamp
     });
-    let id = recompute_id(&value, "view_id", "view");
+    let id = recompute_object_id(&value, "view_id", "view").expect("view id should recompute");
     value["view_id"] = Value::String(id);
     value["signature"] = Value::String(sign_value(signing_key, &value));
     value
