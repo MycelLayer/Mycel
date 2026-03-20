@@ -1,17 +1,17 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use base64::Engine;
-use ed25519_dalek::{Signer, SigningKey};
+use ed25519_dalek::SigningKey;
+use mycel_core::author::signer_id;
 use serde_json::{json, Value};
 
-use mycel_core::canonical::{prefixed_canonical_hash, signed_payload_bytes};
+use mycel_core::canonical::prefixed_canonical_hash;
 
 mod common;
 
 use common::{
     assert_empty_stderr, assert_exit_code, assert_json_status, assert_stderr_contains,
-    assert_success, create_temp_dir, run_mycel, stdout_text,
+    assert_success, create_temp_dir, run_mycel, signed_test_object, stdout_text,
 };
 
 fn path_arg(path: &Path) -> String {
@@ -26,40 +26,9 @@ fn signing_key() -> SigningKey {
     SigningKey::from_bytes(&[7u8; 32])
 }
 
-fn signer_id(signing_key: &SigningKey) -> String {
-    format!(
-        "pk:ed25519:{}",
-        base64::engine::general_purpose::STANDARD.encode(signing_key.verifying_key().as_bytes())
-    )
-}
-
-fn recompute_id(value: &Value, id_field: &str, prefix: &str) -> String {
-    let mut object = value
-        .as_object()
-        .cloned()
-        .expect("test object should be JSON object");
-    object.remove(id_field);
-    object.remove("signature");
-    prefixed_canonical_hash(&Value::Object(object), prefix).expect("object id should canonicalize")
-}
-
-fn sign_value(signing_key: &SigningKey, value: &Value) -> String {
-    let payload = signed_payload_bytes(value).expect("payload should canonicalize");
-    let signature = signing_key.sign(&payload);
-    format!(
-        "sig:ed25519:{}",
-        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
-    )
-}
-
-fn signed_object(mut value: Value, signer_field: &str, id_field: &str, id_prefix: &str) -> Value {
+fn signed_object(value: Value, signer_field: &str, id_field: &str, id_prefix: &str) -> Value {
     let signing_key = signing_key();
-    value[signer_field] = Value::String(signer_id(&signing_key));
-    let id = recompute_id(&value, id_field, id_prefix);
-    value[id_field] = Value::String(id);
-    let signature = sign_value(&signing_key, &value);
-    value["signature"] = Value::String(signature);
-    value
+    signed_test_object(value, &signing_key, signer_field, id_field, id_prefix)
 }
 
 #[test]

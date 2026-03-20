@@ -1,10 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use base64::Engine;
-use ed25519_dalek::{Signer, SigningKey};
+use ed25519_dalek::SigningKey;
 use mycel_core::author::signer_id;
-use mycel_core::canonical::{prefixed_canonical_hash, signed_payload_bytes};
+use mycel_core::canonical::prefixed_canonical_hash;
 use mycel_core::protocol::{recompute_object_id, CORE_PROTOCOL_VERSION};
 use serde_json::{json, Value};
 
@@ -13,7 +12,7 @@ mod common;
 use common::{
     assert_exit_code, assert_stderr_contains, assert_stderr_starts_with, assert_stdout_contains,
     assert_success, assert_top_level_help, create_temp_dir, parse_json_stdout, repo_root,
-    run_mycel, stdout_text,
+    run_mycel, sign_test_value as sign_value, stdout_text,
 };
 
 struct TempInputFile {
@@ -35,15 +34,6 @@ fn path_arg(path: &Path) -> String {
 
 fn signing_key(seed: u8) -> SigningKey {
     SigningKey::from_bytes(&[seed; 32])
-}
-
-fn sign_value(signing_key: &SigningKey, value: &Value) -> String {
-    let payload = signed_payload_bytes(value).expect("signed payload should canonicalize");
-    let signature = signing_key.sign(&payload);
-    format!(
-        "sig:ed25519:{}",
-        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
-    )
 }
 
 fn signed_revision(

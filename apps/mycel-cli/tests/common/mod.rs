@@ -6,6 +6,11 @@ use std::process::Output;
 
 use assert_cmd::assert::Assert;
 use assert_cmd::Command;
+use base64::Engine;
+use ed25519_dalek::{Signer, SigningKey};
+use mycel_core::author::signer_id;
+use mycel_core::canonical::prefixed_canonical_hash;
+use mycel_core::protocol::{canonical_json, recompute_object_id, signed_payload_bytes};
 use predicates::prelude::*;
 use serde_json::Value;
 use tempfile::Builder;
@@ -64,6 +69,41 @@ pub fn run_report(args: &[&str]) -> Output {
 
 pub fn parse_json_stdout(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).expect("stdout should contain valid JSON")
+}
+
+pub fn canonical_json_string(value: &Value) -> String {
+    canonical_json(value).expect("test value should canonicalize")
+}
+
+pub fn recompute_test_object_id(value: &Value, id_field: &str, prefix: &str) -> String {
+    recompute_object_id(value, id_field, prefix).expect("test object ID should recompute")
+}
+
+pub fn sign_test_value(signing_key: &SigningKey, value: &Value) -> String {
+    let payload = signed_payload_bytes(value).expect("payload should canonicalize");
+    let signature = signing_key.sign(&payload);
+    format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    )
+}
+
+pub fn prefixed_hash_for_test(value: &Value, prefix: &str) -> String {
+    prefixed_canonical_hash(value, prefix).expect("test hash should canonicalize")
+}
+
+pub fn signed_test_object(
+    mut value: Value,
+    signing_key: &SigningKey,
+    signer_field: &str,
+    id_field: &str,
+    id_prefix: &str,
+) -> Value {
+    value[signer_field] = Value::String(signer_id(signing_key));
+    let id = recompute_test_object_id(&value, id_field, id_prefix);
+    value[id_field] = Value::String(id);
+    value["signature"] = Value::String(sign_test_value(signing_key, &value));
+    value
 }
 
 pub fn assert_success(output: &Output) {
