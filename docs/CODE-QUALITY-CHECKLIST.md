@@ -238,8 +238,8 @@ When we call out a code quality issue, the write-up should usually answer:
 
 These are not hard rules, but they are useful default prompts:
 
-- File size warning: around `300-500` lines
-- Function size warning: around `40-60` lines
+- File size warning: over `800` lines
+- Function size warning: over `100` lines
 - Repeated literal warning: same non-trivial literal appears `3+` times
 - Drift warning: tests or CLI helpers reimplement canonicalization, signatures, hashing, replay, or selector logic
 - Boundary warning: one module mixes parsing, domain decisions, and rendering
@@ -251,6 +251,14 @@ Starter check tools/modules:
 - structural repetition or local reimplementation: `ast-grep`
 - broad structural search-and-rewrite experiments: `comby`
 - complexity and lint signals: `clippy`
+
+Current CI-backed warning scan:
+
+- warning-only: `python3 scripts/check_code_quality_hotspots.py --github-warning`
+- current thresholds:
+  - file size: over `800` lines
+  - function size: over `100` lines
+  - same non-trivial literal: `3+` repeats
 
 Current CI-backed `ast-grep` gates:
 

@@ -236,8 +236,8 @@
 
 這些不是硬性規則，但很適合作為預設提示：
 
-- 檔案大小警訊：大約 `300-500` 行
-- 函式大小警訊：大約 `40-60` 行
+- 檔案大小警訊：超過 `800` 行
+- 函式大小警訊：超過 `100` 行
 - 重複 literal 警訊：同一個非 trivial literal 出現 `3+` 次
 - drift 警訊：測試或 CLI helper 重做 canonicalization、signatures、hashing、replay 或 selector 邏輯
 - 邊界警訊：同一模組混合 parsing、領域決策與 rendering
@@ -249,6 +249,14 @@
 - 結構重複或本地重實作：`ast-grep`
 - 廣義結構搜尋 / 重寫實驗：`comby`
 - 複雜度與 lint 訊號：`clippy`
+
+目前已接入 CI 的 warning-only 掃描：
+
+- warning-only：`python3 scripts/check_code_quality_hotspots.py --github-warning`
+- 目前門檻：
+  - 檔案大小：超過 `800` 行
+  - 函式大小：超過 `100` 行
+  - 同一個非 trivial literal：重複 `3+` 次
 
 目前已接入 CI 的 `ast-grep` gate：
 

@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import ast
+import io
+import re
+import sys
+import tokenize
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DIRS = ("apps", "crates", "scripts")
+SUPPORTED_EXTENSIONS = {".py", ".rs"}
+EXCLUDED_PARTS = {".git", ".agent-local", "target", "node_modules", "__pycache__"}
+DEFAULT_FILE_LINES = 800
+DEFAULT_FUNCTION_LINES = 100
+DEFAULT_LITERAL_REPEATS = 3
+MIN_LITERAL_LENGTH = 12
+
+
+@dataclass(frozen=True)
+class Finding:
+    kind: str
+    path: str
+    line: int
+    message: str
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="scripts/check_code_quality_hotspots.py",
+        description=(
+            "Scan source files for large-file, large-function, and repeated-literal "
+            "code-quality hotspots."
+        ),
+    )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        help="repo-relative directories or files to scan; defaults to apps crates scripts",
+    )
+    parser.add_argument(
+        "--file-lines",
+        type=int,
+        default=DEFAULT_FILE_LINES,
+        help=f"warn when a file exceeds this many lines (default: {DEFAULT_FILE_LINES})",
+    )
+    parser.add_argument(
+        "--function-lines",
+        type=int,
+        default=DEFAULT_FUNCTION_LINES,
+        help=(
+            f"warn when a function exceeds this many lines "
+            f"(default: {DEFAULT_FUNCTION_LINES})"
+        ),
+    )
+    parser.add_argument(
+        "--literal-repeats",
+        type=int,
+        default=DEFAULT_LITERAL_REPEATS,
+        help=(
+            "warn when the same non-trivial literal appears at least this many times "
+            f"(default: {DEFAULT_LITERAL_REPEATS})"
+        ),
+    )
+    parser.add_argument(
+        "--github-warning",
+        action="store_true",
+        help="emit GitHub Actions warning annotations for each finding",
+    )
+    parser.add_argument(
+        "--fail-on-findings",
+        action="store_true",
+        help="exit non-zero when findings are present",
+    )
+    return parser.parse_args()
+
+
+def iter_source_files(raw_paths: list[str]) -> list[Path]:
+    scan_roots = raw_paths or list(DEFAULT_DIRS)
+    files: list[Path] = []
+    for raw in scan_roots:
+        path = (ROOT / raw).resolve()
+        if not path.exists():
+            continue
+        if path.is_file():
+            if is_supported(path):
+                files.append(path)
+            continue
+        for candidate in path.rglob("*"):
+            if any(part in EXCLUDED_PARTS for part in candidate.parts):
+                continue
+            if candidate.is_file() and is_supported(candidate):
+                files.append(candidate)
+    return sorted(set(files))
+
+
+def is_supported(path: Path) -> bool:
+    return path.suffix in SUPPORTED_EXTENSIONS
+
+
+def relative_path(path: Path) -> str:
+    return path.resolve().relative_to(ROOT).as_posix()
+
+
+def file_line_count(text: str) -> int:
+    return text.count("\n") + (0 if not text else 1)
+
+
+def scan_file(path: Path, args: argparse.Namespace) -> list[Finding]:
+    text = path.read_text(encoding="utf-8")
+    findings: list[Finding] = []
+    line_count = file_line_count(text)
+    rel = relative_path(path)
+    if line_count > args.file_lines:
+        findings.append(
+            Finding(
+                kind="file-size",
+                path=rel,
+                line=1,
+                message=(
+                    f"file has {line_count} lines (warning threshold: {args.file_lines}); "
+                    "consider splitting by concern"
+                ),
+            )
+        )
+
+    literal_scan_allowed = "/tests/" not in f"/{rel}/"
+
+    if path.suffix == ".py":
+        findings.extend(scan_python_functions(rel, text, args.function_lines))
+        if literal_scan_allowed:
+            findings.extend(scan_python_literals(rel, text, args.literal_repeats))
+    elif path.suffix == ".rs":
+        findings.extend(scan_rust_functions(rel, text, args.function_lines))
+        if literal_scan_allowed:
+            findings.extend(scan_rust_literals(rel, text, args.literal_repeats))
+    return findings
+
+
+def scan_python_functions(rel: str, text: str, threshold: int) -> list[Finding]:
+    tree = ast.parse(text)
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        end_lineno = getattr(node, "end_lineno", node.lineno)
+        line_count = end_lineno - node.lineno + 1
+        if line_count > threshold:
+            findings.append(
+                Finding(
+                    kind="function-size",
+                    path=rel,
+                    line=node.lineno,
+                    message=(
+                        f"function `{node.name}` spans {line_count} lines "
+                        f"(warning threshold: {threshold})"
+                    ),
+                )
+            )
+    return findings
+
+
+RUST_FN_PATTERN = re.compile(
+    r"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\b"
+)
+
+
+def scan_rust_functions(rel: str, text: str, threshold: int) -> list[Finding]:
+    findings: list[Finding] = []
+    lines = text.splitlines()
+    line_total = len(lines)
+    idx = 0
+    while idx < line_total:
+        line = lines[idx]
+        match = RUST_FN_PATTERN.match(line)
+        if not match:
+            idx += 1
+            continue
+        name = match.group(1)
+        start = idx
+        brace_depth = 0
+        opened = False
+        end = idx
+        while end < line_total:
+            current = lines[end]
+            brace_depth += current.count("{")
+            if current.count("{") > 0:
+                opened = True
+            brace_depth -= current.count("}")
+            if opened and brace_depth <= 0:
+                break
+            end += 1
+        line_count = end - start + 1
+        if opened and line_count > threshold:
+            findings.append(
+                Finding(
+                    kind="function-size",
+                    path=rel,
+                    line=start + 1,
+                    message=(
+                        f"function `{name}` spans {line_count} lines "
+                        f"(warning threshold: {threshold})"
+                    ),
+                )
+            )
+        idx = max(end + 1, idx + 1)
+    return findings
+
+
+def scan_python_literals(rel: str, text: str, threshold: int) -> list[Finding]:
+    occurrences: dict[str, list[int]] = {}
+    token_stream = tokenize.generate_tokens(io.StringIO(text).readline)
+    for token in token_stream:
+        if token.type != tokenize.STRING:
+            continue
+        try:
+            value = ast.literal_eval(token.string)
+        except Exception:
+            continue
+        if not isinstance(value, str):
+            continue
+        if not is_non_trivial_literal(value):
+            continue
+        occurrences.setdefault(value, []).append(token.start[0])
+    return literal_findings(rel, occurrences, threshold)
+
+
+RUST_LITERAL_PATTERN = re.compile(r'"((?:\\.|[^"\\])*)"')
+
+
+def scan_rust_literals(rel: str, text: str, threshold: int) -> list[Finding]:
+    occurrences: dict[str, list[int]] = {}
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        for match in RUST_LITERAL_PATTERN.finditer(line):
+            value = bytes(match.group(1), "utf-8").decode("unicode_escape")
+            if not is_non_trivial_literal(value):
+                continue
+            occurrences.setdefault(value, []).append(lineno)
+    return literal_findings(rel, occurrences, threshold)
+
+
+def is_non_trivial_literal(value: str) -> bool:
+    stripped = value.strip()
+    if len(stripped) < MIN_LITERAL_LENGTH:
+        return False
+    if "\n" in stripped:
+        return False
+    if not any(ch.isalpha() for ch in stripped):
+        return False
+    if stripped.startswith("http://") or stripped.startswith("https://"):
+        return False
+    if re.fullmatch(r"[A-Za-z0-9_./:#-]+", stripped):
+        return False
+    return True
+
+
+def literal_findings(rel: str, occurrences: dict[str, list[int]], threshold: int) -> list[Finding]:
+    findings: list[Finding] = []
+    for literal, lines in sorted(occurrences.items(), key=lambda item: (-len(item[1]), item[0])):
+        if len(lines) < threshold:
+            continue
+        preview = literal if len(literal) <= 48 else literal[:45] + "..."
+        findings.append(
+            Finding(
+                kind="literal-repeat",
+                path=rel,
+                line=lines[0],
+                message=(
+                    f"non-trivial literal repeats {len(lines)} times "
+                    f"(warning threshold: {threshold}): {preview!r}"
+                ),
+            )
+        )
+    return findings
+
+
+def render(findings: list[Finding], args: argparse.Namespace) -> int:
+    if not findings:
+        print(
+            "No code-quality hotspots found "
+            f"(file>{args.file_lines}, function>{args.function_lines}, "
+            f"literal repeats>={args.literal_repeats})."
+        )
+        return 0
+
+    counter = Counter(finding.kind for finding in findings)
+    print(
+        "Code-quality hotspot warnings "
+        f"(file>{args.file_lines}, function>{args.function_lines}, "
+        f"literal repeats>={args.literal_repeats}):"
+    )
+    for finding in findings:
+        print(f"- [{finding.kind}] {finding.path}:{finding.line} {finding.message}")
+        if args.github_warning:
+            message = finding.message.replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
+            print(f"::warning file={finding.path},line={finding.line}::{message}")
+    print(
+        "Summary: "
+        + ", ".join(f"{counter[key]} {key}" for key in sorted(counter))
+    )
+    return 1 if args.fail_on_findings else 0
+
+
+def main() -> int:
+    args = parse_args()
+    findings: list[Finding] = []
+    for path in iter_source_files(args.paths):
+        findings.extend(scan_file(path, args))
+    return render(findings, args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

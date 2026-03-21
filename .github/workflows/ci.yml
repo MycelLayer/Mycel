@@ -12,6 +12,9 @@ on:
       - 'crates/**'
       - 'fixtures/**'
       - 'sim/**'
+      - 'scripts/**'
+      - 'docs/CODE-QUALITY-CHECKLIST.md'
+      - 'docs/CODE-QUALITY-CHECKLIST.zh-TW.md'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
@@ -24,6 +27,9 @@ on:
       - 'crates/**'
       - 'fixtures/**'
       - 'sim/**'
+      - 'scripts/**'
+      - 'docs/CODE-QUALITY-CHECKLIST.md'
+      - 'docs/CODE-QUALITY-CHECKLIST.zh-TW.md'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'rust-toolchain.toml'
@@ -81,3 +87,21 @@ jobs:
 
       - name: Run ast-grep quality scan
         run: sg scan --config sgconfig.yml --report-style short --format github
+
+  code-quality-hotspots-warning:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Warn on large files, long functions, and repeated literals
+        run: python3 scripts/check_code_quality_hotspots.py --github-warning
