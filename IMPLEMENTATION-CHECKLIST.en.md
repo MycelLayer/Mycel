@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M2` / `M3` / `M4` work, including broader governance persistence, broader peer interop, and production replication behavior
+Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M2` / `M3` / `M4` work, with the remaining `M2` focus now narrowed to richer content-variant and metadata-variant competing-branch classification, `M3` still centered on broader governance persistence and reader/governance follow-up, and `M4` now focused on the broader session/capability/error-path interop coverage that remains after the currently tracked production replication sub-items landed
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
