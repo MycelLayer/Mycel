@@ -309,6 +309,19 @@ fn merge_authoring_rejects_parent_matched_attr_variant_as_manual_curation_requir
         ),
         "expected attrs manual-curation error, got {error}"
     );
+    let json_summary = error
+        .json_summary()
+        .expect("attrs manual curation error should expose json summary");
+    assert_eq!(json_summary["status"], "failed");
+    assert_eq!(json_summary["merge_outcome"], "manual-curation-required");
+    assert_eq!(
+        json_summary["merge_reasons"],
+        json!(["block 'blk:merge-attrs' changes attrs in an unsupported way"])
+    );
+    assert_eq!(
+        json_summary["errors"],
+        json!(["merge resolution is manual-curation-required: block 'blk:merge-attrs' changes attrs in an unsupported way"])
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }

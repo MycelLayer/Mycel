@@ -76,24 +76,26 @@ pub fn create_merge_revision_in_store(
         .clone();
     let assessment = assess_merge_resolution(&parent_states, &params.resolved_state)?;
     if assessment.outcome == MergeOutcome::ManualCurationRequired {
-        let message = format!(
-            "merge resolution is manual-curation-required: {}",
-            assessment.reasons.join("; ")
-        );
-        let json_summary = serde_json::to_value(ManualCurationSummary {
-            status: "failed".to_string(),
-            doc_id: params.doc_id.clone(),
-            merge_outcome: assessment.outcome,
-            merge_reasons: assessment.reasons.clone(),
-            merge_reason_details: assessment.reason_details.clone(),
-            parent_revision_ids: params.parents.clone(),
-            errors: vec![message.clone()],
-        })
-        .expect("manual curation summary should serialize");
-        return Err(StoreRebuildError::with_json_summary(message, json_summary));
+        return Err(manual_curation_error(
+            &params.doc_id,
+            &params.parents,
+            assessment.reasons,
+            assessment.reason_details,
+        ));
     }
 
-    let ops = build_conservative_merge_ops(&primary_state, &params.resolved_state)?;
+    let ops =
+        build_conservative_merge_ops(&primary_state, &params.resolved_state).map_err(|error| {
+            if let Some(reason) = error
+                .to_string()
+                .strip_prefix("manual-curation-required: ")
+                .map(str::to_owned)
+            {
+                manual_curation_error(&params.doc_id, &params.parents, vec![reason], Vec::new())
+            } else {
+                error
+            }
+        })?;
     let patch_summary = create_patch_in_store(
         store_root,
         signing_key,
@@ -144,6 +146,29 @@ pub fn create_merge_revision_in_store(
         notes: Vec::new(),
         errors: Vec::new(),
     })
+}
+
+fn manual_curation_error(
+    doc_id: &str,
+    parent_revision_ids: &[String],
+    reasons: Vec<String>,
+    reason_details: Vec<MergeReasonDetail>,
+) -> StoreRebuildError {
+    let message = format!(
+        "merge resolution is manual-curation-required: {}",
+        reasons.join("; ")
+    );
+    let json_summary = serde_json::to_value(ManualCurationSummary {
+        status: "failed".to_string(),
+        doc_id: doc_id.to_string(),
+        merge_outcome: MergeOutcome::ManualCurationRequired,
+        merge_reasons: reasons,
+        merge_reason_details: reason_details,
+        parent_revision_ids: parent_revision_ids.to_vec(),
+        errors: vec![message.clone()],
+    })
+    .expect("manual curation summary should serialize");
+    StoreRebuildError::with_json_summary(message, json_summary)
 }
 
 fn assess_merge_resolution(
