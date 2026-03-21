@@ -73,15 +73,37 @@ def normalize_paths(raw_paths: list[str]) -> list[str]:
 
 
 def verify_paths_exist(paths: list[str]) -> None:
-    missing = [path for path in paths if not (ROOT_DIR / path).exists()]
+    missing: list[str] = []
+    for path in paths:
+        if (ROOT_DIR / path).exists():
+            continue
+        tracked_in_head = run_git("cat-file", "-e", f"HEAD:{path}", check=False)
+        if tracked_in_head.returncode == 0:
+            continue
+        missing.append(path)
     if missing:
         raise AgentSafeCommitError(
             "cannot stage missing paths: " + ", ".join(sorted(missing))
         )
 
 
+def path_tracked_in_head(path: str) -> bool:
+    return run_git("cat-file", "-e", f"HEAD:{path}", check=False).returncode == 0
+
+
+def stage_paths(paths: list[str]) -> None:
+    for path in paths:
+        if (ROOT_DIR / path).exists():
+            run_git("add", "-A", "--", path)
+            continue
+        if path_tracked_in_head(path):
+            run_git("rm", "-f", "--ignore-unmatch", "--", path)
+            continue
+        raise AgentSafeCommitError(f"cannot stage missing paths: {path}")
+
+
 def staged_paths() -> list[str]:
-    proc = run_git("diff", "--cached", "--name-only", "--diff-filter=ACMR")
+    proc = run_git("diff", "--cached", "--name-only", "--diff-filter=ACMRD")
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
@@ -108,7 +130,7 @@ def main() -> int:
         allowed_paths = normalize_paths(args.paths)
         verify_paths_exist(allowed_paths)
 
-        run_git("add", "--", *allowed_paths)
+        stage_paths(allowed_paths)
 
         actual_staged = staged_paths()
         expected = set(allowed_paths)
