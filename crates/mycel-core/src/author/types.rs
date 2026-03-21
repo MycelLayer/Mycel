@@ -85,12 +85,25 @@ pub enum MergeReasonKind {
     NoMatchingSiblingPlacement,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeReasonBranchKind {
+    AdoptedNonPrimaryAddition,
+    AdoptedNonPrimaryReplacement,
+    KeptPrimaryAbsenceOverNonPrimaryAddition,
+    KeptPrimaryVariantOverNonPrimaryReplacement,
+    MultipleCompetingNonPrimaryAdditions,
+    MultipleCompetingNonPrimaryReplacements,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct MergeReasonDetail {
     pub subject_kind: MergeReasonSubjectKind,
     pub subject_id: String,
     pub variant_kind: MergeReasonVariantKind,
     pub reason_kind: MergeReasonKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch_kind: Option<MergeReasonBranchKind>,
     pub primary_variant: String,
     pub resolved_variant: String,
     pub competing_variants: Vec<String>,

@@ -11,9 +11,9 @@ use crate::store::{load_doc_replay_objects_from_store, StoreRebuildError};
 
 use super::shared::{ensure_document_exists, ensure_object_exists};
 use super::types::{
-    BlockPlacement, ManualCurationSummary, MergeAssessment, MergeOutcome, MergeReasonDetail,
-    MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind, MergeRevisionCreateParams,
-    MergeRevisionCreateSummary, PatchCreateParams, RevisionCommitParams,
+    BlockPlacement, ManualCurationSummary, MergeAssessment, MergeOutcome, MergeReasonBranchKind,
+    MergeReasonDetail, MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind,
+    MergeRevisionCreateParams, MergeRevisionCreateSummary, PatchCreateParams, RevisionCommitParams,
 };
 use super::write::{commit_revision_to_store, create_patch_in_store};
 
@@ -220,6 +220,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::Content,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    branch_kind: Some(selected_variant_branch_kind(&primary_content_variant)),
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
                     competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -235,6 +236,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::Content,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: Some(multiple_competing_branch_kind(&primary_content_variant)),
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -264,6 +266,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::Content,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: Some(multiple_competing_branch_kind(&primary_content_variant)),
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -282,6 +285,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::Content,
                         reason_kind: MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
+                        branch_kind: Some(kept_primary_branch_kind(&primary_content_variant)),
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -302,6 +306,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::Content,
                     reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    branch_kind: Some(multiple_competing_branch_kind(&primary_content_variant)),
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
                     competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -372,6 +377,7 @@ fn assess_merge_resolution(
                             subject_id: block_id.clone(),
                             variant_kind: MergeReasonVariantKind::ParentPlacement,
                             reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                            branch_kind: None,
                             primary_variant: primary_parent_variant.clone(),
                             resolved_variant: resolved_parent_variant.clone(),
                             competing_variants: alternative_parent_variants
@@ -393,6 +399,7 @@ fn assess_merge_resolution(
                                 subject_id: block_id.clone(),
                                 variant_kind: MergeReasonVariantKind::ParentPlacement,
                                 reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                                branch_kind: None,
                                 primary_variant: primary_parent_variant.clone(),
                                 resolved_variant: resolved_parent_variant.clone(),
                                 competing_variants: alternative_parent_variants
@@ -441,6 +448,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::ParentPlacement,
                         reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        branch_kind: None,
                         primary_variant: primary_parent_variant.clone(),
                         resolved_variant: resolved_parent_variant.clone(),
                         competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -459,6 +467,7 @@ fn assess_merge_resolution(
                             subject_id: block_id.clone(),
                             variant_kind: MergeReasonVariantKind::ParentPlacement,
                             reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            branch_kind: None,
                             primary_variant: primary_parent_variant.clone(),
                             resolved_variant: resolved_parent_variant.clone(),
                             competing_variants: alternative_parent_variants
@@ -485,6 +494,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::ParentPlacement,
                         reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        branch_kind: None,
                         primary_variant: primary_parent_variant.clone(),
                         resolved_variant: resolved_parent_variant.clone(),
                         competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -503,6 +513,7 @@ fn assess_merge_resolution(
                             subject_id: block_id.clone(),
                             variant_kind: MergeReasonVariantKind::ParentPlacement,
                             reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            branch_kind: None,
                             primary_variant: primary_parent_variant.clone(),
                             resolved_variant: resolved_parent_variant.clone(),
                             competing_variants: alternative_parent_variants
@@ -531,6 +542,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::ParentPlacement,
                     reason_kind: MergeReasonKind::NoMatchingParentPlacement,
+                    branch_kind: None,
                     primary_variant: primary_parent_variant.clone(),
                     resolved_variant: resolved_parent_variant.clone(),
                     competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -552,6 +564,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::ParentPlacement,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    branch_kind: None,
                     primary_variant: primary_parent_variant.clone(),
                     resolved_variant: resolved_parent_variant.clone(),
                     competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -570,6 +583,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::ParentPlacement,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: None,
                         primary_variant: primary_parent_variant.clone(),
                         resolved_variant: resolved_parent_variant.clone(),
                         competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -590,6 +604,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::ParentPlacement,
                     reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    branch_kind: None,
                     primary_variant: primary_parent_variant.clone(),
                     resolved_variant: resolved_parent_variant.clone(),
                     competing_variants: alternative_parent_variants.iter().cloned().collect(),
@@ -622,6 +637,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::SiblingPlacement,
                         reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        branch_kind: None,
                         primary_variant: primary_sibling_variant.clone(),
                         resolved_variant: resolved_sibling_variant.clone(),
                         competing_variants: alternative_sibling_variants.iter().cloned().collect(),
@@ -640,6 +656,7 @@ fn assess_merge_resolution(
                             subject_id: block_id.clone(),
                             variant_kind: MergeReasonVariantKind::SiblingPlacement,
                             reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            branch_kind: None,
                             primary_variant: primary_sibling_variant.clone(),
                             resolved_variant: resolved_sibling_variant.clone(),
                             competing_variants: alternative_sibling_variants
@@ -664,6 +681,7 @@ fn assess_merge_resolution(
                 subject_id: block_id.clone(),
                 variant_kind: MergeReasonVariantKind::SiblingPlacement,
                 reason_kind: MergeReasonKind::NoMatchingSiblingPlacement,
+                branch_kind: None,
                 primary_variant: primary_sibling_variant.clone(),
                 resolved_variant: resolved_sibling_variant.clone(),
                 competing_variants: alternative_sibling_variants.iter().cloned().collect(),
@@ -682,6 +700,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::SiblingPlacement,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    branch_kind: None,
                     primary_variant: primary_sibling_variant.clone(),
                     resolved_variant: resolved_sibling_variant.clone(),
                     competing_variants: alternative_sibling_variants.iter().cloned().collect(),
@@ -700,6 +719,7 @@ fn assess_merge_resolution(
                         subject_id: block_id.clone(),
                         variant_kind: MergeReasonVariantKind::SiblingPlacement,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: None,
                         primary_variant: primary_sibling_variant.clone(),
                         resolved_variant: resolved_sibling_variant.clone(),
                         competing_variants: alternative_sibling_variants.iter().cloned().collect(),
@@ -722,6 +742,7 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::SiblingPlacement,
                     reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    branch_kind: None,
                     primary_variant: primary_sibling_variant.clone(),
                     resolved_variant: resolved_sibling_variant.clone(),
                     competing_variants: alternative_sibling_variants.iter().cloned().collect(),
@@ -783,6 +804,7 @@ fn assess_merge_resolution(
                     subject_id: key.clone(),
                     variant_kind: MergeReasonVariantKind::Metadata,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    branch_kind: Some(selected_variant_branch_kind(&primary_variant)),
                     primary_variant: primary_variant.clone(),
                     resolved_variant: resolved_variant.clone(),
                     competing_variants: alternative_variants.iter().cloned().collect(),
@@ -801,6 +823,7 @@ fn assess_merge_resolution(
                         subject_id: key.clone(),
                         variant_kind: MergeReasonVariantKind::Metadata,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: Some(multiple_competing_branch_kind(&primary_variant)),
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: alternative_variants.iter().cloned().collect(),
@@ -822,6 +845,7 @@ fn assess_merge_resolution(
                         subject_id: key.clone(),
                         variant_kind: MergeReasonVariantKind::Metadata,
                         reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        branch_kind: Some(multiple_competing_branch_kind(&primary_variant)),
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: alternative_variants.iter().cloned().collect(),
@@ -840,6 +864,7 @@ fn assess_merge_resolution(
                         subject_id: key.clone(),
                         variant_kind: MergeReasonVariantKind::Metadata,
                         reason_kind: MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
+                        branch_kind: Some(kept_primary_branch_kind(&primary_variant)),
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: alternative_variants.iter().cloned().collect(),
@@ -879,6 +904,30 @@ fn push_variant_reason(
 ) {
     reasons.push(reason);
     reason_details.push(detail);
+}
+
+fn selected_variant_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
+    if primary_variant == "<absent>" {
+        MergeReasonBranchKind::AdoptedNonPrimaryAddition
+    } else {
+        MergeReasonBranchKind::AdoptedNonPrimaryReplacement
+    }
+}
+
+fn kept_primary_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
+    if primary_variant == "<absent>" {
+        MergeReasonBranchKind::KeptPrimaryAbsenceOverNonPrimaryAddition
+    } else {
+        MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryReplacement
+    }
+}
+
+fn multiple_competing_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
+    if primary_variant == "<absent>" {
+        MergeReasonBranchKind::MultipleCompetingNonPrimaryAdditions
+    } else {
+        MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements
+    }
 }
 
 fn block_content_variant(block: Option<&BlockObject>) -> Result<String, StoreRebuildError> {

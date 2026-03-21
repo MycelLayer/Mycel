@@ -303,6 +303,7 @@ fn store_merge_authoring_flow_reports_content_variant_choice_as_multi_variant() 
                     && detail["subject_id"] == "blk:author-smoke-variant-001"
                     && detail["variant_kind"] == "content"
                     && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["branch_kind"] == "adopted-non-primary-replacement"
                     && detail["resolved_variant"]
                         .as_str()
                         .is_some_and(|variant| variant.contains("Right variant"))
@@ -553,6 +554,7 @@ fn store_merge_authoring_flow_reports_metadata_variant_choice_as_multi_variant()
                     && detail["subject_id"] == "topic"
                     && detail["variant_kind"] == "metadata"
                     && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["branch_kind"] == "adopted-non-primary-replacement"
                     && detail["primary_variant"] == "\"left\""
                     && detail["resolved_variant"] == "\"right\""
                     && detail["competing_variants"]
@@ -693,6 +695,17 @@ fn store_merge_authoring_flow_reports_block_added_from_non_primary_parent_as_mul
                 })
             })),
         "did not expect competing content reason with only one alternative, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "blk:author-smoke-variant-001"
+                    && detail["variant_kind"] == "content"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["branch_kind"] == "adopted-non-primary-addition"
+            })),
+        "expected adopted non-primary content addition detail, got {merge_json}"
     );
     assert_eq!(merge_json["patch_op_count"], 1);
     assert_eq!(
@@ -961,6 +974,17 @@ fn store_merge_authoring_flow_reports_added_metadata_from_non_primary_parent_as_
                 })
             })),
         "did not expect competing metadata reason with only one alternative, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["branch_kind"] == "adopted-non-primary-addition"
+            })),
+        "expected adopted non-primary metadata addition detail, got {merge_json}"
     );
     assert_eq!(merge_json["patch_op_count"], 1);
     assert_eq!(
@@ -1282,6 +1306,29 @@ fn store_merge_authoring_flow_preserves_distinct_reasons_for_mixed_metadata_keys
                 })
             })),
         "expected priority keep-primary reason, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["branch_kind"] == "adopted-non-primary-addition"
+            })),
+        "expected topic branch kind detail, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "priority"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"]
+                        == "kept-primary-parent-variant-over-competing-non-primary-alternative"
+                    && detail["branch_kind"] == "kept-primary-absence-over-non-primary-addition"
+            })),
+        "expected priority keep-primary branch kind detail, got {merge_json}"
     );
     assert_eq!(merge_json["patch_op_count"], 1);
 }

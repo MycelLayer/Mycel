@@ -1,5 +1,7 @@
 use super::*;
-use crate::author::types::{MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind};
+use crate::author::types::{
+    MergeReasonBranchKind, MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind,
+};
 
 #[test]
 fn merge_authoring_reports_multi_variant_when_parents_disagree() {
@@ -212,6 +214,10 @@ fn merge_authoring_reports_multi_variant_when_parents_disagree() {
             .any(|variant| variant.contains("Center variant")),
         "expected competing center variant detail, got {content_selection_detail:?}"
     );
+    assert_eq!(
+        content_selection_detail.branch_kind,
+        Some(MergeReasonBranchKind::AdoptedNonPrimaryReplacement)
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }
@@ -338,6 +344,10 @@ fn merge_authoring_reports_multi_variant_when_metadata_parents_disagree() {
         metadata_selection_detail.competing_variants,
         vec!["\"center\"".to_string(), "\"right\"".to_string()]
     );
+    assert_eq!(
+        metadata_selection_detail.branch_kind,
+        Some(MergeReasonBranchKind::AdoptedNonPrimaryReplacement)
+    );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");
     let ops = patch_value["ops"]
@@ -426,6 +436,19 @@ fn merge_authoring_reports_multi_variant_when_block_is_added_from_non_primary_pa
             .contains("block 'blk:merge-content-added' has multiple competing parent variants")),
         "did not expect competing content reason with only one alternative, got {summary:?}"
     );
+    let detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "blk:merge-content-added"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::Content
+        })
+        .expect("expected content addition detail");
+    assert_eq!(
+        detail.branch_kind,
+        Some(MergeReasonBranchKind::AdoptedNonPrimaryAddition)
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }
@@ -492,6 +515,20 @@ fn merge_authoring_reports_multi_variant_when_block_keeps_primary_absence_over_n
             "block 'blk:merge-content-added' kept the primary parent variant over a competing non-primary alternative"
         )),
         "expected keep-primary content reason, got {summary:?}"
+    );
+    let detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "blk:merge-content-added"
+                && detail.reason_kind
+                    == MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative
+                && detail.variant_kind == MergeReasonVariantKind::Content
+        })
+        .expect("expected keep-primary content detail");
+    assert_eq!(
+        detail.branch_kind,
+        Some(MergeReasonBranchKind::KeptPrimaryAbsenceOverNonPrimaryAddition)
     );
 
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
@@ -575,6 +612,19 @@ fn merge_authoring_reports_multi_variant_when_metadata_key_is_added_from_non_pri
                 .contains("metadata key 'topic' has multiple competing parent variants")),
         "did not expect competing metadata reason with only one alternative, got {summary:?}"
     );
+    let detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "topic"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+        })
+        .expect("expected metadata addition detail");
+    assert_eq!(
+        detail.branch_kind,
+        Some(MergeReasonBranchKind::AdoptedNonPrimaryAddition)
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }
@@ -639,6 +689,20 @@ fn merge_authoring_reports_multi_variant_when_metadata_keeps_primary_over_non_pr
                 "metadata key 'topic' kept the primary parent variant over a competing non-primary alternative"
             )),
         "expected metadata keep-primary multi-variant reason, got {summary:?}"
+    );
+    let detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "topic"
+                && detail.reason_kind
+                    == MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+        })
+        .expect("expected metadata keep-primary detail");
+    assert_eq!(
+        detail.branch_kind,
+        Some(MergeReasonBranchKind::KeptPrimaryAbsenceOverNonPrimaryAddition)
     );
 
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
@@ -742,6 +806,33 @@ fn merge_authoring_preserves_distinct_reasons_for_mixed_metadata_keys() {
                 "metadata key 'priority' kept the primary parent variant over a competing non-primary alternative"
             )),
         "expected priority keep-primary reason, got {summary:?}"
+    );
+    let topic_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "topic"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+        })
+        .expect("expected topic detail");
+    assert_eq!(
+        topic_detail.branch_kind,
+        Some(MergeReasonBranchKind::AdoptedNonPrimaryAddition)
+    );
+    let priority_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "priority"
+                && detail.reason_kind
+                    == MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+        })
+        .expect("expected priority detail");
+    assert_eq!(
+        priority_detail.branch_kind,
+        Some(MergeReasonBranchKind::KeptPrimaryAbsenceOverNonPrimaryAddition)
     );
 
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
