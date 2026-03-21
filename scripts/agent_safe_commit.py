@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+class AgentSafeCommitError(Exception):
+    pass
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="scripts/agent_safe_commit.py",
+        description=(
+            "Stage an explicit path allowlist and create an agent commit only if "
+            "the git index contains exactly those paths."
+        ),
+    )
+    parser.add_argument("--name", required=True, help="git user.name override for the commit")
+    parser.add_argument("--email", required=True, help="git user.email override for the commit")
+    parser.add_argument("-m", "--message", required=True, help="commit message")
+    parser.add_argument(
+        "--allow-empty",
+        action="store_true",
+        help="allow creating an empty commit when the allowlist produces no staged diff",
+    )
+    parser.add_argument(
+        "paths",
+        nargs="+",
+        help="explicit repo-relative file paths to stage and allow in the commit",
+    )
+    return parser.parse_args()
+
+
+def run_git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if check and proc.returncode != 0:
+        message = proc.stderr.strip() or proc.stdout.strip() or f"git {' '.join(args)} failed"
+        raise AgentSafeCommitError(message)
+    return proc
+
+
+def normalize_paths(raw_paths: list[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_paths:
+        candidate = raw.strip()
+        if not candidate:
+            raise AgentSafeCommitError("empty path is not allowed")
+        if Path(candidate).is_absolute():
+            raise AgentSafeCommitError(f"path must be repo-relative, not absolute: {raw}")
+        path = Path(candidate)
+        if ".." in path.parts:
+            raise AgentSafeCommitError(f"path must stay inside the repo: {raw}")
+        normalized_path = path.as_posix()
+        if normalized_path not in seen:
+            normalized.append(normalized_path)
+            seen.add(normalized_path)
+    return normalized
+
+
+def verify_paths_exist(paths: list[str]) -> None:
+    missing = [path for path in paths if not (ROOT_DIR / path).exists()]
+    if missing:
+        raise AgentSafeCommitError(
+            "cannot stage missing paths: " + ", ".join(sorted(missing))
+        )
+
+
+def staged_paths() -> list[str]:
+    proc = run_git("diff", "--cached", "--name-only", "--diff-filter=ACMR")
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+
+def create_commit(args: argparse.Namespace, allowed_paths: list[str]) -> str:
+    commit_args = [
+        "-c",
+        f"user.name={args.name}",
+        "-c",
+        f"user.email={args.email}",
+        "commit",
+        "--no-gpg-sign",
+    ]
+    if args.allow_empty:
+        commit_args.append("--allow-empty")
+    commit_args.extend(["-m", args.message])
+    proc = run_git(*commit_args)
+    return proc.stdout.strip()
+
+
+def main() -> int:
+    args = parse_args()
+
+    try:
+        allowed_paths = normalize_paths(args.paths)
+        verify_paths_exist(allowed_paths)
+
+        run_git("add", "--", *allowed_paths)
+
+        actual_staged = staged_paths()
+        expected = set(allowed_paths)
+        actual = set(actual_staged)
+
+        extra = sorted(actual - expected)
+        missing = sorted(expected - actual)
+        if extra or missing:
+            parts: list[str] = [
+                "refusing to commit because the staged index does not match the explicit allowlist."
+            ]
+            if extra:
+                parts.append("extra staged paths: " + ", ".join(extra))
+            if missing:
+                parts.append("allowed paths missing from staged diff: " + ", ".join(missing))
+            parts.append(
+                "review `git diff --cached --name-only` and unstage unrelated files before retrying."
+            )
+            raise AgentSafeCommitError(" ".join(parts))
+
+        if not actual_staged and not args.allow_empty:
+            raise AgentSafeCommitError(
+                "no staged changes remain after filtering to the explicit allowlist; "
+                "nothing to commit"
+            )
+
+        print(create_commit(args, allowed_paths))
+        return 0
+    except AgentSafeCommitError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
