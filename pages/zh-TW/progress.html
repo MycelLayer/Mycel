@@ -97,6 +97,7 @@
               <li>head inspection 中的 bounded viewer score surfaces</li>
               <li>Filtered governance inspect/list/publish 工作流程</li>
               <li>Persisted governance reverse indexes</li>
+              <li>在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries</li>
             </ul>
           </article>
           <article class="card">
@@ -109,6 +110,7 @@
               <li>Peer-store 的 first-time / incremental sync proof</li>
               <li>Capability-gated 的 <code>SNAPSHOT_OFFER</code> / <code>VIEW_ANNOUNCE</code></li>
               <li>localhost multi-process、re-sync idempotency、depth-N catchup 與 partial-doc selective sync proofs</li>
+              <li>messages-after-BYE simulator proof</li>
               <li>剩餘工作是更廣的 session/error-path interop proof</li>
             </ul>
           </article>
@@ -186,13 +188,13 @@
               <td data-label="Area">8. Sync Workflow</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Peer-store 驅動的 first-time 與 incremental sync 現在已透過 <code>mycel-core</code>、CLI 與 simulator positive-path coverage 證明 shared verify/store flow，並涵蓋 snapshot-assisted catch-up、announced-view fetching、localhost multi-process proof、re-sync idempotency、depth-N incremental catchup，以及 partial-doc selective sync；剩餘工作是更廣的 session/error-path proof。</td>
+              <td data-label="Current read">Peer-store 驅動的 first-time 與 incremental sync 現在已透過 <code>mycel-core</code>、CLI 與 simulator positive-path coverage 證明 shared verify/store flow，並涵蓋 snapshot-assisted catch-up、announced-view fetching、localhost multi-process proof、re-sync idempotency、depth-N incremental catchup、partial-doc selective sync，以及 messages-after-BYE rejection；剩餘工作是更廣的 session/error-path proof。</td>
             </tr>
             <tr>
               <td data-label="Area">9. Views and Head Selection</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M3</td>
-              <td data-label="Current read">Deterministic selector core、具名 fixed-profile selection、較清楚的 available-profile summaries 與 profile-error feedback、分開的 editor/view admission-aware inspect/render flows，以及 bounded viewer score channels 都已存在；更廣的 governance persistence 與最後的 independent dual-role role-assignment closure 仍待完成。</td>
+              <td data-label="Current read">Deterministic selector core、具名 fixed-profile selection、較清楚的 available-profile summaries 與 profile-error feedback、分開的 editor/view admission-aware inspect/render flows、bounded viewer score channels，以及在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries 都已存在；更廣的 governance persistence 與最後的 independent dual-role role-assignment closure 仍待完成。</td>
             </tr>
             <tr>
               <td data-label="Area">10. Merge Generation</td>
@@ -204,13 +206,13 @@
               <td data-label="Area">11. CLI or API Surface</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2 / M3 / M4</td>
-              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish、persisted governance index query surfaces、transcript-backed <code>sync pull</code>，以及內部 <code>sync peer-store</code> 都已存在，並包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup 與 partial-doc selective sync；剩餘的 <code>M4</code> gap 是更廣的 session/error-path interop proof。</td>
+              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish、persisted governance index query surfaces、在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries、transcript-backed <code>sync pull</code>，以及內部 <code>sync peer-store</code> 都已存在，並包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup、partial-doc selective sync，以及 messages-after-BYE rejection；剩餘的 <code>M4</code> gap 是更廣的 session/error-path interop proof。</td>
             </tr>
             <tr>
               <td data-label="Area">12. Interop Test Minimum</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1 / M2 / M4</td>
-              <td data-label="Current read">Fixture isolation、reproducibility、更嚴格的 parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store first-time / incremental sync proofs、optional-message coverage、localhost multi-process proof、re-sync idempotency coverage、depth-N incremental catchup coverage，以及 partial-doc selective sync coverage 都已存在，但更廣的 session/error-path cases 仍未完成。</td>
+              <td data-label="Current read">Fixture isolation、reproducibility、更嚴格的 parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store first-time / incremental sync proofs、optional-message coverage、localhost multi-process proof、re-sync idempotency coverage、depth-N incremental catchup coverage、partial-doc selective sync coverage，以及 messages-after-BYE coverage 都已存在，但更廣的 session/error-path cases 仍未完成。</td>
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>

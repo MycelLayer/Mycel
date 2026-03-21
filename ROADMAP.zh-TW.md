@@ -46,17 +46,17 @@
 
 等窄版 core 穩定後，下一條主線會是：
 
-1. 面向 reader 的 accepted-head 與治理工作流程
-2. fixed-profile accepted reading
-3. 以 reader 為先的 text reconstruction 與 inspection
+1. 在目前 `view inspect` / `view list` / `view publish` 與 persisted relationship baseline 之上，補上更廣的 `M3` governance persistence 與 reader-plus-governance 後續工作
+2. 補上超出目前 positive-path 與 optional-message proof set 的剩餘 `M4` session、capability 與 error-path interop proof
+3. 等目前的 governance 與 interop baseline 更穩定後，再補 reader-facing 的 text reconstruction 與 presentation 打磨
 
 ### 之後
 
 更後面的階段則會是：
 
-1. canonical wire sync
-2. 端到端 peer replication
-3. 建立在穩定 protocol core 之上的選擇性 app-layer expansion
+1. 超出目前 peer-store-driven proof surface 的 canonical wire sync
+2. 建立在已穩定 interop core 之上的端到端 peer replication
+3. 建立在穩定 protocol core 與 sync baseline 之上的選擇性 app-layer expansion
 
 ## Planning Levels
 
@@ -273,7 +273,7 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式，以及 head inspection 裡的 bounded viewer score surfaces；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出這一輪初步打磨的 reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式、head inspection 裡的 bounded viewer score surfaces，以及透過 `view inspect` 與 `view list` 曝露的 persisted governance relationship summaries；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出這一輪初步打磨的 reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
 
 已在進行中或部分完成：
 
@@ -286,8 +286,9 @@ Implementation anchors：
 7. 為 `head inspect` / `head render` 提供獨立的 `human` 與 `debug` 文字輸出模式，讓高階決策摘要與 debug trace 細節分層呈現
 8. 提供獨立於 reader-facing `head` commands 的 `view inspect` / `view list` / `view publish` governance workflows，並具備 listing filter、sort、time window、grouped summary 與 projection modes
 9. persisted governance reverse indexes，支援依 maintainer、profile 與 document 反查 view
-10. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
-11. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
+10. 透過 `view inspect` 與 `view list` 呈現的 persisted governance relationship summaries
+11. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+12. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
 
 主要剩餘缺口：
 

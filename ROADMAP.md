@@ -46,17 +46,17 @@ The current lane is:
 
 After the narrow core is stable, the next lane is:
 
-1. reader-oriented accepted-head and governance workflows
-2. fixed-profile accepted reading
-3. reader-first text reconstruction and inspection
+1. broader `M3` governance persistence and reader-plus-governance follow-up on top of the current `view inspect` / `view list` / `view publish` and persisted-relationship baseline
+2. the remaining `M4` session, capability, and error-path interop proof beyond the current positive-path and optional-message set
+3. reader-facing text reconstruction and presentation refinements only after the current governance and interop baselines are more stable
 
 ### Later
 
 The later lane is:
 
-1. canonical wire sync
-2. end-to-end peer replication
-3. selective app-layer expansion on top of a stable protocol core
+1. canonical wire sync beyond the current peer-store-driven proof surface
+2. end-to-end peer replication on top of a stabilized interop core
+3. selective app-layer expansion on top of a stable protocol core and sync baseline
 
 ## Planning Levels
 
@@ -273,7 +273,7 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, and bounded viewer score surfaces in head inspection on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure.
+Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, bounded viewer score surfaces in head inspection, and persisted governance relationship summaries exposed through both `view inspect` and `view list` on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure.
 
 Already in progress or partially implemented:
 
@@ -285,8 +285,9 @@ Already in progress or partially implemented:
 6. Editor-admission-aware accepted-head inspect/render behavior for named-profile and store-backed paths
 7. Dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
 8. Persisted governance reverse indexes for maintainer, profile, and document view lookups
-9. Early simulator workflows around peer and topology validation
-10. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+9. Persisted governance relationship summaries surfaced through both `view inspect` and `view list`
+10. Early simulator workflows around peer and topology validation
+11. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Still missing or incomplete:
 
@@ -316,7 +317,7 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, plus clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, and bounded viewer score surfaces in head inspection; broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure remain.
+Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, bounded viewer score surfaces in head inspection, and persisted governance relationship summaries exposed through `view inspect` and `view list`; broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure remain.
 
 Already visible in the repo:
 
@@ -329,8 +330,9 @@ Already visible in the repo:
 7. distinct `human` and `debug` text output modes for `head inspect` / `head render`, keeping high-level decision summaries separate from debug trace detail
 8. dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands, with filtered listing, sorting, time windows, grouped summaries, and projection modes
 9. persisted governance reverse indexes for maintainer, profile, and document-oriented view lookups
-10. simulator and validation workflows around peer, topology, test, and report scopes
-11. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+10. persisted governance relationship summaries surfaced through `view inspect` and `view list`
+11. simulator and validation workflows around peer, topology, test, and report scopes
+12. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Main remaining gaps:
 
