@@ -860,6 +860,10 @@ fn head_render_requires_profile_id_for_multi_profile_bundle() {
     assert_stdout_contains(&output, "Head render: failed");
     assert_stdout_contains(&output, "Document");
     assert_stdout_contains(&output, "- available profiles: preview, stable");
+    assert_stdout_contains(
+        &output,
+        "- retry with one of: --profile-id preview | --profile-id stable",
+    );
     assert_stderr_contains(
         &output,
         "head input declares multiple named profiles; pass --profile-id (preview, stable)",
@@ -903,6 +907,10 @@ fn head_render_reports_unknown_profile_id_for_multi_profile_bundle() {
     assert_stdout_contains(&output, "Head render: failed");
     assert_stdout_contains(&output, "Document");
     assert_stdout_contains(&output, "- available profiles: preview, stable");
+    assert_stdout_contains(
+        &output,
+        "- retry with one of: --profile-id preview | --profile-id stable",
+    );
     assert_stderr_contains(
         &output,
         "unknown --profile-id 'missing' for head input; available profiles: preview, stable",

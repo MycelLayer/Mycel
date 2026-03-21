@@ -177,6 +177,22 @@ fn selector_score_formula(maintainer_score: u64, viewer_bonus: u64, viewer_penal
     )
 }
 
+fn profile_retry_hint(available_profile_ids: &[String], errors: &[String]) -> Option<String> {
+    if available_profile_ids.is_empty() {
+        return None;
+    }
+    if !errors.iter().any(|error| error.contains("--profile-id")) {
+        return None;
+    }
+
+    let examples = available_profile_ids
+        .iter()
+        .map(|profile_id| format!("--profile-id {profile_id}"))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    Some(format!("retry with one of: {examples}"))
+}
+
 fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
     println!("input path: {}", summary.input_path.display());
     println!("doc id: {}", summary.doc_id);
@@ -298,6 +314,9 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
             "- available profiles: {}",
             summary.available_profile_ids.join(", ")
         );
+        if let Some(hint) = profile_retry_hint(&summary.available_profile_ids, &summary.errors) {
+            println!("- {hint}");
+        }
     }
     if let Some(effective_selection_time) = summary.effective_selection_time {
         println!("- effective selection time: {effective_selection_time}");
@@ -500,6 +519,9 @@ fn print_head_render_human(summary: &HeadRenderSummary) -> i32 {
             "- available profiles: {}",
             summary.available_profile_ids.join(", ")
         );
+        if let Some(hint) = profile_retry_hint(&summary.available_profile_ids, &summary.errors) {
+            println!("- {hint}");
+        }
     }
     if let Some(effective_selection_time) = summary.effective_selection_time {
         println!("- effective selection time: {effective_selection_time}");
