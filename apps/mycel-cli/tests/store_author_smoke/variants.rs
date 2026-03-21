@@ -279,9 +279,9 @@ fn store_merge_authoring_flow_reports_content_variant_choice_as_multi_variant() 
         merge_json["merge_reasons"]
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
-                reason
-                    .as_str()
-                    .is_some_and(|reason| reason.contains("selected a non-primary parent variant"))
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("adopted a non-primary parent replacement")
+                })
             })),
         "expected content variant multi-variant reason, got {merge_json}"
     );
@@ -289,9 +289,9 @@ fn store_merge_authoring_flow_reports_content_variant_choice_as_multi_variant() 
         merge_json["merge_reasons"]
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
-                reason
-                    .as_str()
-                    .is_some_and(|reason| reason.contains("multiple competing parent variants"))
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains("multiple competing non-primary replacements")
+                })
             })),
         "expected competing content variant reason, got {merge_json}"
     );
@@ -531,7 +531,7 @@ fn store_merge_authoring_flow_reports_metadata_variant_choice_as_multi_variant()
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' selected a non-primary parent variant")
+                    reason.contains("metadata key 'topic' adopted a non-primary parent replacement")
                 })
             })),
         "expected metadata variant multi-variant reason, got {merge_json}"
@@ -541,7 +541,9 @@ fn store_merge_authoring_flow_reports_metadata_variant_choice_as_multi_variant()
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' has multiple competing parent variants")
+                    reason.contains(
+                        "metadata key 'topic' has multiple competing non-primary replacements",
+                    )
                 })
             })),
         "expected competing metadata variant reason, got {merge_json}"
@@ -681,7 +683,7 @@ fn store_merge_authoring_flow_reports_block_added_from_non_primary_parent_as_mul
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("block 'blk:author-smoke-variant-001' selected a non-primary parent variant")
+                    reason.contains("block 'blk:author-smoke-variant-001' adopted a non-primary parent addition")
                 })
             })),
         "expected added-from-parent content reason, got {merge_json}"
@@ -691,7 +693,7 @@ fn store_merge_authoring_flow_reports_block_added_from_non_primary_parent_as_mul
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("block 'blk:author-smoke-variant-001' has multiple competing parent variants")
+                    reason.contains("block 'blk:author-smoke-variant-001' has multiple competing non-primary additions")
                 })
             })),
         "did not expect competing content reason with only one alternative, got {merge_json}"
@@ -837,7 +839,7 @@ fn store_merge_authoring_flow_reports_kept_primary_absence_over_non_primary_bloc
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
                     reason.contains(
-                        "block 'blk:author-smoke-variant-001' kept the primary parent variant over a competing non-primary alternative",
+                        "block 'blk:author-smoke-variant-001' kept the primary absence over a competing non-primary addition",
                     )
                 })
             })),
@@ -960,7 +962,7 @@ fn store_merge_authoring_flow_reports_added_metadata_from_non_primary_parent_as_
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' selected a non-primary parent variant")
+                    reason.contains("metadata key 'topic' adopted a non-primary parent addition")
                 })
             })),
         "expected metadata added-from-parent multi-variant reason, got {merge_json}"
@@ -970,7 +972,9 @@ fn store_merge_authoring_flow_reports_added_metadata_from_non_primary_parent_as_
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' has multiple competing parent variants")
+                    reason.contains(
+                        "metadata key 'topic' has multiple competing non-primary additions",
+                    )
                 })
             })),
         "did not expect competing metadata reason with only one alternative, got {merge_json}"
@@ -1115,7 +1119,7 @@ fn store_merge_authoring_flow_reports_kept_primary_metadata_over_non_primary_add
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' kept the primary parent variant over a competing non-primary alternative")
+                    reason.contains("metadata key 'topic' kept the primary absence over a competing non-primary addition")
                 })
             })),
         "expected metadata keep-primary multi-variant reason, got {merge_json}"
@@ -1292,7 +1296,7 @@ fn store_merge_authoring_flow_preserves_distinct_reasons_for_mixed_metadata_keys
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'topic' selected a non-primary parent variant")
+                    reason.contains("metadata key 'topic' adopted a non-primary parent addition")
                 })
             })),
         "expected topic selection reason, got {merge_json}"
@@ -1302,7 +1306,7 @@ fn store_merge_authoring_flow_preserves_distinct_reasons_for_mixed_metadata_keys
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
                 reason.as_str().is_some_and(|reason| {
-                    reason.contains("metadata key 'priority' kept the primary parent variant over a competing non-primary alternative")
+                    reason.contains("metadata key 'priority' kept the primary absence over a competing non-primary addition")
                 })
             })),
         "expected priority keep-primary reason, got {merge_json}"

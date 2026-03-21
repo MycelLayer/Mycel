@@ -171,14 +171,14 @@ fn merge_authoring_reports_multi_variant_when_parents_disagree() {
         summary
             .merge_reasons
             .iter()
-            .any(|reason| reason.contains("selected a non-primary parent variant")),
+            .any(|reason| reason.contains("adopted a non-primary parent replacement")),
         "expected multi-variant reason, got {summary:?}"
     );
     assert!(
         summary
             .merge_reasons
             .iter()
-            .any(|reason| reason.contains("has multiple competing parent variants")),
+            .any(|reason| reason.contains("has multiple competing non-primary replacements")),
         "expected competing-variant reason, got {summary:?}"
     );
     let content_selection_detail = summary
@@ -310,19 +310,13 @@ fn merge_authoring_reports_multi_variant_when_metadata_parents_disagree() {
     assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
     assert_eq!(summary.patch_op_count, 1);
     assert!(
-        summary
-            .merge_reasons
-            .iter()
-            .any(|reason| reason
-                .contains("metadata key 'topic' selected a non-primary parent variant")),
+        summary.merge_reasons.iter().any(|reason| reason
+            .contains("metadata key 'topic' adopted a non-primary parent replacement")),
         "expected metadata multi-variant reason, got {summary:?}"
     );
     assert!(
-        summary
-            .merge_reasons
-            .iter()
-            .any(|reason| reason
-                .contains("metadata key 'topic' has multiple competing parent variants")),
+        summary.merge_reasons.iter().any(|reason| reason
+            .contains("metadata key 'topic' has multiple competing non-primary replacements")),
         "expected competing metadata reason, got {summary:?}"
     );
     let metadata_selection_detail = summary
@@ -428,12 +422,13 @@ fn merge_authoring_reports_multi_variant_when_block_is_added_from_non_primary_pa
     assert_eq!(summary.patch_op_count, 1);
     assert!(
         summary.merge_reasons.iter().any(|reason| reason
-            .contains("block 'blk:merge-content-added' selected a non-primary parent variant")),
+            .contains("block 'blk:merge-content-added' adopted a non-primary parent addition")),
         "expected added-from-parent multi-variant reason, got {summary:?}"
     );
     assert!(
-        !summary.merge_reasons.iter().any(|reason| reason
-            .contains("block 'blk:merge-content-added' has multiple competing parent variants")),
+        !summary.merge_reasons.iter().any(|reason| reason.contains(
+            "block 'blk:merge-content-added' has multiple competing non-primary additions"
+        )),
         "did not expect competing content reason with only one alternative, got {summary:?}"
     );
     let detail = summary
@@ -512,7 +507,7 @@ fn merge_authoring_reports_multi_variant_when_block_keeps_primary_absence_over_n
     assert_eq!(summary.patch_op_count, 0);
     assert!(
         summary.merge_reasons.iter().any(|reason| reason.contains(
-            "block 'blk:merge-content-added' kept the primary parent variant over a competing non-primary alternative"
+            "block 'blk:merge-content-added' kept the primary absence over a competing non-primary addition"
         )),
         "expected keep-primary content reason, got {summary:?}"
     );
@@ -601,15 +596,12 @@ fn merge_authoring_reports_multi_variant_when_metadata_key_is_added_from_non_pri
             .merge_reasons
             .iter()
             .any(|reason| reason
-                .contains("metadata key 'topic' selected a non-primary parent variant")),
+                .contains("metadata key 'topic' adopted a non-primary parent addition")),
         "expected metadata added-from-parent multi-variant reason, got {summary:?}"
     );
     assert!(
-        !summary
-            .merge_reasons
-            .iter()
-            .any(|reason| reason
-                .contains("metadata key 'topic' has multiple competing parent variants")),
+        !summary.merge_reasons.iter().any(|reason| reason
+            .contains("metadata key 'topic' has multiple competing non-primary additions")),
         "did not expect competing metadata reason with only one alternative, got {summary:?}"
     );
     let detail = summary
@@ -682,12 +674,9 @@ fn merge_authoring_reports_multi_variant_when_metadata_keeps_primary_over_non_pr
     assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
     assert_eq!(summary.patch_op_count, 0);
     assert!(
-        summary
-            .merge_reasons
-            .iter()
-            .any(|reason| reason.contains(
-                "metadata key 'topic' kept the primary parent variant over a competing non-primary alternative"
-            )),
+        summary.merge_reasons.iter().any(|reason| reason.contains(
+            "metadata key 'topic' kept the primary absence over a competing non-primary addition"
+        )),
         "expected metadata keep-primary multi-variant reason, got {summary:?}"
     );
     let detail = summary
@@ -795,7 +784,7 @@ fn merge_authoring_preserves_distinct_reasons_for_mixed_metadata_keys() {
             .merge_reasons
             .iter()
             .any(|reason| reason
-                .contains("metadata key 'topic' selected a non-primary parent variant")),
+                .contains("metadata key 'topic' adopted a non-primary parent addition")),
         "expected topic selection reason, got {summary:?}"
     );
     assert!(
@@ -803,7 +792,7 @@ fn merge_authoring_preserves_distinct_reasons_for_mixed_metadata_keys() {
             .merge_reasons
             .iter()
             .any(|reason| reason.contains(
-                "metadata key 'priority' kept the primary parent variant over a competing non-primary alternative"
+                "metadata key 'priority' kept the primary absence over a competing non-primary addition"
             )),
         "expected priority keep-primary reason, got {summary:?}"
     );
