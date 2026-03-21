@@ -262,6 +262,9 @@ struct ViewPublishSummary {
     maintainer: Option<String>,
     profile_id: Option<String>,
     documents: BTreeMap<String, String>,
+    maintainer_view_ids: Vec<String>,
+    profile_view_ids: Vec<String>,
+    document_view_ids: BTreeMap<String, Vec<String>>,
     created: bool,
     stored_path: Option<PathBuf>,
     index_manifest_path: Option<PathBuf>,
@@ -347,6 +350,9 @@ impl ViewPublishSummary {
             maintainer: None,
             profile_id: None,
             documents: BTreeMap::new(),
+            maintainer_view_ids: Vec::new(),
+            profile_view_ids: Vec::new(),
+            document_view_ids: BTreeMap::new(),
             created: false,
             stored_path: None,
             index_manifest_path: None,
@@ -616,6 +622,36 @@ fn print_view_publish_text(summary: &ViewPublishSummary) -> i32 {
     println!("document count: {}", summary.documents.len());
     for (doc_id, revision_id) in &summary.documents {
         println!("document: {doc_id} -> {revision_id}");
+    }
+    println!(
+        "maintainer related view count: {}",
+        summary.maintainer_view_ids.len()
+    );
+    if !summary.maintainer_view_ids.is_empty() {
+        println!(
+            "maintainer related views: {}",
+            summary.maintainer_view_ids.join(", ")
+        );
+    }
+    println!(
+        "profile related view count: {}",
+        summary.profile_view_ids.len()
+    );
+    if !summary.profile_view_ids.is_empty() {
+        println!(
+            "profile related views: {}",
+            summary.profile_view_ids.join(", ")
+        );
+    }
+    println!(
+        "document related view doc count: {}",
+        summary.document_view_ids.len()
+    );
+    for (doc_id, view_ids) in &summary.document_view_ids {
+        println!(
+            "document related views: {doc_id} -> {}",
+            view_ids.join(", ")
+        );
     }
     println!("created: {}", if summary.created { "yes" } else { "no" });
     if let Some(stored_path) = &summary.stored_path {
@@ -1113,13 +1149,28 @@ fn view_publish(source_path: PathBuf, store_root: PathBuf, json: bool) -> Result
 
     summary.view_id = Some(view.view_id);
     summary.maintainer = Some(view.maintainer);
-    summary.profile_id = Some(record.profile_id);
-    summary.documents = record.documents;
+    summary.profile_id = Some(record.profile_id.clone());
+    summary.documents = record.documents.clone();
+    summary.maintainer_view_ids = manifest
+        .maintainer_views
+        .get(&record.maintainer)
+        .cloned()
+        .unwrap_or_default();
+    summary.profile_view_ids = manifest
+        .profile_views
+        .get(&record.profile_id)
+        .cloned()
+        .unwrap_or_default();
+    summary.document_view_ids = related_document_view_ids(&manifest, &record.documents);
     summary.created = write.created;
     summary.stored_path = Some(write.record.path);
     summary.index_manifest_path = write.index_manifest_path;
     summary.notes.push(
         "published governance state is separate from revision publication and accepted-head inspection".to_string(),
+    );
+    summary.notes.push(
+        "related maintainer/profile/document view IDs come from persisted governance indexes"
+            .to_string(),
     );
 
     if json {

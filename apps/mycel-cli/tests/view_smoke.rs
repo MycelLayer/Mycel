@@ -125,6 +125,25 @@ fn view_publish_json_writes_verified_view_into_store() {
             .is_some_and(|value| value.starts_with("hash:")),
         "expected hashed profile id, published summary: {json}",
     );
+    assert_eq!(
+        json["maintainer_view_ids"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
+    assert_eq!(
+        json["profile_view_ids"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
+    assert_eq!(
+        json["document_view_ids"]["doc:view-publish"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.iter().any(|note| note
+                == "related maintainer/profile/document view IDs come from persisted governance indexes")),
+        "expected persisted-governance note in publish summary: {json}",
+    );
 
     let inspect = run_mycel(&[
         "view",
