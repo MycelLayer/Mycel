@@ -214,7 +214,7 @@
 
 ## 15. `M3` Reader 與 Governance Follow-Up
 
-- [ ] 補上超出目前 initial reverse-index 與 inspect/list/publish surfaces 的 broader governance persistence。
+- [ ] 補上超出目前 initial reverse-index、relationship summaries 與 inspect/list/publish surfaces 的 broader governance persistence。
 - [ ] 把 governance tooling 擴展到目前初始 `view inspect` / `view list` / `view publish` workflows 之外。
 - [ ] 持續改善 reader profile ergonomics，超出目前 available-profile summaries 與 profile-error feedback。
 - [ ] 收掉 separate admission validation 已落地後，仍然存在的 independent dual-role role-assignment follow-up。
