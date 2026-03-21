@@ -17,6 +17,7 @@ Suggested per-agent copy path:
 ## Work Cycle Workflow
 
 - Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->
+- When touching a large module or repeated-helper-heavy area, consult the current code-quality hotspot scan (`python3 scripts/check_code_quality_hotspots.py --github-warning`) so the coding slice stays aligned with the repo's warning-only CI surface. <!-- item-id: coding.cycle.consult-hotspot-scan -->
 - Review the roadmap and identify the highest-value next coding work as one default next-item recommendation at the end of the work cycle. <!-- item-id: coding.cycle.review-roadmap-priority -->
 
 ## Verification
