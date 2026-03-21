@@ -142,6 +142,18 @@ fn view_publish_json_writes_verified_view_into_store() {
         inspect_json["profile_heads"]["doc:view-publish"],
         json!(["rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])
     );
+    assert_eq!(
+        inspect_json["maintainer_view_ids"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
+    assert_eq!(
+        inspect_json["profile_view_ids"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
+    assert_eq!(
+        inspect_json["document_view_ids"]["doc:view-publish"],
+        json!([view["view_id"].as_str().expect("view id should exist")])
+    );
 }
 
 #[test]
@@ -699,4 +711,115 @@ fn view_inspect_reports_missing_view_id() {
     assert_exit_code(&output, 1);
     assert_stdout_contains(&output, "view inspection: failed");
     assert_stderr_contains(&output, "was not found in persisted governance indexes");
+}
+
+#[test]
+fn view_inspect_json_reports_related_governance_indexes() {
+    let store_dir = create_temp_dir("view-inspect-related-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(61);
+    let maintainer_b = signing_key(62);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a1 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:alpha": "rev:1111111111111111111111111111111111111111111111111111111111111111",
+            "doc:beta": "rev:2222222222222222222222222222222222222222222222222222222222222222"
+        }),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:alpha": "rev:3333333333333333333333333333333333333333333333333333333333333333"
+        }),
+        11,
+    );
+    let view_b1 = signed_view(
+        &maintainer_b,
+        &policy_b,
+        json!({
+            "doc:beta": "rev:4444444444444444444444444444444444444444444444444444444444444444"
+        }),
+        12,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-inspect-related-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-inspect-related-a2", "view-a2.json", &view_a2);
+    let (_dir_b1, path_b1) = write_json_file("view-inspect-related-b1", "view-b1.json", &view_b1);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_a2 = publish_view(&path_a2, &store_root);
+    let publish_b1 = publish_view(&path_b1, &store_root);
+
+    let inspect = run_mycel(&[
+        "view",
+        "inspect",
+        view_a1["view_id"].as_str().expect("view id should exist"),
+        "--store-root",
+        &store_root,
+        "--json",
+    ]);
+    assert_success(&inspect);
+    let inspect_json = parse_json_stdout(&inspect);
+
+    assert_eq!(
+        inspect_json["maintainer_view_ids"],
+        json!([
+            publish_a1["view_id"]
+                .as_str()
+                .expect("view a1 id should exist"),
+            publish_a2["view_id"]
+                .as_str()
+                .expect("view a2 id should exist")
+        ])
+    );
+    assert_eq!(
+        inspect_json["profile_view_ids"],
+        json!([
+            publish_a1["view_id"]
+                .as_str()
+                .expect("view a1 id should exist"),
+            publish_a2["view_id"]
+                .as_str()
+                .expect("view a2 id should exist")
+        ])
+    );
+    assert_eq!(
+        inspect_json["document_view_ids"]["doc:alpha"],
+        json!([
+            publish_a1["view_id"]
+                .as_str()
+                .expect("view a1 id should exist"),
+            publish_a2["view_id"]
+                .as_str()
+                .expect("view a2 id should exist")
+        ])
+    );
+    assert_eq!(
+        inspect_json["document_view_ids"]["doc:beta"],
+        json!([
+            publish_a1["view_id"]
+                .as_str()
+                .expect("view a1 id should exist"),
+            publish_b1["view_id"]
+                .as_str()
+                .expect("view b1 id should exist")
+        ])
+    );
 }

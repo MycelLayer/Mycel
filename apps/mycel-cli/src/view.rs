@@ -243,6 +243,9 @@ struct ViewInspectSummary {
     timestamp: Option<u64>,
     documents: BTreeMap<String, String>,
     profile_heads: BTreeMap<String, Vec<String>>,
+    maintainer_view_ids: Vec<String>,
+    profile_view_ids: Vec<String>,
+    document_view_ids: BTreeMap<String, Vec<String>>,
     notes: Vec<String>,
     errors: Vec<String>,
 }
@@ -275,6 +278,9 @@ impl ViewInspectSummary {
             timestamp: None,
             documents: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
+            maintainer_view_ids: Vec::new(),
+            profile_view_ids: Vec::new(),
+            document_view_ids: BTreeMap::new(),
             notes: Vec::new(),
             errors: Vec::new(),
         }
@@ -506,6 +512,36 @@ fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
     println!("profile head doc count: {}", summary.profile_heads.len());
     for (doc_id, revision_ids) in &summary.profile_heads {
         println!("profile heads: {doc_id} -> {}", revision_ids.join(", "));
+    }
+    println!(
+        "maintainer related view count: {}",
+        summary.maintainer_view_ids.len()
+    );
+    if !summary.maintainer_view_ids.is_empty() {
+        println!(
+            "maintainer related views: {}",
+            summary.maintainer_view_ids.join(", ")
+        );
+    }
+    println!(
+        "profile related view count: {}",
+        summary.profile_view_ids.len()
+    );
+    if !summary.profile_view_ids.is_empty() {
+        println!(
+            "profile related views: {}",
+            summary.profile_view_ids.join(", ")
+        );
+    }
+    println!(
+        "document related view doc count: {}",
+        summary.document_view_ids.len()
+    );
+    for (doc_id, view_ids) in &summary.document_view_ids {
+        println!(
+            "document related views: {doc_id} -> {}",
+            view_ids.join(", ")
+        );
     }
     for note in &summary.notes {
         println!("note: {note}");
@@ -933,8 +969,36 @@ fn view_inspect(store_root: PathBuf, view_id: String, json: bool) -> Result<i32,
         .get(&record.profile_id)
         .cloned()
         .unwrap_or_default();
+    summary.maintainer_view_ids = manifest
+        .maintainer_views
+        .get(&record.maintainer)
+        .cloned()
+        .unwrap_or_default();
+    summary.profile_view_ids = manifest
+        .profile_views
+        .get(&record.profile_id)
+        .cloned()
+        .unwrap_or_default();
+    summary.document_view_ids = record
+        .documents
+        .keys()
+        .map(|doc_id| {
+            (
+                doc_id.clone(),
+                manifest
+                    .document_views
+                    .get(doc_id)
+                    .cloned()
+                    .unwrap_or_default(),
+            )
+        })
+        .collect();
     summary.notes.push(
         "governance inspection is separate from reader-facing accepted-head workflows".to_string(),
+    );
+    summary.notes.push(
+        "related maintainer/profile/document view IDs come from persisted governance indexes"
+            .to_string(),
     );
 
     if json {
