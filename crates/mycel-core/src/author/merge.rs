@@ -11,7 +11,8 @@ use crate::store::{load_doc_replay_objects_from_store, StoreRebuildError};
 
 use super::shared::{ensure_document_exists, ensure_object_exists};
 use super::types::{
-    BlockPlacement, MergeAssessment, MergeOutcome, MergeRevisionCreateParams,
+    BlockPlacement, MergeAssessment, MergeOutcome, MergeReasonDetail, MergeReasonKind,
+    MergeReasonSubjectKind, MergeReasonVariantKind, MergeRevisionCreateParams,
     MergeRevisionCreateSummary, PatchCreateParams, RevisionCommitParams,
 };
 use super::write::{commit_revision_to_store, create_patch_in_store};
@@ -119,6 +120,7 @@ pub fn create_merge_revision_in_store(
         doc_id: params.doc_id.clone(),
         merge_outcome: assessment.outcome,
         merge_reasons: assessment.reasons,
+        merge_reason_details: assessment.reason_details,
         parent_revision_ids: params.parents.clone(),
         patch_id: patch_summary.patch_id,
         patch_op_count: ops.len(),
@@ -149,6 +151,7 @@ fn assess_merge_resolution(
         .map(|(_, state)| flatten_blocks(&state.blocks))
         .collect::<Vec<_>>();
     let mut reasons = Vec::new();
+    let mut reason_details = Vec::new();
     let mut saw_multi_variant = false;
 
     let block_ids = primary_blocks
@@ -198,15 +201,38 @@ fn assess_merge_resolution(
                 ))
         {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' selected a non-primary parent variant",
-                block_id
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::Content,
+                    reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    primary_variant: primary_content_variant.clone(),
+                    resolved_variant: resolved_content_variant.clone(),
+                    competing_variants: alternative_content_variants.iter().cloned().collect(),
+                },
+                format!("block '{}' selected a non-primary parent variant", block_id),
+            );
             if alternative_content_variants.len() > 1 {
-                reasons.push(format!(
-                    "block '{}' has multiple competing parent variants",
-                    block_id
-                ));
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::Content,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_content_variant.clone(),
+                        resolved_variant: resolved_content_variant.clone(),
+                        competing_variants: alternative_content_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' has multiple competing parent variants",
+                        block_id
+                    ),
+                );
             }
         } else if primary_content_variant == "<absent>"
             && !alternative_content_variants.is_empty()
@@ -219,22 +245,61 @@ fn assess_merge_resolution(
         {
             saw_multi_variant = true;
             if alternative_content_variants.len() > 1 {
-                reasons.push(format!(
-                    "block '{}' has multiple competing parent variants",
-                    block_id
-                ));
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::Content,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_content_variant.clone(),
+                        resolved_variant: resolved_content_variant.clone(),
+                        competing_variants: alternative_content_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' has multiple competing parent variants",
+                        block_id
+                    ),
+                );
             } else {
-                reasons.push(format!(
-                    "block '{}' kept the primary parent variant over a competing non-primary alternative",
-                    block_id
-                ));
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::Content,
+                        reason_kind: MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
+                        primary_variant: primary_content_variant.clone(),
+                        resolved_variant: resolved_content_variant.clone(),
+                        competing_variants: alternative_content_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' kept the primary parent variant over a competing non-primary alternative",
+                        block_id
+                    ),
+                );
             }
         } else if alternative_content_variants.len() > 1 {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' has multiple competing parent variants",
-                block_id
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::Content,
+                    reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    primary_variant: primary_content_variant.clone(),
+                    resolved_variant: resolved_content_variant.clone(),
+                    competing_variants: alternative_content_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "block '{}' has multiple competing parent variants",
+                    block_id
+                ),
+            );
         }
 
         if primary_content_variant == "<absent>" || resolved_content_variant == "<absent>" {
@@ -288,15 +353,47 @@ fn assess_merge_resolution(
             if anchor_variant == "<root>" && root_or_absent_only_alternatives {
                 if alternative_parent_variants.contains("<absent>") {
                     saw_multi_variant = true;
-                    reasons.push(format!(
-                        "block '{}' selected a non-primary parent placement",
-                        block_id
-                    ));
-                    if alternative_parent_variants.len() > 1 {
-                        reasons.push(format!(
-                            "block '{}' has multiple competing parent placements",
+                    push_variant_reason(
+                        &mut reasons,
+                        &mut reason_details,
+                        MergeReasonDetail {
+                            subject_kind: MergeReasonSubjectKind::Block,
+                            subject_id: block_id.clone(),
+                            variant_kind: MergeReasonVariantKind::ParentPlacement,
+                            reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                            primary_variant: primary_parent_variant.clone(),
+                            resolved_variant: resolved_parent_variant.clone(),
+                            competing_variants: alternative_parent_variants
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        },
+                        format!(
+                            "block '{}' selected a non-primary parent placement",
                             block_id
-                        ));
+                        ),
+                    );
+                    if alternative_parent_variants.len() > 1 {
+                        push_variant_reason(
+                            &mut reasons,
+                            &mut reason_details,
+                            MergeReasonDetail {
+                                subject_kind: MergeReasonSubjectKind::Block,
+                                subject_id: block_id.clone(),
+                                variant_kind: MergeReasonVariantKind::ParentPlacement,
+                                reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                                primary_variant: primary_parent_variant.clone(),
+                                resolved_variant: resolved_parent_variant.clone(),
+                                competing_variants: alternative_parent_variants
+                                    .iter()
+                                    .cloned()
+                                    .collect(),
+                            },
+                            format!(
+                                "block '{}' has multiple competing parent placements",
+                                block_id
+                            ),
+                        );
                     }
                 }
                 continue;
@@ -325,30 +422,88 @@ fn assess_merge_resolution(
                     .is_some_and(|variant| anchor_sibling_variants.contains(variant))
             {
                 saw_multi_variant = true;
-                reasons.push(format!(
-                    "block '{}' selected a non-primary parent placement",
-                    block_id
-                ));
-                if alternative_parent_variants.len() > 1 {
-                    reasons.push(format!(
-                        "block '{}' has multiple competing parent placements",
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::ParentPlacement,
+                        reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        primary_variant: primary_parent_variant.clone(),
+                        resolved_variant: resolved_parent_variant.clone(),
+                        competing_variants: alternative_parent_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' selected a non-primary parent placement",
                         block_id
-                    ));
+                    ),
+                );
+                if alternative_parent_variants.len() > 1 {
+                    push_variant_reason(
+                        &mut reasons,
+                        &mut reason_details,
+                        MergeReasonDetail {
+                            subject_kind: MergeReasonSubjectKind::Block,
+                            subject_id: block_id.clone(),
+                            variant_kind: MergeReasonVariantKind::ParentPlacement,
+                            reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            primary_variant: primary_parent_variant.clone(),
+                            resolved_variant: resolved_parent_variant.clone(),
+                            competing_variants: alternative_parent_variants
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        },
+                        format!(
+                            "block '{}' has multiple competing parent placements",
+                            block_id
+                        ),
+                    );
                 }
                 continue;
             }
 
             if alternative_parent_variants.contains(anchor_variant) {
                 saw_multi_variant = true;
-                reasons.push(format!(
-                    "block '{}' selected a non-primary parent placement",
-                    block_id
-                ));
-                if alternative_parent_variants.len() > 1 {
-                    reasons.push(format!(
-                        "block '{}' has multiple competing parent placements",
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::ParentPlacement,
+                        reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        primary_variant: primary_parent_variant.clone(),
+                        resolved_variant: resolved_parent_variant.clone(),
+                        competing_variants: alternative_parent_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' selected a non-primary parent placement",
                         block_id
-                    ));
+                    ),
+                );
+                if alternative_parent_variants.len() > 1 {
+                    push_variant_reason(
+                        &mut reasons,
+                        &mut reason_details,
+                        MergeReasonDetail {
+                            subject_kind: MergeReasonSubjectKind::Block,
+                            subject_id: block_id.clone(),
+                            variant_kind: MergeReasonVariantKind::ParentPlacement,
+                            reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            primary_variant: primary_parent_variant.clone(),
+                            resolved_variant: resolved_parent_variant.clone(),
+                            competing_variants: alternative_parent_variants
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        },
+                        format!(
+                            "block '{}' has multiple competing parent placements",
+                            block_id
+                        ),
+                    );
                 }
                 continue;
             }
@@ -365,22 +520,61 @@ fn assess_merge_resolution(
             && alternative_parent_variants.contains(&resolved_parent_variant)
         {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' selected a non-primary parent placement",
-                block_id
-            ));
-            if alternative_parent_variants.len() > 1 {
-                reasons.push(format!(
-                    "block '{}' has multiple competing parent placements",
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::ParentPlacement,
+                    reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    primary_variant: primary_parent_variant.clone(),
+                    resolved_variant: resolved_parent_variant.clone(),
+                    competing_variants: alternative_parent_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "block '{}' selected a non-primary parent placement",
                     block_id
-                ));
+                ),
+            );
+            if alternative_parent_variants.len() > 1 {
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::ParentPlacement,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_parent_variant.clone(),
+                        resolved_variant: resolved_parent_variant.clone(),
+                        competing_variants: alternative_parent_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' has multiple competing parent placements",
+                        block_id
+                    ),
+                );
             }
         } else if alternative_parent_variants.len() > 1 {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' has multiple competing parent placements",
-                block_id
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::ParentPlacement,
+                    reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    primary_variant: primary_parent_variant.clone(),
+                    resolved_variant: resolved_parent_variant.clone(),
+                    competing_variants: alternative_parent_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "block '{}' has multiple competing parent placements",
+                    block_id
+                ),
+            );
         }
 
         if resolved_parent_variant == primary_parent_variant
@@ -396,15 +590,44 @@ fn assess_merge_resolution(
                     .is_some_and(|variant| alternative_sibling_variants.contains(variant))
             {
                 saw_multi_variant = true;
-                reasons.push(format!(
-                    "block '{}' selected a non-primary sibling placement",
-                    block_id
-                ));
-                if alternative_sibling_variants.len() > 1 {
-                    reasons.push(format!(
-                        "block '{}' has multiple competing sibling placements",
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::SiblingPlacement,
+                        reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                        primary_variant: primary_sibling_variant.clone(),
+                        resolved_variant: resolved_sibling_variant.clone(),
+                        competing_variants: alternative_sibling_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' selected a non-primary sibling placement",
                         block_id
-                    ));
+                    ),
+                );
+                if alternative_sibling_variants.len() > 1 {
+                    push_variant_reason(
+                        &mut reasons,
+                        &mut reason_details,
+                        MergeReasonDetail {
+                            subject_kind: MergeReasonSubjectKind::Block,
+                            subject_id: block_id.clone(),
+                            variant_kind: MergeReasonVariantKind::SiblingPlacement,
+                            reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                            primary_variant: primary_sibling_variant.clone(),
+                            resolved_variant: resolved_sibling_variant.clone(),
+                            competing_variants: alternative_sibling_variants
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        },
+                        format!(
+                            "block '{}' has multiple competing sibling placements",
+                            block_id
+                        ),
+                    );
                 }
                 continue;
             }
@@ -418,24 +641,63 @@ fn assess_merge_resolution(
             && alternative_sibling_variants.contains(&resolved_sibling_variant)
         {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' selected a non-primary sibling placement",
-                block_id
-            ));
-            if alternative_sibling_variants.len() > 1 {
-                reasons.push(format!(
-                    "block '{}' has multiple competing sibling placements",
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::SiblingPlacement,
+                    reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    primary_variant: primary_sibling_variant.clone(),
+                    resolved_variant: resolved_sibling_variant.clone(),
+                    competing_variants: alternative_sibling_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "block '{}' selected a non-primary sibling placement",
                     block_id
-                ));
+                ),
+            );
+            if alternative_sibling_variants.len() > 1 {
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::Block,
+                        subject_id: block_id.clone(),
+                        variant_kind: MergeReasonVariantKind::SiblingPlacement,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_sibling_variant.clone(),
+                        resolved_variant: resolved_sibling_variant.clone(),
+                        competing_variants: alternative_sibling_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "block '{}' has multiple competing sibling placements",
+                        block_id
+                    ),
+                );
             }
         } else if resolved_parent_variant == primary_parent_variant
             && alternative_sibling_variants.len() > 1
         {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "block '{}' has multiple competing sibling placements",
-                block_id
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::SiblingPlacement,
+                    reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                    primary_variant: primary_sibling_variant.clone(),
+                    resolved_variant: resolved_sibling_variant.clone(),
+                    competing_variants: alternative_sibling_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "block '{}' has multiple competing sibling placements",
+                    block_id
+                ),
+            );
         }
     }
 
@@ -480,28 +742,80 @@ fn assess_merge_resolution(
             && alternative_variants.contains(&resolved_variant)
         {
             saw_multi_variant = true;
-            reasons.push(format!(
-                "metadata key '{}' selected a non-primary parent variant",
-                key
-            ));
-            if alternative_variants.len() > 1 {
-                reasons.push(format!(
-                    "metadata key '{}' has multiple competing parent variants",
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::MetadataKey,
+                    subject_id: key.clone(),
+                    variant_kind: MergeReasonVariantKind::Metadata,
+                    reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
+                    primary_variant: primary_variant.clone(),
+                    resolved_variant: resolved_variant.clone(),
+                    competing_variants: alternative_variants.iter().cloned().collect(),
+                },
+                format!(
+                    "metadata key '{}' selected a non-primary parent variant",
                     key
-                ));
+                ),
+            );
+            if alternative_variants.len() > 1 {
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::MetadataKey,
+                        subject_id: key.clone(),
+                        variant_kind: MergeReasonVariantKind::Metadata,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_variant.clone(),
+                        resolved_variant: resolved_variant.clone(),
+                        competing_variants: alternative_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "metadata key '{}' has multiple competing parent variants",
+                        key
+                    ),
+                );
             }
         } else if !alternative_variants.is_empty() {
             saw_multi_variant = true;
             if alternative_variants.len() > 1 {
-                reasons.push(format!(
-                    "metadata key '{}' has multiple competing parent variants",
-                    key
-                ));
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::MetadataKey,
+                        subject_id: key.clone(),
+                        variant_kind: MergeReasonVariantKind::Metadata,
+                        reason_kind: MergeReasonKind::MultipleCompetingParentVariants,
+                        primary_variant: primary_variant.clone(),
+                        resolved_variant: resolved_variant.clone(),
+                        competing_variants: alternative_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "metadata key '{}' has multiple competing parent variants",
+                        key
+                    ),
+                );
             } else {
-                reasons.push(format!(
-                    "metadata key '{}' kept the primary parent variant over a competing non-primary alternative",
-                    key
-                ));
+                push_variant_reason(
+                    &mut reasons,
+                    &mut reason_details,
+                    MergeReasonDetail {
+                        subject_kind: MergeReasonSubjectKind::MetadataKey,
+                        subject_id: key.clone(),
+                        variant_kind: MergeReasonVariantKind::Metadata,
+                        reason_kind: MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
+                        primary_variant: primary_variant.clone(),
+                        resolved_variant: resolved_variant.clone(),
+                        competing_variants: alternative_variants.iter().cloned().collect(),
+                    },
+                    format!(
+                        "metadata key '{}' kept the primary parent variant over a competing non-primary alternative",
+                        key
+                    ),
+                );
             }
         }
     }
@@ -517,7 +831,21 @@ fn assess_merge_resolution(
         MergeOutcome::AutoMerged
     };
 
-    Ok(MergeAssessment { outcome, reasons })
+    Ok(MergeAssessment {
+        outcome,
+        reasons,
+        reason_details,
+    })
+}
+
+fn push_variant_reason(
+    reasons: &mut Vec<String>,
+    reason_details: &mut Vec<MergeReasonDetail>,
+    detail: MergeReasonDetail,
+    reason: String,
+) {
+    reasons.push(reason);
+    reason_details.push(detail);
 }
 
 fn block_content_variant(block: Option<&BlockObject>) -> Result<String, StoreRebuildError> {

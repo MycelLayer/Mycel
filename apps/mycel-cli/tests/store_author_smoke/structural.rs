@@ -359,6 +359,22 @@ fn store_merge_authoring_flow_reports_nested_parent_choice_as_multi_variant() {
             })),
         "expected competing nested parent placement reason, got {merge_json}"
     );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_kind"] == "block"
+                    && detail["subject_id"] == "blk:nested-leaf"
+                    && detail["variant_kind"] == "parent-placement"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["primary_variant"] == "<root>"
+                    && detail["resolved_variant"] == "blk:nested-left"
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| variants.len() == 2)
+            })),
+        "expected structured nested parent placement detail, got {merge_json}"
+    );
     assert_eq!(merge_json["patch_op_count"], 4);
     assert_eq!(
         merge_json["parent_revision_ids"].as_array().map(Vec::len),
@@ -1043,6 +1059,22 @@ fn store_merge_authoring_flow_marks_nested_sibling_choice_through_inserted_sibli
                 })
             })),
         "expected nested sibling multi-variant reason, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_kind"] == "block"
+                    && detail["subject_id"] == "blk:nested-child-c"
+                    && detail["variant_kind"] == "sibling-placement"
+                    && detail["reason_kind"] == "multiple-competing-parent-variants"
+                    && detail["primary_variant"] == "blk:nested-child-b"
+                    && detail["resolved_variant"] == "blk:nested-child-a"
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| variants.len() == 2)
+            })),
+        "expected structured nested sibling placement detail, got {merge_json}"
     );
     assert_eq!(merge_json["patch_op_count"], 2);
 }

@@ -46,11 +46,12 @@
         <h1>用一頁快速看懂 Roadmap 順序與實作進度。</h1>
         <p class="lead">
           Mycel 目前仍在窄版 first-client 主線上。眼前目標是先補齊最後一批 shared-core 收尾，同時讓
+          <code>M2</code> 剩餘的 content-variant 與 metadata-variant merge classification 更精細，再讓
           <code>M4</code> 維持窄版範圍，聚焦在已驗證的 wire-session reachability、最小 peer-sync
           closure，以及 production replication 子證明都已落地後，剩餘的 session/error-path interop proof。
         </p>
         <ol class="lane-list">
-          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure。</li>
+          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure；目前剩餘焦點已縮到更細緻的 content-variant 與 metadata-variant competing-branch classification。</li>
           <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces，以及初始 governance inspect/list/publish surfaces 之上，謹慎擴張 <code>M3</code> 的 reader-plus-governance 工作流程。</li>
           <li>讓 <code>M4</code> 維持窄版範圍，把 peer-store sync proof 往剩餘的 session/error-path interop closure 收斂。</li>
         </ol>
@@ -81,7 +82,7 @@
               <li>Replay 與 <code>state_hash</code></li>
               <li>Store rebuild、indexes，以及保留 ancestry context 的 render/store verification</li>
               <li>Narrow write-path closure</li>
-              <li>具更廣 structural coverage、較新 manual-curation smoke proof，以及更清楚 metadata merge 邊界的 conservative merge authoring</li>
+              <li>具更廣 structural coverage、較新 manual-curation smoke proof、更清楚 metadata merge 邊界，以及剩餘 content/metadata competing-branch 細節工作的 conservative merge authoring</li>
             </ul>
           </article>
           <article class="card">
@@ -197,7 +198,7 @@
               <td data-label="Area">10. Merge Generation</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay verification 與保守型 local merge-authoring profile 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage，以及更廣的 nested structural matrix，但更豐富的 nested/reparenting conflict cases 仍會落回 manual curation。</td>
+              <td data-label="Current read">Replay verification 與保守型 local merge-authoring profile 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage、更廣的 nested structural matrix、更細的 direct/anchor-based placement reasons，以及更清楚的 metadata competing-branch 邊界；但剩餘的 content-variant 與 metadata-variant 分支仍會把多個 non-primary alternatives 壓成過度粗略的輸出。</td>
             </tr>
             <tr>
               <td data-label="Area">11. CLI or API Surface</td>

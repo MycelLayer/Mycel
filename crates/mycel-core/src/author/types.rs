@@ -59,6 +59,41 @@ impl MergeOutcome {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeReasonSubjectKind {
+    Block,
+    MetadataKey,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeReasonVariantKind {
+    Content,
+    Metadata,
+    ParentPlacement,
+    SiblingPlacement,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MergeReasonKind {
+    SelectedNonPrimaryParentVariant,
+    KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
+    MultipleCompetingParentVariants,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct MergeReasonDetail {
+    pub subject_kind: MergeReasonSubjectKind,
+    pub subject_id: String,
+    pub variant_kind: MergeReasonVariantKind,
+    pub reason_kind: MergeReasonKind,
+    pub primary_variant: String,
+    pub resolved_variant: String,
+    pub competing_variants: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DocumentCreateSummary {
     pub store_root: PathBuf,
@@ -113,6 +148,7 @@ pub struct MergeRevisionCreateSummary {
     pub doc_id: String,
     pub merge_outcome: MergeOutcome,
     pub merge_reasons: Vec<String>,
+    pub merge_reason_details: Vec<MergeReasonDetail>,
     pub parent_revision_ids: Vec<String>,
     pub patch_id: String,
     pub patch_op_count: usize,
@@ -130,6 +166,7 @@ pub struct MergeRevisionCreateSummary {
 pub(crate) struct MergeAssessment {
     pub(crate) outcome: MergeOutcome,
     pub(crate) reasons: Vec<String>,
+    pub(crate) reason_details: Vec<MergeReasonDetail>,
 }
 
 #[derive(Debug, Clone)]

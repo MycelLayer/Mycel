@@ -440,10 +440,10 @@ Implementation anchors：
 
 近期最高價值的工作是：
 
-1. 完成 `M1`，補齊 shared object-family coverage 與 shared canonical object mechanics
-2. 以 replay、`state_hash` 與 store-rebuild foundations 開始 `M2`
-3. 每落一條 protocol rule，就持續強化 interop fixtures 與 negative tests
-4. 只有在 minimal core 穩定後，才把成熟 governance behavior 轉成 fixed reader-profile workflows
+1. 收掉 `M2` 剩餘的 content-variant 與 metadata-variant competing branch 分類缺口，避免多個 non-primary alternatives 仍被壓成過度粗略的 merge-authoring 輸出
+2. 以窄版切片持續擴張 `M3`，補上 governance persistence 與 reader-plus-governance 後續工作，同時不要重新打開已關閉的 minimal-client gate
+3. 在目前追蹤的 production replication 子項已落地後，持續為 `M4` 補上更多 deterministic 的 session、capability 與 error-path interop proofs
+4. 每當剩餘的規則或 follow-up slice 落地，就持續補強 interop fixtures 與 negative tests
 
 ## 什麼會讓一個 Milestone 前進
 

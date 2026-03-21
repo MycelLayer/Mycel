@@ -1,4 +1,5 @@
 use super::*;
+use crate::author::types::{MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind};
 
 #[test]
 fn merge_authoring_supports_structural_move_and_insert_ops() {
@@ -1382,6 +1383,25 @@ fn merge_authoring_marks_nested_parent_choice_conflicts_as_multi_variant() {
             .any(|reason| reason.contains("multiple competing parent placements")),
         "expected competing parent placement reason, got {summary:?}"
     );
+    let parent_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "blk:nested-leaf"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::ParentPlacement
+        })
+        .expect("expected structured parent placement detail");
+    assert_eq!(parent_detail.subject_kind, MergeReasonSubjectKind::Block);
+    assert_eq!(parent_detail.primary_variant, "<root>");
+    assert_eq!(parent_detail.resolved_variant, "blk:nested-left");
+    assert_eq!(
+        parent_detail.competing_variants,
+        vec![
+            "blk:nested-left".to_string(),
+            "blk:nested-right".to_string()
+        ]
+    );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");
     let patch = parse_patch_object(&patch_value).expect("generated patch should parse");
@@ -1716,6 +1736,25 @@ fn merge_authoring_marks_multiple_competing_nested_sibling_placements_as_multi_v
             .iter()
             .any(|reason| reason.contains("multiple competing sibling placements")),
         "expected competing sibling placement reason, got {summary:?}"
+    );
+    let sibling_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "blk:nested-child-a"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::SiblingPlacement
+        })
+        .expect("expected structured sibling placement detail");
+    assert_eq!(sibling_detail.subject_kind, MergeReasonSubjectKind::Block);
+    assert_eq!(sibling_detail.primary_variant, "<start>");
+    assert_eq!(sibling_detail.resolved_variant, "blk:nested-child-c");
+    assert_eq!(
+        sibling_detail.competing_variants,
+        vec![
+            "blk:nested-child-b".to_string(),
+            "blk:nested-child-c".to_string()
+        ]
     );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");

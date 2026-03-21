@@ -1,4 +1,5 @@
 use super::*;
+use crate::author::types::{MergeReasonKind, MergeReasonSubjectKind, MergeReasonVariantKind};
 
 #[test]
 fn merge_authoring_reports_multi_variant_when_parents_disagree() {
@@ -178,6 +179,39 @@ fn merge_authoring_reports_multi_variant_when_parents_disagree() {
             .any(|reason| reason.contains("has multiple competing parent variants")),
         "expected competing-variant reason, got {summary:?}"
     );
+    let content_selection_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "blk:merge-001"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::Content
+        })
+        .expect("expected structured content selection detail");
+    assert_eq!(
+        content_selection_detail.subject_kind,
+        MergeReasonSubjectKind::Block
+    );
+    assert!(
+        content_selection_detail
+            .primary_variant
+            .contains("Left variant"),
+        "expected primary variant detail, got {content_selection_detail:?}"
+    );
+    assert!(
+        content_selection_detail
+            .resolved_variant
+            .contains("Right variant"),
+        "expected resolved variant detail, got {content_selection_detail:?}"
+    );
+    assert_eq!(content_selection_detail.competing_variants.len(), 2);
+    assert!(
+        content_selection_detail
+            .competing_variants
+            .iter()
+            .any(|variant| variant.contains("Center variant")),
+        "expected competing center variant detail, got {content_selection_detail:?}"
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }
@@ -284,6 +318,25 @@ fn merge_authoring_reports_multi_variant_when_metadata_parents_disagree() {
             .any(|reason| reason
                 .contains("metadata key 'topic' has multiple competing parent variants")),
         "expected competing metadata reason, got {summary:?}"
+    );
+    let metadata_selection_detail = summary
+        .merge_reason_details
+        .iter()
+        .find(|detail| {
+            detail.subject_id == "topic"
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+        })
+        .expect("expected structured metadata selection detail");
+    assert_eq!(
+        metadata_selection_detail.subject_kind,
+        MergeReasonSubjectKind::MetadataKey
+    );
+    assert_eq!(metadata_selection_detail.primary_variant, "\"left\"");
+    assert_eq!(metadata_selection_detail.resolved_variant, "\"right\"");
+    assert_eq!(
+        metadata_selection_detail.competing_variants,
+        vec!["\"center\"".to_string(), "\"right\"".to_string()]
     );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");

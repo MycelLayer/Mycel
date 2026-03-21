@@ -494,10 +494,10 @@ These priorities apply across all phases:
 
 The highest-value near-term work is:
 
-1. complete `M1` by finishing shared object-family coverage and shared canonical object mechanics
-2. begin `M2` with replay, `state_hash`, and store-rebuild foundations
-3. keep strengthening interop fixtures and negative tests as each protocol rule lands
-4. turn mature governance behavior into fixed reader-profile workflows only after the minimal core is stable
+1. finish `M2` by tightening the remaining content-variant and metadata-variant competing-branch classification that still collapses multiple non-primary alternatives into coarse merge-authoring output
+2. keep expanding `M3` with narrow governance-persistence and reader-plus-governance follow-up slices without reopening the closed minimal-client gate
+3. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs now that the currently tracked production replication sub-items are landed
+4. continue strengthening interop fixtures and negative tests as each remaining rule or follow-up slice lands
 
 ## What Moves a Milestone Forward
 

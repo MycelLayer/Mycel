@@ -295,6 +295,23 @@ fn store_merge_authoring_flow_reports_content_variant_choice_as_multi_variant() 
             })),
         "expected competing content variant reason, got {merge_json}"
     );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_kind"] == "block"
+                    && detail["subject_id"] == "blk:author-smoke-variant-001"
+                    && detail["variant_kind"] == "content"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["resolved_variant"]
+                        .as_str()
+                        .is_some_and(|variant| variant.contains("Right variant"))
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| variants.len() == 2)
+            })),
+        "expected structured content variant detail, got {merge_json}"
+    );
     assert_eq!(merge_json["patch_op_count"], 1);
     assert_eq!(
         merge_json["parent_revision_ids"].as_array().map(Vec::len),
@@ -527,6 +544,22 @@ fn store_merge_authoring_flow_reports_metadata_variant_choice_as_multi_variant()
                 })
             })),
         "expected competing metadata variant reason, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_kind"] == "metadata-key"
+                    && detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "selected-non-primary-parent-variant"
+                    && detail["primary_variant"] == "\"left\""
+                    && detail["resolved_variant"] == "\"right\""
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| variants.len() == 2)
+            })),
+        "expected structured metadata variant detail, got {merge_json}"
     );
     assert_eq!(merge_json["patch_op_count"], 1);
     assert_eq!(
