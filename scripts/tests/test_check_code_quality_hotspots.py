@@ -59,6 +59,9 @@ class CheckCodeQualityHotspotsCliTest(unittest.TestCase):
         self.assertIn("[file-size] crates/big.rs:1", proc.stdout)
         self.assertIn("[function-size] crates/big.rs:1", proc.stdout)
         self.assertIn("[literal-repeat] crates/big.rs:2", proc.stdout)
+        self.assertIn("Ranked split candidates:", proc.stdout)
+        self.assertIn("1. score=", proc.stdout)
+        self.assertIn("crates/big.rs", proc.stdout)
 
     def test_supports_github_warning_and_fail_on_findings(self) -> None:
         py_file = self.root / "apps" / "warn.py"
@@ -89,6 +92,56 @@ class CheckCodeQualityHotspotsCliTest(unittest.TestCase):
         self.assertEqual(1, proc.returncode)
         self.assertIn("::warning file=apps/warn.py,line=1::", proc.stdout)
         self.assertIn("Summary:", proc.stdout)
+
+    def test_ranks_more_complex_files_first(self) -> None:
+        first = self.root / "crates" / "first.rs"
+        first.write_text(
+            "\n".join(
+                [
+                    "fn first_big() {",
+                    *["    let _value = \"shared repeated literal\";" for _ in range(4)],
+                    *["    let _n = 1;" for _ in range(8)],
+                    "}",
+                    "",
+                    "fn second_big() {",
+                    *["    let _value = \"shared repeated literal\";" for _ in range(4)],
+                    *["    let _n = 2;" for _ in range(8)],
+                    "}",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        second = self.root / "crates" / "second.rs"
+        second.write_text(
+            "\n".join(
+                [
+                    "fn medium() {",
+                    *["    let _n = 1;" for _ in range(5)],
+                    "}",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        proc = self.run_cli(
+            "--file-lines",
+            "8",
+            "--function-lines",
+            "6",
+            "--literal-repeats",
+            "3",
+            "crates",
+        )
+
+        self.assertEqual(0, proc.returncode)
+        ranked_lines = [
+            line for line in proc.stdout.splitlines() if line.startswith(("1. score=", "2. score="))
+        ]
+        self.assertEqual(2, len(ranked_lines))
+        self.assertIn("crates/first.rs", ranked_lines[0])
+        self.assertIn("crates/second.rs", ranked_lines[1])
 
     def test_reports_clean_when_no_hotspots_found(self) -> None:
         rust_file = self.root / "crates" / "small.rs"

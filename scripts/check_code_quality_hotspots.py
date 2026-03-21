@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ast
 import io
+import math
 import re
 import sys
 import tokenize
@@ -29,6 +30,50 @@ class Finding:
     path: str
     line: int
     message: str
+
+
+@dataclass(frozen=True)
+class FunctionHotspot:
+    name: str
+    line: int
+    line_count: int
+
+
+@dataclass(frozen=True)
+class LiteralHotspot:
+    line: int
+    count: int
+    preview: str
+
+
+@dataclass(frozen=True)
+class FileSummary:
+    path: str
+    line_count: int
+    functions: tuple[FunctionHotspot, ...]
+    literals: tuple[LiteralHotspot, ...]
+
+    def score(self, args: argparse.Namespace) -> int:
+        points = 0
+        if self.line_count > args.file_lines:
+            points += 1 + score_excess(
+                self.line_count - args.file_lines,
+                max(args.file_lines // 2, 1),
+            )
+        for hotspot in self.functions:
+            points += 2 + score_excess(
+                hotspot.line_count - args.function_lines,
+                max(args.function_lines // 2, 1),
+            )
+        for hotspot in self.literals:
+            points += 1 + max(0, hotspot.count - args.literal_repeats)
+        return points
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    findings: tuple[Finding, ...]
+    summary: FileSummary | None
 
 
 def parse_args() -> argparse.Namespace:
@@ -112,7 +157,13 @@ def file_line_count(text: str) -> int:
     return text.count("\n") + (0 if not text else 1)
 
 
-def scan_file(path: Path, args: argparse.Namespace) -> list[Finding]:
+def score_excess(excess: int, bucket_size: int) -> int:
+    if excess <= 0:
+        return 0
+    return math.ceil(excess / max(bucket_size, 1))
+
+
+def scan_file(path: Path, args: argparse.Namespace) -> ScanResult:
     text = path.read_text(encoding="utf-8")
     findings: list[Finding] = []
     line_count = file_line_count(text)
@@ -131,27 +182,47 @@ def scan_file(path: Path, args: argparse.Namespace) -> list[Finding]:
         )
 
     literal_scan_allowed = "/tests/" not in f"/{rel}/"
+    functions: list[FunctionHotspot] = []
+    literals: list[LiteralHotspot] = []
 
     if path.suffix == ".py":
-        findings.extend(scan_python_functions(rel, text, args.function_lines))
+        function_findings, functions = scan_python_functions(rel, text, args.function_lines)
+        findings.extend(function_findings)
         if literal_scan_allowed:
-            findings.extend(scan_python_literals(rel, text, args.literal_repeats))
+            literal_findings_list, literals = scan_python_literals(rel, text, args.literal_repeats)
+            findings.extend(literal_findings_list)
     elif path.suffix == ".rs":
-        findings.extend(scan_rust_functions(rel, text, args.function_lines))
+        function_findings, functions = scan_rust_functions(rel, text, args.function_lines)
+        findings.extend(function_findings)
         if literal_scan_allowed:
-            findings.extend(scan_rust_literals(rel, text, args.literal_repeats))
-    return findings
+            literal_findings_list, literals = scan_rust_literals(rel, text, args.literal_repeats)
+            findings.extend(literal_findings_list)
+    summary = None
+    if findings:
+        summary = FileSummary(
+            path=rel,
+            line_count=line_count,
+            functions=tuple(functions),
+            literals=tuple(literals),
+        )
+    return ScanResult(findings=tuple(findings), summary=summary)
 
 
-def scan_python_functions(rel: str, text: str, threshold: int) -> list[Finding]:
+def scan_python_functions(
+    rel: str, text: str, threshold: int
+) -> tuple[list[Finding], list[FunctionHotspot]]:
     tree = ast.parse(text)
     findings: list[Finding] = []
+    hotspots: list[FunctionHotspot] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         end_lineno = getattr(node, "end_lineno", node.lineno)
         line_count = end_lineno - node.lineno + 1
         if line_count > threshold:
+            hotspots.append(
+                FunctionHotspot(name=node.name, line=node.lineno, line_count=line_count)
+            )
             findings.append(
                 Finding(
                     kind="function-size",
@@ -163,7 +234,7 @@ def scan_python_functions(rel: str, text: str, threshold: int) -> list[Finding]:
                     ),
                 )
             )
-    return findings
+    return findings, hotspots
 
 
 RUST_FN_PATTERN = re.compile(
@@ -171,8 +242,11 @@ RUST_FN_PATTERN = re.compile(
 )
 
 
-def scan_rust_functions(rel: str, text: str, threshold: int) -> list[Finding]:
+def scan_rust_functions(
+    rel: str, text: str, threshold: int
+) -> tuple[list[Finding], list[FunctionHotspot]]:
     findings: list[Finding] = []
+    hotspots: list[FunctionHotspot] = []
     lines = text.splitlines()
     line_total = len(lines)
     idx = 0
@@ -198,6 +272,9 @@ def scan_rust_functions(rel: str, text: str, threshold: int) -> list[Finding]:
             end += 1
         line_count = end - start + 1
         if opened and line_count > threshold:
+            hotspots.append(
+                FunctionHotspot(name=name, line=start + 1, line_count=line_count)
+            )
             findings.append(
                 Finding(
                     kind="function-size",
@@ -210,10 +287,12 @@ def scan_rust_functions(rel: str, text: str, threshold: int) -> list[Finding]:
                 )
             )
         idx = max(end + 1, idx + 1)
-    return findings
+    return findings, hotspots
 
 
-def scan_python_literals(rel: str, text: str, threshold: int) -> list[Finding]:
+def scan_python_literals(
+    rel: str, text: str, threshold: int
+) -> tuple[list[Finding], list[LiteralHotspot]]:
     occurrences: dict[str, list[int]] = {}
     token_stream = tokenize.generate_tokens(io.StringIO(text).readline)
     for token in token_stream:
@@ -234,7 +313,9 @@ def scan_python_literals(rel: str, text: str, threshold: int) -> list[Finding]:
 RUST_LITERAL_PATTERN = re.compile(r'"((?:\\.|[^"\\])*)"')
 
 
-def scan_rust_literals(rel: str, text: str, threshold: int) -> list[Finding]:
+def scan_rust_literals(
+    rel: str, text: str, threshold: int
+) -> tuple[list[Finding], list[LiteralHotspot]]:
     occurrences: dict[str, list[int]] = {}
     for lineno, line in enumerate(text.splitlines(), start=1):
         for match in RUST_LITERAL_PATTERN.finditer(line):
@@ -260,12 +341,18 @@ def is_non_trivial_literal(value: str) -> bool:
     return True
 
 
-def literal_findings(rel: str, occurrences: dict[str, list[int]], threshold: int) -> list[Finding]:
+def literal_findings(
+    rel: str, occurrences: dict[str, list[int]], threshold: int
+) -> tuple[list[Finding], list[LiteralHotspot]]:
     findings: list[Finding] = []
+    hotspots: list[LiteralHotspot] = []
     for literal, lines in sorted(occurrences.items(), key=lambda item: (-len(item[1]), item[0])):
         if len(lines) < threshold:
             continue
         preview = literal if len(literal) <= 48 else literal[:45] + "..."
+        hotspots.append(
+            LiteralHotspot(line=lines[0], count=len(lines), preview=preview)
+        )
         findings.append(
             Finding(
                 kind="literal-repeat",
@@ -277,10 +364,51 @@ def literal_findings(rel: str, occurrences: dict[str, list[int]], threshold: int
                 ),
             )
         )
-    return findings
+    return findings, hotspots
 
 
-def render(findings: list[Finding], args: argparse.Namespace) -> int:
+def render_ranked_candidates(summaries: list[FileSummary], args: argparse.Namespace) -> None:
+    ranked = sorted(
+        summaries,
+        key=lambda summary: (
+            -summary.score(args),
+            -len(summary.functions),
+            -len(summary.literals),
+            -summary.line_count,
+            summary.path,
+        ),
+    )
+    print("Ranked split candidates:")
+    for index, summary in enumerate(ranked, start=1):
+        file_note = (
+            f"file {summary.line_count} lines"
+            if summary.line_count > args.file_lines
+            else f"file {summary.line_count} lines (under file threshold)"
+        )
+        function_note = (
+            ", ".join(
+                f"{hotspot.name}@L{hotspot.line}={hotspot.line_count}"
+                for hotspot in summary.functions[:2]
+            )
+            if summary.functions
+            else "none"
+        )
+        literal_note = (
+            ", ".join(
+                f"L{hotspot.line} x{hotspot.count}"
+                for hotspot in summary.literals[:2]
+            )
+            if summary.literals
+            else "none"
+        )
+        print(
+            f"{index}. score={summary.score(args)} {summary.path} | "
+            f"{file_note}; long functions={len(summary.functions)} [{function_note}]; "
+            f"repeated literals={len(summary.literals)} [{literal_note}]"
+        )
+
+
+def render(findings: list[Finding], summaries: list[FileSummary], args: argparse.Namespace) -> int:
     if not findings:
         print(
             "No code-quality hotspots found "
@@ -304,15 +432,21 @@ def render(findings: list[Finding], args: argparse.Namespace) -> int:
         "Summary: "
         + ", ".join(f"{counter[key]} {key}" for key in sorted(counter))
     )
+    print()
+    render_ranked_candidates(summaries, args)
     return 1 if args.fail_on_findings else 0
 
 
 def main() -> int:
     args = parse_args()
     findings: list[Finding] = []
+    summaries: list[FileSummary] = []
     for path in iter_source_files(args.paths):
-        findings.extend(scan_file(path, args))
-    return render(findings, args)
+        result = scan_file(path, args)
+        findings.extend(result.findings)
+        if result.summary is not None:
+            summaries.append(result.summary)
+    return render(findings, summaries, args)
 
 
 if __name__ == "__main__":
