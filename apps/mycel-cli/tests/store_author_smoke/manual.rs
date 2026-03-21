@@ -182,6 +182,188 @@ fn store_merge_authoring_flow_requires_manual_curation_for_metadata_removal() {
 }
 
 #[test]
+fn store_merge_authoring_flow_emits_json_summary_for_metadata_removal_manual_curation() {
+    let store_dir = create_temp_dir("store-merge-metadata-removal-json-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-metadata-removal-json-key");
+    let store_root = path_arg(store_dir.path());
+    let key_file = path_arg(&key_path);
+    let (_base_ops_dir, base_ops_path) =
+        write_metadata_variant_ops_file("store-merge-metadata-removal-json-base-ops", "base");
+    let (_right_ops_dir, right_ops_path) =
+        write_metadata_variant_ops_file("store-merge-metadata-removal-json-right-ops", "right");
+    let base_ops_file = path_arg(&base_ops_path);
+    let right_ops_file = path_arg(&right_ops_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--title",
+        "Author Smoke Metadata Removal Json",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "50",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let base_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &base_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "51",
+        "--json",
+    ]);
+    assert_success(&base_patch);
+    let base_patch_json = assert_json_status(&base_patch, "ok");
+    let base_patch_id = base_patch_json["patch_id"]
+        .as_str()
+        .expect("base patch_id should be string")
+        .to_string();
+
+    let base_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &base_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "52",
+        "--json",
+    ]);
+    assert_success(&base_revision);
+    let base_revision_json = assert_json_status(&base_revision, "ok");
+    let base_revision_id = base_revision_json["revision_id"]
+        .as_str()
+        .expect("base revision_id should be string")
+        .to_string();
+
+    let right_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &right_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "53",
+        "--json",
+    ]);
+    assert_success(&right_patch);
+    let right_patch_json = assert_json_status(&right_patch, "ok");
+    let right_patch_id = right_patch_json["patch_id"]
+        .as_str()
+        .expect("right patch_id should be string")
+        .to_string();
+
+    let right_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &right_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "54",
+        "--json",
+    ]);
+    assert_success(&right_revision);
+    let right_revision_json = assert_json_status(&right_revision, "ok");
+    let right_revision_id = right_revision_json["revision_id"]
+        .as_str()
+        .expect("right revision_id should be string")
+        .to_string();
+
+    let empty_resolved_dir = create_temp_dir("store-merge-metadata-removal-json-empty-state");
+    let empty_resolved_path = empty_resolved_dir.path().join("resolved-state.json");
+    fs::write(
+        &empty_resolved_path,
+        serde_json::to_string_pretty(&json!({
+            "doc_id": "doc:author-smoke-metadata-removal",
+            "blocks": [],
+            "metadata": {}
+        }))
+        .expect("metadata removal json resolved state should serialize"),
+    )
+    .expect("metadata removal json resolved state should write");
+    let resolved_state_file = path_arg(&empty_resolved_path);
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-metadata-removal",
+        "--parent",
+        &base_revision_id,
+        "--parent",
+        &right_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "55",
+        "--json",
+    ]);
+
+    assert_exit_code(&merge, 1);
+    let merge_json = parse_json_stdout(&merge);
+    assert_eq!(merge_json["status"], "failed");
+    assert_eq!(merge_json["merge_outcome"], "manual-curation-required");
+    assert_eq!(
+        merge_json["merge_reasons"],
+        json!([
+            "resolved metadata key 'topic' removes primary metadata but v0.1 patch ops cannot express metadata deletion"
+        ])
+    );
+    assert_eq!(
+        merge_json["errors"],
+        json!([
+            "merge resolution is manual-curation-required: resolved metadata key 'topic' removes primary metadata but v0.1 patch ops cannot express metadata deletion"
+        ])
+    );
+}
+
+#[test]
 fn store_merge_authoring_flow_rejects_novel_nested_parent_choice_as_manual_curation_required() {
     let store_dir = create_temp_dir("store-merge-nested-parent-manual-root");
     let (_key_dir, key_path) = write_signing_key_file("store-merge-nested-parent-manual-key");
