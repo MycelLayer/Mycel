@@ -1395,7 +1395,10 @@ fn merge_authoring_marks_nested_parent_choice_conflicts_as_multi_variant() {
     assert_eq!(parent_detail.subject_kind, MergeReasonSubjectKind::Block);
     assert_eq!(parent_detail.primary_variant, "<root>");
     assert_eq!(parent_detail.resolved_variant, "blk:nested-left");
-    assert_eq!(parent_detail.competing_variants, vec!["blk:nested-right".to_string()]);
+    assert_eq!(
+        parent_detail.competing_variants,
+        vec!["blk:nested-right".to_string()]
+    );
     let patch_value = load_stored_object_value(&store_root, &summary.patch_id)
         .expect("generated merge patch should be stored");
     let patch = parse_patch_object(&patch_value).expect("generated patch should parse");

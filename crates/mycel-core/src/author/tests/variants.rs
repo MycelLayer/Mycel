@@ -334,7 +334,10 @@ fn merge_authoring_reports_multi_variant_when_metadata_parents_disagree() {
     );
     assert_eq!(metadata_selection_detail.primary_variant, "\"left\"");
     assert_eq!(metadata_selection_detail.resolved_variant, "\"right\"");
-    assert_eq!(metadata_selection_detail.competing_variants, vec!["\"center\"".to_string()]);
+    assert_eq!(
+        metadata_selection_detail.competing_variants,
+        vec!["\"center\"".to_string()]
+    );
     assert_eq!(
         metadata_selection_detail.branch_kind,
         Some(MergeReasonBranchKind::AdoptedNonPrimaryReplacement)
