@@ -169,6 +169,26 @@ fn write_content_addition_ops_for_block_file(
     (dir, path)
 }
 
+fn write_content_delete_ops_for_block_file(
+    prefix: &str,
+    block_id: &str,
+) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("ops.json");
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "delete_block",
+                "block_id": block_id
+            }
+        ]))
+        .expect("content delete ops JSON should serialize"),
+    )
+    .expect("content delete ops JSON should write");
+    (dir, path)
+}
+
 fn write_content_variant_resolved_state_file(
     prefix: &str,
     content: &str,

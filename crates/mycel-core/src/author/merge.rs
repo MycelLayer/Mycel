@@ -245,7 +245,10 @@ fn assess_merge_resolution(
                     subject_id: block_id.clone(),
                     variant_kind: MergeReasonVariantKind::Content,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
-                    branch_kind: Some(selected_variant_branch_kind(&primary_content_variant)),
+                    branch_kind: Some(selected_variant_branch_kind(
+                        &primary_content_variant,
+                        &resolved_content_variant,
+                    )),
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
                     competing_variants: remaining_competing_variants(
@@ -256,7 +259,10 @@ fn assess_merge_resolution(
                 selected_non_primary_reason(
                     "block",
                     &block_id,
-                    selected_variant_branch_kind(&primary_content_variant),
+                    selected_variant_branch_kind(
+                        &primary_content_variant,
+                        &resolved_content_variant,
+                    ),
                 ),
             );
             if alternative_content_variants.len() > 1 {
@@ -269,7 +275,10 @@ fn assess_merge_resolution(
                         variant_kind: MergeReasonVariantKind::Content,
                         reason_kind:
                             MergeReasonKind::MultipleCompetingAlternativesRemainAfterSelectedVariant,
-                        branch_kind: Some(multiple_competing_branch_kind(&primary_content_variant)),
+                        branch_kind: Some(multiple_competing_branch_kind(
+                            &primary_content_variant,
+                            &alternative_content_variants,
+                        )),
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -277,7 +286,10 @@ fn assess_merge_resolution(
                     multiple_competing_after_selected_reason(
                         "block",
                         &block_id,
-                        multiple_competing_branch_kind(&primary_content_variant),
+                        multiple_competing_branch_kind(
+                            &primary_content_variant,
+                            &alternative_content_variants,
+                        ),
                     ),
                 );
             }
@@ -300,7 +312,10 @@ fn assess_merge_resolution(
                     variant_kind: MergeReasonVariantKind::Content,
                     reason_kind:
                         MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
-                    branch_kind: Some(kept_primary_branch_kind(&primary_content_variant)),
+                    branch_kind: Some(kept_primary_branch_kind(
+                        &primary_content_variant,
+                        &alternative_content_variants,
+                    )),
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
                     competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -308,7 +323,10 @@ fn assess_merge_resolution(
                 kept_primary_reason(
                     "block",
                     &block_id,
-                    kept_primary_branch_kind(&primary_content_variant),
+                    kept_primary_branch_kind(
+                        &primary_content_variant,
+                        &alternative_content_variants,
+                    ),
                 ),
             );
             if alternative_content_variants.len() > 1 {
@@ -321,7 +339,10 @@ fn assess_merge_resolution(
                         variant_kind: MergeReasonVariantKind::Content,
                         reason_kind:
                             MergeReasonKind::MultipleCompetingAlternativesRemainAfterKeepingPrimaryVariant,
-                        branch_kind: Some(multiple_competing_branch_kind(&primary_content_variant)),
+                        branch_kind: Some(multiple_competing_branch_kind(
+                            &primary_content_variant,
+                            &alternative_content_variants,
+                        )),
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: alternative_content_variants.iter().cloned().collect(),
@@ -329,7 +350,10 @@ fn assess_merge_resolution(
                     multiple_competing_after_keeping_primary_reason(
                         "block",
                         &block_id,
-                        multiple_competing_branch_kind(&primary_content_variant),
+                        multiple_competing_branch_kind(
+                            &primary_content_variant,
+                            &alternative_content_variants,
+                        ),
                     ),
                 );
             }
@@ -844,7 +868,10 @@ fn assess_merge_resolution(
                     subject_id: key.clone(),
                     variant_kind: MergeReasonVariantKind::Metadata,
                     reason_kind: MergeReasonKind::SelectedNonPrimaryParentVariant,
-                    branch_kind: Some(selected_variant_branch_kind(&primary_variant)),
+                    branch_kind: Some(selected_variant_branch_kind(
+                        &primary_variant,
+                        &resolved_variant,
+                    )),
                     primary_variant: primary_variant.clone(),
                     resolved_variant: resolved_variant.clone(),
                     competing_variants: remaining_competing_variants(
@@ -855,7 +882,7 @@ fn assess_merge_resolution(
                 selected_non_primary_reason(
                     "metadata key",
                     &key,
-                    selected_variant_branch_kind(&primary_variant),
+                    selected_variant_branch_kind(&primary_variant, &resolved_variant),
                 ),
             );
             if alternative_variants.len() > 1 {
@@ -868,7 +895,10 @@ fn assess_merge_resolution(
                         variant_kind: MergeReasonVariantKind::Metadata,
                         reason_kind:
                             MergeReasonKind::MultipleCompetingAlternativesRemainAfterSelectedVariant,
-                        branch_kind: Some(multiple_competing_branch_kind(&primary_variant)),
+                        branch_kind: Some(multiple_competing_branch_kind(
+                            &primary_variant,
+                            &alternative_variants,
+                        )),
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: alternative_variants.iter().cloned().collect(),
@@ -876,7 +906,7 @@ fn assess_merge_resolution(
                     multiple_competing_after_selected_reason(
                         "metadata key",
                         &key,
-                        multiple_competing_branch_kind(&primary_variant),
+                        multiple_competing_branch_kind(&primary_variant, &alternative_variants),
                     ),
                 );
             }
@@ -891,7 +921,10 @@ fn assess_merge_resolution(
                     variant_kind: MergeReasonVariantKind::Metadata,
                     reason_kind:
                         MergeReasonKind::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
-                    branch_kind: Some(kept_primary_branch_kind(&primary_variant)),
+                    branch_kind: Some(kept_primary_branch_kind(
+                        &primary_variant,
+                        &alternative_variants,
+                    )),
                     primary_variant: primary_variant.clone(),
                     resolved_variant: resolved_variant.clone(),
                     competing_variants: alternative_variants.iter().cloned().collect(),
@@ -899,7 +932,7 @@ fn assess_merge_resolution(
                 kept_primary_reason(
                     "metadata key",
                     &key,
-                    kept_primary_branch_kind(&primary_variant),
+                    kept_primary_branch_kind(&primary_variant, &alternative_variants),
                 ),
             );
             if alternative_variants.len() > 1 {
@@ -912,7 +945,10 @@ fn assess_merge_resolution(
                         variant_kind: MergeReasonVariantKind::Metadata,
                         reason_kind:
                             MergeReasonKind::MultipleCompetingAlternativesRemainAfterKeepingPrimaryVariant,
-                        branch_kind: Some(multiple_competing_branch_kind(&primary_variant)),
+                        branch_kind: Some(multiple_competing_branch_kind(
+                            &primary_variant,
+                            &alternative_variants,
+                        )),
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: alternative_variants.iter().cloned().collect(),
@@ -920,7 +956,7 @@ fn assess_merge_resolution(
                     multiple_competing_after_keeping_primary_reason(
                         "metadata key",
                         &key,
-                        multiple_competing_branch_kind(&primary_variant),
+                        multiple_competing_branch_kind(&primary_variant, &alternative_variants),
                     ),
                 );
             }
@@ -955,27 +991,74 @@ fn push_variant_reason(
     reason_details.push(detail);
 }
 
-fn selected_variant_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
-    if primary_variant == "<absent>" {
+fn selected_variant_branch_kind(
+    primary_variant: &str,
+    resolved_variant: &str,
+) -> MergeReasonBranchKind {
+    if resolved_variant == "<absent>" {
+        MergeReasonBranchKind::AdoptedNonPrimaryRemoval
+    } else if primary_variant == "<absent>" {
         MergeReasonBranchKind::AdoptedNonPrimaryAddition
     } else {
         MergeReasonBranchKind::AdoptedNonPrimaryReplacement
     }
 }
 
-fn kept_primary_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
+fn kept_primary_branch_kind(
+    primary_variant: &str,
+    alternatives: &BTreeSet<String>,
+) -> MergeReasonBranchKind {
     if primary_variant == "<absent>" {
         MergeReasonBranchKind::KeptPrimaryAbsenceOverNonPrimaryAddition
     } else {
-        MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryReplacement
+        match non_primary_alternative_kind(alternatives) {
+            NonPrimaryAlternativeKind::OnlyAbsences => {
+                MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryRemoval
+            }
+            NonPrimaryAlternativeKind::OnlyPresentVariants => {
+                MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryReplacement
+            }
+            NonPrimaryAlternativeKind::MixedPresentAndAbsent => {
+                MergeReasonBranchKind::KeptPrimaryVariantOverMixedNonPrimaryAlternatives
+            }
+        }
     }
 }
 
-fn multiple_competing_branch_kind(primary_variant: &str) -> MergeReasonBranchKind {
+fn multiple_competing_branch_kind(
+    primary_variant: &str,
+    alternatives: &BTreeSet<String>,
+) -> MergeReasonBranchKind {
     if primary_variant == "<absent>" {
         MergeReasonBranchKind::MultipleCompetingNonPrimaryAdditions
     } else {
-        MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements
+        match non_primary_alternative_kind(alternatives) {
+            NonPrimaryAlternativeKind::OnlyAbsences => {
+                MergeReasonBranchKind::MultipleCompetingNonPrimaryRemovals
+            }
+            NonPrimaryAlternativeKind::OnlyPresentVariants => {
+                MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements
+            }
+            NonPrimaryAlternativeKind::MixedPresentAndAbsent => {
+                MergeReasonBranchKind::MultipleCompetingMixedNonPrimaryAlternatives
+            }
+        }
+    }
+}
+
+enum NonPrimaryAlternativeKind {
+    OnlyAbsences,
+    OnlyPresentVariants,
+    MixedPresentAndAbsent,
+}
+
+fn non_primary_alternative_kind(alternatives: &BTreeSet<String>) -> NonPrimaryAlternativeKind {
+    let has_absent = alternatives.iter().any(|variant| variant == "<absent>");
+    let has_present = alternatives.iter().any(|variant| variant != "<absent>");
+    match (has_absent, has_present) {
+        (true, true) => NonPrimaryAlternativeKind::MixedPresentAndAbsent,
+        (true, false) => NonPrimaryAlternativeKind::OnlyAbsences,
+        (false, true) | (false, false) => NonPrimaryAlternativeKind::OnlyPresentVariants,
     }
 }
 
@@ -1002,6 +1085,9 @@ fn selected_non_primary_reason(
         MergeReasonBranchKind::AdoptedNonPrimaryReplacement => {
             format!("{subject_label} '{subject_id}' adopted a non-primary parent replacement")
         }
+        MergeReasonBranchKind::AdoptedNonPrimaryRemoval => {
+            format!("{subject_label} '{subject_id}' adopted a non-primary parent removal")
+        }
         _ => format!("{subject_label} '{subject_id}' selected a non-primary parent variant"),
     }
 }
@@ -1017,6 +1103,12 @@ fn kept_primary_reason(
         ),
         MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryReplacement => format!(
             "{subject_label} '{subject_id}' kept the primary parent variant over a competing non-primary replacement"
+        ),
+        MergeReasonBranchKind::KeptPrimaryVariantOverNonPrimaryRemoval => format!(
+            "{subject_label} '{subject_id}' kept the primary parent variant over a competing non-primary removal"
+        ),
+        MergeReasonBranchKind::KeptPrimaryVariantOverMixedNonPrimaryAlternatives => format!(
+            "{subject_label} '{subject_id}' kept the primary parent variant over mixed competing non-primary alternatives"
         ),
         _ => format!(
             "{subject_label} '{subject_id}' kept the primary parent variant over a competing non-primary alternative"
@@ -1038,6 +1130,12 @@ fn multiple_competing_after_selected_reason(
         MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements => format!(
             "{subject_label} '{subject_id}' selected one non-primary replacement while other competing non-primary replacements remained"
         ),
+        MergeReasonBranchKind::MultipleCompetingNonPrimaryRemovals => format!(
+            "{subject_label} '{subject_id}' selected one non-primary removal while other competing non-primary removals remained"
+        ),
+        MergeReasonBranchKind::MultipleCompetingMixedNonPrimaryAlternatives => format!(
+            "{subject_label} '{subject_id}' selected one non-primary alternative while other competing non-primary replacements and removals remained"
+        ),
         _ => format!("{subject_label} '{subject_id}' has multiple competing parent variants"),
     }
 }
@@ -1053,6 +1151,12 @@ fn multiple_competing_after_keeping_primary_reason(
         ),
         MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements => format!(
             "{subject_label} '{subject_id}' kept the primary variant while multiple competing non-primary replacements remained"
+        ),
+        MergeReasonBranchKind::MultipleCompetingNonPrimaryRemovals => format!(
+            "{subject_label} '{subject_id}' kept the primary variant while multiple competing non-primary removals remained"
+        ),
+        MergeReasonBranchKind::MultipleCompetingMixedNonPrimaryAlternatives => format!(
+            "{subject_label} '{subject_id}' kept the primary variant while multiple competing non-primary replacements and removals remained"
         ),
         _ => format!(
             "{subject_label} '{subject_id}' kept the primary variant while multiple competing parent variants remained"
