@@ -17,11 +17,37 @@
 
 相關文件：
 
-- `DESIGN-NOTES.dynamic-module-loading.*`：較窄版的 module-loading 模型
+- `DESIGN-NOTES.dynamic-module-loading.*`：module-level artifact、admission 與 load flow
+- `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`：承載這種 substrate 所需的最小常駐 host
+- `DESIGN-NOTES.future-software-ecosystem-on-mycel-runtime-substrate.*`：這個模型若擴大後的生態後果
 - `DESIGN-NOTES.mycel-app-layer.*`：app state 與 side-effect execution 的分層
 - `DESIGN-NOTES.app-signing-model.*`：object signing、artifact signing 與 runtime evidence 的差異
 
-## 0. 目標
+## 0. 這份文件在系列中的定位
+
+這份文件回答的核心問題是：
+
+- 「如果把 Mycel 視為 signed、on-demand 的 runtime substrate，整體執行模型應長什麼樣子？」
+
+它主要處理：
+
+- resident base、on-demand modules、cache artifacts 的整體分工
+- 為什麼這不是傳統 app install 模型
+- trust、policy、determinism 與 execution sovereignty 的總體 framing
+
+它刻意不細講：
+
+- 單一 module metadata 與 blob schema 要怎麼設計
+- 本地最小 host image 應有哪些常駐元件與 boot flow
+- 生態成為主流後 app store、公司與開源社群的結構性改變
+
+可以把這篇視為系列中的上位設計稿：
+
+- 要看 module admission 細節，轉到 `DESIGN-NOTES.dynamic-module-loading.*`
+- 要看 trusted local base 的最小實作輪廓，轉到 `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`
+- 要看生態與市場層面的延伸推論，轉到 `DESIGN-NOTES.future-software-ecosystem-on-mycel-runtime-substrate.*`
+
+## 1. 目標
 
 讓一個 Mycel-based system 可以做到：
 
@@ -37,7 +63,7 @@
 - 對 code artifacts 的 deterministic identity
 - 即使 artifact 有效，本地仍保有拒絕執行的能力
 
-## 1. 這是什麼，不是什麼
+## 2. 這是什麼，不是什麼
 
 這種模型比較接近：
 
@@ -53,7 +79,7 @@
 
 某種程度的 local bootstrap 仍然必須存在。
 
-## 2. 小型 Trusted Local Base
+## 3. 小型 Trusted Local Base
 
 如果本地完全是空的，就不可能安全地執行抓下來的 modules，因為總要先有某部分常駐來負責：
 
@@ -71,11 +97,11 @@
 
 這個 trusted base 越小，系統就越接近真正的 on-demand runtime substrate。
 
-## 3. 執行模型
+## 4. 執行模型
 
 系統應把 code 分成三類。
 
-### 3.1 Resident Base
+### 4.1 Resident Base
 
 永遠存在本地。
 
@@ -87,7 +113,7 @@
 - policy enforcement
 - sandbox runtime hosting
 
-### 3.2 On-Demand Modules
+### 4.2 On-Demand Modules
 
 在需要時抓取。
 
@@ -99,13 +125,13 @@
 - policy helpers
 - protocol-adjacent extension logic
 
-### 3.3 Optional Cached Artifacts
+### 4.3 Optional Cached Artifacts
 
 只為了速度或 offline continuity 才保留在本地。
 
 這些 artifacts 應該可以被刪除，而不改變它們的 identity，因為 identity 來自 content hash 與 signature，不是來自本機安裝狀態。
 
-## 4. 為什麼所有可抓取 code 都要簽章
+## 5. 為什麼所有可抓取 code 都要簽章
 
 如果系統會在 runtime 抓取可執行 artifact，那 signature checks 就不能只是附帶 metadata。
 
@@ -121,7 +147,7 @@
 
 這能降低 runtime fetch 淪為任意 remote-code-execution 通道的風險。
 
-## 5. Content Addressing 與預設不存在
+## 6. Content Addressing 與預設不存在
 
 理想的儲存規則是：
 
@@ -141,7 +167,7 @@ host 應能自然地表達：
 
 而不是把這個流程視為異常狀況。
 
-## 6. Runtime Fetch Flow
+## 7. Runtime Fetch Flow
 
 建議流程：
 
@@ -154,7 +180,7 @@ host 應能自然地表達：
 
 如果驗證失敗，artifact 就算語法正確，也應維持不可執行。
 
-## 7. 為什麼這很像分散式作業模型
+## 8. 為什麼這很像分散式作業模型
 
 這種模型會開始看起來像 distributed operating model，因為：
 
@@ -167,7 +193,7 @@ host 應能自然地表達：
 
 - trust 與 artifact verification 在這裡是 first-class design 元件，不是次要的 packaging 問題
 
-## 8. 建議的 Artifact 模型
+## 9. 建議的 Artifact 模型
 
 這個 substrate 預設不應抓取 raw native code fragments。
 
@@ -186,7 +212,7 @@ host 應能自然地表達：
 
 這樣可讓 substrate 保持可攜性，也更容易 audit。
 
-## 9. Capability 與 Policy 邊界
+## 10. Capability 與 Policy 邊界
 
 有效 signature 的意思應該是：
 
@@ -205,7 +231,7 @@ host 仍然需要 local policy checks：
 
 這能保留本地對 execution 的主權。
 
-## 10. Cache，而不是 Installation
+## 11. Cache，而不是 Installation
 
 在這個模型裡，本地 storage 的角色比較像 verified execution cache，而不是傳統軟體安裝。
 
@@ -218,13 +244,13 @@ host 仍然需要 local policy checks：
 
 這表示系統可以在大部分時候保持 stateless，同時又不必讓每次重複執行都完全依賴網路。
 
-## 11. 哪些地方仍然需要 Determinism
+## 12. 哪些地方仍然需要 Determinism
 
 不是所有抓取來的 modules 都有相同語義重量。
 
 至少可分三類：
 
-### 11.1 Pure Presentation Modules
+### 12.1 Pure Presentation Modules
 
 例如：
 
@@ -232,7 +258,7 @@ host 仍然需要 local policy checks：
 
 Determinism 很有幫助，但對 accepted-state derivation 的影響較小。
 
-### 11.2 State-Interpreting Modules
+### 12.2 State-Interpreting Modules
 
 例如：
 
@@ -241,7 +267,7 @@ Determinism 很有幫助，但對 accepted-state derivation 的影響較小。
 
 這時 determinism 重要得多，因為不同輸出可能改變 app behavior。
 
-### 11.3 Side-Effecting Modules
+### 12.3 Side-Effecting Modules
 
 例如：
 
@@ -251,7 +277,7 @@ Determinism 很有幫助，但對 accepted-state derivation 的影響較小。
 
 host 應區分這些類別，而不是把所有 modules 視為同一種東西。
 
-## 12. 為什麼 Native Code 不該是預設
+## 13. 為什麼 Native Code 不該是預設
 
 如果這個 substrate 預設抓取 native binaries 或 dynamic libraries，它就會繼承：
 

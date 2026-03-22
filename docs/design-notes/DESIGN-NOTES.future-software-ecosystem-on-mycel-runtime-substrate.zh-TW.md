@@ -10,11 +10,35 @@
 
 相關文件：
 
-- `DESIGN-NOTES.dynamic-module-loading.*`：module-level execution 模型
-- `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`：較大的 runtime-substrate framing
-- `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`：可承載這個模型的最小 trusted local host
+- `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`：runtime-substrate 的整體設計 framing
+- `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`：本地最小 trusted host 的常駐責任
+- `DESIGN-NOTES.dynamic-module-loading.*`：單一 module 的 artifact、admission 與載入模型
 
-## 0. 目標
+## 0. 這份文件在系列中的定位
+
+這份文件回答的核心問題是：
+
+- 「如果 Mycel runtime substrate 不只是設計草圖，而是逐漸成為主流軟體模式，整個軟體生態會怎麼變？」
+
+它主要處理：
+
+- install-first 軟體文化轉向 capability-first 的後果
+- app store、signer reputation、policy packaging 與治理市場的變化
+- 產品結構、公司角色、開源制度與 offline discipline 的長期影響
+
+它刻意不定義：
+
+- module admission 的低層規格
+- resident host 需要哪些 boot、verification 與 sandbox 元件
+- runtime substrate 本身的最小可行技術切面
+
+因此它應被讀成系列中的外圈推論文件，而不是核心技術規格：
+
+- 要定義整體 substrate 模型，回到 `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`
+- 要定義最小常駐 host，回到 `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`
+- 要定義單一 module 如何被下載與載入，回到 `DESIGN-NOTES.dynamic-module-loading.*`
+
+## 1. 目標
 
 描述如果 Mycel Runtime Substrate 成為主流，軟體文化、分發、信任與產品結構可能出現的變化。
 
@@ -26,7 +50,7 @@
 - 使用者期待
 - 生態級風險
 
-## 1. 最根本的位移
+## 2. 最根本的位移
 
 最深的變化不會只是：
 
@@ -48,7 +72,7 @@
 - 一個 state model
 - 一組在 runtime 被授權的 capabilities
 
-## 2. Installation 退居次要
+## 3. Installation 退居次要
 
 在主流的 Mycel Runtime Substrate 世界裡，「安裝軟體」的重要性會下降，而「授權 host 載入某些 capabilities」會變得更中心。
 
@@ -69,7 +93,7 @@
 
 但它會不再是軟體體驗的絕對中心。
 
-## 3. App Store 會變成 Trust 與 Policy 市場
+## 4. App Store 會變成 Trust 與 Policy 市場
 
 今天的 app store 主要是：
 
@@ -95,7 +119,7 @@
 - 我該採用哪套 host policy？
 - 哪些 module families 在這個 profile 或組織裡被接受？
 
-## 4. 軟體產品會被拆解
+## 5. 軟體產品會被拆解
 
 主流軟體產品不再主要以一個封閉 binary artifact 呈現。
 
@@ -121,7 +145,7 @@
 - compatibility management
 - signer 與 dependency governance 的負擔
 
-## 5. State 會比 App Shell 更重要
+## 6. State 會比 App Shell 更重要
 
 一個重要的文化變化會是：application state 的價值高於目前的 app wrapper。
 
@@ -143,7 +167,7 @@
 
 - 維持一份受信任 state 的連續性
 
-## 6. Frontend、Backend 與 Plugin 邊界會模糊
+## 7. Frontend、Backend 與 Plugin 邊界會模糊
 
 今天的軟體生態很習慣把東西硬切成：
 
@@ -168,7 +192,7 @@
 - 它擁有哪些 capabilities
 - 它可以解讀或變動哪些 state surfaces
 
-## 7. 安全會從 App Trust 轉成 Capability Trust
+## 8. 安全會從 App Trust 轉成 Capability Trust
 
 今天很多使用者其實只回答一個粗粒度問題：
 
@@ -188,7 +212,7 @@
 
 - capability fatigue
 
-## 8. 軟體公司會改變形狀
+## 9. 軟體公司會改變形狀
 
 如果這個模型成為主流，軟體公司會越來越像：
 
@@ -209,7 +233,7 @@
 - 提供高品質 policy defaults
 - 累積長期 signer reputation
 
-## 9. 開源會更強，也更制度化
+## 10. 開源會更強，也更制度化
 
 開放生態在這種世界裡可能會更強，因為：
 
@@ -232,7 +256,7 @@
 
 - 這個 artifact family 是否值得信任、可被審查、也能安全地被主流 hosts 接納？
 
-## 10. Offline 會變成品質紀律
+## 11. Offline 會變成品質紀律
 
 在 fetch-on-demand 的世界裡，online resolution 會變得很自然。
 
@@ -251,7 +275,7 @@ offline support 不再只是模糊的 marketing checkbox。
 - 哪些可以被重建
 - 哪些在沒有網路 resolve 時不能安全執行
 
-## 11. 作業系統會變得更像 Host
+## 12. 作業系統會變得更像 Host
 
 傳統作業系統不會消失，但它的可見角色會改變。
 

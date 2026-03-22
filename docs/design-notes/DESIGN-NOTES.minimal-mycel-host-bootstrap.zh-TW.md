@@ -16,11 +16,36 @@
 
 相關文件：
 
-- `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`：較大的執行模型
-- `DESIGN-NOTES.dynamic-module-loading.*`：較窄版的 signed-module 模型
+- `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`：較大的執行模型與整體 substrate framing
+- `DESIGN-NOTES.dynamic-module-loading.*`：單一 signed module 的 artifact 與載入規則
+- `DESIGN-NOTES.future-software-ecosystem-on-mycel-runtime-substrate.*`：這套 host 與 substrate 若成為主流後的生態後果
 - `DESIGN-NOTES.app-signing-model.*`：artifact 與 execution trust layers 的分層
 
-## 0. 目標
+## 0. 這份文件在系列中的定位
+
+這份文件回答的核心問題是：
+
+- 「若要承載 signed on-demand runtime substrate，本地最小可信 host 必須常駐哪些能力？」
+
+它主要處理：
+
+- boot layer、resident host layer、on-demand module layer 的分層
+- verifier、fetcher、cache manager、sandbox runtime 等最小常駐元件
+- 從安全開機到 fetched module admission 的 host boot flow
+
+它刻意不主講：
+
+- 單一 module schema、metadata 欄位與 module cache key 細節
+- substrate 作為整體軟體模型的長篇 framing
+- 這套架構若普及後的市場、產品與治理結構
+
+閱讀順序上，它位在兩篇之間：
+
+- 先用 `DESIGN-NOTES.signed-on-demand-runtime-substrate.*` 理解整體模型
+- 再用這篇收斂「哪些東西不能被按需抓取，必須常駐」
+- 最後回到 `DESIGN-NOTES.dynamic-module-loading.*` 看單一 module 怎麼被驗證與載入
+
+## 1. 目標
 
 定義最小的本地常駐 host，同時仍讓 Mycel-based system 可以表現成 fetch-on-demand 的 runtime substrate。
 
@@ -36,7 +61,7 @@
 - 高層 policy helpers
 - 大部分 app-specific runtime behavior
 
-## 1. 為什麼本地 Bootstrap 不可避免
+## 2. 為什麼本地 Bootstrap 不可避免
 
 如果本地完全是空的，就不可能安全地參與 signed on-demand execution model。
 
@@ -56,11 +81,11 @@
 
 - 最小、但仍可信且能安全接納遠端 artifacts 的 local runtime
 
-## 2. 三層 Host 模型
+## 3. 三層 Host 模型
 
 這個 minimal host 可以拆成三層理解。
 
-### 2.1 Boot Layer
+### 3.1 Boot Layer
 
 責任：
 
@@ -73,7 +98,7 @@
 - 第一批本地受信任程式碼是什麼
 - 哪些 public keys 或 trust anchors 內建在本地
 
-### 2.2 Resident Host Layer
+### 3.2 Resident Host Layer
 
 責任：
 
@@ -85,7 +110,7 @@
 
 這一層就是 minimal Mycel host bootstrap 的核心。
 
-### 2.3 On-Demand Module Layer
+### 3.3 On-Demand Module Layer
 
 責任：
 
@@ -96,11 +121,11 @@
 
 這一層應該可替換、可抓取，而且在不需要時大多可以不存在。
 
-## 3. 最小可行的常駐元件
+## 4. 最小可行的常駐元件
 
 常駐 host 大概只需要六個永遠存在的元件。
 
-### 3.1 Boot 與 Trust Anchor
+### 4.1 Boot 與 Trust Anchor
 
 用途：
 
@@ -114,7 +139,7 @@
 - version 或 rollback policy
 - 若有的話，則包含 local host identity
 
-### 3.2 Tiny Host Core
+### 4.2 Tiny Host Core
 
 用途：
 
@@ -127,7 +152,7 @@
 
 它只需要足夠承載 verifier、fetcher、cache 與 runtime 即可。
 
-### 3.3 Verifier
+### 4.3 Verifier
 
 用途：
 
@@ -140,7 +165,7 @@
 
 如果 verifier 太早也變成 on-demand module，整個 trust boundary 就會崩掉。
 
-### 3.4 Fetcher
+### 4.4 Fetcher
 
 用途：
 
@@ -151,7 +176,7 @@
 
 fetcher 可以很小，但必須可靠，且要理解 policy。
 
-### 3.5 Cache Manager
+### 4.5 Cache Manager
 
 用途：
 
@@ -162,7 +187,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 
 這能讓系統比較像 verified execution cache，而不是傳統軟體安裝。
 
-### 3.6 Sandboxed Runtime
+### 4.6 Sandboxed Runtime
 
 用途：
 
@@ -174,7 +199,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 
 - `WASM`
 
-## 4. 建議的第一個 Runtime 形狀
+## 5. 建議的第一個 Runtime 形狀
 
 第一版 host 最好只支援：
 
@@ -190,7 +215,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 
 單一 `WASM` runtime 搭配嚴格 host API，仍是最乾淨的起點。
 
-## 5. 建議的 Boot Flow
+## 6. 建議的 Boot Flow
 
 完整 host 啟動流程可以是：
 
@@ -205,7 +230,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 
 這樣可讓 execution admission 從第一個 fetched artifact 出現時就保持明確。
 
-## 6. 最小 Capability Surface
+## 7. 最小 Capability Surface
 
 第一版 host 應只暴露很少的 capabilities。
 
@@ -225,7 +250,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 - module 內任意 outbound network access
 - 直接 native library loading
 
-## 7. Host 不該做什麼
+## 8. Host 不該做什麼
 
 這個 minimal bootstrap 不應試圖一次解決所有 systems 問題。
 
@@ -241,7 +266,7 @@ fetcher 可以很小，但必須可靠，且要理解 policy。
 
 - 成為最小、但安全的 admission 與 execution host
 
-## 8. 儲存模型
+## 9. 儲存模型
 
 本地 storage model 應優先採用：
 

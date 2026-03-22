@@ -13,11 +13,39 @@
 
 相關文件：
 
+- `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`：runtime-substrate 的整體 framing 與執行模型
+- `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`：承載這種模型所需的最小常駐 host
+- `DESIGN-NOTES.future-software-ecosystem-on-mycel-runtime-substrate.*`：若這套模型擴大後的生態與產品後果
 - `DESIGN-NOTES.app-signing-model.*`：object signing、release signing 與 execution-evidence signing 的分層差異
 - `DESIGN-NOTES.mycel-app-layer.*`：app-layer behavior 應如何位於 protocol core 之上
 - `DESIGN-NOTES.mycel-full-stack-map.*`：更完整的分層地圖
 
-## 0. 目標
+## 0. 這份文件在系列中的定位
+
+這份文件回答的核心問題是：
+
+- 「單一 runtime module 應如何被建模、抓取、驗證、核准與載入？」
+
+它主要處理：
+
+- module metadata 與 blob 的 artifact 拆分
+- runtime fetch 與 load flow
+- module-level capability 與 admission 邊界
+- 為什麼預設應選 `WASM`，而不是 native dynamic loading
+
+它刻意不主講：
+
+- 整個 Mycel runtime substrate 的總體 framing
+- resident host 應有哪些最小常駐元件
+- 這套模型成為主流後的軟體生態變化
+
+如果讀者在問的是：
+
+- 「整體模型到底像什麼？」請先看 `DESIGN-NOTES.signed-on-demand-runtime-substrate.*`
+- 「本地最小可信 host 到底要常駐哪些東西？」請看 `DESIGN-NOTES.minimal-mycel-host-bootstrap.*`
+- 「這種模式若擴大，軟體市場與 app store 會怎麼變？」請看 `DESIGN-NOTES.future-software-ecosystem-on-mycel-runtime-substrate.*`
+
+## 1. 目標
 
 讓 Mycel app 可以：
 
@@ -39,7 +67,7 @@
 - 隱含的宿主權限
 - 執行未驗證的 script fragments
 
-## 1. 為什麼需要獨立模型
+## 2. 為什麼需要獨立模型
 
 下載普通 Mycel content，和下載可執行邏輯，並不是同一件事。
 
@@ -52,11 +80,11 @@
 
 因此系統應把 code 視為第一級的 signed artifact，並給它比一般 content objects 更嚴格的 admission 規則。
 
-## 2. 建議的執行方向
+## 3. 建議的執行方向
 
 大致上有三種實作選擇。
 
-### 2.1 沙盒化 `WASM` 模組
+### 3.1 沙盒化 `WASM` 模組
 
 建議作為預設方向。
 
@@ -71,7 +99,7 @@
 
 - 需要先定義 host API 與 runtime embedding layer
 
-### 2.2 受限制的 Script Runtime
+### 3.2 受限制的 Script Runtime
 
 可作為較短期的起步方案。
 
@@ -91,7 +119,7 @@
 - 更容易漂移成 host-specific behavior
 - 對較豐富模組的上限較低
 
-### 2.3 Native Binary 或 Dynamic Library Loading
+### 3.3 Native Binary 或 Dynamic Library Loading
 
 不建議作為預設。
 
@@ -104,13 +132,13 @@
 
 如果未來真的要支援 native modules，也應把它視為獨立、較高風險的部署模式，而不是 Mycel app 的預設基線。
 
-## 3. 建議的 Artifact 拆分
+## 4. 建議的 Artifact 拆分
 
 不要把可執行 code 當成普通 content object 裡的無結構附件。
 
 建議改成兩種明確 artifact。
 
-### 3.1 `module` Metadata Object
+### 4.1 `module` Metadata Object
 
 這個 object 描述：
 
@@ -123,7 +151,7 @@
 - fetch hints
 - author 或 release signature
 
-### 3.2 `module_blob` Artifact
+### 4.2 `module_blob` Artifact
 
 這個 artifact 包含：
 
@@ -142,7 +170,7 @@ app 應驗證：
 - 讓多個 metadata objects 重用相同 code
 - 清楚審計「核准的是什麼」與「實際執行的是什麼」
 
-## 4. 建議的 Metadata 形狀
+## 5. 建議的 Metadata 形狀
 
 可參考的欄位：
 
@@ -169,7 +197,7 @@ app 應驗證：
 
 它可以先作為 app-layer schema，由已簽章的 Mycel objects 承載。
 
-## 5. Runtime Fetch 與 Load Flow
+## 6. Runtime Fetch 與 Load Flow
 
 建議的執行流程：
 
@@ -186,7 +214,7 @@ app 應驗證：
 - app 可以即時下載缺少的 module，但必須以完整、已簽章的 module artifact 為單位
 - 在完整性驗證完成前，不應先執行任何 partial fragments
 
-## 6. Segment 與 Chunk Fetching
+## 7. Segment 與 Chunk Fetching
 
 如果未來大型 blobs 需要 chunked transfer，chunking 應維持在 transport 層，而不是 execution identity。
 
@@ -198,7 +226,7 @@ app 應驗證：
 
 這樣可以避免把「code segment download」變成定義不完整的 partial-execution 模型。
 
-## 7. Capability 模型
+## 8. Capability 模型
 
 模組不應直接取得不受限的宿主權限。
 
@@ -221,7 +249,7 @@ app 應驗證：
 - 不提供任意 outbound network access
 - 不允許再動態載入其他 native libraries
 
-## 8. Trust 與 Governance 邊界
+## 9. Trust 與 Governance 邊界
 
 Mycel 的 verifiability 本身，不等於某個 module 就應該被信任來執行。
 
@@ -242,7 +270,7 @@ Mycel 的 verifiability 本身，不等於某個 module 就應該被信任來執
 
 - 本地 allowlist，加上明確 capability grant
 
-## 9. Cache 與 Versioning
+## 10. Cache 與 Versioning
 
 本地 app 應維護：
 
