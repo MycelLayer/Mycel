@@ -23,6 +23,7 @@ SCANNER_CMD = ("python3", "scripts/check_code_quality_hotspots.py", "apps", "cra
 class IssueRecord:
     number: int
     title: str
+    state: str
     body: str
 
 
@@ -30,8 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="scripts/report_code_quality_hotspots_issue.py",
         description=(
-            "Update a dedicated GitHub issue with the latest code-quality hotspot "
-            "report whenever the commit threshold is reached."
+            "Close the previous dedicated GitHub issue and create a new code-quality "
+            "hotspot report whenever the commit threshold is reached."
         ),
     )
     parser.add_argument(
@@ -43,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--title",
         default=DEFAULT_TITLE,
-        help=f"issue title to create or update (default: {DEFAULT_TITLE!r})",
+        help=f"issue title to create when refreshing (default: {DEFAULT_TITLE!r})",
     )
     parser.add_argument(
         "--label",
@@ -121,7 +122,17 @@ def commits_since(base_rev: str, head_rev: str) -> int:
 
 
 def list_matching_issues(args: argparse.Namespace) -> list[IssueRecord]:
-    cmd = ["gh", "issue", "list", "--state", "all", "--limit", "100", "--json", "number,title,body"]
+    cmd = [
+        "gh",
+        "issue",
+        "list",
+        "--state",
+        "all",
+        "--limit",
+        "100",
+        "--json",
+        "number,title,state,body",
+    ]
     if args.repo:
         cmd.extend(["--repo", args.repo])
     raw = run_cmd(cmd)
@@ -140,6 +151,7 @@ def list_matching_issues(args: argparse.Namespace) -> list[IssueRecord]:
             IssueRecord(
                 number=int(entry["number"]),
                 title=str(entry["title"]),
+                state=str(entry.get("state") or ""),
                 body=str(entry.get("body") or ""),
             )
         )
@@ -240,12 +252,22 @@ def create_issue(args: argparse.Namespace, body: str) -> None:
     print(result, end="")
 
 
-def update_issue(args: argparse.Namespace, issue_number: int, body: str) -> None:
-    cmd = ["gh", "issue", "edit", str(issue_number), "--title", args.title, "--body-file", "-"]
+def close_issue(args: argparse.Namespace, issue_number: int) -> None:
+    cmd = ["gh", "issue", "close", str(issue_number)]
     if args.repo:
         cmd.extend(["--repo", args.repo])
-    result = run_cmd(cmd, input_text=body)
+    result = run_cmd(cmd)
     print(result, end="")
+
+
+def close_matching_open_issues(args: argparse.Namespace, issues: list[IssueRecord]) -> list[int]:
+    closed: list[int] = []
+    for issue in sorted(issues, key=lambda current: current.number, reverse=True):
+        if issue.state.lower() != "open":
+            continue
+        close_issue(args, issue.number)
+        closed.append(issue.number)
+    return closed
 
 
 def main() -> int:
@@ -266,15 +288,16 @@ def main() -> int:
     body = build_issue_body(head_rev=head_rev, threshold=args.threshold, scan_text=scan_text, top_n=args.top)
 
     if args.dry_run:
-        target = f"issue #{issue.number}" if issue is not None else "new issue"
-        print(f"Would update {target}.")
+        open_issues = [current.number for current in matches if current.state.lower() == "open"]
+        if open_issues:
+            print(f"Would close issues {open_issues} and create a new issue.")
+        else:
+            print("Would create a new issue.")
         print(body)
         return 0
 
-    if issue is None:
-        create_issue(args, body)
-    else:
-        update_issue(args, issue.number, body)
+    close_matching_open_issues(args, matches)
+    create_issue(args, body)
     return 0
 
 

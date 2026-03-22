@@ -12,14 +12,15 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
         original_run_cmd = report.run_cmd
         try:
             report.run_cmd = lambda *a, **k: (
-                '[{"number":7,"title":"[Report] Code Quality Hotspots","body":"legacy"},'
-                '{"number":8,"title":"Code Quality Hotspots","body":"current"},'
-                '{"number":9,"title":"Something Else","body":"skip"}]'
+                '[{"number":7,"title":"[Report] Code Quality Hotspots","state":"OPEN","body":"legacy"},'
+                '{"number":8,"title":"Code Quality Hotspots","state":"OPEN","body":"current"},'
+                '{"number":9,"title":"Something Else","state":"OPEN","body":"skip"}]'
             )
             issues = report.list_matching_issues(args)
         finally:
             report.run_cmd = original_run_cmd
         self.assertEqual([7, 8], [issue.number for issue in issues])
+        self.assertEqual(["OPEN", "OPEN"], [issue.state for issue in issues])
 
     def test_extract_marker_returns_none_when_missing(self) -> None:
         self.assertIsNone(report.extract_marker("plain body", report.HEAD_MARKER))
@@ -81,6 +82,66 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
         self.assertIn("Refresh threshold: `20` commits", body)
         self.assertIn("--title 'Code Quality Hotspots'", body)
         self.assertIn("crates/a.rs", body)
+
+    def test_close_matching_open_issues_closes_only_open_matches(self) -> None:
+        args = report.parse_args.__globals__["argparse"].Namespace(repo=None, title=report.DEFAULT_TITLE)
+        issues = [
+            report.IssueRecord(number=7, title=report.DEFAULT_TITLE, state="OPEN", body=""),
+            report.IssueRecord(number=8, title=report.DEFAULT_TITLE, state="CLOSED", body=""),
+            report.IssueRecord(number=9, title=report.DEFAULT_TITLE, state="open", body=""),
+        ]
+        closed_numbers: list[int] = []
+        original_close_issue = report.close_issue
+        try:
+            report.close_issue = lambda current_args, issue_number: closed_numbers.append(issue_number)
+            result = report.close_matching_open_issues(args, issues)
+        finally:
+            report.close_issue = original_close_issue
+        self.assertEqual([9, 7], result)
+        self.assertEqual([9, 7], closed_numbers)
+
+    def test_main_closes_open_issue_and_creates_new_one(self) -> None:
+        args = report.parse_args.__globals__["argparse"].Namespace(
+            threshold=20,
+            title=report.DEFAULT_TITLE,
+            labels=None,
+            top=8,
+            repo=None,
+            dry_run=False,
+        )
+        original_parse_args = report.parse_args
+        original_current_head = report.current_head
+        original_list_matching_issues = report.list_matching_issues
+        original_issue_needs_refresh = report.issue_needs_refresh
+        original_scanner_output = report.scanner_output
+        original_build_issue_body = report.build_issue_body
+        original_close_matching_open_issues = report.close_matching_open_issues
+        original_create_issue = report.create_issue
+        events: list[object] = []
+        try:
+            report.parse_args = lambda: args
+            report.current_head = lambda: "abc123def456"
+            report.list_matching_issues = lambda current_args: [
+                report.IssueRecord(number=12, title=report.DEFAULT_TITLE, state="OPEN", body=""),
+            ]
+            report.issue_needs_refresh = lambda issue, *, head_rev, threshold: (True, threshold)
+            report.scanner_output = lambda: "Summary: 0 findings"
+            report.build_issue_body = lambda **kwargs: "body"
+            report.close_matching_open_issues = (
+                lambda current_args, issues: events.append(("close", [issue.number for issue in issues])) or [12]
+            )
+            report.create_issue = lambda current_args, body: events.append(("create", body))
+            self.assertEqual(0, report.main())
+        finally:
+            report.parse_args = original_parse_args
+            report.current_head = original_current_head
+            report.list_matching_issues = original_list_matching_issues
+            report.issue_needs_refresh = original_issue_needs_refresh
+            report.scanner_output = original_scanner_output
+            report.build_issue_body = original_build_issue_body
+            report.close_matching_open_issues = original_close_matching_open_issues
+            report.create_issue = original_create_issue
+        self.assertEqual([("close", [12]), ("create", "body")], events)
 
 
 if __name__ == "__main__":
