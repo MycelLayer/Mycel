@@ -92,6 +92,8 @@ pub enum MergeReasonBranchKind {
     AdoptedNonPrimaryAddition,
     AdoptedNonPrimaryReplacement,
     AdoptedNonPrimaryRemoval,
+    AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains,
+    AdoptedNonPrimaryRemovalWhileCompetingReplacementRemains,
     KeptPrimaryAbsenceOverNonPrimaryAddition,
     KeptPrimaryVariantOverNonPrimaryReplacement,
     KeptPrimaryVariantOverNonPrimaryRemoval,

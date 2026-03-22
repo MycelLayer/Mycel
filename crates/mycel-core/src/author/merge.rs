@@ -248,6 +248,7 @@ fn assess_merge_resolution(
                     branch_kind: Some(selected_variant_branch_kind(
                         &primary_content_variant,
                         &resolved_content_variant,
+                        &alternative_content_variants,
                     )),
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
@@ -262,6 +263,7 @@ fn assess_merge_resolution(
                     selected_variant_branch_kind(
                         &primary_content_variant,
                         &resolved_content_variant,
+                        &alternative_content_variants,
                     ),
                 ),
             );
@@ -871,6 +873,7 @@ fn assess_merge_resolution(
                     branch_kind: Some(selected_variant_branch_kind(
                         &primary_variant,
                         &resolved_variant,
+                        &alternative_variants,
                     )),
                     primary_variant: primary_variant.clone(),
                     resolved_variant: resolved_variant.clone(),
@@ -882,7 +885,11 @@ fn assess_merge_resolution(
                 selected_non_primary_reason(
                     "metadata key",
                     &key,
-                    selected_variant_branch_kind(&primary_variant, &resolved_variant),
+                    selected_variant_branch_kind(
+                        &primary_variant,
+                        &resolved_variant,
+                        &alternative_variants,
+                    ),
                 ),
             );
             if alternative_variants.len() > 1 {
@@ -994,8 +1001,15 @@ fn push_variant_reason(
 fn selected_variant_branch_kind(
     primary_variant: &str,
     resolved_variant: &str,
+    alternatives: &BTreeSet<String>,
 ) -> MergeReasonBranchKind {
-    if resolved_variant == "<absent>" {
+    if primary_variant != "<absent>" && alternatives.contains("<absent>") {
+        if resolved_variant == "<absent>" {
+            MergeReasonBranchKind::AdoptedNonPrimaryRemovalWhileCompetingReplacementRemains
+        } else {
+            MergeReasonBranchKind::AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains
+        }
+    } else if resolved_variant == "<absent>" {
         MergeReasonBranchKind::AdoptedNonPrimaryRemoval
     } else if primary_variant == "<absent>" {
         MergeReasonBranchKind::AdoptedNonPrimaryAddition
@@ -1088,6 +1102,12 @@ fn selected_non_primary_reason(
         MergeReasonBranchKind::AdoptedNonPrimaryRemoval => {
             format!("{subject_label} '{subject_id}' adopted a non-primary parent removal")
         }
+        MergeReasonBranchKind::AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains => format!(
+            "{subject_label} '{subject_id}' adopted a non-primary parent replacement while a competing non-primary removal remained"
+        ),
+        MergeReasonBranchKind::AdoptedNonPrimaryRemovalWhileCompetingReplacementRemains => format!(
+            "{subject_label} '{subject_id}' adopted a non-primary parent removal while a competing non-primary replacement remained"
+        ),
         _ => format!("{subject_label} '{subject_id}' selected a non-primary parent variant"),
     }
 }

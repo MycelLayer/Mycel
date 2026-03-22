@@ -1257,6 +1257,102 @@ fn merge_authoring_reports_mixed_content_replacement_and_removal_competition() {
 }
 
 #[test]
+fn merge_authoring_reports_selected_replacement_with_competing_removal_as_distinct_branch() {
+    let store_root = temp_dir("merge-content-select-replace-with-removal");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-content-select-replace-with-removal".to_string(),
+            title: "Merge Content Select Replace With Removal".to_string(),
+            language: "en".to_string(),
+            timestamp: 46,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-content-select-replace-with-removal",
+        &document.genesis_revision_id,
+        47,
+        48,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:merge-content-select",
+                    "block_type": "paragraph",
+                    "content": "Base",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+    let replacement_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-content-select-replace-with-removal",
+        &base_revision_id,
+        49,
+        50,
+        json!([
+            {
+                "op": "replace_block",
+                "block_id": "blk:merge-content-select",
+                "new_content": "Right"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-content-select-replace-with-removal".to_string(),
+            parents: vec![
+                base_revision_id,
+                replacement_revision_id,
+                document.genesis_revision_id.clone(),
+            ],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-content-select-replace-with-removal".to_string(),
+                blocks: vec![paragraph_block("blk:merge-content-select", "Right")],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 51,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary.merge_reasons.iter().any(|reason| reason.contains(
+            "block 'blk:merge-content-select' adopted a non-primary parent replacement while a competing non-primary removal remained"
+        )),
+        "expected mixed selected replacement reason, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "blk:merge-content-select"
+                && detail.variant_kind == MergeReasonVariantKind::Content
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.branch_kind
+                    == Some(
+                        MergeReasonBranchKind::AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains,
+                    )
+        }),
+        "expected mixed selected replacement detail, got {summary:?}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_reports_metadata_removal_competition_as_distinct_branch() {
     let store_root = temp_dir("merge-metadata-keep-primary-over-removal");
     let signing_key = signing_key();
