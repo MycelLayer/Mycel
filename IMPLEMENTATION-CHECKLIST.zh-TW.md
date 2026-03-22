@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，其中 `M2` 的剩餘焦點已縮到更細緻的 content-variant 與 metadata-variant competing-branch classification，`M3` 仍以 broader governance persistence 與 reader/governance 後續工作為主，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
+狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，其中 `M2` 的剩餘焦點已縮到更細緻的 content-variant 與 metadata-variant competing-branch classification，`M3` 現在明確指向超出目前 reverse-index、relationship summaries，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
 
