@@ -1426,3 +1426,100 @@ fn merge_authoring_reports_metadata_removal_competition_as_distinct_branch() {
 
     let _ = fs::remove_dir_all(store_root);
 }
+
+#[test]
+fn merge_authoring_reports_selected_metadata_replacement_with_competing_removal_as_distinct_branch()
+{
+    let store_root = temp_dir("merge-metadata-select-replace-with-removal");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-metadata-select-replace-with-removal".to_string(),
+            title: "Merge Metadata Select Replace With Removal".to_string(),
+            language: "en".to_string(),
+            timestamp: 54,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-select-replace-with-removal",
+        &document.genesis_revision_id,
+        55,
+        56,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "base"
+                }
+            }
+        ]),
+    );
+    let replacement_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-select-replace-with-removal",
+        &base_revision_id,
+        57,
+        58,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "right"
+                }
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-metadata-select-replace-with-removal".to_string(),
+            parents: vec![
+                base_revision_id,
+                replacement_revision_id,
+                document.genesis_revision_id.clone(),
+            ],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-metadata-select-replace-with-removal".to_string(),
+                blocks: Vec::new(),
+                metadata: serde_json::Map::from_iter([(
+                    "topic".to_string(),
+                    Value::String("right".to_string()),
+                )]),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 59,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary.merge_reasons.iter().any(|reason| reason.contains(
+            "metadata key 'topic' adopted a non-primary parent replacement while a competing non-primary removal remained"
+        )),
+        "expected mixed selected metadata replacement reason, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "topic"
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.branch_kind
+                    == Some(
+                        MergeReasonBranchKind::AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains,
+                    )
+        }),
+        "expected mixed selected metadata replacement detail, got {summary:?}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}
