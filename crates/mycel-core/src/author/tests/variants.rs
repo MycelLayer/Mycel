@@ -405,6 +405,248 @@ fn merge_authoring_reports_multi_variant_when_metadata_parents_disagree() {
 }
 
 #[test]
+fn merge_authoring_preserves_duplicate_non_primary_content_replacements() {
+    let store_root = temp_dir("merge-content-duplicate-non-primary-replacements");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-content-duplicate-non-primary-replacements".to_string(),
+            title: "Merge Content Duplicate Non Primary Replacements".to_string(),
+            language: "en".to_string(),
+            timestamp: 28,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-content-duplicate-non-primary-replacements",
+        &document.genesis_revision_id,
+        29,
+        30,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:merge-content-duplicate-choice",
+                    "block_type": "paragraph",
+                    "content": "Base",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+    let right_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-content-duplicate-non-primary-replacements",
+        &base_revision_id,
+        31,
+        32,
+        json!([
+            {
+                "op": "replace_block",
+                "block_id": "blk:merge-content-duplicate-choice",
+                "new_content": "Right variant"
+            }
+        ]),
+    );
+    let center_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-content-duplicate-non-primary-replacements",
+        &base_revision_id,
+        33,
+        34,
+        json!([
+            {
+                "op": "replace_block",
+                "block_id": "blk:merge-content-duplicate-choice",
+                "new_content": "Right variant"
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-content-duplicate-non-primary-replacements".to_string(),
+            parents: vec![base_revision_id, right_revision_id, center_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-content-duplicate-non-primary-replacements".to_string(),
+                blocks: vec![paragraph_block(
+                    "blk:merge-content-duplicate-choice",
+                    "Right variant",
+                )],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 35,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary.merge_reasons.iter().any(|reason| reason.contains(
+            "block 'blk:merge-content-duplicate-choice' selected one non-primary replacement while other competing non-primary replacements remained"
+        )),
+        "expected competing content replacement reason, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "blk:merge-content-duplicate-choice"
+                && detail.variant_kind == MergeReasonVariantKind::Content
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.competing_variants.len() == 1
+                && detail.competing_variants[0].contains("Right variant")
+        }),
+        "expected selected content replacement detail to retain one remaining duplicate, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "blk:merge-content-duplicate-choice"
+                && detail.variant_kind == MergeReasonVariantKind::Content
+                && detail.reason_kind
+                    == MergeReasonKind::MultipleCompetingAlternativesRemainAfterSelectedVariant
+                && detail.branch_kind
+                    == Some(MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements)
+                && detail.competing_variants.len() == 2
+                && detail
+                    .competing_variants
+                    .iter()
+                    .all(|variant| variant.contains("Right variant"))
+        }),
+        "expected duplicate competing content replacements to be preserved, got {summary:?}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
+fn merge_authoring_preserves_duplicate_non_primary_metadata_replacements() {
+    let store_root = temp_dir("merge-metadata-duplicate-non-primary-replacements");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-metadata-duplicate-non-primary-replacements".to_string(),
+            title: "Merge Metadata Duplicate Non Primary Replacements".to_string(),
+            language: "en".to_string(),
+            timestamp: 36,
+        },
+    )
+    .expect("document should be created");
+
+    let left_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-duplicate-non-primary-replacements",
+        &document.genesis_revision_id,
+        37,
+        38,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "left"
+                }
+            }
+        ]),
+    );
+    let right_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-duplicate-non-primary-replacements",
+        &document.genesis_revision_id,
+        39,
+        40,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "right"
+                }
+            }
+        ]),
+    );
+    let center_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-metadata-duplicate-non-primary-replacements",
+        &document.genesis_revision_id,
+        41,
+        42,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "right"
+                }
+            }
+        ]),
+    );
+
+    let summary = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-metadata-duplicate-non-primary-replacements".to_string(),
+            parents: vec![left_revision_id, right_revision_id, center_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-metadata-duplicate-non-primary-replacements".to_string(),
+                blocks: Vec::new(),
+                metadata: serde_json::Map::from_iter([(
+                    "topic".to_string(),
+                    Value::String("right".to_string()),
+                )]),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 43,
+        },
+    )
+    .expect("merge revision should be created");
+
+    assert_eq!(summary.merge_outcome, MergeOutcome::MultiVariant);
+    assert!(
+        summary.merge_reasons.iter().any(|reason| reason.contains(
+            "metadata key 'topic' selected one non-primary replacement while other competing non-primary replacements remained"
+        )),
+        "expected competing metadata replacement reason, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "topic"
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+                && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
+                && detail.competing_variants == vec!["\"right\"".to_string()]
+        }),
+        "expected selected metadata replacement detail to retain one remaining duplicate, got {summary:?}"
+    );
+    assert!(
+        summary.merge_reason_details.iter().any(|detail| {
+            detail.subject_id == "topic"
+                && detail.variant_kind == MergeReasonVariantKind::Metadata
+                && detail.reason_kind
+                    == MergeReasonKind::MultipleCompetingAlternativesRemainAfterSelectedVariant
+                && detail.branch_kind
+                    == Some(MergeReasonBranchKind::MultipleCompetingNonPrimaryReplacements)
+                && detail.competing_variants
+                    == vec!["\"right\"".to_string(), "\"right\"".to_string()]
+        }),
+        "expected duplicate competing metadata replacements to be preserved, got {summary:?}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
 fn merge_authoring_reports_multi_variant_when_block_is_added_from_non_primary_parent() {
     let store_root = temp_dir("merge-content-added-non-primary");
     let signing_key = signing_key();

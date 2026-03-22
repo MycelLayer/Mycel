@@ -271,11 +271,7 @@ fn assess_merge_resolution(
                     ),
                 ),
             );
-            if has_multiple_competing_variants(
-                &primary_content_variant,
-                &alternative_content_variants_raw,
-                &alternative_content_variants,
-            ) {
+            if has_multiple_competing_variants(&alternative_content_variants_raw) {
                 push_variant_reason(
                     &mut reasons,
                     &mut reason_details,
@@ -292,9 +288,7 @@ fn assess_merge_resolution(
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: multiple_competing_variants_for_detail(
-                            &primary_content_variant,
                             &alternative_content_variants_raw,
-                            &alternative_content_variants,
                         ),
                     },
                     multiple_competing_after_selected_reason(
@@ -333,9 +327,7 @@ fn assess_merge_resolution(
                     primary_variant: primary_content_variant.clone(),
                     resolved_variant: resolved_content_variant.clone(),
                     competing_variants: multiple_competing_variants_for_detail(
-                        &primary_content_variant,
                         &alternative_content_variants_raw,
-                        &alternative_content_variants,
                     ),
                 },
                 kept_primary_reason(
@@ -347,11 +339,7 @@ fn assess_merge_resolution(
                     ),
                 ),
             );
-            if has_multiple_competing_variants(
-                &primary_content_variant,
-                &alternative_content_variants_raw,
-                &alternative_content_variants,
-            ) {
+            if has_multiple_competing_variants(&alternative_content_variants_raw) {
                 push_variant_reason(
                     &mut reasons,
                     &mut reason_details,
@@ -368,9 +356,7 @@ fn assess_merge_resolution(
                         primary_variant: primary_content_variant.clone(),
                         resolved_variant: resolved_content_variant.clone(),
                         competing_variants: multiple_competing_variants_for_detail(
-                            &primary_content_variant,
                             &alternative_content_variants_raw,
-                            &alternative_content_variants,
                         ),
                     },
                     multiple_competing_after_keeping_primary_reason(
@@ -920,11 +906,7 @@ fn assess_merge_resolution(
                     ),
                 ),
             );
-            if has_multiple_competing_variants(
-                &primary_variant,
-                &alternative_variants_raw,
-                &alternative_variants,
-            ) {
+            if has_multiple_competing_variants(&alternative_variants_raw) {
                 push_variant_reason(
                     &mut reasons,
                     &mut reason_details,
@@ -941,9 +923,7 @@ fn assess_merge_resolution(
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: multiple_competing_variants_for_detail(
-                            &primary_variant,
                             &alternative_variants_raw,
-                            &alternative_variants,
                         ),
                     },
                     multiple_competing_after_selected_reason(
@@ -971,9 +951,7 @@ fn assess_merge_resolution(
                     primary_variant: primary_variant.clone(),
                     resolved_variant: resolved_variant.clone(),
                     competing_variants: multiple_competing_variants_for_detail(
-                        &primary_variant,
                         &alternative_variants_raw,
-                        &alternative_variants,
                     ),
                 },
                 kept_primary_reason(
@@ -982,11 +960,7 @@ fn assess_merge_resolution(
                     kept_primary_branch_kind(&primary_variant, &alternative_variants),
                 ),
             );
-            if has_multiple_competing_variants(
-                &primary_variant,
-                &alternative_variants_raw,
-                &alternative_variants,
-            ) {
+            if has_multiple_competing_variants(&alternative_variants_raw) {
                 push_variant_reason(
                     &mut reasons,
                     &mut reason_details,
@@ -1003,9 +977,7 @@ fn assess_merge_resolution(
                         primary_variant: primary_variant.clone(),
                         resolved_variant: resolved_variant.clone(),
                         competing_variants: multiple_competing_variants_for_detail(
-                            &primary_variant,
                             &alternative_variants_raw,
-                            &alternative_variants,
                         ),
                     },
                     multiple_competing_after_keeping_primary_reason(
@@ -1143,7 +1115,7 @@ fn remaining_competing_variants_raw(
     resolved_variant: &str,
 ) -> Vec<String> {
     let mut skipped_resolved = false;
-    alternatives
+    let mut variants = alternatives
         .iter()
         .filter_map(|variant| {
             if !skipped_resolved && variant == resolved_variant {
@@ -1153,35 +1125,19 @@ fn remaining_competing_variants_raw(
                 Some(variant.clone())
             }
         })
-        .collect()
+        .collect::<Vec<_>>();
+    variants.sort();
+    variants
 }
 
-fn has_multiple_competing_variants(
-    primary_variant: &str,
-    alternatives_raw: &[String],
-    alternatives: &BTreeSet<String>,
-) -> bool {
-    alternatives.len() > 1
-        || (primary_variant != "<absent>"
-            && alternatives.len() == 1
-            && alternatives.contains("<absent>")
-            && alternatives_raw.len() > 1)
+fn has_multiple_competing_variants(alternatives_raw: &[String]) -> bool {
+    alternatives_raw.len() > 1
 }
 
-fn multiple_competing_variants_for_detail(
-    primary_variant: &str,
-    alternatives_raw: &[String],
-    alternatives: &BTreeSet<String>,
-) -> Vec<String> {
-    if primary_variant != "<absent>"
-        && alternatives.len() == 1
-        && alternatives.contains("<absent>")
-        && alternatives_raw.len() > 1
-    {
-        alternatives_raw.to_vec()
-    } else {
-        alternatives.iter().cloned().collect()
-    }
+fn multiple_competing_variants_for_detail(alternatives_raw: &[String]) -> Vec<String> {
+    let mut variants = alternatives_raw.to_vec();
+    variants.sort();
+    variants
 }
 
 fn selected_non_primary_reason(
