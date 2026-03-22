@@ -1134,7 +1134,10 @@ fn merge_authoring_reports_non_primary_content_removal_as_distinct_branch() {
             detail.subject_id == "blk:merge-content-remove"
                 && detail.variant_kind == MergeReasonVariantKind::Content
                 && detail.reason_kind == MergeReasonKind::SelectedNonPrimaryParentVariant
-                && detail.branch_kind == Some(MergeReasonBranchKind::AdoptedNonPrimaryRemoval)
+                && detail.branch_kind
+                    == Some(
+                        MergeReasonBranchKind::AdoptedNonPrimaryRemovalWhileCompetingReplacementRemains,
+                    )
         }),
         "expected removal-specific content detail, got {summary:?}"
     );
