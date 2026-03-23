@@ -38,7 +38,7 @@ The repository does not yet have:
 
 The current lane is:
 
-1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate, with the remaining focus now narrowed to richer competing-variant classification for the still-coarse content and metadata branches after the recent nested/anchor placement classification growth
+1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate, with the remaining focus now narrowed to final replay/store fixture closure and any last merge-authoring reporting follow-up after the richer mixed content/metadata competing-branch classification landed
 2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
 3. advance `M4` from peer-store proof toward the remaining peer-interop session/capability/error-path coverage now that the currently tracked production replication sub-items are proved and a first permanent messages-after-BYE session proof is in place
 
@@ -225,7 +225,7 @@ Substantially underway. Replay-based verification, store rebuild, persisted inde
 
 Main remaining gaps:
 
-1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, a broader initial nested structural matrix, CLI smoke proof for manual-curation-required nested parent-choice, nested sibling-choice, and composed-branch placement conflicts, plus richer direct and anchor-based competing parent/sibling placement reasons, but the content-variant and metadata-variant branches still collapse multiple non-primary alternatives into coarse classification
+1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, a broader initial nested structural matrix, CLI smoke proof for manual-curation-required nested parent-choice, nested sibling-choice, and composed-branch placement conflicts, richer direct and anchor-based competing parent/sibling placement reasons, and richer mixed content/metadata competing-branch classification plus matching CLI smoke coverage; the milestone now remains open primarily for final replay/store closure work and any last reporting/documentation alignment
 
 Implementation anchors:
 
@@ -496,7 +496,7 @@ These priorities apply across all phases:
 
 The highest-value near-term work is:
 
-1. finish `M2` by tightening the remaining content-variant and metadata-variant competing-branch classification that still collapses multiple non-primary alternatives into coarse merge-authoring output
+1. finish `M2` by closing the remaining replay/store fixture and reporting-alignment follow-up now that richer mixed content/metadata competing-branch classification has landed
 2. keep expanding `M3` with narrow governance-persistence and reader-plus-governance follow-up slices without reopening the closed minimal-client gate
 3. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs now that the currently tracked production replication sub-items are landed
 4. continue strengthening interop fixtures and negative tests as each remaining rule or follow-up slice lands
