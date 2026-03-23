@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; the active lane is now clearly `M2` / `M3` / `M4`, while broader governance persistence, the remaining richer merge-authoring competing-variant classification in `M2`, and the remaining peer interop session/capability/error-path proof in `M4` stay open after the current production replication sub-items were completed and the first permanent messages-after-BYE session proof landed
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; `M2` replay/storage/rebuild closure is now landed at the current narrow scope, so the active lane now centers on `M3` / `M4` while broader governance persistence and the remaining peer interop session/capability/error-path proof stay open after the current production replication sub-items were completed and the first permanent messages-after-BYE session proof landed
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -38,7 +38,7 @@ The repository does not yet have:
 
 The current lane is:
 
-1. finish `M2` replay, rebuild, merge-authoring, and narrow write-path closure on top of the now-closed `M1` gate, with the remaining focus now narrowed to final replay/store fixture closure and any last merge-authoring reporting follow-up after the richer mixed content/metadata competing-branch classification landed
+1. keep `M2` closed at the current narrow replay/storage/rebuild scope now that the richer mixed content/metadata competing-branch rebuild-and-reporting proof is landed
 2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
 3. advance `M4` from peer-store proof toward the remaining peer-interop session/capability/error-path coverage now that the currently tracked production replication sub-items are proved and a first permanent messages-after-BYE session proof is in place
 
@@ -221,11 +221,11 @@ Completion gate:
 
 Current read:
 
-Substantially underway. Replay-based verification, store rebuild, persisted indexes, explicit CLI smoke proof that multi-document indexes can be rebuilt after index loss from stored canonical objects, a narrow store write path, an initial conservative merge-authoring workflow, ancestry-context-preserving render/store verification, scoped document-level index reuse in author and merge workflows, and a persisted `doc_heads` index for sync now exist, but the milestone is still not closeable.
+Closed for the current narrow scope. Replay-based verification, store rebuild, persisted indexes, explicit CLI smoke proof that multi-document indexes can be rebuilt after index loss from stored canonical objects, a narrow store write path, an initial conservative merge-authoring workflow, ancestry-context-preserving render/store verification, scoped document-level index reuse in author and merge workflows, a persisted `doc_heads` index for sync, richer mixed content/metadata competing-branch classification with matching CLI smoke coverage, and rebuild-after-index-loss proof for the richer metadata multi-variant merge case now all exist.
 
 Main remaining gaps:
 
-1. conservative merge authoring now covers basic move/reorder, insert/delete composition, reparenting into newly introduced parents, simple composed parent-chain reparenting, a broader initial nested structural matrix, CLI smoke proof for manual-curation-required nested parent-choice, nested sibling-choice, and composed-branch placement conflicts, richer direct and anchor-based competing parent/sibling placement reasons, and richer mixed content/metadata competing-branch classification plus matching CLI smoke coverage; the milestone now remains open primarily for final replay/store closure work and any last reporting/documentation alignment
+1. None that block the current narrow `M2` milestone. Future merge-authoring expansion can stay scoped as later follow-up instead of active `M2` closure debt.
 
 Implementation anchors:
 
@@ -496,10 +496,10 @@ These priorities apply across all phases:
 
 The highest-value near-term work is:
 
-1. finish `M2` by closing the remaining replay/store fixture and reporting-alignment follow-up now that richer mixed content/metadata competing-branch classification has landed
-2. keep expanding `M3` with narrow governance-persistence and reader-plus-governance follow-up slices without reopening the closed minimal-client gate
-3. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs now that the currently tracked production replication sub-items are landed
-4. continue strengthening interop fixtures and negative tests as each remaining rule or follow-up slice lands
+1. keep expanding `M3` with narrow governance-persistence and reader-plus-governance follow-up slices without reopening the closed minimal-client gate
+2. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs now that the currently tracked production replication sub-items are landed
+3. continue strengthening interop fixtures and negative tests as each remaining rule or follow-up slice lands
+4. preserve the now-closed `M2` proof surface while future follow-up work lands around it
 
 ## What Moves a Milestone Forward
 

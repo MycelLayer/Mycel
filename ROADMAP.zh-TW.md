@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。現在的主線已清楚轉到 `M2` / `M3` / `M4`，而更完整的治理狀態持久化、在 richer mixed content/metadata competing-branch classification 落地後 `M2` 剩餘的 replay/store fixture closure 與 reporting/doc alignment follow-up，以及 `M4` 尚未補齊的 peer interop session/capability/error-path proof，仍是目前未完成的部分；原先規劃的 production replication 子項則都已補上，並且已新增第一個常設的 messages-after-BYE session proof
+狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，因此現在的主線更明確地轉到 `M3` / `M4`；目前仍未完成的重點是更完整的治理狀態持久化，以及 `M4` 尚未補齊的 peer interop session/capability/error-path proof；原先規劃的 production replication 子項則都已補上，並且已新增第一個常設的 messages-after-BYE session proof
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的實作推進順序。
 
@@ -38,7 +38,7 @@
 
 目前主線是：
 
-1. 在已關閉的 `M1` gate 之上，把 `M2` 的 replay、rebuild、merge-authoring 與 narrow write path 剩餘收尾做完；目前焦點已縮到 richer mixed content/metadata competing-branch classification 落地後，最後一批 replay/store fixture closure 與 merge-authoring reporting/doc alignment follow-up
+1. 維持 `M2` 在目前窄版 replay/storage/rebuild 範圍內的已關閉狀態，並以已落地的 richer mixed content/metadata competing-branch rebuild/reporting proof 作為基線
 2. 擴展 `M3` 的 reader-plus-governance 工作流程，但不要重新打開已經關閉的 minimal-client gate
 3. 在目前規劃中的 production replication 子項都已補齊，且已補上第一個 messages-after-BYE session proof 後，讓 `M4` 從 peer-store proof 繼續往剩餘的 peer interop session/capability/error-path coverage 推進
 
@@ -221,11 +221,11 @@ Implementation anchors：
 
 目前判讀：
 
-已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI smoke proof、窄版 store write path、初始的保守型 merge-authoring 工作流程、author 與 merge 工作流程中更廣的 document-level index reuse、供 sync 使用的 persisted `doc_heads` index，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
+在目前窄版範圍內已關閉。replay-based verification、store rebuild、persisted indexes、可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI smoke proof、窄版 store write path、初始的保守型 merge-authoring 工作流程、author 與 merge 工作流程中更廣的 document-level index reuse、供 sync 使用的 persisted `doc_heads` index、能保留 ancestry context 的 render/store verification，以及 richer mixed content/metadata competing-branch classification 搭配對應 CLI smoke coverage，現在都已具備；此外，較完整 metadata multi-variant merge case 的 rebuild-after-index-loss proof 也已落地。
 
 主要剩餘缺口：
 
-1. 保守型 merge authoring 現在已覆蓋基本 move/reorder、insert/delete 組合、reparent 到新引入 parent 的 case、簡單的 composed parent-chain reparenting、更廣的初步 nested structural matrix、manual-curation-required 的 nested parent-choice、nested sibling-choice、composed-branch placement conflicts 的 CLI smoke proof，以及更細緻的 direct 與 anchor-based competing parent/sibling placement reasons，再加上 richer mixed content/metadata competing-branch classification 與相應 CLI smoke coverage；這個 milestone 現在主要剩下 final replay/store closure 與 reporting/doc alignment
+1. 目前沒有會阻擋這個窄版 `M2` milestone 的缺口。後續若要擴大 merge-authoring 能力，可作為更晚的 follow-up，而不是繼續算在 `M2` 收尾債務內。
 
 Implementation anchors：
 
@@ -441,10 +441,10 @@ Implementation anchors：
 
 近期最高價值的工作是：
 
-1. 收掉 `M2` 最後剩餘的 replay/store fixture 與 reporting/doc alignment follow-up，讓 richer mixed content/metadata competing-branch classification 落地後的里程碑敘述與 proof surface 一致
-2. 以窄版切片持續擴張 `M3`，補上 governance persistence 與 reader-plus-governance 後續工作，同時不要重新打開已關閉的 minimal-client gate
-3. 在目前追蹤的 production replication 子項已落地後，持續為 `M4` 補上更多 deterministic 的 session、capability 與 error-path interop proofs
-4. 每當剩餘的規則或 follow-up slice 落地，就持續補強 interop fixtures 與 negative tests
+1. 以窄版切片持續擴張 `M3`，補上 governance persistence 與 reader-plus-governance 後續工作，同時不要重新打開已關閉的 minimal-client gate
+2. 在目前追蹤的 production replication 子項已落地後，持續為 `M4` 補上更多 deterministic 的 session、capability 與 error-path interop proofs
+3. 每當剩餘的規則或 follow-up slice 落地，就持續補強 interop fixtures 與 negative tests
+4. 在後續工作持續落地時，維持目前已關閉的 `M2` proof surface 不被回歸破壞
 
 ## 什麼會讓一個 Milestone 前進
 

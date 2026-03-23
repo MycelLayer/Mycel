@@ -209,7 +209,7 @@ Use this section as the active implementation checklist for the still-open post-
 - [x] Broaden persisted-store index reuse across reader and recovery workflows so accepted-head and render paths rely less on ad hoc CLI-only glue.
 - [x] Add stronger replay and store-rebuild fixture coverage beyond the current direct proof points, including more realistic multi-document and recovery-oriented fixture sets.
 - [x] Move more authoring and replay helper ownership into `mycel-core` so storage-write and replay behavior are not disproportionately CLI-driven.
-- [ ] Close the remaining replay/store fixture and reporting/doc-alignment follow-up now that richer mixed content/metadata competing-branch classification has landed.
+- [x] Close the remaining replay/store fixture and reporting/doc-alignment follow-up now that richer mixed content/metadata competing-branch classification has landed.
 - [x] Define and verify the intended narrow object-authoring and storage-write path that remains open after the closed minimal-client gate.
 
 ## 15. `M3` Reader and Governance Follow-Up
