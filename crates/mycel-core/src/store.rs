@@ -24,6 +24,8 @@ pub struct ViewGovernanceRecord {
     pub view_id: String,
     pub maintainer: String,
     pub profile_id: String,
+    #[serde(default)]
+    pub timestamp: u64,
     pub documents: BTreeMap<String, String>,
 }
 
@@ -61,6 +63,10 @@ pub struct StoreIndexManifest {
     pub profile_views: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub document_views: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub latest_profile_views: BTreeMap<String, String>,
+    #[serde(default)]
+    pub latest_document_profile_views: BTreeMap<String, BTreeMap<String, String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     #[serde(default)]
     pub doc_heads: BTreeMap<String, Vec<String>>,
@@ -100,6 +106,8 @@ pub struct StoreRebuildSummary {
     pub maintainer_views: BTreeMap<String, Vec<String>>,
     pub profile_views: BTreeMap<String, Vec<String>>,
     pub document_views: BTreeMap<String, Vec<String>>,
+    pub latest_profile_views: BTreeMap<String, String>,
+    pub latest_document_profile_views: BTreeMap<String, BTreeMap<String, String>>,
     pub profile_heads: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub doc_heads: BTreeMap<String, Vec<String>>,
     pub index_manifest_path: Option<PathBuf>,
@@ -176,6 +184,8 @@ impl StoreRebuildSummary {
             maintainer_views: BTreeMap::new(),
             profile_views: BTreeMap::new(),
             document_views: BTreeMap::new(),
+            latest_profile_views: BTreeMap::new(),
+            latest_document_profile_views: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::new(),
             index_manifest_path: None,
@@ -298,6 +308,10 @@ pub fn rebuild_store_from_path(target: &Path) -> Result<StoreRebuildSummary, Sto
     sort_string_map_values(&mut summary.profile_views);
     sort_string_map_values(&mut summary.document_views);
     sort_profile_heads(&mut summary.profile_heads);
+    let (latest_profile_views, latest_document_profile_views) =
+        build_latest_governance_state(&summary.view_governance);
+    summary.latest_profile_views = latest_profile_views;
+    summary.latest_document_profile_views = latest_document_profile_views;
 
     let all_parent_ids: BTreeSet<String> = summary
         .revision_parents
@@ -439,6 +453,8 @@ pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, Stor
         maintainer_views: BTreeMap::new(),
         profile_views: BTreeMap::new(),
         document_views: BTreeMap::new(),
+        latest_profile_views: BTreeMap::new(),
+        latest_document_profile_views: BTreeMap::new(),
         profile_heads: BTreeMap::new(),
         doc_heads: BTreeMap::new(),
     };
@@ -1053,6 +1069,7 @@ fn index_loaded_object(
                 view_id: view.view_id,
                 maintainer: view.maintainer,
                 profile_id,
+                timestamp: view.timestamp,
                 documents,
             });
         }
@@ -1083,6 +1100,76 @@ fn sort_profile_heads(index: &mut BTreeMap<String, BTreeMap<String, Vec<String>>
     }
 }
 
+fn is_newer_governance_record(
+    candidate_timestamp: u64,
+    candidate_view_id: &str,
+    current_timestamp: u64,
+    current_view_id: &str,
+) -> bool {
+    candidate_timestamp > current_timestamp
+        || (candidate_timestamp == current_timestamp && candidate_view_id > current_view_id)
+}
+
+fn build_latest_governance_state(
+    view_governance: &[ViewGovernanceRecord],
+) -> (
+    BTreeMap<String, String>,
+    BTreeMap<String, BTreeMap<String, String>>,
+) {
+    let mut latest_profile_records = BTreeMap::<String, (u64, String)>::new();
+    let mut latest_document_profile_records =
+        BTreeMap::<String, BTreeMap<String, (u64, String)>>::new();
+
+    for record in view_governance {
+        let profile_entry = latest_profile_records
+            .entry(record.profile_id.clone())
+            .or_insert_with(|| (record.timestamp, record.view_id.clone()));
+        if is_newer_governance_record(
+            record.timestamp,
+            &record.view_id,
+            profile_entry.0,
+            &profile_entry.1,
+        ) {
+            *profile_entry = (record.timestamp, record.view_id.clone());
+        }
+
+        for doc_id in record.documents.keys() {
+            let document_entry = latest_document_profile_records
+                .entry(record.profile_id.clone())
+                .or_default()
+                .entry(doc_id.clone())
+                .or_insert_with(|| (record.timestamp, record.view_id.clone()));
+            if is_newer_governance_record(
+                record.timestamp,
+                &record.view_id,
+                document_entry.0,
+                &document_entry.1,
+            ) {
+                *document_entry = (record.timestamp, record.view_id.clone());
+            }
+        }
+    }
+
+    let latest_profile_views = latest_profile_records
+        .into_iter()
+        .map(|(profile_id, (_, view_id))| (profile_id, view_id))
+        .collect();
+    let latest_document_profile_views = latest_document_profile_records
+        .into_iter()
+        .map(|(profile_id, document_records)| {
+            (
+                profile_id,
+                document_records
+                    .into_iter()
+                    .map(|(doc_id, (_, view_id))| (doc_id, view_id))
+                    .collect(),
+            )
+        })
+        .collect();
+
+    (latest_profile_views, latest_document_profile_views)
+}
+
 impl StoreIndexManifest {
     fn from_rebuild_summary(summary: &StoreRebuildSummary) -> Self {
         let mut object_ids_by_type = BTreeMap::<String, Vec<String>>::new();
@@ -1105,6 +1192,8 @@ impl StoreIndexManifest {
             maintainer_views: summary.maintainer_views.clone(),
             profile_views: summary.profile_views.clone(),
             document_views: summary.document_views.clone(),
+            latest_profile_views: summary.latest_profile_views.clone(),
+            latest_document_profile_views: summary.latest_document_profile_views.clone(),
             profile_heads: summary.profile_heads.clone(),
             doc_heads: summary.doc_heads.clone(),
         }
@@ -1429,9 +1518,12 @@ mod tests {
             &vec![patch_id]
         );
         assert_eq!(summary.view_governance.len(), 1);
+        assert_eq!(summary.view_governance[0].timestamp, 3);
         assert_eq!(summary.maintainer_views.len(), 1);
         assert_eq!(summary.profile_views.len(), 1);
         assert_eq!(summary.document_views.len(), 1);
+        assert_eq!(summary.latest_profile_views.len(), 1);
+        assert_eq!(summary.latest_document_profile_views.len(), 1);
         assert_eq!(summary.profile_heads.len(), 1);
 
         let _ = fs::remove_dir_all(dir);

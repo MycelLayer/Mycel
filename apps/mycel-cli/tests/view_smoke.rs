@@ -856,4 +856,17 @@ fn view_inspect_json_reports_related_governance_indexes() {
                 .expect("view b1 id should exist")
         ])
     );
+    assert_eq!(inspect_json["timestamp"], json!(10));
+    assert_eq!(
+        inspect_json["current_profile_view_id"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        inspect_json["current_profile_document_view_ids"]["doc:alpha"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        inspect_json["current_profile_document_view_ids"]["doc:beta"],
+        publish_a1["view_id"]
+    );
 }

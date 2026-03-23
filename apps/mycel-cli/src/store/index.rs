@@ -63,6 +63,9 @@ struct StoreIndexGovernanceRecordSummary {
     view_id: String,
     maintainer: String,
     profile_id: String,
+    timestamp: u64,
+    current_profile_view_id: Option<String>,
+    current_profile_document_view_ids: std::collections::BTreeMap<String, String>,
     documents: std::collections::BTreeMap<String, String>,
     maintainer_view_ids: Vec<String>,
     profile_view_ids: Vec<String>,
@@ -442,22 +445,32 @@ fn summarize_view_governance(
 ) -> Vec<StoreIndexGovernanceRecordSummary> {
     view_governance
         .into_iter()
-        .map(|record| StoreIndexGovernanceRecordSummary {
-            maintainer_view_ids: manifest
-                .maintainer_views
-                .get(&record.maintainer)
-                .cloned()
-                .unwrap_or_default(),
-            profile_view_ids: manifest
-                .profile_views
-                .get(&record.profile_id)
-                .cloned()
-                .unwrap_or_default(),
-            document_view_ids: related_document_view_ids(manifest, &record.documents),
-            view_id: record.view_id,
-            maintainer: record.maintainer,
-            profile_id: record.profile_id,
-            documents: record.documents,
+        .map(|record| {
+            let profile_id = record.profile_id.clone();
+            StoreIndexGovernanceRecordSummary {
+                maintainer_view_ids: manifest
+                    .maintainer_views
+                    .get(&record.maintainer)
+                    .cloned()
+                    .unwrap_or_default(),
+                profile_view_ids: manifest
+                    .profile_views
+                    .get(&profile_id)
+                    .cloned()
+                    .unwrap_or_default(),
+                document_view_ids: related_document_view_ids(manifest, &record.documents),
+                view_id: record.view_id,
+                maintainer: record.maintainer,
+                profile_id: profile_id.clone(),
+                timestamp: record.timestamp,
+                current_profile_view_id: manifest.latest_profile_views.get(&profile_id).cloned(),
+                current_profile_document_view_ids: manifest
+                    .latest_document_profile_views
+                    .get(&profile_id)
+                    .cloned()
+                    .unwrap_or_default(),
+                documents: record.documents,
+            }
         })
         .collect()
 }
@@ -704,6 +717,10 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
             println!("view governance record: {}", record.view_id);
             println!("  maintainer: {}", record.maintainer);
             println!("  profile id: {}", record.profile_id);
+            println!("  timestamp: {}", record.timestamp);
+            if let Some(current_profile_view_id) = &record.current_profile_view_id {
+                println!("  current profile view id: {current_profile_view_id}");
+            }
             println!(
                 "  maintainer related views: {}",
                 record.maintainer_view_ids.join(", ")
@@ -723,6 +740,10 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
                     "  document related views: {doc_id} -> {}",
                     related.join(", ")
                 );
+                if let Some(current_view_id) = record.current_profile_document_view_ids.get(doc_id)
+                {
+                    println!("  current profile document view: {doc_id} -> {current_view_id}");
+                }
             }
         }
     }

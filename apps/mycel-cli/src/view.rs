@@ -5,8 +5,7 @@ use std::path::{Path, PathBuf};
 use clap::{Args, Subcommand, ValueEnum};
 use mycel_core::protocol::{parse_json_strict, parse_view_object};
 use mycel_core::store::{
-    load_store_index_manifest, load_stored_object_value, write_object_value_to_store,
-    ViewGovernanceRecord,
+    load_store_index_manifest, write_object_value_to_store, ViewGovernanceRecord,
 };
 use mycel_core::verify::verify_object_path;
 use serde::Serialize;
@@ -244,6 +243,8 @@ struct ViewInspectSummary {
     maintainer: Option<String>,
     profile_id: Option<String>,
     timestamp: Option<u64>,
+    current_profile_view_id: Option<String>,
+    current_profile_document_view_ids: BTreeMap<String, String>,
     documents: BTreeMap<String, String>,
     profile_heads: BTreeMap<String, Vec<String>>,
     maintainer_view_ids: Vec<String>,
@@ -282,6 +283,8 @@ impl ViewInspectSummary {
             maintainer: None,
             profile_id: None,
             timestamp: None,
+            current_profile_view_id: None,
+            current_profile_document_view_ids: BTreeMap::new(),
             documents: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             maintainer_view_ids: Vec::new(),
@@ -539,9 +542,19 @@ fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
     if let Some(timestamp) = summary.timestamp {
         println!("timestamp: {timestamp}");
     }
+    if let Some(current_profile_view_id) = &summary.current_profile_view_id {
+        println!("current profile view id: {current_profile_view_id}");
+    }
     println!("document count: {}", summary.documents.len());
     for (doc_id, revision_id) in &summary.documents {
         println!("document: {doc_id} -> {revision_id}");
+    }
+    println!(
+        "current profile document view count: {}",
+        summary.current_profile_document_view_ids.len()
+    );
+    for (doc_id, current_view_id) in &summary.current_profile_document_view_ids {
+        println!("current profile document view: {doc_id} -> {current_view_id}");
     }
     println!("profile head doc count: {}", summary.profile_heads.len());
     for (doc_id, revision_ids) in &summary.profile_heads {
@@ -896,35 +909,7 @@ fn view_list(args: ViewListArgs) -> Result<i32, CliError> {
         .collect::<Vec<_>>();
 
     for record in matching_records {
-        let value = match load_stored_object_value(&args.store_root, &record.view_id) {
-            Ok(value) => value,
-            Err(error) => {
-                summary.push_error(format!(
-                    "failed to load stored view '{}' while listing governance records: {error}",
-                    record.view_id
-                ));
-                return if args.json {
-                    print_view_list_json(&summary)
-                } else {
-                    Ok(print_view_list_text(&summary))
-                };
-            }
-        };
-        let view = match parse_view_object(&value) {
-            Ok(view) => view,
-            Err(error) => {
-                summary.push_error(format!(
-                    "failed to parse stored view '{}' while listing governance records: {error}",
-                    record.view_id
-                ));
-                return if args.json {
-                    print_view_list_json(&summary)
-                } else {
-                    Ok(print_view_list_text(&summary))
-                };
-            }
-        };
-        if !matches_timestamp_filters(view.timestamp, &summary.filters) {
+        if !matches_timestamp_filters(record.timestamp, &summary.filters) {
             continue;
         }
         let maintainer_view_ids = manifest
@@ -942,7 +927,7 @@ fn view_list(args: ViewListArgs) -> Result<i32, CliError> {
             view_id: record.view_id,
             maintainer: record.maintainer,
             profile_id: record.profile_id,
-            timestamp: view.timestamp,
+            timestamp: record.timestamp,
             documents: record.documents,
             maintainer_view_ids,
             profile_view_ids,
@@ -1012,35 +997,18 @@ fn view_inspect(store_root: PathBuf, view_id: String, json: bool) -> Result<i32,
         };
     };
 
-    let value = match load_stored_object_value(&store_root, &view_id) {
-        Ok(value) => value,
-        Err(error) => {
-            summary.push_error(format!("failed to load stored view '{}': {error}", view_id));
-            return if json {
-                print_view_inspect_json(&summary)
-            } else {
-                Ok(print_view_inspect_text(&summary))
-            };
-        }
-    };
-    let view = match parse_view_object(&value) {
-        Ok(view) => view,
-        Err(error) => {
-            summary.push_error(format!(
-                "failed to parse stored view '{}': {error}",
-                view_id
-            ));
-            return if json {
-                print_view_inspect_json(&summary)
-            } else {
-                Ok(print_view_inspect_text(&summary))
-            };
-        }
-    };
-
     summary.maintainer = Some(record.maintainer.clone());
     summary.profile_id = Some(record.profile_id.clone());
-    summary.timestamp = Some(view.timestamp);
+    summary.timestamp = Some(record.timestamp);
+    summary.current_profile_view_id = manifest
+        .latest_profile_views
+        .get(&record.profile_id)
+        .cloned();
+    summary.current_profile_document_view_ids = manifest
+        .latest_document_profile_views
+        .get(&record.profile_id)
+        .cloned()
+        .unwrap_or_default();
     summary.documents = record.documents.clone();
     summary.profile_heads = manifest
         .profile_heads
@@ -1063,6 +1031,10 @@ fn view_inspect(store_root: PathBuf, view_id: String, json: bool) -> Result<i32,
     );
     summary.notes.push(
         "related maintainer/profile/document view IDs come from persisted governance indexes"
+            .to_string(),
+    );
+    summary.notes.push(
+        "current profile governance state comes from persisted governance timestamps and latest-view indexes"
             .to_string(),
     );
 

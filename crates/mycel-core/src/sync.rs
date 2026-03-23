@@ -1459,6 +1459,8 @@ mod tests {
             maintainer_views: BTreeMap::new(),
             profile_views: BTreeMap::new(),
             document_views: BTreeMap::new(),
+            latest_profile_views: BTreeMap::new(),
+            latest_document_profile_views: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::from([(
                 "doc:test".to_string(),
@@ -1497,6 +1499,8 @@ mod tests {
             maintainer_views: BTreeMap::new(),
             profile_views: BTreeMap::new(),
             document_views: BTreeMap::new(),
+            latest_profile_views: BTreeMap::new(),
+            latest_document_profile_views: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::new(),
         };

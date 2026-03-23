@@ -773,6 +773,11 @@ fn store_index_governance_only_json_embeds_related_view_context_per_record() {
         json["view_governance"][0]["maintainer_view_ids"],
         json!([fixture.view_a1_id, fixture.view_b1_id, fixture.view_a2_id])
     );
+    assert_eq!(json["view_governance"][0]["timestamp"], json!(10));
+    assert_eq!(
+        json["view_governance"][0]["current_profile_view_id"],
+        json!(fixture.view_a2_id)
+    );
     assert_eq!(
         json["view_governance"][0]["profile_view_ids"],
         json!([fixture.view_a1_id, fixture.view_a2_id])
@@ -784,6 +789,14 @@ fn store_index_governance_only_json_embeds_related_view_context_per_record() {
     assert_eq!(
         json["view_governance"][0]["document_view_ids"]["doc:beta"],
         json!([fixture.view_a1_id, fixture.view_b1_id])
+    );
+    assert_eq!(
+        json["view_governance"][0]["current_profile_document_view_ids"]["doc:alpha"],
+        json!(fixture.view_a2_id)
+    );
+    assert_eq!(
+        json["view_governance"][0]["current_profile_document_view_ids"]["doc:beta"],
+        json!(fixture.view_a1_id)
     );
 }
 
@@ -817,6 +830,20 @@ fn store_index_governance_only_text_reports_related_view_context() {
         stdout.contains(&format!(
             "  document related views: doc:beta -> {}, {}",
             fixture.view_a1_id, fixture.view_b1_id
+        )),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "  current profile view id: {}",
+            fixture.view_a2_id
+        )),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "  current profile document view: doc:alpha -> {}",
+            fixture.view_a2_id
         )),
         "stdout: {stdout}"
     );
