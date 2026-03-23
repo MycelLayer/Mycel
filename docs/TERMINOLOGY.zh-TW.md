@@ -89,7 +89,16 @@
 | revoke | 撤回 | 取消既有授權。 |
 | pause | 暫停 | 暫時停用，但不代表永久撤回。 |
 
-## 6. 建議避免的說法
+## 6. 工程與工作流術語
+
+| English term | 建議中文 | 補充說明 |
+| --- | --- | --- |
+| reflexive estimation task | reflexive estimation task / 反身估算任務 | 指估算行為本身會改變被估算對象的成本、狀態或結果；例如 agent 為了估算本 workcycle 還會消耗多少 token 而進一步分析、列選項或補充說明，這些新增輸出又反過來增加 token 消耗。 |
+| reflexive token estimation | reflexive token estimation / 反身 token 估算 | `reflexive estimation task` 在 LLM / agent token 預算語境下的具體寫法；通常表示估算過程本身會吃掉 context window 或 token budget。 |
+| observer effect | 觀測者效應 | 可作為直觀比喻，強調觀測或量測行為本身改變系統；在工程文件中可用來輔助解釋 `reflexive estimation task`，但不應替代其較精確的工作流術語。 |
+| measurement back-action | 量測回作用 | 借自物理學的較精確說法，強調量測程序對被測系統的回饋影響；適合用來說明為何某些估算程序會改變實際成本。 |
+
+## 7. 建議避免的說法
 
 以下說法容易造成誤解，建議避免：
 
@@ -99,7 +108,7 @@
 - 把 `View` 寫成「畫面」或單純 UI view
 - 把 `replay` 寫成單純的「回放動畫」
 
-## 7. 目前推薦短句
+## 8. 目前推薦短句
 
 若要用繁中快速介紹 Mycel，建議優先用這幾句：
 
