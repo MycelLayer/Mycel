@@ -1886,6 +1886,9 @@ fn inject_session_fault(
         "manifest-before-hello" => inject_manifest_before_hello_fault(transcript),
         "messages-after-bye" => inject_messages_after_bye_fault(transcript, signing_key),
         "object-before-manifest" => inject_object_before_manifest_fault(transcript),
+        "snapshot-offer-before-hello" => {
+            inject_snapshot_offer_before_hello_fault(transcript, signing_key)
+        }
         "want-before-manifest" => inject_want_before_manifest_fault(transcript, signing_key),
         "want-before-hello" => inject_want_before_hello_fault(transcript, signing_key),
         other => Err(format!("unsupported session fault '{other}'")),
@@ -1959,6 +1962,32 @@ fn inject_messages_after_bye_fault(
         }),
     )?;
     transcript.messages.insert(hello_index + 1, bye);
+    Ok(())
+}
+
+fn inject_snapshot_offer_before_hello_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let hello_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("HELLO"))
+        .ok_or_else(|| {
+            "transcript is missing HELLO for snapshot-offer-before-hello injection".to_owned()
+        })?;
+    let snapshot_offer = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "SNAPSHOT_OFFER",
+        "msg:peer-sync-fault-snapshot-offer-0000",
+        json!({
+            "snapshot_id": "snap:peer-sync-fault-placeholder",
+            "root_hash": "hash:peer-sync-fault-placeholder",
+            "documents": ["doc:peer-sync-fault-placeholder"]
+        }),
+    )?;
+    transcript.messages.insert(hello_index, snapshot_offer);
     Ok(())
 }
 
