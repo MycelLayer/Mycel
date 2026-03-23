@@ -520,6 +520,15 @@ fn store_rebuild_recovers_merge_authored_revision_after_index_loss() {
         .to_string();
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
 
+    let expected_revision_ids = [
+        genesis_revision_id.clone(),
+        primary_revision_id.clone(),
+        side_revision_id.clone(),
+        merge_revision_id.clone(),
+    ];
+    let expected_patch_count = 3usize;
+    let expected_stored_object_count = 1usize + expected_patch_count + expected_revision_ids.len();
+
     let indexes_dir = store_dir.path().join("indexes");
     fs::remove_dir_all(&indexes_dir).expect("indexes directory should be removable");
     assert!(
@@ -530,8 +539,14 @@ fn store_rebuild_recovers_merge_authored_revision_after_index_loss() {
     let rebuild = run_mycel(&["store", "rebuild", &store_root, "--json"]);
     assert_success(&rebuild);
     let rebuild_json = assert_json_status(&rebuild, "ok");
-    assert_eq!(rebuild_json["stored_object_count"], 8);
-    assert_eq!(rebuild_json["verified_object_count"], 8);
+    assert_eq!(
+        rebuild_json["stored_object_count"].as_u64(),
+        Some(expected_stored_object_count as u64)
+    );
+    assert_eq!(
+        rebuild_json["verified_object_count"].as_u64(),
+        Some(expected_stored_object_count as u64)
+    );
     assert!(
         rebuild_json["doc_revisions"]["doc:author-smoke"]
             .as_array()
@@ -545,13 +560,13 @@ fn store_rebuild_recovers_merge_authored_revision_after_index_loss() {
         rebuild_json["doc_revisions"]["doc:author-smoke"]
             .as_array()
             .map(Vec::len),
-        Some(4)
+        Some(expected_revision_ids.len())
     );
     assert_eq!(
         rebuild_json["revision_parents"]
             .as_object()
             .map(|entries| entries.len()),
-        Some(4)
+        Some(expected_revision_ids.len())
     );
     assert_eq!(
         rebuild_json["author_patches"]
@@ -580,13 +595,13 @@ fn store_rebuild_recovers_merge_authored_revision_after_index_loss() {
         manifest["object_ids_by_type"]["patch"]
             .as_array()
             .map(Vec::len),
-        Some(3)
+        Some(expected_patch_count)
     );
     assert_eq!(
         manifest["object_ids_by_type"]["revision"]
             .as_array()
             .map(Vec::len),
-        Some(4)
+        Some(expected_revision_ids.len())
     );
 }
 
