@@ -79,6 +79,43 @@ class EstimateContextWindowUsageCliTest(unittest.TestCase):
         self.assertEqual("rotate_chat", payload["status"])
         self.assertEqual(800, payload["used_tokens"])
         self.assertEqual(80.0, payload["used_percent"])
+        self.assertEqual(800, payload["raw_used_tokens"])
+
+    def test_additive_calibration_uses_observed_sample_as_reference(self) -> None:
+        spec = {
+            "context_window": 10000,
+            "current_input_tokens": 900,
+            "last_output_tokens": 300,
+            "calibration": {
+                "mode": "additive",
+                "estimated_tokens": 300,
+                "observed_tokens": 2800,
+            },
+        }
+
+        proc = self.run_cli("-", stdin_text=json.dumps(spec))
+
+        self.assertIn("3,700 / 10,000 tokens", proc.stdout)
+        self.assertIn("Raw estimate before calibration: 1,200", proc.stdout)
+        self.assertIn("additive calibration (+2,500 tokens)", proc.stdout)
+
+    def test_multiplicative_calibration_reports_json_details(self) -> None:
+        spec = {
+            "context_window": 10000,
+            "turns": [{"added_tokens": 500}, {"added_tokens": 300}],
+            "calibration": {
+                "mode": "multiplicative",
+                "estimated_tokens": 1000,
+                "observed_tokens": 1500,
+            },
+        }
+
+        proc = self.run_cli("--json", "-", stdin_text=json.dumps(spec))
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual(800, payload["raw_used_tokens"])
+        self.assertEqual(1200, payload["used_tokens"])
+        self.assertIn("multiplicative calibration", payload["calibration"])
 
     def test_rejects_missing_usage_source(self) -> None:
         spec = {"context_window": 1000}
@@ -106,6 +143,22 @@ class EstimateContextWindowUsageCliTest(unittest.TestCase):
 
         self.assertEqual(1, proc.returncode)
         self.assertIn("rotate threshold must be greater than warn threshold", proc.stderr)
+
+    def test_rejects_invalid_calibration_mode(self) -> None:
+        spec = {
+            "context_window": 1000,
+            "current_input_tokens": 100,
+            "calibration": {
+                "mode": "mystery",
+                "estimated_tokens": 100,
+                "observed_tokens": 200,
+            },
+        }
+
+        proc = self.run_cli("-", stdin_text=json.dumps(spec), check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("calibration mode must be 'additive' or 'multiplicative'", proc.stderr)
 
 
 if __name__ == "__main__":

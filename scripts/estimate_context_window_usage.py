@@ -16,10 +16,12 @@ class ContextUsageError(Exception):
 @dataclass(frozen=True)
 class UsageEstimate:
     used_tokens: int
+    raw_used_tokens: int
     context_window: int
     warn_threshold: float
     rotate_threshold: float
     source: str
+    calibration_summary: str | None = None
 
     @property
     def used_ratio(self) -> float:
@@ -102,6 +104,13 @@ def load_spec(spec_path: str) -> dict[str, object]:
     return payload
 
 
+def parse_required_positive_int(payload: dict[str, object], key: str) -> int:
+    value = parse_positive_int(payload, key)
+    if value is None:
+        raise ContextUsageError(f"{key} must be provided as a positive integer")
+    return value
+
+
 def parse_positive_int(payload: dict[str, object], key: str) -> int | None:
     value = payload.get(key)
     if value is None:
@@ -125,6 +134,37 @@ def validate_thresholds(args: argparse.Namespace) -> None:
         raise ContextUsageError("rotate threshold must be greater than 0 and at most 100")
     if args.rotate_threshold <= args.warn_threshold:
         raise ContextUsageError("rotate threshold must be greater than warn threshold")
+
+
+def apply_calibration(raw_used_tokens: int, payload: dict[str, object]) -> tuple[int, str | None]:
+    raw_calibration = payload.get("calibration")
+    if raw_calibration is None:
+        return raw_used_tokens, None
+    if not isinstance(raw_calibration, dict):
+        raise ContextUsageError("calibration must be an object when provided")
+
+    mode = raw_calibration.get("mode", "additive")
+    if mode not in {"additive", "multiplicative"}:
+        raise ContextUsageError("calibration mode must be 'additive' or 'multiplicative'")
+
+    estimated_tokens = parse_required_positive_int(raw_calibration, "estimated_tokens")
+    observed_tokens = parse_required_positive_int(raw_calibration, "observed_tokens")
+
+    if mode == "additive":
+        delta = observed_tokens - estimated_tokens
+        adjusted = max(raw_used_tokens + delta, 0)
+        summary = (
+            f"additive calibration (+{delta:,} tokens) from observed {observed_tokens:,} "
+            f"vs estimated {estimated_tokens:,}"
+        )
+        return adjusted, summary
+
+    adjusted = max(round(raw_used_tokens * (observed_tokens / estimated_tokens)), 0)
+    summary = (
+        f"multiplicative calibration (x{observed_tokens / estimated_tokens:.2f}) "
+        f"from observed {observed_tokens:,} vs estimated {estimated_tokens:,}"
+    )
+    return adjusted, summary
 
 
 def estimate_from_snapshot(payload: dict[str, object]) -> tuple[int, str] | None:
@@ -166,24 +206,32 @@ def build_estimate(payload: dict[str, object], args: argparse.Namespace) -> Usag
             "spec must provide either current_input_tokens or a non-empty turns array"
         )
 
-    used_tokens, source = source_estimate
+    raw_used_tokens, source = source_estimate
+    used_tokens, calibration_summary = apply_calibration(raw_used_tokens, payload)
     return UsageEstimate(
         used_tokens=used_tokens,
+        raw_used_tokens=raw_used_tokens,
         context_window=context_window,
         warn_threshold=args.warn_threshold,
         rotate_threshold=args.rotate_threshold,
         source=source,
+        calibration_summary=calibration_summary,
     )
 
 
 def render_text(estimate: UsageEstimate) -> str:
-    return "\n".join(
+    lines = [
+        "Context usage estimate",
+        (
+            f"- Estimated active context: {estimate.used_tokens:,} / "
+            f"{estimate.context_window:,} tokens"
+        ),
+    ]
+    if estimate.calibration_summary is not None:
+        lines.append(f"- Raw estimate before calibration: {estimate.raw_used_tokens:,}")
+        lines.append(f"- Calibration: {estimate.calibration_summary}")
+    lines.extend(
         [
-            "Context usage estimate",
-            (
-                f"- Estimated active context: {estimate.used_tokens:,} / "
-                f"{estimate.context_window:,} tokens"
-            ),
             (
                 f"- Percent used: {estimate.used_percent:.1f}% "
                 f"({estimate.remaining_percent:.1f}% left)"
@@ -194,23 +242,24 @@ def render_text(estimate: UsageEstimate) -> str:
             f"- Recommendation: {estimate.recommendation}",
         ]
     )
+    return "\n".join(lines)
 
 
 def render_json(estimate: UsageEstimate) -> str:
-    return json.dumps(
-        {
-            "used_tokens": estimate.used_tokens,
-            "context_window": estimate.context_window,
-            "used_percent": round(estimate.used_percent, 1),
-            "remaining_tokens": estimate.remaining_tokens,
-            "remaining_percent": round(estimate.remaining_percent, 1),
-            "status": estimate.status,
-            "source": estimate.source,
-            "recommendation": estimate.recommendation,
-        },
-        indent=2,
-        sort_keys=True,
-    )
+    payload = {
+        "used_tokens": estimate.used_tokens,
+        "raw_used_tokens": estimate.raw_used_tokens,
+        "context_window": estimate.context_window,
+        "used_percent": round(estimate.used_percent, 1),
+        "remaining_tokens": estimate.remaining_tokens,
+        "remaining_percent": round(estimate.remaining_percent, 1),
+        "status": estimate.status,
+        "source": estimate.source,
+        "recommendation": estimate.recommendation,
+    }
+    if estimate.calibration_summary is not None:
+        payload["calibration"] = estimate.calibration_summary
+    return json.dumps(payload, indent=2, sort_keys=True)
 
 
 def main() -> int:
