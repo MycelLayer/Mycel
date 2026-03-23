@@ -1733,9 +1733,9 @@ fn sync_pull_json_reports_explicit_error_only_transcript_as_failed_sync() {
         json["errors"]
             .as_array()
             .is_some_and(|errors| errors.iter().any(|error| {
-                error
-                    .as_str()
-                    .is_some_and(|message| message.contains("did not include HELLO from 'node:alpha'"))
+                error.as_str().is_some_and(|message| {
+                    message.contains("did not include HELLO from 'node:alpha'")
+                })
             })),
         "expected missing-HELLO error after ERROR-only transcript, stdout: {}",
         stdout_text(&output)
