@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，其中 `M2` 的剩餘焦點已縮到 richer mixed content/metadata competing-branch classification 落地後，最後一批 replay/store fixture closure 與 reporting/doc alignment follow-up，`M3` 現在明確指向超出目前 reverse-index、relationship summaries，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
+狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M3` / `M4` 工作，同時把目前窄版範圍已收口的 `M2` follow-up 區段保留為已完成記錄；`M3` 現在明確指向超出目前 reverse-index、relationship summaries、current-governance summaries，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
 
@@ -214,7 +214,7 @@
 
 ## 15. `M3` Reader 與 Governance Follow-Up
 
-- [ ] 補上超出目前 initial reverse-index、relationship summaries 與 inspect/list/publish surfaces 的 broader governance persistence。
+- [ ] 補上超出目前 initial reverse-index、relationship summaries、current-governance summaries 與 inspect/list/publish surfaces 的 broader governance persistence。
 - [ ] 把 governance tooling 擴展到目前初始 `view inspect` / `view list` / `view publish` workflows 之外。
 - [ ] 持續改善 reader profile ergonomics，超出目前 available-profile summaries 與 profile-error feedback。
 - [ ] 收掉 separate admission validation 已落地後，仍然存在的 independent dual-role role-assignment follow-up。

@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，因此現在的主線更明確地轉到 `M3` / `M4`；目前仍未完成的重點是更完整的治理狀態持久化，以及 `M4` 尚未補齊的 peer interop session/capability/error-path proof；原先規劃的 production replication 子項則都已補上，並且已新增第一個常設的 messages-after-BYE session proof
+狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，因此現在的主線更明確地轉到 `M3` / `M4`；目前仍未完成的重點是更完整的治理狀態持久化，以及 `M4` 尚未補齊的 peer interop session/capability/error-path proof；原先規劃的 production replication 子項則都已補上，並且已新增第一個常設的 messages-after-BYE session proof，同時也把 per-document current-governance summaries 納入目前的 `M3` 基線
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的實作推進順序。
 
@@ -46,7 +46,7 @@
 
 等窄版 core 穩定後，下一條主線會是：
 
-1. 在目前 `view inspect` / `view list` / `view publish` 與 persisted relationship baseline 之上，補上更廣的 `M3` governance persistence 與 reader-plus-governance 後續工作
+1. 在目前 `view inspect` / `view list` / `view publish`、persisted relationship summaries，以及 per-document current-governance summaries 的 baseline 之上，補上更廣的 `M3` governance persistence 與 reader-plus-governance 後續工作
 2. 補上超出目前 positive-path 與 optional-message proof set 的剩餘 `M4` session、capability 與 error-path interop proof
 3. 等目前的 governance 與 interop baseline 更穩定後，再補 reader-facing 的 text reconstruction 與 presentation 打磨
 
@@ -273,7 +273,7 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式、head inspection 裡的 bounded viewer score surfaces，以及透過 `view inspect` 與 `view list` 曝露的 persisted governance relationship summaries；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出這一輪初步打磨的 reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式、head inspection 裡的 bounded viewer score surfaces、透過 `view inspect` 與 `view list` 曝露的 persisted governance relationship summaries，以及透過 `view current` 提供的 per-document current-governance summaries；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出這一輪初步打磨的 reader-facing profile ergonomics，以及最後的獨立 dual-role 角色指派收尾。
 
 已在進行中或部分完成：
 
@@ -287,8 +287,9 @@ Implementation anchors：
 8. 提供獨立於 reader-facing `head` commands 的 `view inspect` / `view list` / `view publish` governance workflows，並具備 listing filter、sort、time window、grouped summary 與 projection modes
 9. persisted governance reverse indexes，支援依 maintainer、profile 與 document 反查 view
 10. 透過 `view inspect` 與 `view list` 呈現的 persisted governance relationship summaries
-11. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
-12. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
+11. 透過 `view current` 呈現的 per-document current-governance summaries
+12. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+13. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
 
 主要剩餘缺口：
 

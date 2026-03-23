@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; `M2` replay/storage/rebuild closure is now landed at the current narrow scope, so the active lane now centers on `M3` / `M4` while broader governance persistence and the remaining peer interop session/capability/error-path proof stay open after the current production replication sub-items were completed and the first permanent messages-after-BYE session proof landed
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; `M2` replay/storage/rebuild closure is now landed at the current narrow scope, so the active lane now centers on `M3` / `M4` while broader governance persistence and the remaining peer interop session/capability/error-path proof stay open after the current production replication sub-items were completed, the first permanent messages-after-BYE session proof landed, and per-document current-governance summaries were added to the current M3 baseline
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -46,7 +46,7 @@ The current lane is:
 
 After the narrow core is stable, the next lane is:
 
-1. broader `M3` governance persistence and reader-plus-governance follow-up on top of the current `view inspect` / `view list` / `view publish` and persisted-relationship baseline
+1. broader `M3` governance persistence and reader-plus-governance follow-up on top of the current `view inspect` / `view list` / `view publish`, persisted-relationship summaries, and per-document current-governance summary baseline
 2. the remaining `M4` session, capability, and error-path interop proof beyond the current positive-path and optional-message set
 3. reader-facing text reconstruction and presentation refinements only after the current governance and interop baselines are more stable
 
@@ -273,7 +273,7 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, bounded viewer score surfaces in head inspection, and persisted governance relationship summaries exposed through both `view inspect` and `view list` on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure.
+Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, bounded viewer score surfaces in head inspection, persisted governance relationship summaries exposed through both `view inspect` and `view list`, and per-document current-governance summaries in `view current` on top of the deterministic selector path; `M3` still remains open for broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure.
 
 Already in progress or partially implemented:
 
@@ -286,8 +286,9 @@ Already in progress or partially implemented:
 7. Dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands
 8. Persisted governance reverse indexes for maintainer, profile, and document view lookups
 9. Persisted governance relationship summaries surfaced through both `view inspect` and `view list`
-10. Early simulator workflows around peer and topology validation
-11. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+10. Per-document current-governance summaries surfaced through `view current`
+11. Early simulator workflows around peer and topology validation
+12. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Still missing or incomplete:
 
@@ -317,7 +318,7 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, bounded viewer score surfaces in head inspection, and persisted governance relationship summaries exposed through `view inspect` and `view list`; broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure remain.
+Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, bounded viewer score surfaces in head inspection, persisted governance relationship summaries exposed through `view inspect` and `view list`, and per-document current-governance summaries exposed through `view current`; broader governance persistence, reader-facing profile ergonomics beyond this initial polish, and final independent dual-role role-assignment closure remain.
 
 Already visible in the repo:
 
@@ -331,8 +332,9 @@ Already visible in the repo:
 8. dedicated `view inspect` / `view list` / `view publish` governance workflows alongside reader-facing `head` commands, with filtered listing, sorting, time windows, grouped summaries, and projection modes
 9. persisted governance reverse indexes for maintainer, profile, and document-oriented view lookups
 10. persisted governance relationship summaries surfaced through `view inspect` and `view list`
-11. simulator and validation workflows around peer, topology, test, and report scopes
-12. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+11. per-document current-governance summaries surfaced through `view current`
+12. simulator and validation workflows around peer, topology, test, and report scopes
+13. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Main remaining gaps:
 
