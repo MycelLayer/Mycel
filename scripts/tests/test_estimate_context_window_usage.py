@@ -197,7 +197,24 @@ class EstimateContextWindowUsageCliTest(unittest.TestCase):
 
         self.assertIn("156,200 / 258,000 tokens", proc.stdout)
         self.assertIn("Raw estimate before calibration: 71,200", proc.stdout)
-        self.assertIn("additive calibration (+85,000 tokens)", proc.stdout)
+        self.assertIn("additive calibration (+85,000 tokens) from fixed delta", proc.stdout)
+
+    def test_additive_delta_calibration_is_supported_in_json_spec(self) -> None:
+        spec = {
+            "context_window": 10000,
+            "current_input_tokens": 900,
+            "last_output_tokens": 300,
+            "calibration": {
+                "mode": "additive",
+                "delta_tokens": 85000,
+            },
+        }
+
+        proc = self.run_cli("-", stdin_text=json.dumps(spec))
+
+        self.assertIn("86,200 / 10,000 tokens", proc.stdout)
+        self.assertIn("Raw estimate before calibration: 1,200", proc.stdout)
+        self.assertIn("additive calibration (+85,000 tokens) from fixed delta", proc.stdout)
 
     def test_rejects_partial_cli_calibration_arguments(self) -> None:
         spec = {

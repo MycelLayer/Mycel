@@ -16,8 +16,7 @@ class ContextUsageError(Exception):
 CALIBRATION_SHORTCUTS: dict[str, dict[str, int | str]] = {
     "doc-sync-plan": {
         "mode": "additive",
-        "estimated_tokens": 37000,
-        "observed_tokens": 122000,
+        "delta_tokens": 85000,
     }
 }
 
@@ -212,6 +211,16 @@ def apply_calibration(raw_used_tokens: int, payload: dict[str, object]) -> tuple
     mode = raw_calibration.get("mode", "additive")
     if mode not in {"additive", "multiplicative"}:
         raise ContextUsageError("calibration mode must be 'additive' or 'multiplicative'")
+
+    delta_tokens_raw = raw_calibration.get("delta_tokens")
+    if delta_tokens_raw is not None:
+        if mode != "additive":
+            raise ContextUsageError("delta_tokens is only valid with additive calibration")
+        if not isinstance(delta_tokens_raw, int) or delta_tokens_raw <= 0:
+            raise ContextUsageError("delta_tokens must be a positive integer")
+        adjusted = max(raw_used_tokens + delta_tokens_raw, 0)
+        summary = f"additive calibration (+{delta_tokens_raw:,} tokens) from fixed delta"
+        return adjusted, summary
 
     estimated_tokens = parse_required_positive_int(raw_calibration, "estimated_tokens")
     observed_tokens = parse_required_positive_int(raw_calibration, "observed_tokens")
