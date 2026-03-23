@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-duplicate-hello",
+    "description": "Seed injects a second HELLO so the reader rejects the transcript for repeating session establishment",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-duplicate-hello-test"
+        }
+    ],
+    "expected_outcomes": [
+        "duplicate-hello-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "duplicate-hello"
+    },
+    "notes": [
+        "Simulator injects a second HELLO immediately after the normal HELLO, before MANIFEST or any object flow begins.",
+        "The transcript should fail on the standard duplicate-HELLO wire-session rule before any object verification or store writes happen."
+    ]
+}
