@@ -62,7 +62,7 @@ SCRUTINIZED_NOT_NEEDED_ITEMS: dict[str, str] = {
 # the check would always fail for newly claimed agents).
 PLACEHOLDER_SCOPES: frozenset[str] = frozenset({"pending scope", "", "none", "n/a"})
 NON_SOURCE_PATH_PREFIXES: tuple[str, ...] = (".agent-local/", "docs/", ".git/")
-NON_SOURCE_PATH_SUFFIXES: tuple[str, ...] = (".md",)
+NON_SOURCE_PATH_SUFFIXES: tuple[str, ...] = (".md", ".pyc")
 
 
 class WorkCycleError(Exception):
@@ -265,6 +265,8 @@ def is_source_path(path: str) -> bool:
         return False
     if normalized.startswith(NON_SOURCE_PATH_PREFIXES):
         return False
+    if "/__pycache__/" in f"/{normalized}/":
+        return False
     if normalized.endswith(NON_SOURCE_PATH_SUFFIXES):
         return False
     return True
@@ -307,6 +309,92 @@ def cycle_has_source_changes(agent_uid: str, batch_num: int) -> bool | None:
         )
 
     return any(is_source_path(path) for path in cycle_paths)
+
+
+def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str, str | bool | None]:
+    source_changes_present = cycle_has_source_changes(agent_uid, batch_num)
+    if source_changes_present is not True:
+        return {
+            "required": False,
+            "ok": True,
+            "reason": "no source changes detected in the cycle",
+            "remote_head": None,
+        }
+
+    current_snapshot = capture_git_state_snapshot()
+    if current_snapshot.get("available") is not True:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "unable to capture current git state",
+            "remote_head": None,
+        }
+
+    current_head = current_snapshot.get("head")
+    current_status_paths = {
+        str(path)
+        for path in current_snapshot.get("status_paths", [])
+        if isinstance(path, str) and path.strip()
+    }
+    if any(is_source_path(path) for path in current_status_paths):
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "source changes are still present in the worktree; commit and push them first",
+            "remote_head": None,
+        }
+
+    if not isinstance(current_head, str) or not current_head:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "unable to resolve HEAD for push verification",
+            "remote_head": None,
+        }
+
+    remote_proc = run_git(["ls-remote", "--exit-code", "origin", "refs/heads/main"])
+    if remote_proc.returncode != 0:
+        detail = remote_proc.stderr.strip() or remote_proc.stdout.strip() or "unable to resolve origin/main"
+        return {
+            "required": True,
+            "ok": False,
+            "reason": detail,
+            "remote_head": None,
+        }
+
+    remote_head = remote_proc.stdout.split()[0].strip() if remote_proc.stdout.strip() else ""
+    if not remote_head:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "origin/main did not return a remote head sha",
+            "remote_head": None,
+        }
+
+    ancestor_proc = run_git(["merge-base", "--is-ancestor", current_head, remote_head])
+    if ancestor_proc.returncode == 0:
+        return {
+            "required": True,
+            "ok": True,
+            "reason": "HEAD is reachable from origin/main",
+            "remote_head": remote_head,
+        }
+
+    if ancestor_proc.returncode == 1:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "HEAD is not yet reachable from origin/main; push your agent commit first",
+            "remote_head": remote_head,
+        }
+
+    detail = ancestor_proc.stderr.strip() or ancestor_proc.stdout.strip() or "merge-base verification failed"
+    return {
+        "required": True,
+        "ok": False,
+        "reason": detail,
+        "remote_head": remote_head,
+    }
 
 
 def emit_checklist_summary(
@@ -438,6 +526,18 @@ def emit_not_needed_scrutiny_summary(violations: list[tuple[str, str]]) -> None:
     print("scrutinized_not_needed_items:")
     for item_id, reason in violations:
         print(f"  - {item_id}: {reason}")
+
+
+def emit_push_status_summary(push_status: dict[str, str | bool | None]) -> None:
+    required = push_status.get("required") is True
+    ok = push_status.get("ok") is True
+    reason = str(push_status.get("reason") or "")
+    remote_head = push_status.get("remote_head")
+    print(f"source_push_required: {str(required).lower()}")
+    print(f"source_push_ok: {str(ok).lower()}")
+    if remote_head:
+        print(f"source_push_remote_head: {remote_head}")
+    print(f"source_push_reason: {reason}")
 
 
 def emit_scope_consistency_summary(
@@ -610,6 +710,7 @@ def main() -> int:
         # Scrutinize not-needed markings on high-value required items.
         not_needed_violations: list[tuple[str, str]] = []
         source_changes_present = cycle_has_source_changes(agent_uid, latest_batch)
+        push_status = cycle_source_change_push_status(agent_uid, latest_batch)
         for path in checklist_paths:
             not_needed_violations.extend(
                 scan_scrutinized_not_needed_items(
@@ -632,6 +733,7 @@ def main() -> int:
             bootstrap_batch=bootstrap_batch,
         )
         emit_not_needed_scrutiny_summary(not_needed_violations)
+        emit_push_status_summary(push_status)
         emit_scope_consistency_summary(registry_scope=registry_scope, handoff_scope=handoff_scope)
         emit_mailbox_summary(mailbox_path, open_handoff_lines)
         shared_fallback_records = scan_shared_fallback_mailboxes()
@@ -663,12 +765,14 @@ def main() -> int:
             mailbox_pending = mailbox_pending or same_role_open_count != 1
         shared_fallback_pending = any(record["over_limit"] for record in shared_fallback_records)
         not_needed_pending = len(not_needed_violations) > 0
+        push_pending = push_status.get("required") is True and push_status.get("ok") is not True
         return (
             2
             if any(unchecked_by_path.values())
             or mailbox_pending
             or shared_fallback_pending
             or not_needed_pending
+            or push_pending
             else 0
         )
 

@@ -20,6 +20,7 @@ SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 class AgentWorkCycleCliTest(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.remote_temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
         (self.root / "scripts").mkdir(parents=True, exist_ok=True)
         (self.root / ".agent-local").mkdir(parents=True, exist_ok=True)
@@ -39,6 +40,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
 
     def tearDown(self) -> None:
+        self.remote_temp_dir.cleanup()
         self.temp_dir.cleanup()
 
     def run_cli(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -107,6 +109,13 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.run_git("config", "user.email", "test@example.com")
         self.run_git("add", ".")
         self.run_git("commit", "-m", "initial")
+
+    def init_origin_main_remote(self) -> Path:
+        remote_path = Path(self.remote_temp_dir.name) / "origin.git"
+        subprocess.run(["git", "init", "--bare", str(remote_path)], cwd=self.root, check=True, capture_output=True, text=True)
+        self.run_git("remote", "add", "origin", str(remote_path))
+        self.run_git("push", "-u", "origin", "HEAD:main")
+        return remote_path
 
     def replace_in_file(self, relative_path: str, old: str, new: str) -> None:
         path = self.root / relative_path
@@ -575,6 +584,77 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn("scrutinized_not_needed_violations: 0", proc.stdout)
+
+    def test_end_returns_pending_when_source_change_commit_is_not_pushed(self) -> None:
+        self.write_agents_md()
+        self.init_git_repo()
+        self.init_origin_main_remote()
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        (self.root / "scripts" / "agent_timestamp.py").write_text(
+            (self.root / "scripts" / "agent_timestamp.py").read_text(encoding="utf-8")
+            + "\n# source change for push guard\n",
+            encoding="utf-8",
+        )
+        self.run_git("add", "scripts/agent_timestamp.py")
+        self.run_git("commit", "-m", "local source change")
+        self.set_checklist_state(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "workflow.files-changed-summary",
+            "X",
+            "Include a files-changed summary when source changes land",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: false", proc.stdout)
+        self.assertIn("HEAD is not yet reachable from origin/main", proc.stdout)
+
+    def test_end_allows_source_change_cycle_after_push_to_origin_main(self) -> None:
+        self.write_agents_md()
+        self.init_git_repo()
+        self.init_origin_main_remote()
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        (self.root / "scripts" / "agent_timestamp.py").write_text(
+            (self.root / "scripts" / "agent_timestamp.py").read_text(encoding="utf-8")
+            + "\n# source change for push guard success\n",
+            encoding="utf-8",
+        )
+        self.run_git("add", "scripts/agent_timestamp.py")
+        self.run_git("commit", "-m", "pushed source change")
+        self.run_git("push", "origin", "HEAD:main")
+        self.set_checklist_state(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "workflow.files-changed-summary",
+            "X",
+            "Include a files-changed summary when source changes land",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: true", proc.stdout)
+        self.assertIn("HEAD is reachable from origin/main", proc.stdout)
 
 
 if __name__ == "__main__":
