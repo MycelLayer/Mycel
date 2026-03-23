@@ -93,6 +93,7 @@
 
 | English term | 建議中文 | 補充說明 |
 | --- | --- | --- |
+| Code Quality Hotspots (CQH) | Code Quality Hotspots / 程式碼品質熱點 | 指由 repo 腳本彙整出的程式碼風險熱點報表；目前 issue `#31` 這類追蹤項會用 `CQH` 作為縮寫。 |
 | reflexive estimation task | reflexive estimation task / 反身估算任務 | 指估算行為本身會改變被估算對象的成本、狀態或結果；例如 agent 為了估算本 workcycle 還會消耗多少 token 而進一步分析、列選項或補充說明，這些新增輸出又反過來增加 token 消耗。 |
 | reflexive token estimation | reflexive token estimation / 反身 token 估算 | `reflexive estimation task` 在 LLM / agent token 預算語境下的具體寫法；通常表示估算過程本身會吃掉 context window 或 token budget。 |
 | observer effect | 觀測者效應 | 可作為直觀比喻，強調觀測或量測行為本身改變系統；在工程文件中可用來輔助解釋 `reflexive estimation task`，但不應替代其較精確的工作流術語。 |

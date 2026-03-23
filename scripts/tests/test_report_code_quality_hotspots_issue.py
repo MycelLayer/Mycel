@@ -57,6 +57,35 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
             report.ranked_candidates(scan, 2),
         )
 
+    def test_categorized_hotspots_groups_ranked_candidates_by_kind(self) -> None:
+        scan = "\n".join(
+            [
+                "Code-quality hotspot warnings...",
+                "Summary: 2 file-size, 1 function-size, 1 literal-repeat, 1 numeric-literal-repeat",
+                "",
+                "Ranked split candidates:",
+                "1. score=10 crates/a.rs | file 900 lines; long functions=1 [f@L1=120]; repeated literals=0 [none]; numeric literals=0 [none]",
+                "2. score=8 crates/b.rs | file 850 lines (under file threshold); long functions=0 [none]; repeated literals=1 [L9 x3]; numeric literals=1 [7@L10 x4]",
+            ]
+        )
+        grouped = report.categorized_hotspots(scan, 5)
+        self.assertEqual(
+            ["- crates/a.rs (rank 1, score=10, 900 lines)"],
+            grouped["file-size"],
+        )
+        self.assertEqual(
+            ["- crates/a.rs (rank 1, score=10, 1 long functions: f@L1=120)"],
+            grouped["function-size"],
+        )
+        self.assertEqual(
+            ["- crates/b.rs (rank 2, score=8, 1 repeated literals: L9 x3)"],
+            grouped["literal-repeat"],
+        )
+        self.assertEqual(
+            ["- crates/b.rs (rank 2, score=8, 1 numeric literal repeats: 7@L10 x4)"],
+            grouped["numeric-literal-repeat"],
+        )
+
     def test_build_issue_body_includes_hidden_markers(self) -> None:
         scan = "\n".join(
             [
@@ -64,7 +93,7 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
                 "Summary: 1 file-size, 1 function-size",
                 "",
                 "Ranked split candidates:",
-                "1. score=10 crates/a.rs | file 900 lines; long functions=1 [f@L1=120]; repeated literals=0 [none]",
+                "1. score=10 crates/a.rs | file 900 lines; long functions=1 [f@L1=120]; repeated literals=0 [none]; numeric literals=0 [none]",
             ]
         )
         body = report.build_issue_body(
@@ -75,13 +104,15 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
         )
         self.assertIn("<!-- hotspot-report-head: abc123def456 -->", body)
         self.assertIn("<!-- hotspot-report-threshold: 20 -->", body)
-        self.assertIn("Top split candidates", body)
+        self.assertIn("Hotspots by category", body)
+        self.assertIn("### `file-size`", body)
+        self.assertIn("### `function-size`", body)
         self.assertIn("## Snapshot", body)
         self.assertIn("## Manual refresh", body)
         self.assertIn("Code Quality Hotspots (`abc123d`)", body)
         self.assertIn("Refresh threshold: `20` commits", body)
         self.assertIn("--title 'Code Quality Hotspots'", body)
-        self.assertIn("crates/a.rs", body)
+        self.assertIn("- crates/a.rs (rank 1, score=10, 900 lines)", body)
 
     def test_close_matching_open_issues_closes_only_open_matches(self) -> None:
         args = report.parse_args.__globals__["argparse"].Namespace(repo=None, title=report.DEFAULT_TITLE)

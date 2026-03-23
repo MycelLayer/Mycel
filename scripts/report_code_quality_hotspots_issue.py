@@ -6,6 +6,7 @@ import argparse
 import re
 import subprocess
 import sys
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +26,21 @@ class IssueRecord:
     title: str
     state: str
     body: str
+
+
+@dataclass(frozen=True)
+class RankedCandidate:
+    rank: int
+    score: int
+    path: str
+    file_lines: int
+    file_over_threshold: bool
+    function_count: int
+    function_note: str
+    literal_count: int
+    literal_note: str
+    numeric_count: int
+    numeric_note: str
 
 
 def parse_args() -> argparse.Namespace:
@@ -185,6 +201,67 @@ def ranked_candidates(scan_text: str, top_n: int) -> list[str]:
     return ranked[:top_n]
 
 
+def parse_ranked_candidate(line: str) -> RankedCandidate | None:
+    match = re.match(
+        r"^(?P<rank>\d+)\.\s+score=(?P<score>\d+)\s+(?P<path>\S+)\s+\|\s+"
+        r"file\s+(?P<file_lines>\d+)\s+lines(?P<file_under>\s+\(under file threshold\))?;\s+"
+        r"long functions=(?P<function_count>\d+)\s+\[(?P<function_note>.*)\];\s+"
+        r"repeated literals=(?P<literal_count>\d+)\s+\[(?P<literal_note>.*)\];\s+"
+        r"numeric literals=(?P<numeric_count>\d+)\s+\[(?P<numeric_note>.*)\]$",
+        line,
+    )
+    if match is None:
+        return None
+    return RankedCandidate(
+        rank=int(match.group("rank")),
+        score=int(match.group("score")),
+        path=match.group("path"),
+        file_lines=int(match.group("file_lines")),
+        file_over_threshold=match.group("file_under") is None,
+        function_count=int(match.group("function_count")),
+        function_note=match.group("function_note"),
+        literal_count=int(match.group("literal_count")),
+        literal_note=match.group("literal_note"),
+        numeric_count=int(match.group("numeric_count")),
+        numeric_note=match.group("numeric_note"),
+    )
+
+
+def categorized_hotspots(scan_text: str, top_n: int) -> OrderedDict[str, list[str]]:
+    grouped: OrderedDict[str, list[str]] = OrderedDict(
+        (
+            ("file-size", []),
+            ("function-size", []),
+            ("literal-repeat", []),
+            ("numeric-literal-repeat", []),
+        )
+    )
+    for line in ranked_candidates(scan_text, top_n):
+        candidate = parse_ranked_candidate(line)
+        if candidate is None:
+            continue
+        if candidate.file_over_threshold:
+            grouped["file-size"].append(
+                f"- {candidate.path} (rank {candidate.rank}, score={candidate.score}, {candidate.file_lines} lines)"
+            )
+        if candidate.function_count > 0:
+            grouped["function-size"].append(
+                f"- {candidate.path} (rank {candidate.rank}, score={candidate.score}, "
+                f"{candidate.function_count} long functions: {candidate.function_note})"
+            )
+        if candidate.literal_count > 0:
+            grouped["literal-repeat"].append(
+                f"- {candidate.path} (rank {candidate.rank}, score={candidate.score}, "
+                f"{candidate.literal_count} repeated literals: {candidate.literal_note})"
+            )
+        if candidate.numeric_count > 0:
+            grouped["numeric-literal-repeat"].append(
+                f"- {candidate.path} (rank {candidate.rank}, score={candidate.score}, "
+                f"{candidate.numeric_count} numeric literal repeats: {candidate.numeric_note})"
+            )
+    return grouped
+
+
 def summary_line(scan_text: str) -> str:
     for line in scan_text.splitlines():
         if line.startswith("Summary: "):
@@ -194,11 +271,21 @@ def summary_line(scan_text: str) -> str:
 
 def build_issue_body(*, head_rev: str, threshold: int, scan_text: str, top_n: int) -> str:
     short = short_head(head_rev)
-    ranked = ranked_candidates(scan_text, top_n)
-    if ranked:
-        ranked_block = "\n".join(f"- {line}" for line in ranked)
-    else:
-        ranked_block = "- No ranked split candidates were emitted."
+    grouped = categorized_hotspots(scan_text, top_n)
+    grouped_sections: list[str] = []
+    for category, entries in grouped.items():
+        grouped_sections.extend(
+            [
+                f"### `{category}`",
+                (
+                    f"_From the top {top_n} ranked hotspot candidates._"
+                    if entries
+                    else f"_No top-{top_n} ranked hotspot candidates matched this category._"
+                ),
+                *(entries or ["- None in the current top-ranked hotspot set."]),
+                "",
+            ]
+        )
     return "\n".join(
         [
             f"# Code Quality Hotspots (`{short}`)",
@@ -210,8 +297,8 @@ def build_issue_body(*, head_rev: str, threshold: int, scan_text: str, top_n: in
             f"- Refresh threshold: `{threshold}` commits",
             f"- {summary_line(scan_text).removeprefix('Summary: ')}",
             "",
-            "## Top split candidates",
-            ranked_block,
+            "## Hotspots by category",
+            *grouped_sections,
             "",
             "## Manual refresh",
             "```bash",
