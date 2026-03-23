@@ -279,6 +279,15 @@ struct ViewInspectSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct ViewCurrentDocumentSummary {
+    doc_id: String,
+    current_view_id: String,
+    current_revision_id: String,
+    maintainer: String,
+    timestamp: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct ViewCurrentSummary {
     store_root: PathBuf,
     manifest_path: PathBuf,
@@ -292,6 +301,7 @@ struct ViewCurrentSummary {
     current_document_revision_id: Option<String>,
     documents: BTreeMap<String, String>,
     current_profile_document_view_ids: BTreeMap<String, String>,
+    current_documents: Vec<ViewCurrentDocumentSummary>,
     notes: Vec<String>,
     errors: Vec<String>,
 }
@@ -362,6 +372,7 @@ impl ViewCurrentSummary {
             current_document_revision_id: None,
             documents: BTreeMap::new(),
             current_profile_document_view_ids: BTreeMap::new(),
+            current_documents: Vec::new(),
             notes: Vec::new(),
             errors: Vec::new(),
         }
@@ -629,6 +640,20 @@ fn print_view_current_text(summary: &ViewCurrentSummary) -> i32 {
     );
     for (doc_id, current_view_id) in &summary.current_profile_document_view_ids {
         println!("current profile document view: {doc_id} -> {current_view_id}");
+    }
+    println!(
+        "current document summary count: {}",
+        summary.current_documents.len()
+    );
+    for current in &summary.current_documents {
+        println!(
+            "current document: {} view={} revision={} maintainer={} timestamp={}",
+            current.doc_id,
+            current.current_view_id,
+            current.current_revision_id,
+            current.maintainer,
+            current.timestamp
+        );
     }
     println!("document count: {}", summary.documents.len());
     for (doc_id, revision_id) in &summary.documents {
@@ -1185,6 +1210,41 @@ fn view_current(
     if let Some(doc_id) = &doc_id {
         summary.current_document_revision_id = record.documents.get(doc_id).cloned();
     }
+    let mut current_documents = Vec::new();
+    for (current_doc_id, current_view_id) in &summary.current_profile_document_view_ids {
+        let Some(current_record) = find_view_record(&manifest, current_view_id) else {
+            summary.push_error(format!(
+                "current governance view '{}' for document '{}' is missing from persisted governance indexes",
+                current_view_id, current_doc_id
+            ));
+            return if json {
+                print_view_current_json(&summary)
+            } else {
+                Ok(print_view_current_text(&summary))
+            };
+        };
+        let Some(current_revision_id) = current_record.documents.get(current_doc_id).cloned()
+        else {
+            summary.push_error(format!(
+                "current governance view '{}' does not carry document '{}'",
+                current_view_id, current_doc_id
+            ));
+            return if json {
+                print_view_current_json(&summary)
+            } else {
+                Ok(print_view_current_text(&summary))
+            };
+        };
+        current_documents.push(ViewCurrentDocumentSummary {
+            doc_id: current_doc_id.clone(),
+            current_view_id: current_view_id.clone(),
+            current_revision_id,
+            maintainer: current_record.maintainer,
+            timestamp: current_record.timestamp,
+        });
+    }
+    current_documents.sort_by(|left, right| left.doc_id.cmp(&right.doc_id));
+    summary.current_documents = current_documents;
     summary.notes.push(
         "current governance state is read from persisted latest-view indexes instead of replaying all stored views"
             .to_string(),

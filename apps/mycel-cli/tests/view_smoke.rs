@@ -816,6 +816,30 @@ fn view_current_json_reports_profile_current_governance_state() {
         current_json["current_profile_document_view_ids"]["doc:beta"],
         view_a1["view_id"]
     );
+    assert_eq!(
+        current_json["current_documents"][0]["doc_id"],
+        json!("doc:alpha")
+    );
+    assert_eq!(
+        current_json["current_documents"][0]["current_view_id"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        current_json["current_documents"][0]["current_revision_id"],
+        json!("rev:3333333333333333333333333333333333333333333333333333333333333333")
+    );
+    assert_eq!(
+        current_json["current_documents"][1]["doc_id"],
+        json!("doc:beta")
+    );
+    assert_eq!(
+        current_json["current_documents"][1]["current_view_id"],
+        view_a1["view_id"]
+    );
+    assert_eq!(
+        current_json["current_documents"][1]["current_revision_id"],
+        json!("rev:2222222222222222222222222222222222222222222222222222222222222222")
+    );
 }
 
 #[test]
@@ -885,6 +909,14 @@ fn view_current_json_reports_doc_scoped_current_governance_state() {
     assert_eq!(
         current_json["documents"]["doc:beta"],
         json!("rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    );
+    assert_eq!(
+        current_json["current_documents"][1]["doc_id"],
+        json!("doc:beta")
+    );
+    assert_eq!(
+        current_json["current_documents"][1]["current_view_id"],
+        publish_a1["view_id"]
     );
 }
 
