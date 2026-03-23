@@ -48,12 +48,12 @@
           Mycel is still in the narrow first-client lane. The immediate goal is to finish the last
           shared-core closure work by closing the remaining <code>M2</code> replay/store fixture and
           reporting-alignment follow-up left after the richer mixed content/metadata competing-branch
-          classification landed, while keeping <code>M4</code> narrow around verified wire-session
-          reachability, minimal peer-sync closure, and the remaining session/capability/error-path
-          interop proof now that the current production replication sub-proofs are landed.
+          classification and multi-document rebuild-after-index-loss proof landed, while keeping
+          <code>M4</code> narrow around the remaining session/capability/error-path interop proof now
+          that the current production replication sub-proofs are landed.
         </p>
         <ol class="lane-list">
-          <li>Finish <code>M2</code> replay, rebuild, merge-authoring, and narrow write-path closure, with the remaining focus now narrowed to final replay/store fixture closure and any last merge-authoring reporting follow-up.</li>
+          <li>Finish <code>M2</code> replay, rebuild, merge-authoring, and narrow write-path closure, with the remaining focus now narrowed to final replay/store fixture closure and any last merge-authoring reporting follow-up after the richer mixed competing-branch classification and multi-document rebuild-after-index-loss proof landed.</li>
           <li>Expand <code>M3</code> reader-plus-governance workflows carefully on top of accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, bounded viewer score surfaces, initial governance inspect/list/publish surfaces, and persisted governance relationship summaries.</li>
           <li>Keep <code>M4</code> narrow while peer-store sync proof grows toward the remaining session/capability/error-path interop closure.</li>
         </ol>
@@ -83,7 +83,7 @@
             <div class="status partial">Substantially underway</div>
             <ul>
               <li>Replay and <code>state_hash</code></li>
-              <li>Store rebuild, indexes, and ancestry-aware render/store verification</li>
+              <li>Store rebuild, indexes, ancestry-aware render/store verification, and multi-document index-loss rebuild proof</li>
               <li>Narrow write-path closure</li>
               <li>Conservative merge authoring with broader structural coverage, newer manual-curation smoke proof, clearer metadata merge boundaries, richer mixed content/metadata competing-branch detail, and the remaining replay/store plus reporting follow-up</li>
             </ul>
@@ -180,7 +180,7 @@
               <td data-label="Area">6. Local State and Storage</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Store ingest, rebuild, and indexes exist; local transport/safety policy now persists in a separate local policy file while rebuild smoke preserves both replicated indexes and local policy state.</td>
+              <td data-label="Current read">Store ingest, rebuild, indexes, and explicit CLI proof that multi-document indexes recover after index loss from stored canonical objects all exist; local transport/safety policy now persists in a separate local policy file while rebuild smoke preserves both replicated indexes and local policy state.</td>
             </tr>
             <tr>
               <td data-label="Area">7. Wire Protocol</td>

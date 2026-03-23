@@ -221,7 +221,7 @@ Implementation anchors：
 
 目前判讀：
 
-已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、窄版 store write path、初始的保守型 merge-authoring 工作流程、author 與 merge 工作流程中更廣的 document-level index reuse、供 sync 使用的 persisted `doc_heads` index，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
+已大幅展開，但尚未完成。replay-based verification、store rebuild、persisted indexes、可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI smoke proof、窄版 store write path、初始的保守型 merge-authoring 工作流程、author 與 merge 工作流程中更廣的 document-level index reuse、供 sync 使用的 persisted `doc_heads` index，以及能保留 ancestry context 的 render/store verification 都已存在，但這個 milestone 仍未到可關閉狀態。
 
 主要剩餘缺口：
 

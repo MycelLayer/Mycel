@@ -46,13 +46,13 @@
         <h1>用一頁快速看懂 Roadmap 順序與實作進度。</h1>
         <p class="lead">
           Mycel 目前仍在窄版 first-client 主線上。眼前目標是先補齊最後一批 shared-core 收尾，亦即在
-          richer mixed content/metadata competing-branch classification 落地後，把 <code>M2</code>
-          剩餘的 replay/store fixture 與 reporting/doc alignment follow-up 收掉，再讓 <code>M4</code>
-          維持窄版範圍，聚焦在已驗證的 wire-session reachability、最小 peer-sync closure，以及
-          production replication 子證明都已落地後，剩餘的 session/capability/error-path interop proof。
+          richer mixed content/metadata competing-branch classification 與多文件 index-loss 後 rebuild
+          proof 都已落地後，把 <code>M2</code> 剩餘的 replay/store fixture 與 reporting/doc alignment
+          follow-up 收掉，再讓 <code>M4</code> 維持窄版範圍，聚焦在目前 production replication 子證明都已
+          落地後，剩餘的 session/capability/error-path interop proof。
         </p>
         <ol class="lane-list">
-          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure；目前剩餘焦點已縮到最後一批 replay/store fixture closure 與 merge-authoring reporting follow-up。</li>
+          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 與 narrow write-path closure；在 richer mixed competing-branch classification 與多文件 index-loss 後 rebuild proof 落地後，目前剩餘焦點已縮到最後一批 replay/store fixture closure 與 merge-authoring reporting follow-up。</li>
           <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish surfaces，以及 persisted governance relationship summaries 之上，謹慎擴張 <code>M3</code> 的 reader-plus-governance 工作流程。</li>
           <li>讓 <code>M4</code> 維持窄版範圍，把 peer-store sync proof 往剩餘的 session/capability/error-path interop closure 收斂。</li>
         </ol>
@@ -81,7 +81,7 @@
             <div class="status partial">已大幅展開</div>
             <ul>
               <li>Replay 與 <code>state_hash</code></li>
-              <li>Store rebuild、indexes，以及保留 ancestry context 的 render/store verification</li>
+              <li>Store rebuild、indexes、保留 ancestry context 的 render/store verification，以及多文件 index-loss 後 rebuild proof</li>
               <li>Narrow write-path closure</li>
               <li>具更廣 structural coverage、較新 manual-curation smoke proof、更清楚 metadata merge 邊界、更完整 mixed content/metadata competing-branch 細節，以及剩餘 replay/store 與 reporting follow-up 的 conservative merge authoring</li>
             </ul>
@@ -177,7 +177,7 @@
               <td data-label="Area">6. Local State and Storage</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Store ingest、rebuild 與 indexes 已存在；local transport/safety policy 現在也會保存在獨立的 local policy file，而 rebuild smoke 會同時保留 replicated indexes 與 local policy state。</td>
+              <td data-label="Current read">Store ingest、rebuild、indexes，以及可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI proof 都已存在；local transport/safety policy 現在也會保存在獨立的 local policy file，而 rebuild smoke 會同時保留 replicated indexes 與 local policy state。</td>
             </tr>
             <tr>
               <td data-label="Area">7. Wire Protocol</td>

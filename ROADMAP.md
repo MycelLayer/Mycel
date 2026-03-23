@@ -221,7 +221,7 @@ Completion gate:
 
 Current read:
 
-Substantially underway. Replay-based verification, store rebuild, persisted indexes, a narrow store write path, an initial conservative merge-authoring workflow, ancestry-context-preserving render/store verification, scoped document-level index reuse in author and merge workflows, and a persisted `doc_heads` index for sync now exist, but the milestone is still not closeable.
+Substantially underway. Replay-based verification, store rebuild, persisted indexes, explicit CLI smoke proof that multi-document indexes can be rebuilt after index loss from stored canonical objects, a narrow store write path, an initial conservative merge-authoring workflow, ancestry-context-preserving render/store verification, scoped document-level index reuse in author and merge workflows, and a persisted `doc_heads` index for sync now exist, but the milestone is still not closeable.
 
 Main remaining gaps:
 
