@@ -1,6 +1,6 @@
 # Mycel 路线图
 
-状态：major progress，已在 implementation checklist 拆成已关闭的 `M1` minimal-client gate 与活跃的 post-`M1` follow-up checklist 之后刷新；当前 active lane 已明确转到 `M2` / `M3` / `M4`，而更广的 governance persistence 与剩余的 peer interop error/session proof 仍未完成；当前规划中的 production replication 子项已补齐
+状态：major progress，已在 implementation checklist 拆成已关闭的 `M1` minimal-client gate 与活跃的 post-`M1` follow-up checklist 之后刷新；当前 active lane 已明确转到 `M2` / `M3` / `M4`，而更广的 governance persistence、在 richer mixed content/metadata competing-branch classification 落地后 `M2` 剩余的 replay/store fixture closure 与 reporting/doc alignment follow-up，以及剩余的 peer interop error/session proof 仍未完成；当前规划中的 production replication 子项已补齐
 
 这份路线图把当前 README 的优先级、implementation checklist 和 design-note 的 planning 指引整理成一份仓库级的构建顺序。
 
@@ -34,7 +34,7 @@
 
 当前这条 lane 是：
 
-1. 在已经关闭的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 和 narrow write path 的剩余收尾
+1. 在已经关闭的 `M1` gate 之上，收掉 `M2` replay、rebuild、merge-authoring 和 narrow write path 的剩余收尾；当前焦点已收窄到 richer mixed content/metadata competing-branch classification 落地后的 replay/store fixture closure 与 reporting/doc alignment follow-up
 2. 扩展 `M3` reader-plus-governance workflows，但不要重新打开已经关闭的 minimal-client gate
 3. 在当前规划中的 production replication 子项都已补齐之后，让 `M4` 从 peer-store proof 继续推进到剩余的 peer interop error/session coverage
 
@@ -221,7 +221,7 @@ Implementation anchors：
 
 主要剩余缺口：
 
-1. 保守型 merge authoring 现在已覆盖基本 move/reorder、insert/delete 组合、reparent 到新引入 parent 的 case、简单的 composed parent-chain reparenting，以及更广的初步 nested structural matrix，但更丰富的 nested/reparenting conflict cases 仍需 manual curation
+1. 保守型 merge authoring 现在已覆盖基本 move/reorder、insert/delete 组合、reparent 到新引入 parent 的 case、简单的 composed parent-chain reparenting、更广的初步 nested structural matrix、manual-curation-required 的 nested parent-choice / sibling-choice / composed-branch placement smoke proof、更细的 direct/anchor-based placement reasons，以及 richer mixed content/metadata competing-branch classification 与对应 CLI smoke coverage；这个 milestone 现在主要剩下 final replay/store closure 与 reporting/doc alignment
 
 Implementation anchors：
 
@@ -453,10 +453,10 @@ Implementation anchors：
 
 近期最高价值的工作是：
 
-1. 完成 `M1`，补齐 shared object-family coverage 和 shared canonical object mechanics
-2. 以 replay、`state_hash` 和 store-rebuild foundations 开始 `M2`
-3. 每落下一条 protocol rule，就持续加强 interop fixtures 和 negative tests
-4. 只有在 minimal core 稳定之后，才把成熟 governance behavior 变成 fixed reader-profile workflows
+1. 收掉 `M2` 最后剩余的 replay/store fixture 与 reporting/doc alignment follow-up，让 richer mixed content/metadata competing-branch classification 落地后的 milestone 描述与 proof surface 一致
+2. 以窄切片继续扩展 `M3`，补上 governance persistence 与 reader-plus-governance 后续工作，同时不要重新打开已关闭的 minimal-client gate
+3. 在当前追踪的 production replication 子项已落地后，继续为 `M4` 补上更多 deterministic 的 session、capability 与 error-path interop proofs
+4. 每当剩余规则或 follow-up slice 落地，就持续补强 interop fixtures 与 negative tests
 
 ## 什么会推动一个 Milestone 前进
 

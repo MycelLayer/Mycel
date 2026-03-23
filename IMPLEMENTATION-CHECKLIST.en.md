@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M2` / `M3` / `M4` work, with the remaining `M2` focus now narrowed to richer content-variant and metadata-variant competing-branch classification, `M3` now explicitly treated as broader governance persistence and reader/governance follow-up beyond the current reverse-index, relationship summaries, and inspect/list/publish baseline, and `M4` now focused on the broader session/capability/error-path interop coverage that remains after the currently tracked production replication sub-items landed
+Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M2` / `M3` / `M4` work, with the remaining `M2` focus now narrowed to final replay/store fixture closure and reporting/doc alignment follow-up after the richer mixed content/metadata competing-branch classification landed, `M3` now explicitly treated as broader governance persistence and reader/governance follow-up beyond the current reverse-index, relationship summaries, and inspect/list/publish baseline, and `M4` now focused on the broader session/capability/error-path interop coverage that remains after the currently tracked production replication sub-items landed
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
@@ -209,7 +209,7 @@ Use this section as the active implementation checklist for the still-open post-
 - [x] Broaden persisted-store index reuse across reader and recovery workflows so accepted-head and render paths rely less on ad hoc CLI-only glue.
 - [x] Add stronger replay and store-rebuild fixture coverage beyond the current direct proof points, including more realistic multi-document and recovery-oriented fixture sets.
 - [x] Move more authoring and replay helper ownership into `mycel-core` so storage-write and replay behavior are not disproportionately CLI-driven.
-- [ ] Expand conservative merge-authoring coverage for the remaining content-variant and metadata-variant conflict cases that still collapse multiple non-primary alternatives into coarse manual-curation classifications.
+- [ ] Close the remaining replay/store fixture and reporting/doc-alignment follow-up now that richer mixed content/metadata competing-branch classification has landed.
 - [x] Define and verify the intended narrow object-authoring and storage-write path that remains open after the closed minimal-client gate.
 
 ## 15. `M3` Reader and Governance Follow-Up

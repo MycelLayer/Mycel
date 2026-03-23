@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，其中 `M2` 的剩餘焦點已縮到更細緻的 content-variant 與 metadata-variant competing-branch classification，`M3` 現在明確指向超出目前 reverse-index、relationship summaries，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
+狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M2` / `M3` / `M4` 工作，其中 `M2` 的剩餘焦點已縮到 richer mixed content/metadata competing-branch classification 落地後，最後一批 replay/store fixture closure 與 reporting/doc alignment follow-up，`M3` 現在明確指向超出目前 reverse-index、relationship summaries，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項落地後仍未補齊的 broader session/capability/error-path interop coverage
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
 
@@ -209,7 +209,7 @@
 - [x] 擴大 persisted store indexes 在 reader 與 recovery workflows 中的重用，避免 accepted-head 與 render paths 過度依賴臨時 CLI glue。
 - [x] 補上比目前直接 proof points 更強的 replay 與 store-rebuild fixtures，涵蓋更真實的 multi-document 與 recovery-oriented 情境。
 - [x] 把更多 authoring 與 replay helper ownership 收斂到 `mycel-core`，避免 storage-write 與 replay 行為過度偏 CLI 驅動。
-- [ ] 擴大 conservative merge-authoring 對 remaining content-variant 與 metadata-variant conflict cases 的 coverage，處理目前仍會把多個 non-primary alternatives 壓成過度粗略 manual-curation 分類的情況。
+- [ ] 在 richer mixed content/metadata competing-branch classification 已落地後，收掉剩餘的 replay/store fixture 與 reporting/doc alignment follow-up。
 - [x] 明確定義並驗證在 minimal-client gate 之後仍未完成的 narrow object-authoring 與 storage-write path。
 
 ## 15. `M3` Reader 與 Governance Follow-Up

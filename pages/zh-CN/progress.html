@@ -45,13 +45,14 @@
         <div class="eyebrow">公开进度摘要</div>
         <h1>用一页看懂 Roadmap 顺序和 implementation 状态。</h1>
         <p class="lead">
-          Mycel 目前仍处在窄版 first-client lane。眼前目标是先收掉最后一批 shared-core closure，同时让
-          <code>M2</code> 剩余的 content-variant 与 metadata-variant merge classification 更细化，再让
-          <code>M4</code> 保持窄范围，聚焦在已验证 wire-session reachability、最小 peer-sync
-          closure，以及在当前 production replication 子证明都已落地之后，剩余的 session/capability/error-path interop proof。
+          Mycel 目前仍处在窄版 first-client lane。眼前目标是先收掉最后一批 shared-core closure，也就是在
+          richer mixed content/metadata competing-branch classification 落地后，补齐 <code>M2</code>
+          剩余的 replay/store fixture 与 reporting/doc alignment follow-up，再让 <code>M4</code> 保持窄范围，
+          聚焦在已验证 wire-session reachability、最小 peer-sync closure，以及在当前 production replication
+          子证明都已落地之后，剩余的 session/capability/error-path interop proof。
         </p>
         <ol class="lane-list">
-          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 和 narrow write-path closure；当前剩余焦点已收窄到更细的 content-variant 与 metadata-variant competing-branch classification。</li>
+          <li>完成 <code>M2</code> 的 replay、rebuild、merge-authoring 和 narrow write-path closure；当前剩余焦点已收窄到最后一批 replay/store fixture closure 与 merge-authoring reporting follow-up。</li>
           <li>在 accepted-head inspect/render、更清楚的 available-profile 和 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish surfaces，以及 persisted governance relationship summaries 之上，谨慎扩展 <code>M3</code> 的 reader-plus-governance workflows。</li>
           <li>让 <code>M4</code> 保持窄范围，把 peer-store sync proof 往剩余的 session/capability/error-path interop closure 收敛。</li>
         </ol>
@@ -82,7 +83,7 @@
               <li>Replay 和 <code>state_hash</code></li>
               <li>Store rebuild、indexes，以及带 ancestry-aware 的 render/store verification</li>
               <li>Narrow write-path closure</li>
-              <li>带更广 structural coverage、较新 manual-curation smoke proof、更清楚 metadata merge 边界，以及剩余 content/metadata competing-branch 细节工作的 conservative merge authoring</li>
+              <li>带更广 structural coverage、较新 manual-curation smoke proof、更清楚 metadata merge 边界、更完整 mixed content/metadata competing-branch 细节，以及剩余 replay/store 与 reporting follow-up 的 conservative merge authoring</li>
             </ul>
           </article>
           <article class="card">
@@ -200,7 +201,7 @@
               <td data-label="Area">10. Merge Generation</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay verification 与保守型 local merge-authoring profile 已存在，涵盖 structural move/reorder、新 parent reparenting、简单 composed parent-chain coverage、更广的 nested structural matrix、更细的 direct/anchor-based placement reasons，以及更清楚的 metadata competing-branch 边界；但剩余的 content-variant 与 metadata-variant 分支仍会把多个 non-primary alternatives 压成过于粗略的输出。</td>
+              <td data-label="Current read">Replay verification 与保守型 local merge-authoring profile 已存在，涵盖 structural move/reorder、新 parent reparenting、简单 composed parent-chain coverage、更广的 nested structural matrix、更细的 direct/anchor-based placement reasons、更清楚的 metadata competing-branch 边界，以及 richer mixed content/metadata competing-branch 细节；剩余的 <code>M2</code> 工作现在已收窄到 replay/store fixture closure 与 reporting/doc alignment。</td>
             </tr>
             <tr>
               <td data-label="Area">11. CLI or API Surface</td>
