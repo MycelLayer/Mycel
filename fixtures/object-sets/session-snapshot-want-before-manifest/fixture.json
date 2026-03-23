@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-snapshot-want-before-manifest",
+    "description": "Seed injects SNAPSHOT_OFFER and then WANT before MANIFEST/HEADS so the reader rejects the transcript for missing head context",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-snapshot-want-before-manifest-test"
+        }
+    ],
+    "expected_outcomes": [
+        "snapshot-want-before-manifest-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "snapshot-want-before-manifest"
+    },
+    "notes": [
+        "Simulator adds snapshot-sync capability to HELLO, injects SNAPSHOT_OFFER, then injects WANT before MANIFEST or HEADS establish sync roots.",
+        "The transcript should fail on the standard prior-MANIFEST-or-HEADS rule, proving that SNAPSHOT_OFFER alone does not unlock WANT."
+    ]
+}
