@@ -1882,6 +1882,7 @@ fn inject_session_fault(
     match session_fault {
         "duplicate-hello" => inject_duplicate_hello_fault(transcript, signing_key),
         "messages-after-bye" => inject_messages_after_bye_fault(transcript, signing_key),
+        "object-before-manifest" => inject_object_before_manifest_fault(transcript),
         "want-before-manifest" => inject_want_before_manifest_fault(transcript, signing_key),
         "want-before-hello" => inject_want_before_hello_fault(transcript, signing_key),
         other => Err(format!("unsupported session fault '{other}'")),
@@ -1979,6 +1980,29 @@ fn inject_want_before_manifest_fault(
         }),
     )?;
     transcript.messages.insert(hello_index + 1, want);
+    Ok(())
+}
+
+fn inject_object_before_manifest_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+) -> Result<(), String> {
+    let hello_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("HELLO"))
+        .ok_or_else(|| {
+            "transcript is missing HELLO for object-before-manifest injection".to_owned()
+        })?;
+    let object_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
+        .ok_or_else(|| {
+            "transcript is missing OBJECT for object-before-manifest injection".to_owned()
+        })?;
+    let object = transcript.messages.remove(object_index);
+    let insert_index = hello_index + 1;
+    transcript.messages.insert(insert_index, object);
     Ok(())
 }
 

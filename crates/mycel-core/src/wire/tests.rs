@@ -1541,6 +1541,32 @@ fn wire_session_rejects_unrequested_object() {
 }
 
 #[test]
+fn wire_session_rejects_unrequested_object_before_manifest() {
+    let signing_key = signing_key();
+    let sender_key = sender_public_key(&signing_key);
+    let mut session = WireSession::default();
+    session
+        .register_known_peer("node:alpha", &sender_key)
+        .expect("known peer should register");
+    let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+    let object = signed_object_message(&signing_key, "node:alpha");
+    let object_id = object["payload"]["object_id"]
+        .as_str()
+        .expect("signed OBJECT payload should include object_id")
+        .to_owned();
+
+    session
+        .verify_incoming(&hello)
+        .expect("HELLO should verify");
+    let error = session.verify_incoming(&object).unwrap_err();
+
+    assert_eq!(
+        error,
+        format!("wire OBJECT '{object_id}' was not requested from 'node:alpha'")
+    );
+}
+
+#[test]
 fn wire_session_rejects_messages_after_bye() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);

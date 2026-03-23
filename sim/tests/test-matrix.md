@@ -22,6 +22,8 @@
   Reference JSON: `sim/tests/session-messages-after-bye.example.json`
 - `session-want-before-hello`: reject a sync transcript that emits `WANT` before the seed establishes the session with `HELLO`
   Reference JSON: `sim/tests/session-want-before-hello.example.json`
+- `session-object-before-manifest`: reject a sync transcript that emits `OBJECT` immediately after `HELLO`, before any `WANT` request or accepted sync roots exist
+  Reference JSON: `sim/tests/session-object-before-manifest.example.json`
 
 ## Recovery
 

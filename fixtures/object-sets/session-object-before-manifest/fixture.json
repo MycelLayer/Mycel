@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-object-before-manifest",
+    "description": "Seed injects an unsolicited OBJECT after HELLO but before MANIFEST or HEADS so the reader rejects the transcript",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-object-before-manifest-test"
+        }
+    ],
+    "expected_outcomes": [
+        "object-before-manifest-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "object-before-manifest"
+    },
+    "notes": [
+        "Simulator moves the first OBJECT to immediately after HELLO, before MANIFEST or incremental HEADS establish accepted sync roots.",
+        "The transcript should fail on the standard unrequested-OBJECT rule before any object verification or store writes happen."
+    ]
+}
