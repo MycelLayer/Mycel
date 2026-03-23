@@ -89,6 +89,19 @@ fn merge_authoring_requires_manual_curation_for_metadata_removal() {
             "merge resolution is manual-curation-required: resolved metadata key 'topic' removes primary metadata but v0.1 patch ops cannot express metadata deletion"
         ])
     );
+    assert!(
+        json_summary["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "unsupported-metadata-deletion"
+                    && detail["primary_variant"] == "\"base\""
+                    && detail["resolved_variant"] == "<absent>"
+                    && detail["competing_variants"] == json!(["\"right\""])
+            })),
+        "expected structured metadata removal detail, got {json_summary}"
+    );
 
     let _ = fs::remove_dir_all(store_root);
 }

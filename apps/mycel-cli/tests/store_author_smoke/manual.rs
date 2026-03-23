@@ -361,6 +361,19 @@ fn store_merge_authoring_flow_emits_json_summary_for_metadata_removal_manual_cur
             "merge resolution is manual-curation-required: resolved metadata key 'topic' removes primary metadata but v0.1 patch ops cannot express metadata deletion"
         ])
     );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "unsupported-metadata-deletion"
+                    && detail["primary_variant"] == "\"base\""
+                    && detail["resolved_variant"] == "<absent>"
+                    && detail["competing_variants"] == json!(["\"right\""])
+            })),
+        "expected structured metadata removal detail, got {merge_json}"
+    );
 }
 
 #[test]

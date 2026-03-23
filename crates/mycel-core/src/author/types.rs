@@ -78,6 +78,7 @@ pub enum MergeReasonVariantKind {
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum MergeReasonKind {
+    UnsupportedMetadataDeletion,
     SelectedNonPrimaryParentVariant,
     KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative,
     MultipleCompetingAlternativesRemainAfterSelectedVariant,

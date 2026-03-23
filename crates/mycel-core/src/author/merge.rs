@@ -885,10 +885,26 @@ fn assess_merge_resolution(
             .collect::<BTreeSet<_>>();
 
         if resolved_variant == "<absent>" && primary_variant != "<absent>" {
-            reasons.push(format!(
-                "resolved metadata key '{}' removes primary metadata but v0.1 patch ops cannot express metadata deletion",
-                key
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::MetadataKey,
+                    subject_id: key.clone(),
+                    variant_kind: MergeReasonVariantKind::Metadata,
+                    reason_kind: MergeReasonKind::UnsupportedMetadataDeletion,
+                    branch_kind: None,
+                    primary_variant: primary_variant.clone(),
+                    resolved_variant: resolved_variant.clone(),
+                    competing_variants: multiple_competing_variants_for_detail(
+                        &alternative_variants_raw,
+                    ),
+                },
+                format!(
+                    "resolved metadata key '{}' removes primary metadata but v0.1 patch ops cannot express metadata deletion",
+                    key
+                ),
+            );
         } else if resolved_variant != primary_variant
             && !alternative_variants.contains(&resolved_variant)
         {
