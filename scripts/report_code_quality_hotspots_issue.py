@@ -281,11 +281,6 @@ def build_issue_body(*, head_rev: str, threshold: int, scan_text: str, top_n: in
         grouped_sections.extend(
             [
                 f"### `{category}`",
-                (
-                    f"_From the top {top_n} ranked hotspot candidates._"
-                    if entries
-                    else f"_No top-{top_n} ranked hotspot candidates matched this category._"
-                ),
                 *(entries or ["1. None in the current top-ranked hotspot set."]),
                 "",
             ]

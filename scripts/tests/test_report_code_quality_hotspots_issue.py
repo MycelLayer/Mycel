@@ -113,6 +113,7 @@ class ReportCodeQualityHotspotsIssueTest(unittest.TestCase):
         self.assertIn("Refresh threshold: `20` commits", body)
         self.assertIn("--title 'Code Quality Hotspots'", body)
         self.assertIn("1. crates/a.rs (rank 1, score=10, 900 lines)", body)
+        self.assertNotIn("From the top 5 ranked hotspot candidates.", body)
 
     def test_close_matching_open_issues_closes_only_open_matches(self) -> None:
         args = report.parse_args.__globals__["argparse"].Namespace(repo=None, title=report.DEFAULT_TITLE)
