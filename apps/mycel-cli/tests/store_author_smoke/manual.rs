@@ -1377,3 +1377,508 @@ fn store_merge_authoring_flow_emits_json_summary_for_attr_variant_manual_curatio
         json!(["merge resolution is manual-curation-required: block 'blk:merge-attrs' changes attrs in an unsupported way"])
     );
 }
+
+#[test]
+fn store_merge_authoring_flow_emits_json_summary_for_manual_content_variant_mismatch() {
+    let store_dir = create_temp_dir("store-merge-manual-content-variant-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-manual-content-variant-key");
+    let store_root = path_arg(store_dir.path());
+    let key_file = path_arg(&key_path);
+    let (base_ops_dir, base_ops_path) = write_content_addition_ops_for_block_file(
+        "store-merge-manual-content-variant-base-ops",
+        "blk:manual-content-detail",
+        "Base",
+    );
+    let (_right_ops_dir, right_ops_path) = write_content_variant_ops_for_block_file(
+        "store-merge-manual-content-variant-right-ops",
+        "blk:manual-content-detail",
+        "Right",
+    );
+    let (_center_ops_dir, center_ops_path) = write_content_variant_ops_for_block_file(
+        "store-merge-manual-content-variant-center-ops",
+        "blk:manual-content-detail",
+        "Center",
+    );
+    let (_resolved_dir, resolved_state_path) = write_content_entries_resolved_state_for_doc_file(
+        "store-merge-manual-content-variant-state",
+        "doc:author-smoke-manual-content-variant",
+        &[("blk:manual-content-detail", "Merged")],
+    );
+    let base_ops_file = path_arg(&base_ops_path);
+    let right_ops_file = path_arg(&right_ops_path);
+    let center_ops_file = path_arg(&center_ops_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--title",
+        "Author Smoke Manual Content Variant",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "90",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let base_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &base_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "91",
+        "--json",
+    ]);
+    assert_success(&base_patch);
+    let base_patch_json = assert_json_status(&base_patch, "ok");
+    let base_patch_id = base_patch_json["patch_id"]
+        .as_str()
+        .expect("base patch_id should be string")
+        .to_string();
+
+    let base_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &base_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "92",
+        "--json",
+    ]);
+    assert_success(&base_revision);
+    let base_revision_json = assert_json_status(&base_revision, "ok");
+    let base_revision_id = base_revision_json["revision_id"]
+        .as_str()
+        .expect("base revision_id should be string")
+        .to_string();
+
+    let right_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &right_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "93",
+        "--json",
+    ]);
+    assert_success(&right_patch);
+    let right_patch_json = assert_json_status(&right_patch, "ok");
+    let right_patch_id = right_patch_json["patch_id"]
+        .as_str()
+        .expect("right patch_id should be string")
+        .to_string();
+
+    let right_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &right_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "94",
+        "--json",
+    ]);
+    assert_success(&right_revision);
+    let right_revision_json = assert_json_status(&right_revision, "ok");
+    let right_revision_id = right_revision_json["revision_id"]
+        .as_str()
+        .expect("right revision_id should be string")
+        .to_string();
+
+    let center_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &center_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "95",
+        "--json",
+    ]);
+    assert_success(&center_patch);
+    let center_patch_json = assert_json_status(&center_patch, "ok");
+    let center_patch_id = center_patch_json["patch_id"]
+        .as_str()
+        .expect("center patch_id should be string")
+        .to_string();
+
+    let center_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &center_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "96",
+        "--json",
+    ]);
+    assert_success(&center_revision);
+    let center_revision_json = assert_json_status(&center_revision, "ok");
+    let center_revision_id = center_revision_json["revision_id"]
+        .as_str()
+        .expect("center revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-content-variant",
+        "--parent",
+        &base_revision_id,
+        "--parent",
+        &right_revision_id,
+        "--parent",
+        &center_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "97",
+        "--json",
+    ]);
+
+    assert_exit_code(&merge, 1);
+    let merge_json = parse_json_stdout(&merge);
+    assert_eq!(merge_json["status"], "failed");
+    assert_eq!(merge_json["merge_outcome"], "manual-curation-required");
+    assert!(
+        merge_json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "merge resolution is manual-curation-required: resolved block 'blk:manual-content-detail' does not match any parent variant",
+                    )
+                })
+            })),
+        "expected manual content mismatch error in JSON, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "blk:manual-content-detail"
+                    && detail["variant_kind"] == "content"
+                    && detail["reason_kind"] == "no-matching-parent-variant"
+                    && detail["primary_variant"]
+                        .as_str()
+                        .is_some_and(|variant| variant.contains("Base"))
+                    && detail["resolved_variant"]
+                        .as_str()
+                        .is_some_and(|variant| variant.contains("Merged"))
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| {
+                            variants.len() == 2
+                                && variants.iter().any(|variant| {
+                                    variant
+                                        .as_str()
+                                        .is_some_and(|entry| entry.contains("Right"))
+                                })
+                                && variants.iter().any(|variant| {
+                                    variant
+                                        .as_str()
+                                        .is_some_and(|entry| entry.contains("Center"))
+                                })
+                        })
+            })),
+        "expected structured manual content detail, got {merge_json}"
+    );
+
+    let _ = base_ops_dir;
+}
+
+#[test]
+fn store_merge_authoring_flow_emits_json_summary_for_manual_metadata_variant_mismatch() {
+    let store_dir = create_temp_dir("store-merge-manual-metadata-variant-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-manual-metadata-variant-key");
+    let store_root = path_arg(store_dir.path());
+    let key_file = path_arg(&key_path);
+    let (_base_ops_dir, base_ops_path) =
+        write_metadata_variant_ops_file("store-merge-manual-metadata-variant-base-ops", "base");
+    let (_right_ops_dir, right_ops_path) =
+        write_metadata_variant_ops_file("store-merge-manual-metadata-variant-right-ops", "right");
+    let (_center_ops_dir, center_ops_path) =
+        write_metadata_variant_ops_file("store-merge-manual-metadata-variant-center-ops", "center");
+    let (_resolved_dir, resolved_state_path) = write_metadata_variant_resolved_state_for_doc_file(
+        "store-merge-manual-metadata-variant-state",
+        "doc:author-smoke-manual-metadata-variant",
+        "merged",
+    );
+    let base_ops_file = path_arg(&base_ops_path);
+    let right_ops_file = path_arg(&right_ops_path);
+    let center_ops_file = path_arg(&center_ops_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--title",
+        "Author Smoke Manual Metadata Variant",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "100",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let base_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &base_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "101",
+        "--json",
+    ]);
+    assert_success(&base_patch);
+    let base_patch_json = assert_json_status(&base_patch, "ok");
+    let base_patch_id = base_patch_json["patch_id"]
+        .as_str()
+        .expect("base patch_id should be string")
+        .to_string();
+
+    let base_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &base_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "102",
+        "--json",
+    ]);
+    assert_success(&base_revision);
+    let base_revision_json = assert_json_status(&base_revision, "ok");
+    let base_revision_id = base_revision_json["revision_id"]
+        .as_str()
+        .expect("base revision_id should be string")
+        .to_string();
+
+    let right_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &right_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "103",
+        "--json",
+    ]);
+    assert_success(&right_patch);
+    let right_patch_json = assert_json_status(&right_patch, "ok");
+    let right_patch_id = right_patch_json["patch_id"]
+        .as_str()
+        .expect("right patch_id should be string")
+        .to_string();
+
+    let right_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &right_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "104",
+        "--json",
+    ]);
+    assert_success(&right_revision);
+    let right_revision_json = assert_json_status(&right_revision, "ok");
+    let right_revision_id = right_revision_json["revision_id"]
+        .as_str()
+        .expect("right revision_id should be string")
+        .to_string();
+
+    let center_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--base-revision",
+        &base_revision_id,
+        "--ops",
+        &center_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "105",
+        "--json",
+    ]);
+    assert_success(&center_patch);
+    let center_patch_json = assert_json_status(&center_patch, "ok");
+    let center_patch_id = center_patch_json["patch_id"]
+        .as_str()
+        .expect("center patch_id should be string")
+        .to_string();
+
+    let center_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--parent",
+        &base_revision_id,
+        "--patch",
+        &center_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "106",
+        "--json",
+    ]);
+    assert_success(&center_revision);
+    let center_revision_json = assert_json_status(&center_revision, "ok");
+    let center_revision_id = center_revision_json["revision_id"]
+        .as_str()
+        .expect("center revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke-manual-metadata-variant",
+        "--parent",
+        &base_revision_id,
+        "--parent",
+        &right_revision_id,
+        "--parent",
+        &center_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "107",
+        "--json",
+    ]);
+
+    assert_exit_code(&merge, 1);
+    let merge_json = parse_json_stdout(&merge);
+    assert_eq!(merge_json["status"], "failed");
+    assert_eq!(merge_json["merge_outcome"], "manual-curation-required");
+    assert!(
+        merge_json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "merge resolution is manual-curation-required: resolved metadata key 'topic' does not match any parent variant",
+                    )
+                })
+            })),
+        "expected manual metadata mismatch error in JSON, got {merge_json}"
+    );
+    assert!(
+        merge_json["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "no-matching-parent-variant"
+                    && detail["primary_variant"] == "\"base\""
+                    && detail["resolved_variant"] == "\"merged\""
+                    && detail["competing_variants"] == json!(["\"center\"", "\"right\""])
+            })),
+        "expected structured manual metadata detail, got {merge_json}"
+    );
+}

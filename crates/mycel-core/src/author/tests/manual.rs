@@ -507,3 +507,261 @@ fn merge_authoring_exposes_structured_detail_for_manual_parent_placement_mismatc
 
     let _ = fs::remove_dir_all(store_root);
 }
+
+#[test]
+fn merge_authoring_exposes_structured_detail_for_manual_content_variant_mismatch() {
+    let store_root = temp_dir("merge-manual-content-variant-detail");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-manual-content-variant-detail".to_string(),
+            title: "Merge Manual Content Variant Detail".to_string(),
+            language: "en".to_string(),
+            timestamp: 90,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-content-variant-detail",
+        &document.genesis_revision_id,
+        91,
+        92,
+        json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:manual-content-detail",
+                    "block_type": "paragraph",
+                    "content": "Base",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]),
+    );
+
+    let right_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-content-variant-detail",
+        &base_revision_id,
+        93,
+        94,
+        json!([
+            {
+                "op": "replace_block",
+                "block_id": "blk:manual-content-detail",
+                "new_content": "Right"
+            }
+        ]),
+    );
+
+    let center_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-content-variant-detail",
+        &base_revision_id,
+        95,
+        96,
+        json!([
+            {
+                "op": "replace_block",
+                "block_id": "blk:manual-content-detail",
+                "new_content": "Center"
+            }
+        ]),
+    );
+
+    let error = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-manual-content-variant-detail".to_string(),
+            parents: vec![base_revision_id, right_revision_id, center_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-manual-content-variant-detail".to_string(),
+                blocks: vec![paragraph_block("blk:manual-content-detail", "Merged")],
+                metadata: serde_json::Map::new(),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 97,
+        },
+    )
+    .expect_err("manual content mismatch should require manual curation");
+
+    let json_summary = error
+        .json_summary()
+        .expect("manual curation error should expose json summary");
+    assert_eq!(json_summary["status"], "failed");
+    assert_eq!(json_summary["merge_outcome"], "manual-curation-required");
+    assert!(
+        json_summary["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message.contains(
+                        "resolved block 'blk:manual-content-detail' does not match any parent variant",
+                    )
+                })
+            })),
+        "expected manual content mismatch error, got {json_summary}"
+    );
+    assert!(
+        json_summary["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "blk:manual-content-detail"
+                    && detail["variant_kind"] == "content"
+                    && detail["reason_kind"] == "no-matching-parent-variant"
+                    && detail["primary_variant"]
+                        .as_str()
+                        .is_some_and(|variant| variant.contains("Base"))
+                    && detail["resolved_variant"]
+                        .as_str()
+                        .is_some_and(|variant| variant.contains("Merged"))
+                    && detail["competing_variants"]
+                        .as_array()
+                        .is_some_and(|variants| {
+                            variants.len() == 2
+                                && variants.iter().any(|variant| {
+                                    variant
+                                        .as_str()
+                                        .is_some_and(|entry| entry.contains("Right"))
+                                })
+                                && variants.iter().any(|variant| {
+                                    variant
+                                        .as_str()
+                                        .is_some_and(|entry| entry.contains("Center"))
+                                })
+                        })
+            })),
+        "expected structured manual content detail, got {json_summary}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}
+
+#[test]
+fn merge_authoring_exposes_structured_detail_for_manual_metadata_variant_mismatch() {
+    let store_root = temp_dir("merge-manual-metadata-variant-detail");
+    let signing_key = signing_key();
+    let document = create_document_in_store(
+        &store_root,
+        &signing_key,
+        &DocumentCreateParams {
+            doc_id: "doc:merge-manual-metadata-variant-detail".to_string(),
+            title: "Merge Manual Metadata Variant Detail".to_string(),
+            language: "en".to_string(),
+            timestamp: 100,
+        },
+    )
+    .expect("document should be created");
+
+    let base_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-metadata-variant-detail",
+        &document.genesis_revision_id,
+        101,
+        102,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "base"
+                }
+            }
+        ]),
+    );
+
+    let right_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-metadata-variant-detail",
+        &base_revision_id,
+        103,
+        104,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "right"
+                }
+            }
+        ]),
+    );
+
+    let center_revision_id = commit_ops_revision(
+        &store_root,
+        &signing_key,
+        "doc:merge-manual-metadata-variant-detail",
+        &base_revision_id,
+        105,
+        106,
+        json!([
+            {
+                "op": "set_metadata",
+                "metadata": {
+                    "topic": "center"
+                }
+            }
+        ]),
+    );
+
+    let error = create_merge_revision_in_store(
+        &store_root,
+        &signing_key,
+        &MergeRevisionCreateParams {
+            doc_id: "doc:merge-manual-metadata-variant-detail".to_string(),
+            parents: vec![base_revision_id, right_revision_id, center_revision_id],
+            resolved_state: crate::replay::DocumentState {
+                doc_id: "doc:merge-manual-metadata-variant-detail".to_string(),
+                blocks: Vec::new(),
+                metadata: serde_json::Map::from_iter([(
+                    "topic".to_string(),
+                    Value::String("merged".to_string()),
+                )]),
+            },
+            merge_strategy: "semantic-block-merge".to_string(),
+            timestamp: 107,
+        },
+    )
+    .expect_err("manual metadata mismatch should require manual curation");
+
+    let json_summary = error
+        .json_summary()
+        .expect("manual curation error should expose json summary");
+    assert_eq!(json_summary["status"], "failed");
+    assert_eq!(json_summary["merge_outcome"], "manual-curation-required");
+    assert!(
+        json_summary["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|entry| {
+                entry.as_str().is_some_and(|message| {
+                    message
+                        .contains("resolved metadata key 'topic' does not match any parent variant")
+                })
+            })),
+        "expected manual metadata mismatch error, got {json_summary}"
+    );
+    assert!(
+        json_summary["merge_reason_details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|detail| {
+                detail["subject_id"] == "topic"
+                    && detail["variant_kind"] == "metadata"
+                    && detail["reason_kind"] == "no-matching-parent-variant"
+                    && detail["primary_variant"] == "\"base\""
+                    && detail["resolved_variant"] == "\"merged\""
+                    && detail["competing_variants"] == json!(["\"center\"", "\"right\""])
+            })),
+        "expected structured manual metadata detail, got {json_summary}"
+    );
+
+    let _ = fs::remove_dir_all(store_root);
+}

@@ -226,10 +226,26 @@ fn assess_merge_resolution(
         if resolved_content_variant != primary_content_variant
             && !alternative_content_variants.contains(&resolved_content_variant)
         {
-            reasons.push(format!(
-                "resolved block '{}' does not match any parent variant",
-                block_id
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::Block,
+                    subject_id: block_id.clone(),
+                    variant_kind: MergeReasonVariantKind::Content,
+                    reason_kind: MergeReasonKind::NoMatchingParentVariant,
+                    branch_kind: None,
+                    primary_variant: primary_content_variant.clone(),
+                    resolved_variant: resolved_content_variant.clone(),
+                    competing_variants: multiple_competing_variants_for_detail(
+                        &alternative_content_variants_raw,
+                    ),
+                },
+                format!(
+                    "resolved block '{}' does not match any parent variant",
+                    block_id
+                ),
+            );
         } else if resolved_content_variant != primary_content_variant
             && alternative_content_variants.contains(&resolved_content_variant)
             && (primary_content_variant != "<absent>"
@@ -876,10 +892,26 @@ fn assess_merge_resolution(
         } else if resolved_variant != primary_variant
             && !alternative_variants.contains(&resolved_variant)
         {
-            reasons.push(format!(
-                "resolved metadata key '{}' does not match any parent variant",
-                key
-            ));
+            push_variant_reason(
+                &mut reasons,
+                &mut reason_details,
+                MergeReasonDetail {
+                    subject_kind: MergeReasonSubjectKind::MetadataKey,
+                    subject_id: key.clone(),
+                    variant_kind: MergeReasonVariantKind::Metadata,
+                    reason_kind: MergeReasonKind::NoMatchingParentVariant,
+                    branch_kind: None,
+                    primary_variant: primary_variant.clone(),
+                    resolved_variant: resolved_variant.clone(),
+                    competing_variants: multiple_competing_variants_for_detail(
+                        &alternative_variants_raw,
+                    ),
+                },
+                format!(
+                    "resolved metadata key '{}' does not match any parent variant",
+                    key
+                ),
+            );
         } else if resolved_variant != primary_variant
             && alternative_variants.contains(&resolved_variant)
         {
