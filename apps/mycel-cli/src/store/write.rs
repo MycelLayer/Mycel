@@ -254,6 +254,15 @@ fn print_merge_revision_create_text(summary: &MergeRevisionCreateSummary) -> i32
     if !summary.merge_reasons.is_empty() {
         println!("merge reasons: {}", summary.merge_reasons.join("; "));
     }
+    for detail in &summary.merge_reason_details {
+        print_merge_reason_detail_text(
+            detail.subject_kind.as_str(),
+            &detail.subject_id,
+            detail.variant_kind.as_str(),
+            detail.reason_kind.as_str(),
+            detail.branch_kind.map(|branch_kind| branch_kind.as_str()),
+        );
+    }
     if let Some(path) = &summary.index_manifest_path {
         println!("index manifest: {}", path.display());
     }
@@ -287,12 +296,53 @@ fn print_manual_curation_text(summary: &Value) -> i32 {
             println!("merge reasons: {}", merge_reasons.join("; "));
         }
     }
+    if let Some(details) = summary["merge_reason_details"].as_array() {
+        for detail in details {
+            let Some(subject_kind) = detail["subject_kind"].as_str() else {
+                continue;
+            };
+            let Some(subject_id) = detail["subject_id"].as_str() else {
+                continue;
+            };
+            let Some(variant_kind) = detail["variant_kind"].as_str() else {
+                continue;
+            };
+            let Some(reason_kind) = detail["reason_kind"].as_str() else {
+                continue;
+            };
+            let branch_kind = detail["branch_kind"].as_str();
+            print_merge_reason_detail_text(
+                subject_kind,
+                subject_id,
+                variant_kind,
+                reason_kind,
+                branch_kind,
+            );
+        }
+    }
     if let Some(errors) = summary["errors"].as_array() {
         for error in errors.iter().filter_map(|entry| entry.as_str()) {
             println!("error: {error}");
         }
     }
     1
+}
+
+fn print_merge_reason_detail_text(
+    subject_kind: &str,
+    subject_id: &str,
+    variant_kind: &str,
+    reason_kind: &str,
+    branch_kind: Option<&str>,
+) {
+    match branch_kind {
+        Some(branch_kind) => println!(
+            "merge reason detail: {subject_kind} {subject_id} | {variant_kind} | {reason_kind} | {branch_kind}"
+        ),
+        None => println!(
+            "merge reason detail: {subject_kind} {subject_id} | {variant_kind} | {reason_kind}"
+        ),
+    }
 }
 
 fn print_json<T: Serialize>(value: &T, context: &'static str) -> Result<i32, CliError> {

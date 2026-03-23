@@ -341,6 +341,183 @@ fn store_merge_authoring_flow_creates_merge_patch_and_revision() {
 }
 
 #[test]
+fn store_merge_authoring_text_reports_reason_detail_classification() {
+    let store_dir = create_temp_dir("store-merge-text-report-root");
+    let (_key_dir, key_path) = write_signing_key_file("store-merge-text-report-key");
+    let (_ops_dir, ops_path) = write_ops_file("store-merge-text-report-ops");
+    let (_resolved_dir, resolved_state_path) =
+        write_resolved_state_file("store-merge-text-report-state");
+    let store_root = path_arg(store_dir.path());
+    let key_file = path_arg(&key_path);
+    let ops_file = path_arg(&ops_path);
+    let resolved_state_file = path_arg(&resolved_state_path);
+
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let document = run_mycel(&[
+        "store",
+        "create-document",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--title",
+        "Author Smoke Merge Text Report",
+        "--language",
+        "en",
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "20",
+        "--json",
+    ]);
+    assert_success(&document);
+    let document_json = assert_json_status(&document, "ok");
+    let genesis_revision_id = document_json["genesis_revision_id"]
+        .as_str()
+        .expect("genesis revision should be string")
+        .to_string();
+
+    let primary_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "21",
+        "--json",
+    ]);
+    assert_success(&primary_patch);
+    let primary_patch_id = assert_json_status(&primary_patch, "ok")["patch_id"]
+        .as_str()
+        .expect("patch_id should be string")
+        .to_string();
+
+    let primary_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &primary_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "22",
+        "--json",
+    ]);
+    assert_success(&primary_revision);
+    let primary_revision_id = assert_json_status(&primary_revision, "ok")["revision_id"]
+        .as_str()
+        .expect("revision_id should be string")
+        .to_string();
+
+    let side_ops_dir = create_temp_dir("store-merge-text-report-side-ops");
+    let side_ops_path = side_ops_dir.path().join("ops.json");
+    fs::write(
+        &side_ops_path,
+        serde_json::to_string_pretty(&json!([
+            {
+                "op": "insert_block",
+                "new_block": {
+                    "block_id": "blk:author-smoke-merge-002",
+                    "block_type": "paragraph",
+                    "content": "Merged side branch",
+                    "attrs": {},
+                    "children": []
+                }
+            }
+        ]))
+        .expect("side ops JSON should serialize"),
+    )
+    .expect("side ops JSON should write");
+    let side_ops_file = path_arg(&side_ops_path);
+
+    let side_patch = run_mycel(&[
+        "store",
+        "create-patch",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--base-revision",
+        &genesis_revision_id,
+        "--ops",
+        &side_ops_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "23",
+        "--json",
+    ]);
+    assert_success(&side_patch);
+    let side_patch_id = assert_json_status(&side_patch, "ok")["patch_id"]
+        .as_str()
+        .expect("side patch_id should be string")
+        .to_string();
+
+    let side_revision = run_mycel(&[
+        "store",
+        "commit-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--parent",
+        &genesis_revision_id,
+        "--patch",
+        &side_patch_id,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "24",
+        "--json",
+    ]);
+    assert_success(&side_revision);
+    let side_revision_id = assert_json_status(&side_revision, "ok")["revision_id"]
+        .as_str()
+        .expect("side revision_id should be string")
+        .to_string();
+
+    let merge = run_mycel(&[
+        "store",
+        "create-merge-revision",
+        &store_root,
+        "--doc-id",
+        "doc:author-smoke",
+        "--parent",
+        &primary_revision_id,
+        "--parent",
+        &side_revision_id,
+        "--resolved-state",
+        &resolved_state_file,
+        "--signing-key",
+        &key_file,
+        "--timestamp",
+        "25",
+    ]);
+    assert_success(&merge);
+    assert_stdout_contains(&merge, "merge revision create: ok");
+    assert_stdout_contains(&merge, "merge outcome: multi-variant");
+    assert_stdout_contains(
+        &merge,
+        "block 'blk:author-smoke-merge-002' adopted a non-primary parent addition",
+    );
+    assert_stdout_contains(
+        &merge,
+        "merge reason detail: block blk:author-smoke-merge-002 | content | selected-non-primary-parent-variant | adopted-non-primary-addition",
+    );
+}
+
+#[test]
 fn store_merge_authoring_flow_supports_structural_move_and_insert() {
     let store_dir = create_temp_dir("store-merge-structural-root");
     let (_key_dir, key_path) = write_signing_key_file("store-merge-structural-key");

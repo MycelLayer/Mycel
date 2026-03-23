@@ -66,6 +66,15 @@ pub enum MergeReasonSubjectKind {
     MetadataKey,
 }
 
+impl MergeReasonSubjectKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Block => "block",
+            Self::MetadataKey => "metadata-key",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum MergeReasonVariantKind {
@@ -73,6 +82,17 @@ pub enum MergeReasonVariantKind {
     Metadata,
     ParentPlacement,
     SiblingPlacement,
+}
+
+impl MergeReasonVariantKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Content => "content",
+            Self::Metadata => "metadata",
+            Self::ParentPlacement => "parent-placement",
+            Self::SiblingPlacement => "sibling-placement",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -86,6 +106,27 @@ pub enum MergeReasonKind {
     NoMatchingParentVariant,
     NoMatchingParentPlacement,
     NoMatchingSiblingPlacement,
+}
+
+impl MergeReasonKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UnsupportedMetadataDeletion => "unsupported-metadata-deletion",
+            Self::SelectedNonPrimaryParentVariant => "selected-non-primary-parent-variant",
+            Self::KeptPrimaryParentVariantOverCompetingNonPrimaryAlternative => {
+                "kept-primary-parent-variant-over-competing-non-primary-alternative"
+            }
+            Self::MultipleCompetingAlternativesRemainAfterSelectedVariant => {
+                "multiple-competing-alternatives-remain-after-selected-variant"
+            }
+            Self::MultipleCompetingAlternativesRemainAfterKeepingPrimaryVariant => {
+                "multiple-competing-alternatives-remain-after-keeping-primary-variant"
+            }
+            Self::NoMatchingParentVariant => "no-matching-parent-variant",
+            Self::NoMatchingParentPlacement => "no-matching-parent-placement",
+            Self::NoMatchingSiblingPlacement => "no-matching-sibling-placement",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -108,6 +149,56 @@ pub enum MergeReasonBranchKind {
     MultipleCompetingNonPrimaryRemovals,
     MultipleCompetingMixedNonPrimaryAlternatives,
     MultipleCompetingNonPrimaryReplacementsAndRemovals,
+}
+
+impl MergeReasonBranchKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AdoptedNonPrimaryAddition => "adopted-non-primary-addition",
+            Self::AdoptedNonPrimaryReplacement => "adopted-non-primary-replacement",
+            Self::AdoptedNonPrimaryRemoval => "adopted-non-primary-removal",
+            Self::AdoptedNonPrimaryReplacementWhileCompetingRemovalRemains => {
+                "adopted-non-primary-replacement-while-competing-removal-remains"
+            }
+            Self::AdoptedNonPrimaryReplacementWhileCompetingReplacementsAndRemovalRemain => {
+                "adopted-non-primary-replacement-while-competing-replacements-and-removal-remain"
+            }
+            Self::AdoptedNonPrimaryRemovalWhileCompetingReplacementRemains => {
+                "adopted-non-primary-removal-while-competing-replacement-remains"
+            }
+            Self::AdoptedNonPrimaryRemovalWhileCompetingReplacementAndRemovalsRemain => {
+                "adopted-non-primary-removal-while-competing-replacement-and-removals-remain"
+            }
+            Self::KeptPrimaryAbsenceOverNonPrimaryAddition => {
+                "kept-primary-absence-over-non-primary-addition"
+            }
+            Self::KeptPrimaryVariantOverNonPrimaryReplacement => {
+                "kept-primary-variant-over-non-primary-replacement"
+            }
+            Self::KeptPrimaryVariantOverNonPrimaryRemoval => {
+                "kept-primary-variant-over-non-primary-removal"
+            }
+            Self::KeptPrimaryVariantOverMixedNonPrimaryAlternatives => {
+                "kept-primary-variant-over-mixed-non-primary-alternatives"
+            }
+            Self::KeptPrimaryVariantOverMultipleCompetingNonPrimaryReplacementsAndRemovals => {
+                "kept-primary-variant-over-multiple-competing-non-primary-replacements-and-removals"
+            }
+            Self::MultipleCompetingNonPrimaryAdditions => {
+                "multiple-competing-non-primary-additions"
+            }
+            Self::MultipleCompetingNonPrimaryReplacements => {
+                "multiple-competing-non-primary-replacements"
+            }
+            Self::MultipleCompetingNonPrimaryRemovals => "multiple-competing-non-primary-removals",
+            Self::MultipleCompetingMixedNonPrimaryAlternatives => {
+                "multiple-competing-mixed-non-primary-alternatives"
+            }
+            Self::MultipleCompetingNonPrimaryReplacementsAndRemovals => {
+                "multiple-competing-non-primary-replacements-and-removals"
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
