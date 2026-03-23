@@ -1880,6 +1880,7 @@ fn inject_session_fault(
     session_fault: &str,
 ) -> Result<(), String> {
     match session_fault {
+        "bye-before-hello" => inject_bye_before_hello_fault(transcript, signing_key),
         "duplicate-hello" => inject_duplicate_hello_fault(transcript, signing_key),
         "heads-before-hello" => inject_heads_before_hello_fault(transcript, signing_key),
         "manifest-before-hello" => inject_manifest_before_hello_fault(transcript),
@@ -1914,6 +1915,28 @@ fn inject_duplicate_hello_fault(
         hello_payload,
     )?;
     transcript.messages.insert(hello_index + 1, duplicate_hello);
+    Ok(())
+}
+
+fn inject_bye_before_hello_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let hello_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("HELLO"))
+        .ok_or_else(|| "transcript is missing HELLO for bye-before-hello injection".to_owned())?;
+    let bye = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "BYE",
+        "msg:peer-sync-fault-bye-0001",
+        json!({
+            "reason": "done"
+        }),
+    )?;
+    transcript.messages.insert(hello_index, bye);
     Ok(())
 }
 
