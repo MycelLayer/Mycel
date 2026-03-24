@@ -79,9 +79,13 @@ class WorkCycleArgumentParser(argparse.ArgumentParser):
         super().error(message)
 
 
-def run_registry(command: str, agent_ref: str) -> dict[str, str]:
+def run_registry(command: str, agent_ref: str, *, scope: str | None = None) -> dict[str, str]:
+    cmd = [sys.executable, str(REGISTRY_SCRIPT), command, agent_ref]
+    if scope:
+        cmd.extend(["--scope", scope])
+    cmd.append("--json")
     proc = subprocess.run(
-        [sys.executable, str(REGISTRY_SCRIPT), command, agent_ref, "--json"],
+        cmd,
         cwd=ROOT_DIR,
         text=True,
         capture_output=True,
@@ -698,7 +702,8 @@ def emit_checklist_gc_summary(result: dict[str, object] | None, *, error: str | 
 def main() -> int:
     args = parse_args()
     registry_command = "touch" if args.stage == "begin" else "finish"
-    payload = run_registry(registry_command, args.agent_ref)
+    registry_scope = args.scope if args.stage == "begin" else None
+    payload = run_registry(registry_command, args.agent_ref, scope=registry_scope)
     agent_uid = payload.get("agent_uid") or args.agent_ref
     display_id = payload.get("display_id")
     agent_role = resolve_agent_role(agent_uid)

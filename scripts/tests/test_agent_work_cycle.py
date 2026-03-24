@@ -250,6 +250,19 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             (self.root / f".agent-local/agents/{agent_uid}/checklists/ROLE-doc-workcycle-checklist-1.md").exists()
         )
 
+    def test_begin_updates_registry_scope_when_scope_is_provided(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "pending-user-task")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+
+        proc = self.run_cli("begin", agent_uid, "--scope", "updated-cycle-scope")
+        status = self.run_registry("status", agent_uid)
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("Before work | doc-1", proc.stdout)
+        self.assertEqual("updated-cycle-scope", status["agents"][0]["scope"])
+
     def test_start_alias_maps_to_begin(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")

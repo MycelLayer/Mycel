@@ -873,6 +873,7 @@ def print_touch(data: dict[str, Any]) -> None:
     print(f"agent_uid: {data['agent_uid']}")
     print(f"display_id: {data['display_id']}")
     print(f"role: {data['role']}")
+    print(f"scope: {data['scope']}")
     print(f"previous_status: {data['previous_status']}")
     print(f"current_status: {data['current_status']}")
     print(f"last_touched_at: {data['last_touched_at']}")
@@ -1337,7 +1338,9 @@ def cmd_touch(args: argparse.Namespace) -> int:
         raise RegistryError(f"agent {agent_uid} is not fully confirmed; use start before touch")
 
     now = utc_now()
+    scope = args.scope or require_non_empty_str(entry, "scope", agent_uid)
     entry["status"] = "active"
+    entry["scope"] = scope
     entry["last_touched_at"] = now
     entry["inactive_at"] = None
     entry["paused_at"] = None
@@ -1349,6 +1352,7 @@ def cmd_touch(args: argparse.Namespace) -> int:
         "agent_uid": agent_uid,
         "display_id": display_id,
         "role": role,
+        "scope": scope,
         "previous_status": previous_status,
         "current_status": "active",
         "last_touched_at": now,
@@ -1531,6 +1535,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     touch = subparsers.add_parser("touch", add_help=False)
     touch.add_argument("agent_ref")
+    touch.add_argument("--scope", default="")
     touch.add_argument("--json", action="store_true")
     touch.add_argument("-h", "--help", action="help")
     touch.set_defaults(func=cmd_touch)
