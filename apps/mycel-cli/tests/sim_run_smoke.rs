@@ -514,6 +514,104 @@ fn sim_run_with_seed_view_sync_publishes_governance_views_to_readers() {
 }
 
 #[test]
+fn sim_run_replays_snapshot_catchup_into_reader_store() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim", "run", "sim/tests/snapshot-catchup.example.json", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["result"], "pass");
+    let outcomes = summary["matched_expected_outcomes"]
+        .as_array()
+        .expect("matched_expected_outcomes should be an array");
+    assert!(
+        outcomes
+            .iter()
+            .any(|entry| entry == "snapshot-assisted-sync-success"),
+        "expected snapshot-assisted-sync-success outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        outcomes.iter().any(|entry| entry == "snapshot-received"),
+        "expected snapshot-received outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let report = load_report(&summary);
+    let peers = report["peers"]
+        .as_array()
+        .expect("peers should be an array");
+    let reader = peers
+        .iter()
+        .find(|peer| peer["node_id"] == "node:peer-reader-a")
+        .expect("expected reader peer in report");
+    let verified_object_ids = reader["verified_object_ids"]
+        .as_array()
+        .expect("verified_object_ids should be an array");
+    assert!(
+        verified_object_ids.iter().any(|value| value
+            .as_str()
+            .is_some_and(|object_id| object_id.starts_with("snap:"))),
+        "expected synchronized snapshot object in reader set, report: {report}"
+    );
+}
+
+#[test]
+fn sim_run_replays_view_sync_into_reader_store() {
+    let _guard = sim_run_lock();
+    let output = run_sim(&["sim", "run", "sim/tests/view-sync.example.json", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["result"], "pass");
+    let outcomes = summary["matched_expected_outcomes"]
+        .as_array()
+        .expect("matched_expected_outcomes should be an array");
+    assert!(
+        outcomes
+            .iter()
+            .any(|entry| entry == "view-sync-success"),
+        "expected view-sync-success outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        outcomes
+            .iter()
+            .any(|entry| entry == "governance-view-received"),
+        "expected governance-view-received outcome, stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let report = load_report(&summary);
+    let peers = report["peers"]
+        .as_array()
+        .expect("peers should be an array");
+    let reader = peers
+        .iter()
+        .find(|peer| peer["node_id"] == "node:peer-reader-a")
+        .expect("expected reader peer in report");
+    let verified_object_ids = reader["verified_object_ids"]
+        .as_array()
+        .expect("verified_object_ids should be an array");
+    assert!(
+        verified_object_ids.iter().any(|value| value
+            .as_str()
+            .is_some_and(|object_id| object_id.starts_with("view:"))),
+        "expected synchronized view object in reader set, report: {report}"
+    );
+}
+
+#[test]
 fn sim_run_rejects_view_announce_without_advertised_capability() {
     let _guard = sim_run_lock();
     let output = run_sim(&[
