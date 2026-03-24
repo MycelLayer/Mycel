@@ -16,6 +16,26 @@ This checklist is intentionally operational. It is about transfer sequencing,
 ownership, and follow-up validation, not about changing protocol or product
 behavior.
 
+## Current Confirmed State
+
+The following points have already been confirmed in the current workspace and
+GitHub org setup:
+
+- `MycelLayer` exists as a separate GitHub organization.
+- `Mycel-agent` is an active direct member of `MycelLayer`.
+- `ctf2090` is an active `admin` of `MycelLayer`.
+- `MycelLayer` currently allows members to create repositories.
+- For a transfer that keeps the repository name as `Mycel`, `ctf2090` as org
+  `admin` is sufficient for the target-org side of the move.
+- If we want to rename the repository during transfer, re-check whether target
+  org `owner` is required for that narrower case before execution.
+
+Recommended transfer actor:
+
+- Use `ctf2090` with `GH_TOKEN_USER` for the transfer itself.
+- Do not use `Mycel-agent` as the transfer actor unless it is later granted the
+  exact source-repo and target-org rights needed for the move.
+
 ## 1. Decision And Scope
 
 - [ ] Confirm that `MycelLayer` is the chosen organization name.
@@ -62,6 +82,8 @@ Suggested first teams:
 Useful commands:
 
 ```bash
+export GH_TOKEN="$GH_TOKEN_USER"
+
 gh repo view ctf2090/Mycel --json nameWithOwner,url,owner,hasIssuesEnabled,hasDiscussionsEnabled,deleteBranchOnMerge
 gh api repos/ctf2090/Mycel/pages
 gh api repos/ctf2090/Mycel/branches/main/protection
@@ -113,6 +135,40 @@ gh api repos/ctf2090/Mycel/teams
 - [ ] Confirm that repository collaborators, issues, pull requests, releases,
       and discussions remain present after transfer.
 
+Final checks immediately before clicking transfer:
+
+```bash
+export GH_TOKEN="$GH_TOKEN_USER"
+
+echo "== identity =="
+gh auth status
+gh api user --jq '{login: .login, type: .type}'
+
+echo "== source repo permission =="
+gh repo view ctf2090/Mycel --json nameWithOwner,viewerPermission,url
+
+echo "== target org membership and creation policy =="
+gh api user/memberships/orgs/MycelLayer --jq '{state: .state, role: .role}'
+gh api orgs/MycelLayer --jq '{login: .login, default_repository_permission: .default_repository_permission, members_can_create_repositories: .members_can_create_repositories, members_allowed_repository_creation_type: .members_allowed_repository_creation_type, members_can_create_public_repositories: .members_can_create_public_repositories, members_can_create_private_repositories: .members_can_create_private_repositories}'
+
+echo "== conflict check =="
+gh api repos/MycelLayer/Mycel -X GET || true
+```
+
+Expected results before transfer:
+
+- authenticated user is `ctf2090`
+- source repo permission is `ADMIN`
+- target org membership is `active`
+- target org role is `admin`
+- `members_can_create_repositories` is `true`
+- `gh api repos/MycelLayer/Mycel` returns `404 Not Found`
+
+Execution note:
+
+- Perform the transfer in the GitHub web UI and keep the repository name as
+  `Mycel` unless there is an explicit rename decision.
+
 ## 8. Immediate Post-Transfer Checks
 
 - [ ] Confirm that redirects from `ctf2090/Mycel` to `MycelLayer/Mycel` work on
@@ -131,6 +187,38 @@ git remote set-url origin https://github.com/MycelLayer/Mycel.git
 - [ ] Re-check Actions secrets, variables, and environment protections.
 - [ ] Re-check webhooks, deploy keys, and installed GitHub Apps.
 - [ ] Re-check package links if we publish any package from this repository.
+
+Suggested 10-minute post-transfer verification block:
+
+```bash
+export GH_TOKEN="$GH_TOKEN_USER"
+
+echo "== new repository path =="
+gh repo view MycelLayer/Mycel --json nameWithOwner,url,owner,viewerPermission
+
+echo "== collaboration surfaces =="
+gh issue list --repo MycelLayer/Mycel --limit 5
+gh pr list --repo MycelLayer/Mycel --limit 5
+
+echo "== redirects and remotes =="
+git remote -v
+git ls-remote https://github.com/MycelLayer/Mycel.git HEAD
+curl -I https://github.com/ctf2090/Mycel
+
+echo "== transferred repo settings =="
+gh api repos/MycelLayer/Mycel/pages || true
+gh api repos/MycelLayer/Mycel/branches/main/protection || true
+gh api repos/MycelLayer/Mycel/hooks
+gh api repos/MycelLayer/Mycel/actions/secrets
+gh api repos/MycelLayer/Mycel/actions/variables
+```
+
+Update local clones after transfer:
+
+```bash
+git remote set-url origin https://github.com/MycelLayer/Mycel.git
+git fetch origin
+```
 
 ## 9. Pages And Public Surface Follow-Up
 
