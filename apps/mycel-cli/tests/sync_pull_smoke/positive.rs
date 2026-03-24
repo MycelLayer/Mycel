@@ -1,47 +1,99 @@
 use super::*;
 
+struct RevisionStep {
+    patch_object: Value,
+    patch_id: String,
+    revision_object: Value,
+    revision_id: String,
+}
+
+fn make_revision_step(
+    signing_key: &SigningKey,
+    sender: &str,
+    parent_revision_ids: &[&str],
+    base_revision: &str,
+) -> RevisionStep {
+    let patch_object = signed_patch_object_message(signing_key, sender, base_revision);
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object =
+        signed_revision_object_message(signing_key, sender, parent_revision_ids, &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+
+    RevisionStep {
+        patch_object,
+        patch_id,
+        revision_object,
+        revision_id,
+    }
+}
+
+fn write_existing_objects(store_root: &Path, objects: &[&Value]) {
+    for body in objects {
+        write_object_value_to_store(store_root, body)
+            .expect("existing object should write to store");
+    }
+}
+
+fn run_sync_pull_json(transcript_path: &Path, store_root: &Path) -> std::process::Output {
+    run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(transcript_path),
+        "--into",
+        &path_arg(store_root),
+        "--json",
+    ])
+}
+
+fn load_manifest(store_root: &Path) -> Value {
+    let manifest_path = store_root.join("indexes").join("manifest.json");
+    serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+        .expect("manifest should parse")
+}
+
+fn assert_doc_revisions_include(manifest: &Value, expected_revision_ids: &[&str]) {
+    let revisions = manifest["doc_revisions"]["doc:test"]
+        .as_array()
+        .expect("expected synced revision index array");
+    assert_eq!(revisions.len(), expected_revision_ids.len());
+    for expected_revision_id in expected_revision_ids {
+        assert!(revisions
+            .iter()
+            .any(|value| value.as_str() == Some(*expected_revision_id)));
+    }
+}
+
 #[test]
 fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
     let signing_key = signing_key();
     let sender = "node:alpha";
 
-    let base_patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-    let base_patch_id = base_patch_object["payload"]["object_id"]
-        .as_str()
-        .expect("base patch object id should exist")
-        .to_string();
-    let base_revision_object =
-        signed_revision_object_message(&signing_key, sender, &[], &[&base_patch_id]);
-    let base_revision_id = base_revision_object["payload"]["object_id"]
-        .as_str()
-        .expect("base revision object id should exist")
-        .to_string();
-
-    let follow_patch_object = signed_patch_object_message(&signing_key, sender, &base_revision_id);
-    let follow_patch_id = follow_patch_object["payload"]["object_id"]
-        .as_str()
-        .expect("follow patch object id should exist")
-        .to_string();
-    let follow_revision_object = signed_revision_object_message(
+    let base_step = make_revision_step(&signing_key, sender, &[], "rev:genesis-null");
+    let follow_step = make_revision_step(
         &signing_key,
         sender,
-        &[&base_revision_id],
-        &[&follow_patch_id],
+        &[&base_step.revision_id],
+        &base_step.revision_id,
     );
-    let follow_revision_id = follow_revision_object["payload"]["object_id"]
-        .as_str()
-        .expect("follow revision object id should exist")
-        .to_string();
 
     let transcript_dir = create_temp_dir("sync-pull-incremental-source");
     let transcript_path = transcript_dir
         .path()
         .join("pull-incremental-transcript.json");
     let store_root = create_temp_dir("sync-pull-incremental-store");
-    write_object_value_to_store(store_root.path(), &base_patch_object["payload"]["body"])
-        .expect("base patch should write to store");
-    write_object_value_to_store(store_root.path(), &base_revision_object["payload"]["body"])
-        .expect("base revision should write to store");
+    write_existing_objects(
+        store_root.path(),
+        &[
+            &base_step.patch_object["payload"]["body"],
+            &base_step.revision_object["payload"]["body"],
+        ],
+    );
 
     write_transcript(
         &transcript_path,
@@ -52,24 +104,17 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
             },
             "messages": [
                 signed_hello_message(&signing_key, sender),
-                signed_manifest_message(&signing_key, sender, &follow_revision_id),
-                signed_want_message(&signing_key, sender, &[&follow_revision_id]),
-                follow_revision_object,
-                signed_want_message(&signing_key, sender, &[&follow_patch_id]),
-                follow_patch_object,
+                signed_manifest_message(&signing_key, sender, &follow_step.revision_id),
+                signed_want_message(&signing_key, sender, &[&follow_step.revision_id]),
+                follow_step.revision_object.clone(),
+                signed_want_message(&signing_key, sender, &[&follow_step.patch_id]),
+                follow_step.patch_object.clone(),
                 signed_bye_message(&signing_key, sender)
             ]
         }),
     );
 
-    let output = run_mycel(&[
-        "sync",
-        "pull",
-        &path_arg(&transcript_path),
-        "--into",
-        &path_arg(store_root.path()),
-        "--json",
-    ]);
+    let output = run_sync_pull_json(&transcript_path, store_root.path());
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -88,21 +133,12 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
         stdout_text(&output)
     );
 
-    let manifest_path = store_root.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = load_manifest(store_root.path());
     assert_eq!(manifest["stored_object_count"], 4);
-    let revisions = manifest["doc_revisions"]["doc:test"]
-        .as_array()
-        .expect("expected synced revision index array");
-    assert_eq!(revisions.len(), 2);
-    assert!(revisions
-        .iter()
-        .any(|value| value.as_str() == Some(base_revision_id.as_str())));
-    assert!(revisions
-        .iter()
-        .any(|value| value.as_str() == Some(follow_revision_id.as_str())));
+    assert_doc_revisions_include(
+        &manifest,
+        &[&base_step.revision_id, &follow_step.revision_id],
+    );
 }
 
 #[test]
@@ -110,65 +146,32 @@ fn sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store() {
     let signing_key = signing_key();
     let sender = "node:alpha";
 
-    let genesis_patch_object =
-        signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-    let genesis_patch_id = genesis_patch_object["payload"]["object_id"]
-        .as_str()
-        .expect("genesis patch object id should exist")
-        .to_string();
-    let genesis_revision_object =
-        signed_revision_object_message(&signing_key, sender, &[], &[&genesis_patch_id]);
-    let genesis_revision_id = genesis_revision_object["payload"]["object_id"]
-        .as_str()
-        .expect("genesis revision object id should exist")
-        .to_string();
-
-    let middle_patch_object =
-        signed_patch_object_message(&signing_key, sender, &genesis_revision_id);
-    let middle_patch_id = middle_patch_object["payload"]["object_id"]
-        .as_str()
-        .expect("middle patch object id should exist")
-        .to_string();
-    let middle_revision_object = signed_revision_object_message(
+    let genesis_step = make_revision_step(&signing_key, sender, &[], "rev:genesis-null");
+    let middle_step = make_revision_step(
         &signing_key,
         sender,
-        &[&genesis_revision_id],
-        &[&middle_patch_id],
+        &[&genesis_step.revision_id],
+        &genesis_step.revision_id,
     );
-    let middle_revision_id = middle_revision_object["payload"]["object_id"]
-        .as_str()
-        .expect("middle revision object id should exist")
-        .to_string();
-
-    let follow_patch_object =
-        signed_patch_object_message(&signing_key, sender, &middle_revision_id);
-    let follow_patch_id = follow_patch_object["payload"]["object_id"]
-        .as_str()
-        .expect("follow patch object id should exist")
-        .to_string();
-    let follow_revision_object = signed_revision_object_message(
+    let follow_step = make_revision_step(
         &signing_key,
         sender,
-        &[&middle_revision_id],
-        &[&follow_patch_id],
+        &[&middle_step.revision_id],
+        &middle_step.revision_id,
     );
-    let follow_revision_id = follow_revision_object["payload"]["object_id"]
-        .as_str()
-        .expect("follow revision object id should exist")
-        .to_string();
 
     let transcript_dir = create_temp_dir("sync-pull-depth-3-source");
     let transcript_path = transcript_dir.path().join("pull-depth-3-transcript.json");
     let store_root = create_temp_dir("sync-pull-depth-3-store");
-    for body in [
-        &genesis_patch_object["payload"]["body"],
-        &genesis_revision_object["payload"]["body"],
-        &middle_patch_object["payload"]["body"],
-        &middle_revision_object["payload"]["body"],
-    ] {
-        write_object_value_to_store(store_root.path(), body)
-            .expect("existing object should write to store");
-    }
+    write_existing_objects(
+        store_root.path(),
+        &[
+            &genesis_step.patch_object["payload"]["body"],
+            &genesis_step.revision_object["payload"]["body"],
+            &middle_step.patch_object["payload"]["body"],
+            &middle_step.revision_object["payload"]["body"],
+        ],
+    );
 
     write_transcript(
         &transcript_path,
@@ -179,24 +182,17 @@ fn sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store() {
             },
             "messages": [
                 signed_hello_message(&signing_key, sender),
-                signed_manifest_message(&signing_key, sender, &follow_revision_id),
-                signed_want_message(&signing_key, sender, &[&follow_revision_id]),
-                follow_revision_object,
-                signed_want_message(&signing_key, sender, &[&follow_patch_id]),
-                follow_patch_object,
+                signed_manifest_message(&signing_key, sender, &follow_step.revision_id),
+                signed_want_message(&signing_key, sender, &[&follow_step.revision_id]),
+                follow_step.revision_object.clone(),
+                signed_want_message(&signing_key, sender, &[&follow_step.patch_id]),
+                follow_step.patch_object.clone(),
                 signed_bye_message(&signing_key, sender)
             ]
         }),
     );
 
-    let output = run_mycel(&[
-        "sync",
-        "pull",
-        &path_arg(&transcript_path),
-        "--into",
-        &path_arg(store_root.path()),
-        "--json",
-    ]);
+    let output = run_sync_pull_json(&transcript_path, store_root.path());
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -208,22 +204,14 @@ fn sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store() {
     assert_eq!(json["written_object_count"], 2);
     assert_eq!(json["existing_object_count"], 0);
 
-    let manifest_path = store_root.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = load_manifest(store_root.path());
     assert_eq!(manifest["stored_object_count"], 6);
-    let revisions = manifest["doc_revisions"]["doc:test"]
-        .as_array()
-        .expect("expected synced revision index array");
-    assert_eq!(revisions.len(), 3);
-    assert!(revisions
-        .iter()
-        .any(|value| value.as_str() == Some(genesis_revision_id.as_str())));
-    assert!(revisions
-        .iter()
-        .any(|value| value.as_str() == Some(middle_revision_id.as_str())));
-    assert!(revisions
-        .iter()
-        .any(|value| value.as_str() == Some(follow_revision_id.as_str())));
+    assert_doc_revisions_include(
+        &manifest,
+        &[
+            &genesis_step.revision_id,
+            &middle_step.revision_id,
+            &follow_step.revision_id,
+        ],
+    );
 }
