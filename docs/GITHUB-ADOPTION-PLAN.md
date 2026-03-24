@@ -117,6 +117,20 @@ Main tradeoff:
 Code scanning is now the main remaining GitHub-native security feature that is
 still unset.
 
+Current repo fit on 2026-03-24:
+
+- GitHub's repository default-setup API reports `state: not-configured` and
+  detects `actions`, `python`, and `rust` as eligible CodeQL languages for
+  this repository
+- the repository does not currently carry a dedicated CodeQL workflow under
+  `.github/workflows/`
+- existing CI already covers formatting, Clippy, compile, tests, ast-grep, and
+  hotspot warnings, so CodeQL would be an additive security-analysis layer
+  rather than a replacement for current checks
+- the current Pages and docs-tooling surface is not the main reason to enable
+  code scanning here; the best immediate fit is the Rust codebase, GitHub
+  Actions workflows, and Python-based repo scripts
+
 Recommended scope:
 
 - choose a lightweight first pass instead of enabling the broadest possible
@@ -137,6 +151,29 @@ Main tradeoff:
 
 - better static-analysis visibility in exchange for extra CI time and alert
   triage overhead
+
+Practical decision options:
+
+- enable default CodeQL setup now as the smallest repo-native next step
+- keep code scanning out of scope for now if the team wants to avoid more
+  Actions runtime and security-alert triage this quarter
+- move to advanced setup only if default setup proves too noisy, misses needed
+  customization, or needs tighter event/path control than the UI-managed
+  defaults provide
+
+Current recommendation:
+
+- enable GitHub's default CodeQL setup first if we want to continue the GitHub
+  security-adoption track soon
+- keep the initial language set aligned with GitHub's detected `actions`,
+  `python`, and `rust` coverage unless the first runs show a clear reason to
+  narrow it
+- treat advanced setup as a second-step escalation, not the starting point,
+  because this repository already has a stable CI baseline and does not yet
+  show a strong need for a hand-maintained CodeQL workflow
+- if the team decides against more scan time or alert queue overhead right now,
+  explicitly leave code scanning deferred and rely on the existing CI plus
+  `ast-grep` checks instead of leaving the decision ambiguous
 
 ## 5. Revisit Auto-Merge After The Merge Gate Exists
 
@@ -223,7 +260,7 @@ Concrete next implementation tasks for a future work item:
 - record which maintainers can bypass rulesets, if any
 - decide whether Dependabot should stay on grouped low-churn updates or narrow
   further
-- decide whether GitHub code scanning should use default CodeQL setup or stay
-  out of scope
+- decide whether GitHub code scanning should use default CodeQL setup now or
+  stay explicitly out of scope until scan-time and triage budget increase
 - decide whether GitHub Projects should mirror the existing multi-agent workflow
   or stay out of scope
