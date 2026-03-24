@@ -275,7 +275,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
 
         self.assertIn("next_actions:", proc.stdout)
-        self.assertIn("review the latest same-role handoff from coding-7", proc.stdout)
+        self.assertIn("review the latest same-role handoff from coding-7 (role=coding)", proc.stdout)
         self.assertIn("restore-sync-gap", proc.stdout)
         self.assertIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
         bootstrap_checklists = list(self.root.glob(".agent-local/agents/*/checklists/AGENTS-bootstrap-checklist.md"))

@@ -336,6 +336,7 @@ def handoff_review_action(role: str, same_role_handoff: dict[str, Any] | None) -
     if same_role_handoff is None:
         return None
     display_id = same_role_handoff.get("display_id") or same_role_handoff.get("agent_uid") or "same-role agent"
+    source_role = same_role_handoff.get("role") or role or "unknown"
     handoff = same_role_handoff.get("handoff")
     if not isinstance(handoff, dict):
         return None
@@ -343,8 +344,11 @@ def handoff_review_action(role: str, same_role_handoff: dict[str, Any] | None) -
     next_steps = handoff.get("next_suggested_step")
     next_step = next_steps[0] if isinstance(next_steps, list) and next_steps else None
     if isinstance(next_step, str) and next_step.strip():
-        return f"review the latest same-role handoff from {display_id} for scope {scope} and consider this follow-up first: {next_step.strip()}"
-    return f"review the latest same-role handoff from {display_id} for scope {scope} before choosing the first work item"
+        return (
+            f"review the latest same-role handoff from {display_id} "
+            f"(role={source_role}) for scope {scope} and consider this follow-up first: {next_step.strip()}"
+        )
+    return f"review the latest same-role handoff from {display_id} (role={source_role}) for scope {scope} before choosing the first work item"
 
 
 def persist_same_role_handoff_review(bootstrap_checklist_path: Path, same_role_handoff: dict[str, Any] | None) -> bool:
