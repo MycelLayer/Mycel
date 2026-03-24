@@ -53,6 +53,32 @@
 - `session-stale-view-want-after-heads-replace`: reject a stale view `WANT` after `HEADS replace=true` withdraws the old root set that previously made the announced view reachable
   Reference JSON: `sim/tests/session-stale-view-want-after-heads-replace.example.json`
 
+### Product-Layer Coverage Notes
+
+The simulator matrix above tracks the canonical negative sequencing cases. The
+current `apps/mycel-cli/tests/sync_pull_smoke.rs` product-layer transcript tests
+cover the same message-ordering rules for the pre-session and head-context
+families below.
+
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `session-bye-before-hello` | `sync_pull_json_rejects_bye_before_hello` | both layers |
+| `session-snapshot-offer-before-hello` | `sync_pull_json_rejects_snapshot_offer_before_hello` | both layers |
+| `session-view-announce-before-hello` | `sync_pull_json_rejects_view_announce_before_hello` | both layers |
+| `session-manifest-before-hello` | `sync_pull_json_rejects_manifest_before_hello` | both layers |
+| `session-heads-before-hello` | `sync_pull_json_rejects_heads_before_hello` | both layers |
+| `session-want-before-hello` | `sync_pull_json_rejects_want_before_hello` | both layers |
+| `session-want-before-manifest` | `sync_pull_json_rejects_want_before_manifest_or_heads` | both layers |
+| `session-snapshot-want-before-manifest` | `sync_pull_json_snapshot_offer_before_manifest_does_not_unlock_want` | both layers |
+| `session-view-announce-want-before-manifest` | `sync_pull_json_view_announce_before_manifest_does_not_unlock_want` | both layers |
+| `session-object-before-manifest` | `sync_pull_json_rejects_unrequested_object_before_manifest_or_heads` | both layers |
+
+Product-layer-only note:
+
+- `sync_pull_json_allows_error_before_hello_but_still_requires_sync_messages`
+  covers `ERROR` before `HELLO`; the simulator matrix does not currently define
+  a dedicated `session-error-before-hello` case.
+
 ## Recovery
 
 - `recover-missing-objects`: recover missing objects via `WANT`
