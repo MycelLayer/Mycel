@@ -5,6 +5,7 @@ use mycel_core::head::{
     inspect_heads_from_path, inspect_heads_from_store_path, render_head_from_path,
     render_head_from_store_path, HeadInspectSummary, HeadRenderSummary,
 };
+use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
 
@@ -193,7 +194,26 @@ fn profile_retry_hint(available_profile_ids: &[String], errors: &[String]) -> Op
     Some(format!("retry with one of: {examples}"))
 }
 
-fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
+fn has_viewer_effects(
+    viewer_bonus: u64,
+    viewer_penalty: u64,
+    challenge_review_pressure: u64,
+    challenge_freeze_pressure: u64,
+) -> bool {
+    viewer_bonus > 0
+        || viewer_penalty > 0
+        || challenge_review_pressure > 0
+        || challenge_freeze_pressure > 0
+}
+
+fn viewer_review_state_text(review_state: &impl Serialize) -> String {
+    serde_json::to_string(review_state)
+        .unwrap_or_else(|_| "\"unknown\"".to_string())
+        .trim_matches('"')
+        .to_string()
+}
+
+fn print_head_inspect_summary_debug(summary: &HeadInspectSummary) {
     println!("input path: {}", summary.input_path.display());
     println!("doc id: {}", summary.doc_id);
     if let Some(profile_id) = &summary.profile_id {
@@ -217,9 +237,11 @@ fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
         println!("viewer signals: {}", summary.viewer_signal_count);
     }
     println!("status: {}", summary.status);
+}
 
+fn print_head_debug_candidate(summary: &HeadInspectSummary) {
     for head in &summary.eligible_heads {
-        if head.viewer_bonus > 0 || head.viewer_penalty > 0 {
+        if has_viewer_effects(head.viewer_bonus, head.viewer_penalty, 0, 0) {
             println!(
                 "eligible head: {} timestamp={} score={} supporters={} maintainer_score={} viewer_bonus={} viewer_penalty={} score_formula=\"{}\"",
                 head.revision_id,
@@ -250,19 +272,16 @@ fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
             );
         }
     }
+}
 
-    if let Some(selected_head) = &summary.selected_head {
-        println!("selected head: {selected_head}");
-    }
-    if let Some(tie_break_reason) = &summary.tie_break_reason {
-        println!("tie break reason: {tie_break_reason}");
-    }
+fn print_head_debug_viewer_channels(summary: &HeadInspectSummary) {
     for channel in &summary.viewer_score_channels {
-        if channel.viewer_bonus > 0
-            || channel.viewer_penalty > 0
-            || channel.challenge_review_pressure > 0
-            || channel.challenge_freeze_pressure > 0
-        {
+        if has_viewer_effects(
+            channel.viewer_bonus,
+            channel.viewer_penalty,
+            channel.challenge_review_pressure,
+            channel.challenge_freeze_pressure,
+        ) {
             println!(
                 "viewer channel: {} maintainer_score={} bonus={} penalty={} challenges={} review_pressure={} freeze_pressure={} review_state={}",
                 channel.revision_id,
@@ -272,32 +291,13 @@ fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
                 channel.challenge_signal_count,
                 channel.challenge_review_pressure,
                 channel.challenge_freeze_pressure,
-                serde_json::to_string(&channel.viewer_review_state)
-                    .unwrap_or_else(|_| "\"unknown\"".to_string())
-                    .trim_matches('"')
+                viewer_review_state_text(&channel.viewer_review_state)
             );
         }
     }
-    for trace in &summary.decision_trace {
-        println!("trace: {}: {}", trace.step, trace.detail);
-    }
-    for note in &summary.notes {
-        println!("note: {note}");
-    }
-
-    if summary.is_ok() {
-        println!("head inspection: ok");
-        0
-    } else {
-        println!("head inspection: failed");
-        for error in &summary.errors {
-            emit_error_line(error);
-        }
-        1
-    }
 }
 
-fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
+fn print_head_inspect_summary_human(summary: &HeadInspectSummary) {
     println!(
         "Head inspection: {}",
         if summary.is_ok() { "ok" } else { "failed" }
@@ -330,7 +330,9 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
         println!("- viewer signals: {}", summary.viewer_signal_count);
     }
     println!("- status: {}", human_head_status(&summary.status));
+}
 
+fn print_head_human_candidates(summary: &HeadInspectSummary) {
     if !summary.eligible_heads.is_empty() {
         println!();
         println!("Candidates");
@@ -355,16 +357,19 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
             );
         }
     }
+}
 
+fn print_head_human_viewer_effects(summary: &HeadInspectSummary) {
     if !summary.viewer_score_channels.is_empty() {
         println!();
         println!("Viewer Effects");
         for channel in &summary.viewer_score_channels {
-            if channel.viewer_bonus > 0
-                || channel.viewer_penalty > 0
-                || channel.challenge_review_pressure > 0
-                || channel.challenge_freeze_pressure > 0
-            {
+            if has_viewer_effects(
+                channel.viewer_bonus,
+                channel.viewer_penalty,
+                channel.challenge_review_pressure,
+                channel.challenge_freeze_pressure,
+            ) {
                 println!("- {}", channel.revision_id);
                 println!(
                     "  maintainer score={} bonus={} penalty={} challenges={} review pressure={} freeze pressure={} state={}",
@@ -374,16 +379,14 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
                     channel.challenge_signal_count,
                     channel.challenge_review_pressure,
                     channel.challenge_freeze_pressure,
-                    humanize_tokenized_label(
-                        serde_json::to_string(&channel.viewer_review_state)
-                            .unwrap_or_else(|_| "\"unknown\"".to_string())
-                            .trim_matches('"')
-                    )
+                    humanize_tokenized_label(&viewer_review_state_text(&channel.viewer_review_state))
                 );
             }
         }
     }
+}
 
+fn print_head_human_decision(summary: &HeadInspectSummary) {
     println!();
     println!("Decision");
     if let Some(selected_head) = &summary.selected_head {
@@ -414,6 +417,43 @@ fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
     {
         println!("- trace: {}", selection_trace.detail);
     }
+}
+
+fn print_head_inspect_debug(summary: &HeadInspectSummary) -> i32 {
+    print_head_inspect_summary_debug(summary);
+    print_head_debug_candidate(summary);
+
+    if let Some(selected_head) = &summary.selected_head {
+        println!("selected head: {selected_head}");
+    }
+    if let Some(tie_break_reason) = &summary.tie_break_reason {
+        println!("tie break reason: {tie_break_reason}");
+    }
+    print_head_debug_viewer_channels(summary);
+    for trace in &summary.decision_trace {
+        println!("trace: {}: {}", trace.step, trace.detail);
+    }
+    for note in &summary.notes {
+        println!("note: {note}");
+    }
+
+    if summary.is_ok() {
+        println!("head inspection: ok");
+        0
+    } else {
+        println!("head inspection: failed");
+        for error in &summary.errors {
+            emit_error_line(error);
+        }
+        1
+    }
+}
+
+fn print_head_inspect_human(summary: &HeadInspectSummary) -> i32 {
+    print_head_inspect_summary_human(summary);
+    print_head_human_candidates(summary);
+    print_head_human_viewer_effects(summary);
+    print_head_human_decision(summary);
 
     if !summary.notes.is_empty() {
         println!();
