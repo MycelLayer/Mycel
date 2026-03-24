@@ -14,6 +14,7 @@ As of 2026-03-24, the repository already uses:
 - GitHub Discussions for open-ended conversation
 - GitHub Projects as an available planning surface
 - secret scanning and secret scanning push protection
+- private vulnerability reporting
 - classic branch protection on `main`
 - three required status checks on `main`:
   - `rust-and-validation`
@@ -23,6 +24,7 @@ As of 2026-03-24, the repository already uses:
 - `.github/CODEOWNERS`
 - `.github/dependabot.yml`
 - vulnerability alerts
+- automated security fixes
 - the `MycelLayer/Mycel` organization-owned repository
 
 The main gaps worth addressing first are:
@@ -32,6 +34,7 @@ The main gaps worth addressing first are:
 - admin enforcement is still off for the branch protection
 - delete-branch-on-merge is still off
 - auto-merge remains disabled
+- code scanning is still not configured
 
 ## 1. Strengthen Branch Governance
 
@@ -88,6 +91,9 @@ Recommended scope:
 
 - keep the current `dependabot.yml` focused on the ecosystems we already use
   (`cargo`, GitHub Actions, and the root `npm` workspace)
+- keep private vulnerability reporting enabled for the public repository
+- keep secret scanning and secret scanning push protection enabled unless
+  signal quality becomes a real burden
 - decide whether host-side Dependabot behavior should stay on grouped low-churn
   updates or narrow further
 - keep version updates intentional until the team decides how much update churn
@@ -106,7 +112,33 @@ Main tradeoff:
 
 - maintainers will need to triage additional automated pull requests
 
-## 4. Revisit Auto-Merge After The Merge Gate Exists
+## 4. Add Code Scanning Only With A Deliberate Workflow Choice
+
+Code scanning is now the main remaining GitHub-native security feature that is
+still unset.
+
+Recommended scope:
+
+- choose a lightweight first pass instead of enabling the broadest possible
+  default without review
+- use GitHub code scanning only if we want persistent SARIF-backed findings in
+  the Security tab rather than relying solely on existing CI and `ast-grep`
+- prefer a single clear initial path, such as GitHub's default CodeQL setup,
+  before layering on more languages or custom packs
+
+Why now:
+
+- the lower-friction security switches are already on, so code scanning is the
+  next meaningful GitHub-native visibility upgrade
+- this is the first remaining item that adds new analysis coverage rather than
+  just governance or routing changes
+
+Main tradeoff:
+
+- better static-analysis visibility in exchange for extra CI time and alert
+  triage overhead
+
+## 5. Revisit Auto-Merge After The Merge Gate Exists
 
 Enable auto-merge only after step 1 is working well.
 
@@ -121,7 +153,7 @@ Main tradeoff:
 - small convenience gain, but it can hide merge timing if the team is not yet
   comfortable with enforced review rules
 
-## 5. Treat Projects As An Optional Planning Upgrade
+## 6. Treat Projects As An Optional Planning Upgrade
 
 GitHub Projects is worth adopting only if we want a GitHub-native planning view
 for issue, PR, and role-based work tracking.
@@ -171,10 +203,11 @@ Reason:
 
 If we want the smallest practical rollout, use this sequence:
 
-1. configure `main` rulesets / branch protection
+1. strengthen `main` governance, including the rulesets vs classic-branch-protection decision
 2. refine `CODEOWNERS` and decide whether code owner reviews should be required
-3. tune Dependabot plus vulnerability-alert usage
-4. optionally enable auto-merge
+3. keep tuning Dependabot and the newly enabled security features
+4. decide whether to add code scanning
+5. optionally enable auto-merge
 
 This sequence keeps the change surface small while improving safety and review
 discipline quickly.
@@ -190,5 +223,7 @@ Concrete next implementation tasks for a future work item:
 - record which maintainers can bypass rulesets, if any
 - decide whether Dependabot should stay on grouped low-churn updates or narrow
   further
+- decide whether GitHub code scanning should use default CodeQL setup or stay
+  out of scope
 - decide whether GitHub Projects should mirror the existing multi-agent workflow
   or stay out of scope
