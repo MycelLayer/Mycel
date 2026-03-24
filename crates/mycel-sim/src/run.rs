@@ -547,12 +547,24 @@ fn simulate_peer_store_sync_report(
         } else {
             "reader-accept"
         };
-        let outcome = if summary.is_ok() { "ok" } else { "failed" };
-
-        report_peer.status = if summary.is_ok() {
-            "ok".to_owned()
+        let has_warning_note = summary
+            .notes
+            .iter()
+            .any(|note| note.contains("ended without BYE"));
+        let outcome = if !summary.errors.is_empty() {
+            "failed"
+        } else if has_warning_note {
+            "warning"
         } else {
+            "ok"
+        };
+
+        report_peer.status = if !summary.errors.is_empty() {
             "failed".to_owned()
+        } else if has_warning_note {
+            "warning".to_owned()
+        } else {
+            "ok".to_owned()
         };
         report_peer.verified_object_ids = verified_object_ids.clone();
         report_peer.notes.push(format!(
@@ -583,6 +595,17 @@ fn simulate_peer_store_sync_report(
                     summary.errors.join("; ")
                 ),
                 severity: Some("error".to_owned()),
+            });
+        }
+        if has_warning_note {
+            failures.push(ReportFailure {
+                failure_id: format!("sync-warning:missing-bye:{}", peer.node_id),
+                node_id: Some(peer.node_id.clone()),
+                description: format!(
+                    "Peer-store sync for '{}' completed without BYE from the seed.",
+                    peer.node_id
+                ),
+                severity: Some("warning".to_owned()),
             });
         }
 
@@ -1891,6 +1914,7 @@ fn inject_session_fault(
         "heads-before-hello" => inject_heads_before_hello_fault(transcript, signing_key),
         "hello-node-id-mismatch" => inject_hello_node_id_mismatch_fault(transcript, signing_key),
         "manifest-before-hello" => inject_manifest_before_hello_fault(transcript),
+        "missing-bye" => inject_missing_bye_fault(transcript),
         "messages-after-bye" => inject_messages_after_bye_fault(transcript, signing_key),
         "object-before-hello" => inject_object_before_hello_fault(transcript),
         "object-before-manifest" => inject_object_before_manifest_fault(transcript),
@@ -2087,6 +2111,18 @@ fn inject_messages_after_bye_fault(
         }),
     )?;
     transcript.messages.insert(hello_index + 1, bye);
+    Ok(())
+}
+
+fn inject_missing_bye_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+) -> Result<(), String> {
+    let bye_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("BYE"))
+        .ok_or_else(|| "transcript is missing BYE for missing-bye injection".to_owned())?;
+    transcript.messages.remove(bye_index);
     Ok(())
 }
 

@@ -1,0 +1,24 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-missing-bye",
+    "description": "A reader should complete sync when the seed omits BYE, but the run should report a warning-level session note.",
+    "category": "warning",
+    "topology": "sim/topologies/session-missing-bye.example.json",
+    "fixture_set": "fixtures/object-sets/session-missing-bye",
+    "execution_mode": "single-process",
+    "expected_result": "partial",
+    "expected_outcomes": [
+        "missing-bye-session-note"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "missing-bye-session-note",
+            "description": "Reader completes sync but records that the transcript ended without BYE from the seed.",
+            "severity": "warning"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with a warning-only session-completion case.",
+        "The seed still uses the normal peer-store transcript generator, but the harness removes the final BYE."
+    ]
+}

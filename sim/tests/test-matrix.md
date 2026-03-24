@@ -81,6 +81,11 @@
 - `session-stale-view-want-after-heads-replace`: reject a stale view `WANT` after `HEADS replace=true` withdraws the old root set that previously made the announced view reachable
   Reference JSON: `sim/tests/session-stale-view-want-after-heads-replace.example.json`
 
+## Warning-Only
+
+- `session-missing-bye`: complete sync without a final `BYE`, but report a warning-level session note
+  Reference JSON: `sim/tests/session-missing-bye.example.json`
+
 ### Product-Layer Coverage Notes
 
 The simulator matrix above tracks the canonical negative sequencing cases. The
@@ -118,6 +123,12 @@ families below.
 | `session-stale-dependency-object-after-heads-replace` | `sync_pull_json_rejects_stale_dependency_object_after_heads_replace` | both layers |
 | `session-stale-snapshot-want-after-heads-replace` | `sync_pull_json_rejects_stale_snapshot_want_after_heads_replace` | both layers |
 | `session-stale-view-want-after-heads-replace` | `sync_pull_json_rejects_stale_view_want_after_heads_replace` | both layers |
+
+### Product-Layer Warning Notes
+
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `session-missing-bye` | `sync_pull_json_reports_missing_bye_as_session_note` | both layers |
 | `reject-hash-mismatch` | `sync_pull_json_rejects_invalid_object_hash_without_storing_objects` | both layers |
 | `reject-object-id-mismatch` | `sync_pull_json_reports_object_id_mismatch_without_storing_objects` | both layers |
 | `reject-signature-mismatch` | `sync_pull_json_rejects_invalid_wire_signature_without_storing_objects` | both layers |

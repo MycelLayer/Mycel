@@ -1,0 +1,24 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-missing-bye",
+    "description": "Seed omits the final BYE so the reader completes sync with a warning-level session note",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-missing-bye-test"
+        }
+    ],
+    "expected_outcomes": [
+        "missing-bye-session-note"
+    ],
+    "metadata": {
+        "session_fault": "missing-bye"
+    },
+    "notes": [
+        "Simulator removes the final BYE from an otherwise normal transcript.",
+        "The transcript should still sync successfully, but the reader should report a warning-level session note."
+    ]
+}
