@@ -16,7 +16,7 @@ use mycel_core::author::{
 };
 use mycel_core::canonical::{signed_payload_bytes, wire_envelope_signed_payload_bytes};
 use mycel_core::protocol::{parse_json_strict, recompute_object_id, recompute_object_identity};
-use mycel_core::replay::replay_revision_from_index;
+use mycel_core::replay::{compute_state_hash, replay_revision_from_index, DocumentState};
 use mycel_core::store::{
     load_store_index_manifest, load_store_object_index, write_object_value_to_store,
     StoreIndexManifest,
@@ -1961,6 +1961,9 @@ fn inject_session_fault(
         "unadvertised-object-want-after-manifest" => {
             inject_unadvertised_object_want_after_manifest_fault(transcript, signing_key)
         }
+        "unadvertised-root-object-after-root-want" => {
+            inject_unadvertised_root_object_after_root_want_fault(transcript, signing_key)
+        }
         "want-before-manifest" => inject_want_before_manifest_fault(transcript, signing_key),
         "want-before-hello" => inject_want_before_hello_fault(transcript, signing_key),
         other => Err(format!("unsupported session fault '{other}'")),
@@ -2845,6 +2848,79 @@ fn inject_unadvertised_object_want_after_manifest_fault(
     Ok(())
 }
 
+fn inject_unadvertised_root_object_after_root_want_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let root_want_index = transcript
+        .messages
+        .iter()
+        .position(|message| {
+            if message.get("type").and_then(Value::as_str) != Some("WANT") {
+                return false;
+            }
+            message
+                .get("payload")
+                .and_then(Value::as_object)
+                .and_then(|payload| payload.get("objects"))
+                .and_then(Value::as_array)
+                .is_some_and(|objects| {
+                    objects.iter().any(|value| {
+                        value
+                            .as_str()
+                            .is_some_and(|object_id| object_id.starts_with("rev:"))
+                    })
+                })
+        })
+        .ok_or_else(|| {
+            "transcript is missing root WANT for unadvertised-root-object-after-root-want injection"
+                .to_owned()
+        })?;
+    let root_object_index = transcript
+        .messages
+        .iter()
+        .enumerate()
+        .skip(root_want_index + 1)
+        .find(|(_, message)| {
+            message.get("type").and_then(Value::as_str) == Some("OBJECT")
+                && message
+                    .get("payload")
+                    .and_then(Value::as_object)
+                    .and_then(|payload| payload.get("object_type"))
+                    .and_then(Value::as_str)
+                    == Some("revision")
+        })
+        .map(|(index, _)| index)
+        .ok_or_else(|| {
+            "transcript is missing root revision OBJECT for unadvertised-root-object-after-root-want injection"
+                .to_owned()
+        })?;
+    let patch_ids: Vec<String> = transcript.messages[root_object_index]
+        .get("payload")
+        .and_then(Value::as_object)
+        .and_then(|payload| payload.get("body"))
+        .and_then(Value::as_object)
+        .and_then(|body| body.get("patches"))
+        .and_then(Value::as_array)
+        .map(|patches| {
+            patches
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default();
+    let patch_refs: Vec<&str> = patch_ids.iter().map(String::as_str).collect();
+    let replacement_root = signed_sim_revision_object_message(
+        signing_key,
+        &transcript.peer.node_id,
+        &["rev:peer-sync-fault-unadvertised-parent"],
+        &patch_refs,
+        "msg:peer-sync-fault-object-root-0007",
+    )?;
+    transcript.messages[root_object_index] = replacement_root;
+    Ok(())
+}
+
 fn inject_unrequested_root_object_after_manifest_fault(
     transcript: &mut mycel_core::sync::SyncPullTranscript,
 ) -> Result<(), String> {
@@ -2993,6 +3069,65 @@ fn signed_sim_patch_object_message(
             "body": body
         }),
     )
+}
+
+fn signed_sim_revision_object_message(
+    signing_key: &ed25519_dalek::SigningKey,
+    sender: &str,
+    parents: &[&str],
+    patches: &[&str],
+    msg_id: &str,
+) -> Result<Value, String> {
+    let author = signer_id(signing_key);
+    let mut body = json!({
+        "type": "revision",
+        "version": "mycel/0.1",
+        "revision_id": "rev:placeholder",
+        "doc_id": "doc:test",
+        "parents": parents,
+        "patches": patches,
+        "state_hash": empty_sim_state_hash("doc:test"),
+        "author": author,
+        "timestamp": 4u64,
+        "signature": "sig:placeholder"
+    });
+    let revision_id = recompute_object_id(&body, "revision_id", "rev")
+        .map_err(|err| format!("failed to recompute revision object id: {err}"))?;
+    body["revision_id"] = Value::String(revision_id);
+
+    let payload = signed_payload_bytes(&body)
+        .map_err(|err| format!("failed to canonicalize revision body: {err}"))?;
+    let signature = signing_key.sign(&payload);
+    body["signature"] = Value::String(format!(
+        "sig:ed25519:{}",
+        base64::engine::general_purpose::STANDARD.encode(signature.to_bytes())
+    ));
+
+    let identity = recompute_object_identity(&body, "revision_id", "rev")
+        .map_err(|err| format!("failed to recompute signed revision identity: {err}"))?;
+    signed_sim_wire_message(
+        signing_key,
+        sender,
+        "OBJECT",
+        msg_id,
+        json!({
+            "object_id": identity.object_id,
+            "object_type": "revision",
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": identity.hash,
+            "body": body
+        }),
+    )
+}
+
+fn empty_sim_state_hash(doc_id: &str) -> String {
+    compute_state_hash(&DocumentState {
+        doc_id: doc_id.to_string(),
+        blocks: Vec::new(),
+        metadata: serde_json::Map::new(),
+    })
+    .expect("empty state hash should compute")
 }
 
 fn fixture_requested_doc_ids(fixture: &Fixture) -> Option<Vec<String>> {

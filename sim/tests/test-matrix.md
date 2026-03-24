@@ -64,6 +64,8 @@
   Reference JSON: `sim/tests/session-unadvertised-object-want-after-manifest.example.json`
 - `session-unrequested-root-object-after-manifest`: reject a sync transcript that emits a root revision `OBJECT` after `MANIFEST` but before any `WANT` requests it
   Reference JSON: `sim/tests/session-unrequested-root-object-after-manifest.example.json`
+- `session-unadvertised-root-object-after-root-want`: reject a sync transcript that answers an advertised root `WANT` with a different root revision `OBJECT` that was never requested
+  Reference JSON: `sim/tests/session-unadvertised-root-object-after-root-want.example.json`
 - `session-unrequested-dependency-object-after-root-object`: reject a sync transcript that emits a dependency `OBJECT` after the requested root revision arrives but before any `WANT` requests that dependency
   Reference JSON: `sim/tests/session-unrequested-dependency-object-after-root-object.example.json`
 - `session-object-before-manifest`: reject a sync transcript that emits `OBJECT` immediately after `HELLO`, before any `WANT` request or accepted sync roots exist

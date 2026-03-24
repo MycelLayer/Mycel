@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-unadvertised-root-object-after-root-want",
+    "description": "Seed advertises one root revision, receives a WANT for it, and then sends a different root revision OBJECT that was never requested",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-unadvertised-root-object-after-root-want-test"
+        }
+    ],
+    "expected_outcomes": [
+        "unadvertised-root-object-after-root-want-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "unadvertised-root-object-after-root-want"
+    },
+    "notes": [
+        "Simulator keeps the normal root WANT but swaps the returned root revision OBJECT for a different revision that was never requested.",
+        "The transcript should fail on the standard unrequested OBJECT rule before any object verification or store writes happen."
+    ]
+}

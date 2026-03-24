@@ -757,6 +757,90 @@ fn sync_pull_json_rejects_unrequested_root_object_after_manifest() {
 }
 
 #[test]
+fn sync_pull_json_rejects_unadvertised_root_object_after_root_want() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let requested_root = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let requested_root_id = requested_root["payload"]["object_id"]
+        .as_str()
+        .expect("requested root revision object id should exist")
+        .to_string();
+    let unadvertised_root = signed_revision_object_message(
+        &signing_key,
+        sender,
+        &["rev:unexpected-parent"],
+        &[&patch_id],
+    );
+    let unadvertised_root_id = unadvertised_root["payload"]["object_id"]
+        .as_str()
+        .expect("unadvertised root revision object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-unadvertised-root-object");
+    let transcript_path = transcript_dir
+        .path()
+        .join("unadvertised-root-object-transcript.json");
+    let store_root = create_temp_dir("sync-pull-unadvertised-root-object-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &requested_root_id),
+                signed_want_message(&signing_key, sender, &[&requested_root_id]),
+                unadvertised_root
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(store_root.path()),
+        "--json",
+    ]);
+
+    assert!(
+        !output.status.success(),
+        "expected failure, stdout: {}, stderr: {}",
+        stdout_text(&output),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json = assert_json_status(&output, "failed");
+    assert_eq!(json["verified_message_count"], 3);
+    assert_eq!(json["object_message_count"], 0);
+    assert_eq!(json["written_object_count"], 0);
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|error| {
+                error.as_str().is_some_and(|message| {
+                    message.contains(&format!(
+                        "wire OBJECT '{unadvertised_root_id}' was not requested from '{sender}'"
+                    ))
+                })
+            })),
+        "expected unadvertised root OBJECT error, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(!store_root
+        .path()
+        .join("indexes")
+        .join("manifest.json")
+        .exists());
+}
+
+#[test]
 fn sync_pull_json_rejects_unrequested_dependency_object_after_root_object() {
     let signing_key = signing_key();
     let sender = "node:alpha";

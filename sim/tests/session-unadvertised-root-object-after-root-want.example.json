@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-unadvertised-root-object-after-root-want",
+    "description": "A reader should fail sync when the seed answers an advertised root WANT with a different root revision OBJECT that was never requested.",
+    "category": "negative",
+    "topology": "sim/topologies/session-unadvertised-root-object-after-root-want.example.json",
+    "fixture_set": "fixtures/object-sets/session-unadvertised-root-object-after-root-want",
+    "execution_mode": "single-process",
+    "expected_result": "fail",
+    "expected_outcomes": [
+        "unadvertised-root-object-after-root-want-rejected",
+        "no-invalid-index-write"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "unadvertised-root-object-after-root-want-rejected",
+            "description": "Reader rejects the unexpected root revision OBJECT because the seed returned a different root than the one the accepted sync roots advertised and the reader requested.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "no-invalid-index-write",
+            "description": "Reader does not write a manifest or verified object set after the unexpected root OBJECT violation.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with an advertised-root/root-set violation on the OBJECT path, not just WANT reachability.",
+        "The seed still uses the normal peer-store transcript generator, but the harness swaps the first root revision OBJECT for an unrequested alternative."
+    ]
+}

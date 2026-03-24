@@ -1909,6 +1909,67 @@ fn wire_session_rejects_unrequested_object() {
 }
 
 #[test]
+fn wire_session_rejects_unadvertised_root_object_after_root_want() {
+    let signing_key = signing_key();
+    let sender_key = sender_public_key(&signing_key);
+    let mut session = WireSession::default();
+    session
+        .register_known_peer("node:alpha", &sender_key)
+        .expect("known peer should register");
+    let patch_object = signed_patch_object_message(&signing_key, "node:alpha", "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("signed patch OBJECT should include object_id")
+        .to_owned();
+    let requested_root =
+        signed_revision_object_message(&signing_key, "node:alpha", &[], &[patch_id.as_str()]);
+    let requested_root_id = requested_root["payload"]["object_id"]
+        .as_str()
+        .expect("signed requested root revision OBJECT should include object_id")
+        .to_owned();
+    let unadvertised_root = signed_revision_object_message(
+        &signing_key,
+        "node:alpha",
+        &["rev:unexpected-parent"],
+        &[patch_id.as_str()],
+    );
+    let unadvertised_root_id = unadvertised_root["payload"]["object_id"]
+        .as_str()
+        .expect("signed unadvertised root revision OBJECT should include object_id")
+        .to_owned();
+
+    let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+    let manifest = signed_manifest_message_with_heads(
+        &signing_key,
+        "node:alpha",
+        "node:alpha",
+        json!({
+            "doc:test": [requested_root_id.clone()]
+        }),
+    );
+    let root_want = signed_want_message(&signing_key, "node:alpha", &[requested_root_id.as_str()]);
+
+    session
+        .verify_incoming(&hello)
+        .expect("HELLO should verify");
+    session
+        .verify_incoming(&manifest)
+        .expect("MANIFEST should verify");
+    session
+        .verify_incoming(&root_want)
+        .expect("root WANT should verify");
+    let error = session.verify_incoming(&unadvertised_root).unwrap_err();
+
+    assert_eq!(
+        error,
+        format!(
+            "wire OBJECT '{}' was not requested from 'node:alpha'",
+            unadvertised_root_id
+        )
+    );
+}
+
+#[test]
 fn wire_session_rejects_unrequested_object_before_manifest() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);
