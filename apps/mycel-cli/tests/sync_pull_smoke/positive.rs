@@ -60,7 +60,7 @@ fn load_manifest(store_root: &Path) -> Value {
 fn assert_doc_revisions_include(manifest: &Value, expected_revision_ids: &[&str]) {
     let revisions = manifest["doc_revisions"]["doc:test"]
         .as_array()
-        .expect("expected synced revision index array");
+        .expect("manifest[\"doc_revisions\"][\"doc:test\"] should be an array of revision IDs");
     assert_eq!(revisions.len(), expected_revision_ids.len());
     for expected_revision_id in expected_revision_ids {
         assert!(revisions
