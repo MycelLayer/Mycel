@@ -32,6 +32,8 @@
   Reference JSON: `sim/tests/session-messages-after-bye.example.json`
 - `session-bye-before-hello`: reject a sync transcript that emits `BYE` before the seed establishes the session with `HELLO`
   Reference JSON: `sim/tests/session-bye-before-hello.example.json`
+- `session-object-before-hello`: reject a sync transcript that emits `OBJECT` before the seed establishes the session with `HELLO`
+  Reference JSON: `sim/tests/session-object-before-hello.example.json`
 - `session-error-before-hello`: accept an `ERROR` before `HELLO` and still complete sync when the rest of the transcript is valid
   Reference JSON: `sim/tests/session-error-before-hello.example.json`
 - `session-unknown-sender`: reject a sync transcript whose opening `HELLO` uses an unregistered sender identity
@@ -84,6 +86,7 @@ families below.
 | `snapshot-sync-without-capability` | `sync_pull_json_rejects_snapshot_offer_without_advertised_capability` | both layers |
 | `session-messages-after-bye` | `sync_pull_json_rejects_messages_after_bye` | both layers |
 | `session-bye-before-hello` | `sync_pull_json_rejects_bye_before_hello` | both layers |
+| `session-object-before-hello` | `sync_pull_json_rejects_object_before_hello` | both layers |
 | `session-error-before-hello` | `sync_pull_json_accepts_error_before_hello_and_completes_sync` | both layers |
 | `session-unknown-sender` | `sync_pull_json_rejects_unknown_sender` | both layers |
 | `session-hello-node-id-mismatch` | `sync_pull_json_rejects_hello_node_id_mismatch` | both layers |

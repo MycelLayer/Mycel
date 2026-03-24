@@ -1892,6 +1892,7 @@ fn inject_session_fault(
         "hello-node-id-mismatch" => inject_hello_node_id_mismatch_fault(transcript, signing_key),
         "manifest-before-hello" => inject_manifest_before_hello_fault(transcript),
         "messages-after-bye" => inject_messages_after_bye_fault(transcript, signing_key),
+        "object-before-hello" => inject_object_before_hello_fault(transcript),
         "object-before-manifest" => inject_object_before_manifest_fault(transcript),
         "snapshot-offer-before-hello" => {
             inject_snapshot_offer_before_hello_fault(transcript, signing_key)
@@ -2074,6 +2075,28 @@ fn inject_messages_after_bye_fault(
         }),
     )?;
     transcript.messages.insert(hello_index + 1, bye);
+    Ok(())
+}
+
+fn inject_object_before_hello_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+) -> Result<(), String> {
+    let hello_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("HELLO"))
+        .ok_or_else(|| {
+            "transcript is missing HELLO for object-before-hello injection".to_owned()
+        })?;
+    let object_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
+        .ok_or_else(|| {
+            "transcript is missing OBJECT for object-before-hello injection".to_owned()
+        })?;
+    let object = transcript.messages.remove(object_index);
+    transcript.messages.insert(hello_index, object);
     Ok(())
 }
 

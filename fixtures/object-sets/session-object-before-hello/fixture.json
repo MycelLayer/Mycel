@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-object-before-hello",
+    "description": "Seed injects OBJECT before HELLO so the reader rejects the transcript for missing session establishment",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-object-before-hello-test"
+        }
+    ],
+    "expected_outcomes": [
+        "object-before-hello-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "object-before-hello"
+    },
+    "notes": [
+        "Simulator injects OBJECT ahead of the normal HELLO, before the seed establishes the wire session.",
+        "The transcript should fail on the standard prior-HELLO OBJECT rule before any object verification or store writes happen."
+    ]
+}
