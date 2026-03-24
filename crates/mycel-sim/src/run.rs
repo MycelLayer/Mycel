@@ -1889,6 +1889,9 @@ fn inject_session_fault(
         "snapshot-offer-before-hello" => {
             inject_snapshot_offer_before_hello_fault(transcript, signing_key)
         }
+        "stale-object-want-after-heads-replace" => {
+            inject_stale_object_want_after_heads_replace_fault(transcript, signing_key)
+        }
         "snapshot-want-before-manifest" => {
             inject_snapshot_want_before_manifest_fault(transcript, signing_key)
         }
@@ -1998,6 +2001,115 @@ fn inject_snapshot_offer_before_hello_fault(
     )?;
     transcript.messages.insert(hello_index, snapshot_offer);
     Ok(())
+}
+
+fn inject_stale_object_want_after_heads_replace_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let bye_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("BYE"))
+        .ok_or_else(|| {
+            "transcript is missing BYE for stale-object-want-after-heads-replace injection"
+                .to_owned()
+        })?;
+    let stale_object_id: String = transcript
+        .messages
+        .iter()
+        .filter(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
+        .find_map(|message| {
+            let body = message
+                .get("payload")
+                .and_then(Value::as_object)
+                .and_then(|payload| payload.get("body"))?;
+            let reachable = sim_reachable_object_ids_from_body(body);
+            reachable
+                .into_iter()
+                .find(|object_id| object_id != "rev:genesis-null")
+        })
+        .ok_or_else(|| {
+            "transcript is missing a reachable dependency OBJECT for stale-object-want-after-heads-replace injection"
+                .to_owned()
+        })?;
+
+    let replacement_heads = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "HEADS",
+        "msg:peer-sync-fault-heads-replace-0001",
+        json!({
+            "documents": {
+                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
+            },
+            "replace": true
+        }),
+    )?;
+    let want = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "WANT",
+        "msg:peer-sync-fault-want-stale-object-0002",
+        json!({
+            "objects": [stale_object_id]
+        }),
+    )?;
+
+    transcript.messages.insert(bye_index, replacement_heads);
+    transcript.messages.insert(bye_index + 1, want);
+    Ok(())
+}
+
+fn sim_reachable_object_ids_from_body(body: &Value) -> BTreeSet<String> {
+    let mut reachable = BTreeSet::new();
+    let Some(object) = body.as_object() else {
+        return reachable;
+    };
+
+    match object.get("type").and_then(Value::as_str) {
+        Some("patch") => {
+            if let Some(base_revision) = object.get("base_revision").and_then(Value::as_str) {
+                reachable.insert(base_revision.to_owned());
+            }
+        }
+        Some("revision") => {
+            if let Some(parents) = object.get("parents").and_then(Value::as_array) {
+                reachable.extend(
+                    parents
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_owned)),
+                );
+            }
+            if let Some(patches) = object.get("patches").and_then(Value::as_array) {
+                reachable.extend(
+                    patches
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_owned)),
+                );
+            }
+        }
+        Some("view") | Some("snapshot") => {
+            if let Some(documents) = object.get("documents").and_then(Value::as_object) {
+                reachable.extend(
+                    documents
+                        .values()
+                        .filter_map(|value| value.as_str().map(str::to_owned)),
+                );
+            }
+            if let Some(included_objects) = object.get("included_objects").and_then(Value::as_array)
+            {
+                reachable.extend(
+                    included_objects
+                        .iter()
+                        .filter_map(|value| value.as_str().map(str::to_owned)),
+                );
+            }
+        }
+        _ => {}
+    }
+
+    reachable
 }
 
 fn inject_snapshot_want_before_manifest_fault(

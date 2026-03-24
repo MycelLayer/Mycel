@@ -1086,6 +1086,73 @@ fn wire_session_replaces_heads_when_replace_is_true() {
 }
 
 #[test]
+fn wire_session_rejects_stale_dependency_want_after_heads_replace() {
+    let signing_key = signing_key();
+    let sender_key = sender_public_key(&signing_key);
+    let mut session = WireSession::default();
+    session
+        .register_known_peer("node:alpha", &sender_key)
+        .expect("known peer should register");
+
+    let patch_object = signed_patch_object_message(&signing_key, "node:alpha", "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("signed patch OBJECT should include object_id")
+        .to_owned();
+    let revision_object =
+        signed_revision_object_message(&signing_key, "node:alpha", &[], &[patch_id.as_str()]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("signed revision OBJECT should include object_id")
+        .to_owned();
+
+    let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+    let initial_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:test": [revision_id.clone()]
+        }),
+        true,
+    );
+    let request_revision = signed_want_message(&signing_key, "node:alpha", &[revision_id.as_str()]);
+    let replacement_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:replacement": ["rev:replacement"]
+        }),
+        true,
+    );
+    let request_stale_patch = signed_want_message(&signing_key, "node:alpha", &[patch_id.as_str()]);
+
+    session
+        .verify_incoming(&hello)
+        .expect("HELLO should verify");
+    session
+        .verify_incoming(&initial_heads)
+        .expect("initial HEADS should verify");
+    session
+        .verify_incoming(&request_revision)
+        .expect("root revision WANT should verify");
+    session
+        .verify_incoming(&revision_object)
+        .expect("root revision OBJECT should verify");
+    session
+        .verify_incoming(&replacement_heads)
+        .expect("replacement HEADS should verify");
+    let error = session.verify_incoming(&request_stale_patch).unwrap_err();
+
+    assert_eq!(
+        error,
+        format!(
+            "wire WANT object '{}' is not reachable from accepted sync roots for 'node:alpha'",
+            patch_id
+        )
+    );
+}
+
+#[test]
 fn wire_session_rejects_snapshot_offer_without_snapshot_capability() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);

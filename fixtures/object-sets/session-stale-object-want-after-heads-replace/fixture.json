@@ -1,0 +1,26 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-stale-object-want-after-heads-replace",
+    "description": "Seed replaces advertised heads after initial sync context and then asks for a stale dependency from the withdrawn root set",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-stale-object-want-after-heads-replace-test"
+        }
+    ],
+    "expected_outcomes": [
+        "stale-object-want-after-heads-replace-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "stale-object-want-after-heads-replace",
+        "seed_extra_revisions": 1
+    },
+    "notes": [
+        "Simulator injects a replacing HEADS update after the initial root object has already exposed its dependency closure.",
+        "The follow-on WANT for that stale dependency should be rejected because the old root set is no longer accepted after replace=true."
+    ]
+}

@@ -222,6 +222,12 @@ pub struct WirePeerSessionState {
 }
 
 impl WirePeerSessionState {
+    fn reset_sync_root_state(&mut self) {
+        self.accepted_sync_roots.clear();
+        self.reachable_object_ids.clear();
+        self.pending_object_ids.clear();
+    }
+
     fn advertises_revision(&self, revision_id: &str) -> bool {
         self.advertised_document_heads
             .values()
@@ -492,6 +498,7 @@ fn advance_wire_inbound_sequence(
                 wire_head_map_to_sets(validate_wire_head_map(envelope.payload(), "documents")?);
             let replace = required_wire_bool(envelope.payload(), "replace", "wire payload")?;
             if replace {
+                peer_session.reset_sync_root_state();
                 peer_session.advertised_document_heads = documents;
             } else {
                 for (doc_id, revisions) in documents {
