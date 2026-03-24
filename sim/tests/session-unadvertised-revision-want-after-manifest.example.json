@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-unadvertised-revision-want-after-manifest",
+    "description": "A reader should fail sync when the seed emits WANT for a revision that MANIFEST did not advertise as reachable from accepted sync roots.",
+    "category": "negative",
+    "topology": "sim/topologies/session-unadvertised-revision-want-after-manifest.example.json",
+    "fixture_set": "fixtures/object-sets/session-unadvertised-revision-want-after-manifest",
+    "execution_mode": "single-process",
+    "expected_result": "fail",
+    "expected_outcomes": [
+        "unadvertised-revision-want-after-manifest-rejected",
+        "no-invalid-index-write"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "unadvertised-revision-want-after-manifest-rejected",
+            "description": "Reader rejects WANT because the requested revision is not reachable from the accepted sync roots established by MANIFEST.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "no-invalid-index-write",
+            "description": "Reader does not write a manifest or verified object set after the unadvertised WANT violation.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with a post-MANIFEST accepted-root negative interop case.",
+        "The seed still uses the normal peer-store transcript generator, but the harness injects WANT for an unadvertised revision immediately after MANIFEST."
+    ]
+}

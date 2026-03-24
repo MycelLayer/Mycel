@@ -58,6 +58,8 @@
   Reference JSON: `sim/tests/session-want-before-hello.example.json`
 - `session-want-before-manifest`: reject a sync transcript that emits `WANT` after `HELLO` but before `MANIFEST` or `HEADS` establishes accepted sync roots
   Reference JSON: `sim/tests/session-want-before-manifest.example.json`
+- `session-unadvertised-revision-want-after-manifest`: reject a sync transcript that emits `WANT` for a revision outside the accepted sync roots established by `MANIFEST`
+  Reference JSON: `sim/tests/session-unadvertised-revision-want-after-manifest.example.json`
 - `session-object-before-manifest`: reject a sync transcript that emits `OBJECT` immediately after `HELLO`, before any `WANT` request or accepted sync roots exist
   Reference JSON: `sim/tests/session-object-before-manifest.example.json`
 - `session-stale-root-want-after-heads-replace`: reject a withdrawn root revision `WANT` after `HEADS replace=true` swaps out the old root set
@@ -97,6 +99,7 @@ families below.
 | `session-duplicate-hello` | `sync_pull_json_rejects_duplicate_hello` | both layers |
 | `session-want-before-hello` | `sync_pull_json_rejects_want_before_hello` | both layers |
 | `session-want-before-manifest` | `sync_pull_json_rejects_want_before_manifest_or_heads` | both layers |
+| `session-unadvertised-revision-want-after-manifest` | `sync_pull_json_rejects_unadvertised_revision_want_after_manifest` | both layers |
 | `session-snapshot-want-before-manifest` | `sync_pull_json_snapshot_offer_before_manifest_does_not_unlock_want` | both layers |
 | `session-view-announce-want-before-manifest` | `sync_pull_json_view_announce_before_manifest_does_not_unlock_want` | both layers |
 | `session-object-before-manifest` | `sync_pull_json_rejects_unrequested_object_before_manifest_or_heads` | both layers |
