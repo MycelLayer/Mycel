@@ -125,10 +125,9 @@ Product-layer-only note:
 
 ### Product-Layer Multi-Process Notes
 
-`localhost-multi-process` still has no dedicated `apps/mycel-cli/tests` counterpart yet.
-The current product-layer coverage exercises the same wire-session semantics through
-single-process CLI command invocations, but does not yet pin the OS-process pipe
-boundary as its own smoke test.
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `localhost-multi-process` | `sync_stream_to_pull_via_pipe_replays_peer_store_into_local_store` | both layers |
 
 ## Scalability
 

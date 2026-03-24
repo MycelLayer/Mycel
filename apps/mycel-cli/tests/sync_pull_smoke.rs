@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
@@ -13,8 +14,8 @@ use mycel_core::store::write_object_value_to_store;
 mod common;
 
 use common::{
-    assert_json_status, assert_stderr_contains, assert_success, create_temp_dir, run_mycel,
-    stdout_text,
+    assert_json_status, assert_stderr_contains, assert_success, create_temp_dir, mycel_bin,
+    run_mycel, stdout_text,
 };
 
 fn path_arg(path: &Path) -> String {
@@ -1289,6 +1290,97 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
         serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
             .expect("manifest should parse");
     assert_eq!(manifest["stored_object_count"], 2);
+}
+
+#[test]
+fn sync_stream_to_pull_via_pipe_replays_peer_store_into_local_store() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-stream-multi-process-remote");
+    let local_store = create_temp_dir("sync-stream-multi-process-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+
+    write_object_value_to_store(remote_store.path(), &patch_object["payload"]["body"])
+        .expect("patch should write to remote store");
+    write_object_value_to_store(remote_store.path(), &revision_object["payload"]["body"])
+        .expect("revision should write to remote store");
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let mut stream_child = Command::new(mycel_bin())
+        .args([
+            "sync",
+            "stream",
+            "--store",
+            &path_arg(remote_store.path()),
+            "--signing-key",
+            &path_arg(&signing_key_path),
+            "--node-id",
+            sender,
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("sync stream process should spawn");
+
+    let stream_stdout = stream_child
+        .stdout
+        .take()
+        .expect("sync stream stdout should be piped");
+
+    let pull_output = Command::new(mycel_bin())
+        .args([
+            "sync",
+            "pull",
+            "-",
+            "--into",
+            &path_arg(local_store.path()),
+            "--json",
+        ])
+        .stdin(stream_stdout)
+        .output()
+        .expect("sync pull process should run");
+
+    let stream_output = stream_child
+        .wait_with_output()
+        .expect("sync stream process should finish");
+
+    assert_success(&stream_output);
+    assert_success(&pull_output);
+
+    let json = assert_json_status(&pull_output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 7);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+
+    let remote_manifest_path = remote_store.path().join("indexes").join("manifest.json");
+    let remote_manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&remote_manifest_path).expect("remote manifest should read"),
+    )
+    .expect("remote manifest should parse");
+    let local_manifest_path = local_store.path().join("indexes").join("manifest.json");
+    let local_manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&local_manifest_path).expect("local manifest should read"),
+    )
+    .expect("local manifest should parse");
+
+    assert_eq!(local_manifest["stored_object_count"], 2);
+    assert_eq!(
+        local_manifest["doc_revisions"]["doc:test"],
+        remote_manifest["doc_revisions"]["doc:test"]
+    );
+    assert_eq!(local_manifest["doc_revisions"]["doc:test"][0], revision_id);
 }
 
 #[test]
