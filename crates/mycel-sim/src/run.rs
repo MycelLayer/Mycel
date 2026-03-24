@@ -1882,6 +1882,7 @@ fn inject_session_fault(
     match session_fault {
         "bye-before-hello" => inject_bye_before_hello_fault(transcript, signing_key),
         "duplicate-hello" => inject_duplicate_hello_fault(transcript, signing_key),
+        "error-before-hello" => inject_error_before_hello_fault(transcript, signing_key),
         "heads-before-hello" => inject_heads_before_hello_fault(transcript, signing_key),
         "hello-node-id-mismatch" => inject_hello_node_id_mismatch_fault(transcript, signing_key),
         "manifest-before-hello" => inject_manifest_before_hello_fault(transcript),
@@ -1969,6 +1970,30 @@ fn inject_bye_before_hello_fault(
         }),
     )?;
     transcript.messages.insert(hello_index, bye);
+    Ok(())
+}
+
+fn inject_error_before_hello_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let hello_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("HELLO"))
+        .ok_or_else(|| "transcript is missing HELLO for error-before-hello injection".to_owned())?;
+    let error = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "ERROR",
+        "msg:peer-sync-fault-error-0000",
+        json!({
+            "in_reply_to": "msg:peer-sync-fault-prior",
+            "code": "ERR_UNKNOWN",
+            "detail": "injected test error"
+        }),
+    )?;
+    transcript.messages.insert(hello_index, error);
     Ok(())
 }
 

@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-error-before-hello",
+    "description": "Seed injects an ERROR before HELLO, but the reader still completes sync because ERROR carries no session sequencing restriction",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-error-before-hello-test"
+        }
+    ],
+    "expected_outcomes": [
+        "error-before-hello-accepted",
+        "sync-success"
+    ],
+    "metadata": {
+        "session_fault": "error-before-hello"
+    },
+    "notes": [
+        "Simulator injects an ERROR immediately before the normal HELLO and leaves the rest of the transcript intact.",
+        "The reader should accept the early ERROR, then proceed through the normal sync flow and store the requested objects."
+    ]
+}

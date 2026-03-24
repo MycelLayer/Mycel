@@ -30,6 +30,8 @@
   Reference JSON: `sim/tests/session-messages-after-bye.example.json`
 - `session-bye-before-hello`: reject a sync transcript that emits `BYE` before the seed establishes the session with `HELLO`
   Reference JSON: `sim/tests/session-bye-before-hello.example.json`
+- `session-error-before-hello`: accept an `ERROR` before `HELLO` and still complete sync when the rest of the transcript is valid
+  Reference JSON: `sim/tests/session-error-before-hello.example.json`
 - `session-unknown-sender`: reject a sync transcript whose opening `HELLO` uses an unregistered sender identity
   Reference JSON: `sim/tests/session-unknown-sender.example.json`
 - `session-hello-node-id-mismatch`: reject a sync transcript whose opening `HELLO` payload `node_id` mismatches the envelope sender identity
@@ -80,6 +82,7 @@ families below.
 | `snapshot-sync-without-capability` | `sync_pull_json_rejects_snapshot_offer_without_advertised_capability` | both layers |
 | `session-messages-after-bye` | `sync_pull_json_rejects_messages_after_bye` | both layers |
 | `session-bye-before-hello` | `sync_pull_json_rejects_bye_before_hello` | both layers |
+| `session-error-before-hello` | `sync_pull_json_accepts_error_before_hello_and_completes_sync` | both layers |
 | `session-unknown-sender` | `sync_pull_json_rejects_unknown_sender` | both layers |
 | `session-hello-node-id-mismatch` | `sync_pull_json_rejects_hello_node_id_mismatch` | both layers |
 | `session-snapshot-offer-before-hello` | `sync_pull_json_rejects_snapshot_offer_before_hello` | both layers |
@@ -100,12 +103,6 @@ families below.
 | `session-stale-view-want-after-heads-replace` | `sync_pull_json_rejects_stale_view_want_after_heads_replace` | both layers |
 | `reject-hash-mismatch` | `sync_pull_json_rejects_invalid_object_hash_without_storing_objects` | both layers |
 | `reject-signature-mismatch` | `sync_pull_json_rejects_invalid_wire_signature_without_storing_objects` | both layers |
-
-Product-layer-only note:
-
-- `sync_pull_json_allows_error_before_hello_but_still_requires_sync_messages`
-  covers `ERROR` before `HELLO`; the simulator matrix does not currently define
-  a dedicated `session-error-before-hello` case.
 
 ## Recovery
 

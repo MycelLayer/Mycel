@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-error-before-hello",
+    "description": "A reader should accept ERROR before HELLO and still complete sync when the remaining transcript is valid.",
+    "category": "positive",
+    "topology": "sim/topologies/session-error-before-hello.example.json",
+    "fixture_set": "fixtures/object-sets/session-error-before-hello",
+    "execution_mode": "single-process",
+    "expected_result": "pass",
+    "expected_outcomes": [
+        "error-before-hello-accepted",
+        "sync-success"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "error-before-hello-accepted",
+            "description": "Reader accepts the early ERROR without requiring a prior HELLO.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "sync-success",
+            "description": "Reader still completes sync and stores the requested objects after the early ERROR.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with the remaining session-level acceptance proof for ERROR before HELLO.",
+        "The harness injects ERROR ahead of the generated HELLO but leaves the rest of the transcript unchanged."
+    ]
+}

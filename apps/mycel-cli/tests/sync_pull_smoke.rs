@@ -174,6 +174,24 @@ fn signed_view_announce_message(signing_key: &SigningKey, sender: &str, view_id:
     value
 }
 
+fn signed_error_message(signing_key: &SigningKey, sender: &str, in_reply_to: &str) -> Value {
+    let mut value = json!({
+        "type": "ERROR",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:error-cli-sync-001",
+        "timestamp": "2026-03-08T20:00:05+08:00",
+        "from": sender,
+        "payload": {
+            "in_reply_to": in_reply_to,
+            "code": "ERR_UNKNOWN",
+            "detail": "test error"
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}
+
 fn signed_heads_message(
     signing_key: &SigningKey,
     sender: &str,

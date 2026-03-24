@@ -215,3 +215,59 @@ fn sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store() {
         ],
     );
 }
+
+#[test]
+fn sync_pull_json_accepts_error_before_hello_and_completes_sync() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+
+    let base_step = make_revision_step(&signing_key, sender, &[], "rev:genesis-null");
+    let transcript_dir = create_temp_dir("sync-pull-error-before-hello-source");
+    let transcript_path = transcript_dir
+        .path()
+        .join("pull-error-before-hello-transcript.json");
+    let store_root = create_temp_dir("sync-pull-error-before-hello-store");
+
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_error_message(&signing_key, sender, "msg:seed-prior"),
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &base_step.revision_id),
+                signed_want_message(&signing_key, sender, &[&base_step.revision_id]),
+                base_step.revision_object.clone(),
+                signed_want_message(&signing_key, sender, &[&base_step.patch_id]),
+                base_step.patch_object.clone(),
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_sync_pull_json(&transcript_path, store_root.path());
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 8);
+    assert_eq!(json["verified_message_count"], 8);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["verified_object_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+    assert_eq!(json["existing_object_count"], 0);
+    assert!(
+        json["notes"]
+            .as_array()
+            .is_some_and(|notes| notes.is_empty()),
+        "expected no warnings after ERROR-before-HELLO acceptance, stdout: {}",
+        stdout_text(&output)
+    );
+
+    let manifest = load_manifest(store_root.path());
+    assert_eq!(manifest["stored_object_count"], 2);
+    assert_doc_revisions_include(&manifest, &[&base_step.revision_id]);
+}
