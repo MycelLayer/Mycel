@@ -2058,6 +2058,170 @@ fn sync_pull_json_rejects_stale_dependency_object_after_heads_replace() {
 }
 
 #[test]
+fn sync_pull_json_rejects_stale_root_want_after_heads_replace() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-stale-root-want-after-heads-replace");
+    let transcript_path = transcript_dir
+        .path()
+        .join("stale-root-want-after-heads-replace-transcript.json");
+    let store_root = create_temp_dir("sync-pull-stale-root-want-after-heads-replace-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                signed_heads_message(&signing_key, sender, "rev:replacement", true),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(store_root.path()),
+        "--json",
+    ]);
+
+    assert!(
+        !output.status.success(),
+        "expected failure, stdout: {}, stderr: {}",
+        stdout_text(&output),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["verified_message_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 4),
+        "expected replacement HEADS to verify before stale root WANT rejection, stdout: {}",
+        stdout_text(&output)
+    );
+    assert_eq!(json["object_message_count"], 0);
+    assert_eq!(json["written_object_count"], 0);
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|error| {
+                error.as_str().is_some_and(|message| {
+                    message.contains("wire WANT revision")
+                        && message.contains(&revision_id)
+                        && message.contains("is not reachable from accepted sync roots")
+                })
+            })),
+        "expected stale root WANT error after HEADS replace, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(!store_root
+        .path()
+        .join("indexes")
+        .join("manifest.json")
+        .exists());
+}
+
+#[test]
+fn sync_pull_json_rejects_stale_root_object_after_heads_replace() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-stale-root-object-after-heads-replace");
+    let transcript_path = transcript_dir
+        .path()
+        .join("stale-root-object-after-heads-replace-transcript.json");
+    let store_root = create_temp_dir("sync-pull-stale-root-object-after-heads-replace-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                signed_heads_message(&signing_key, sender, "rev:replacement", true),
+                revision_object,
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(store_root.path()),
+        "--json",
+    ]);
+
+    assert!(
+        !output.status.success(),
+        "expected failure, stdout: {}, stderr: {}",
+        stdout_text(&output),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json = assert_json_status(&output, "failed");
+    assert!(
+        json["verified_message_count"]
+            .as_u64()
+            .is_some_and(|count| count >= 4),
+        "expected replacement HEADS to verify before stale root OBJECT rejection, stdout: {}",
+        stdout_text(&output)
+    );
+    assert_eq!(json["object_message_count"], 0);
+    assert_eq!(json["written_object_count"], 0);
+    assert!(
+        json["errors"]
+            .as_array()
+            .is_some_and(|errors| errors.iter().any(|error| {
+                error.as_str().is_some_and(|message| {
+                    message.contains(&format!(
+                        "wire OBJECT '{revision_id}' was not requested from '{sender}'"
+                    ))
+                })
+            })),
+        "expected stale root OBJECT error after HEADS replace, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(!store_root
+        .path()
+        .join("indexes")
+        .join("manifest.json")
+        .exists());
+}
+
+#[test]
 fn sync_pull_json_rejects_snapshot_offer_without_advertised_capability() {
     let signing_key = signing_key();
     let sender = "node:alpha";

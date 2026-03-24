@@ -42,6 +42,10 @@
   Reference JSON: `sim/tests/session-want-before-manifest.example.json`
 - `session-object-before-manifest`: reject a sync transcript that emits `OBJECT` immediately after `HELLO`, before any `WANT` request or accepted sync roots exist
   Reference JSON: `sim/tests/session-object-before-manifest.example.json`
+- `session-stale-root-want-after-heads-replace`: reject a withdrawn root revision `WANT` after `HEADS replace=true` swaps out the old root set
+  Reference JSON: `sim/tests/session-stale-root-want-after-heads-replace.example.json`
+- `session-stale-root-object-after-heads-replace`: reject a withdrawn root revision `OBJECT` after `HEADS replace=true` clears the old pending request
+  Reference JSON: `sim/tests/session-stale-root-object-after-heads-replace.example.json`
 - `session-stale-dependency-object-after-heads-replace`: reject a withdrawn dependency `OBJECT` after `HEADS replace=true` clears the pending request set for the old root set
   Reference JSON: `sim/tests/session-stale-dependency-object-after-heads-replace.example.json`
 
