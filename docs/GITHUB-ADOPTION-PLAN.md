@@ -12,17 +12,18 @@ As of 2026-03-24, the repository already uses:
 - GitHub Actions workflows for CI and Pages
 - issue forms and a pull request template
 - GitHub Discussions for open-ended conversation
+- GitHub Projects as an available planning surface
 - secret scanning and secret scanning push protection
+- the `MycelLayer/Mycel` organization-owned repository
 
 The main gaps worth addressing first are:
 
-- `main` is not protected
-- no `CODEOWNERS` file exists
-- Dependabot security updates are disabled
+- `main` has no ruleset or classic branch protection
+- no required status checks or review gate protect merges to `main`
+- no `CODEOWNERS` file exists yet
+- no repo-side Dependabot configuration exists yet
 - auto-merge is disabled and would not add much value until merge requirements
   exist
-- merge queue is not a near-term fit because the current repository appears to
-  be user-owned rather than organization-owned
 
 ## 1. Branch Governance First
 
@@ -71,11 +72,13 @@ Main tradeoff:
 ## 3. Enable Dependabot Security Updates
 
 Turn on Dependabot security updates for vulnerable dependencies and GitHub
-Actions.
+Actions, and add a minimal repository config to keep version-update churn small.
 
 Recommended scope:
 
 - start with security updates first
+- add a minimal `dependabot.yml` for the ecosystems we already use (`cargo`,
+  GitHub Actions, and the root `npm` workspace)
 - keep version updates optional until the team decides how much update churn it
   wants
 - review grouped update settings if alert volume becomes noisy
@@ -146,9 +149,10 @@ Merge queue should stay deferred for now.
 
 Reason:
 
-- it is a strong fit for busy protected branches, but GitHub documents it for
-  public repositories owned by organizations
-- Mycel currently appears to be a user-owned public repository
+- it is a strong fit for busy protected branches, but branch governance is not
+  in place yet
+- Mycel is organization-owned now, but current throughput still looks too small
+  to justify merge-queue overhead yet
 
 ## Minimal Adoption Sequence
 
@@ -156,7 +160,7 @@ If we want the smallest practical rollout, use this sequence:
 
 1. configure `main` rulesets / branch protection
 2. add a minimal `CODEOWNERS`
-3. enable Dependabot security updates
+3. add a minimal `dependabot.yml` and enable Dependabot security updates
 4. optionally enable auto-merge
 
 This sequence keeps the change surface small while improving safety and review
@@ -167,9 +171,9 @@ discipline quickly.
 Concrete next implementation tasks for a future work item:
 
 - draft the exact required status checks for `main`
-- draft a first-pass `.github/CODEOWNERS`
+- draft or refine the first-pass `.github/CODEOWNERS`
 - record which maintainers can bypass rulesets, if any
-- decide whether Dependabot should open only security PRs or also version-update
-  PRs
+- decide whether Dependabot should stay on grouped low-churn updates or narrow
+  further to security-only host-side behavior
 - decide whether GitHub Projects should mirror the existing multi-agent workflow
   or stay out of scope

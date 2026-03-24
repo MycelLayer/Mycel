@@ -1,0 +1,16 @@
+# First-pass ownership routing for GitHub review requests.
+# Keep this minimal until branch rules and review requirements are enforced.
+
+* @ctf2090
+
+/apps/ @ctf2090
+/crates/ @ctf2090
+/scripts/ @ctf2090
+/.github/workflows/ @ctf2090
+/docs/ @ctf2090
+/pages/ @ctf2090
+/fixtures/ @ctf2090
+/sg-rule-tests/ @ctf2090
+/sg-rules/ @ctf2090
+/sg-utils/ @ctf2090
+/sim/ @ctf2090
