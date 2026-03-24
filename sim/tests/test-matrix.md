@@ -102,6 +102,7 @@ Product-layer-only note:
 | Simulator case | Product-layer counterpart | Coverage status |
 |---|---|---|
 | `recover-missing-objects` | `sync_pull_json_recovers_missing_dependency_via_want_cycle` | both layers |
+| `mixed-reader-recovery` | `sync_peer_store_json_converges_partial_and_empty_local_stores` | both layers |
 
 ## Capability-Gated
 

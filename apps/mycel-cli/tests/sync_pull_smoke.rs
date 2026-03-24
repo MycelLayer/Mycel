@@ -1271,6 +1271,96 @@ fn sync_peer_store_json_reports_noop_when_local_store_is_current() {
 }
 
 #[test]
+fn sync_peer_store_json_converges_partial_and_empty_local_stores() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-mixed-remote");
+    let partial_local_store = create_temp_dir("sync-peer-store-mixed-partial-local");
+    let empty_local_store = create_temp_dir("sync-peer-store-mixed-empty-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+
+    write_object_value_to_store(remote_store.path(), &patch_object["payload"]["body"])
+        .expect("patch should write to remote store");
+    write_object_value_to_store(remote_store.path(), &revision_object["payload"]["body"])
+        .expect("revision should write to remote store");
+    write_object_value_to_store(partial_local_store.path(), &patch_object["payload"]["body"])
+        .expect("patch should write to partial local store");
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let partial_output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(remote_store.path()),
+        "--into",
+        &path_arg(partial_local_store.path()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+    let empty_output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(remote_store.path()),
+        "--into",
+        &path_arg(empty_local_store.path()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--json",
+    ]);
+
+    assert_success(&partial_output);
+    assert_success(&empty_output);
+
+    let partial_json = assert_json_status(&partial_output, "ok");
+    let empty_json = assert_json_status(&empty_output, "ok");
+    assert_eq!(partial_json["peer_node_id"], sender);
+    assert_eq!(empty_json["peer_node_id"], sender);
+    assert_eq!(partial_json["written_object_count"], 1);
+    assert_eq!(empty_json["written_object_count"], 2);
+
+    let partial_manifest_path = partial_local_store
+        .path()
+        .join("indexes")
+        .join("manifest.json");
+    let partial_manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&partial_manifest_path).expect("manifest should read"),
+    )
+    .expect("manifest should parse");
+    let empty_manifest_path = empty_local_store
+        .path()
+        .join("indexes")
+        .join("manifest.json");
+    let empty_manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&empty_manifest_path).expect("manifest should read"),
+    )
+    .expect("manifest should parse");
+
+    assert_eq!(partial_manifest["stored_object_count"], 2);
+    assert_eq!(empty_manifest["stored_object_count"], 2);
+    assert_eq!(
+        partial_manifest["doc_revisions"]["doc:test"],
+        empty_manifest["doc_revisions"]["doc:test"]
+    );
+    assert_eq!(
+        partial_manifest["object_ids_by_type"],
+        empty_manifest["object_ids_by_type"]
+    );
+}
+
+#[test]
 fn sync_pull_text_reports_verification_failure_without_storing_objects() {
     let signing_key = signing_key();
     let sender = "node:alpha";
