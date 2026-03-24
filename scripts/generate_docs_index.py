@@ -11,7 +11,9 @@ from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "pages" / "docs.html"
-GITHUB_BLOB_BASE = "https://github.com/ctf2090/Mycel/blob/main/"
+GITHUB_REPO_BASE = "https://github.com/MycelLayer/Mycel"
+GITHUB_BLOB_BASE = f"{GITHUB_REPO_BASE}/blob/main/"
+PAGES_SITE_BASE = "https://mycellayer.github.io/Mycel"
 
 LANGUAGE_ORDER = {
     "default": 0,
@@ -320,10 +322,10 @@ def render_page(entries: list[DocEntry]) -> str:
       <nav class="nav">
         <div class="brand"><a href="/Mycel/" aria-label="Back to the Mycel landing page">Mycel</a> / Docs</div>
         <div class="nav-links">
-          <a href="https://ctf2090.github.io/Mycel/zh-TW/">繁體中文</a>
-          <a href="https://ctf2090.github.io/Mycel/zh-CN/">简体中文</a>
-          <a href="https://github.com/ctf2090/Mycel">GitHub</a>
-          <a href="https://github.com/ctf2090/Mycel/blob/main/README.md">README</a>
+          <a href="{PAGES_SITE_BASE}/zh-TW/">繁體中文</a>
+          <a href="{PAGES_SITE_BASE}/zh-CN/">简体中文</a>
+          <a href="{GITHUB_REPO_BASE}">GitHub</a>
+          <a href="{GITHUB_BLOB_BASE}README.md">README</a>
           <a href="/Mycel/docs.html" aria-current="page">Docs</a>
           <a href="/Mycel/progress.html">Progress</a>
           <a href="/Mycel/support.html">Support</a>
@@ -344,8 +346,8 @@ def render_page(entries: list[DocEntry]) -> str:
             falls back to the first summary paragraph under the document title.
           </p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/ctf2090/Mycel">Open Repository</a>
-            <a class="button secondary" href="https://github.com/ctf2090/Mycel/tree/main/docs/design-notes">Browse Design Notes</a>
+            <a class="button primary" href="{GITHUB_REPO_BASE}">Open Repository</a>
+            <a class="button secondary" href="{GITHUB_REPO_BASE}/tree/main/docs/design-notes">Browse Design Notes</a>
           </div>
         </div>
 

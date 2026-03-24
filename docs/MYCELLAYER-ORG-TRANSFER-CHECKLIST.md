@@ -1,7 +1,8 @@
 # MycelLayer Org Transfer Checklist
 
-Status: proposed implementation checklist for moving `ctf2090/Mycel` to the
-`MycelLayer` GitHub organization
+Status: operational transfer checklist; pre-transfer references to
+`ctf2090/Mycel` are historical source-repo inputs, while current follow-up
+checks should target `MycelLayer/Mycel`
 
 Use this checklist when we are ready to move the repository from the current
 personal account owner to a dedicated organization.
@@ -15,6 +16,12 @@ Read this together with:
 This checklist is intentionally operational. It is about transfer sequencing,
 ownership, and follow-up validation, not about changing protocol or product
 behavior.
+
+Historical note:
+
+- References to `ctf2090/Mycel` in pre-transfer audit and execution steps are
+  intentional because they describe the source repository before the move.
+- Post-transfer checks and ongoing automation should use `MycelLayer/Mycel`.
 
 ## Current Confirmed State
 
