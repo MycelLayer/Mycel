@@ -6,6 +6,9 @@ mod verification;
 #[path = "negative/session.rs"]
 mod session;
 
+#[path = "negative/sender.rs"]
+mod sender;
+
 #[path = "negative/heads_replace.rs"]
 mod heads_replace;
 

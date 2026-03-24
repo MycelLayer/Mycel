@@ -100,6 +100,13 @@ Product-layer-only note:
 - `sync_pull_json_allows_error_before_hello_but_still_requires_sync_messages`
   covers `ERROR` before `HELLO`; the simulator matrix does not currently define
   a dedicated `session-error-before-hello` case.
+- `sync_pull_json_rejects_unknown_sender` covers direct unknown-sender rejection
+  at the CLI transcript layer; the simulator matrix does not currently define a
+  dedicated `session-unknown-sender` case.
+- `sync_pull_json_rejects_hello_node_id_mismatch` covers direct `HELLO`
+  sender-identity mismatch rejection at the CLI transcript layer; the
+  simulator matrix does not currently define a dedicated
+  `session-hello-node-id-mismatch` case.
 
 ## Recovery
 
