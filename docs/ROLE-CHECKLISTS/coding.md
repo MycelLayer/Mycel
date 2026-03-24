@@ -20,7 +20,7 @@ Suggested per-agent copy path:
 - Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->
 - When touching a large module or repeated-helper-heavy area, consult the current code-quality hotspot scan (`python3 scripts/check_code_quality_hotspots.py --github-warning`) so the coding slice stays aligned with the repo's warning-only CI surface. <!-- item-id: coding.cycle.consult-hotspot-scan -->
 - Hand planning-relevant implementation state to `doc` through the registry mailbox instead of running planning-refresh work directly. <!-- item-id: coding.cycle.handoff-planning-state -->
-- Follow the default next-item guidance in `AGENTS.md`, including the `coding`-specific roadmap and latest-CQH review recommendations when the user has not already assigned the next concrete task. <!-- item-id: coding.cycle.follow-shared-next-item-guidance -->
+- Include the shared `coding` next-item defaults from `AGENTS.md`, especially reviewing `ROADMAP.md` for the highest-value next coding work and reviewing the latest CQH issue for high-value work items when the user has not already assigned the next concrete task. <!-- item-id: coding.cycle.follow-shared-next-item-guidance -->
 
 ## Verification
 
