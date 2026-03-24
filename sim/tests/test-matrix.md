@@ -97,6 +97,12 @@ Product-layer-only note:
 - `mixed-reader-recovery`: mixed reader set converges after WANT-based recovery
   Reference JSON: `sim/tests/mixed-reader-recovery.example.json`
 
+### Product-Layer Recovery Notes
+
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `recover-missing-objects` | `sync_pull_json_recovers_missing_dependency_via_want_cycle` | both layers |
+
 ## Capability-Gated
 
 - `snapshot-catchup`: reader receives snapshot objects via SNAPSHOT_OFFER from a snapshot-capable seed

@@ -742,6 +742,79 @@ fn sync_pull_json_replays_incremental_transcript_into_existing_store() {
 }
 
 #[test]
+fn sync_pull_json_recovers_missing_dependency_via_want_cycle() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+
+    let transcript_dir = create_temp_dir("sync-pull-partial-recovery-source");
+    let transcript_path = transcript_dir
+        .path()
+        .join("pull-partial-recovery-transcript.json");
+    let store_root = create_temp_dir("sync-pull-partial-recovery-store");
+
+    write_object_value_to_store(store_root.path(), &patch_object["payload"]["body"])
+        .expect("partial local patch should write to store");
+
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                signed_manifest_message(&signing_key, sender, &revision_id),
+                signed_want_message(&signing_key, sender, &[&revision_id]),
+                revision_object,
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(store_root.path()),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 5);
+    assert_eq!(json["verified_message_count"], 5);
+    assert_eq!(json["object_message_count"], 1);
+    assert_eq!(json["verified_object_count"], 1);
+    assert_eq!(json["written_object_count"], 1);
+    assert_eq!(json["existing_object_count"], 0);
+
+    let manifest_path = store_root.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 2);
+    let revisions = manifest["doc_revisions"]["doc:test"]
+        .as_array()
+        .expect("expected recovered revision index array");
+    assert_eq!(revisions.len(), 1);
+    assert_eq!(revisions[0].as_str(), Some(revision_id.as_str()));
+}
+
+#[test]
 fn sync_pull_json_reports_missing_bye_as_session_note() {
     let signing_key = signing_key();
     let sender = "node:alpha";
