@@ -52,6 +52,8 @@
   Reference JSON: `sim/tests/session-object-before-manifest.example.json`
 - `session-stale-root-want-after-heads-replace`: reject a withdrawn root revision `WANT` after `HEADS replace=true` swaps out the old root set
   Reference JSON: `sim/tests/session-stale-root-want-after-heads-replace.example.json`
+- `session-stale-object-want-after-heads-replace`: reject a withdrawn dependency-object `WANT` after `HEADS replace=true` swaps out the old root set that previously made the object reachable
+  Reference JSON: `sim/tests/session-stale-object-want-after-heads-replace.example.json`
 - `session-stale-root-object-after-heads-replace`: reject a withdrawn root revision `OBJECT` after `HEADS replace=true` clears the old pending request
   Reference JSON: `sim/tests/session-stale-root-object-after-heads-replace.example.json`
 - `session-stale-dependency-object-after-heads-replace`: reject a withdrawn dependency `OBJECT` after `HEADS replace=true` clears the pending request set for the old root set
@@ -85,6 +87,7 @@ families below.
 | `session-view-announce-want-before-manifest` | `sync_pull_json_view_announce_before_manifest_does_not_unlock_want` | both layers |
 | `session-object-before-manifest` | `sync_pull_json_rejects_unrequested_object_before_manifest_or_heads` | both layers |
 | `session-stale-root-want-after-heads-replace` | `sync_pull_json_rejects_stale_root_want_after_heads_replace` | both layers |
+| `session-stale-object-want-after-heads-replace` | `sync_pull_json_rejects_stale_object_want_after_heads_replace` | both layers |
 | `session-stale-root-object-after-heads-replace` | `sync_pull_json_rejects_stale_root_object_after_heads_replace` | both layers |
 | `session-stale-dependency-object-after-heads-replace` | `sync_pull_json_rejects_stale_dependency_object_after_heads_replace` | both layers |
 | `session-stale-snapshot-want-after-heads-replace` | `sync_pull_json_rejects_stale_snapshot_want_after_heads_replace` | both layers |
