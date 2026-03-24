@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; `M2` replay/storage/rebuild closure is now landed at the current narrow scope, so the active lane now centers on `M3` / `M4` while broader governance persistence and the remaining peer interop session/capability/error-path proof stay open after the current production replication sub-items were completed, the first permanent messages-after-BYE session proof landed, unknown-sender and HELLO sender-identity mismatch rejection plus explicit `ERROR`-only and unreachable `WANT` fault proofs landed, and per-document current-governance summaries were added to the current M3 baseline
+Status: major progress, refreshed after the implementation checklist was split into a closed `M1` minimal-client gate plus a live post-`M1` follow-up checklist; `M2` replay/storage/rebuild closure is now landed at the current narrow scope, so the active lane now centers on `M3` / `M4` while broader governance persistence and the remaining peer interop session/capability/error-path proof stay open after the current production replication sub-items were completed, the first permanent messages-after-BYE session proof landed, `HEADS`-before-`MANIFEST` sync-root setup and stale root/dependency rejection after `HEADS replace=true` landed, unknown-sender and HELLO sender-identity mismatch rejection plus explicit `ERROR`-only and unreachable `WANT` fault proofs landed, and per-document current-governance summaries were added to the current M3 baseline
 
 This roadmap turns the current README priorities, implementation checklist, and design-note planning guidance into one repo-level build sequence.
 
@@ -40,7 +40,7 @@ The current lane is:
 
 1. keep `M2` closed at the current narrow replay/storage/rebuild scope now that the richer mixed content/metadata competing-branch rebuild-and-reporting proof is landed
 2. expand `M3` reader-plus-governance workflows without reopening the closed minimal-client gate
-3. advance `M4` from peer-store proof toward the remaining peer-interop session/capability/error-path coverage now that the currently tracked production replication sub-items are proved and the current negative-proof baseline includes permanent messages-after-BYE rejection, sender-validation faults, explicit `ERROR`-only failure, and unreachable `WANT` rejection
+3. advance `M4` from peer-store proof toward the remaining peer-interop session/capability/error-path coverage now that the currently tracked production replication sub-items are proved and the current negative-proof baseline includes permanent messages-after-BYE rejection, `HEADS`-before-`MANIFEST` sync-root setup, stale root/dependency rejection after `HEADS replace=true`, sender-validation faults, explicit `ERROR`-only failure, and unreachable `WANT` rejection
 
 ### Next
 
