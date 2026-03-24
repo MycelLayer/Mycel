@@ -134,3 +134,10 @@ Product-layer-only note:
   Reference JSON: `sim/tests/resync-idempotency.example.json`
 - `depth-3-catchup`: reader at depth 2 catches up to seed at depth 3 in a single HEADS/WANT pass; only the delta revision is fetched
   Reference JSON: `sim/tests/depth-3-catchup.example.json`
+
+### Product-Layer Production Replication Notes
+
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `resync-idempotency` | `sync_peer_store_json_reports_noop_when_local_store_is_current` | both layers |
+| `depth-3-catchup` | `sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store` | both layers |
