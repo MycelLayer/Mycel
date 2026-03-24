@@ -14,6 +14,7 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = ROOT_DIR / ".agent-local" / "agents.json"
 AGENT_DIR = ROOT_DIR / ".agent-local" / "agents"
+ROLE_CHECKLISTS_DIR = ROOT_DIR / "docs" / "ROLE-CHECKLISTS"
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 AGENTS_BOOTSTRAP_TITLE = "New chat bootstrap"
 AGENTS_WORKCYCLE_TITLE = "Work Cycle Workflow"
@@ -93,12 +94,44 @@ def checklist_rel_for(agent_uid: str, source_path: Path) -> str:
     return f".agent-local/agents/{agent_uid}/checklists/{stem}-checklist.md"
 
 
+def split_checklist_prefix_for(source_path: Path) -> str | None:
+    if source_path.name == "AGENTS.md":
+        return "AGENTS"
+    source_rel = relative_to_root(source_path)
+    if source_rel.startswith("docs/ROLE-CHECKLISTS/"):
+        stem = re.sub(r"[^A-Za-z0-9._-]+", "-", source_path.stem).strip("-") or "source"
+        if not stem.startswith("ROLE-"):
+            stem = f"ROLE-{stem}"
+        return stem
+    return None
+
+
+def role_checklist_source_path(role: str) -> Path:
+    return ROLE_CHECKLISTS_DIR / f"{role}.md"
+
+
+def split_bootstrap_checklist_rel(agent_uid: str, prefix: str) -> str:
+    return f".agent-local/agents/{agent_uid}/checklists/{prefix}-bootstrap-checklist.md"
+
+
+def split_workcycle_checklist_rel(agent_uid: str, prefix: str, batch_num: int) -> str:
+    return f".agent-local/agents/{agent_uid}/checklists/{prefix}-workcycle-checklist-{batch_num}.md"
+
+
+def split_bootstrap_checklist_path(agent_uid: str, prefix: str) -> Path:
+    return resolve_path(split_bootstrap_checklist_rel(agent_uid, prefix))
+
+
+def split_workcycle_checklist_path(agent_uid: str, prefix: str, batch_num: int) -> Path:
+    return resolve_path(split_workcycle_checklist_rel(agent_uid, prefix, batch_num))
+
+
 def agents_bootstrap_checklist_rel(agent_uid: str) -> str:
-    return f".agent-local/agents/{agent_uid}/checklists/AGENTS-bootstrap-checklist.md"
+    return split_bootstrap_checklist_rel(agent_uid, "AGENTS")
 
 
 def agents_workcycle_checklist_rel(agent_uid: str, batch_num: int) -> str:
-    return f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-{batch_num}.md"
+    return split_workcycle_checklist_rel(agent_uid, "AGENTS", batch_num)
 
 
 def agents_bootstrap_checklist_path(agent_uid: str) -> Path:
@@ -343,11 +376,15 @@ def apply_existing_item_states(document_text: str, existing_states: dict[str, tu
 
 
 def next_agents_workcycle_batch_num(agent_uid: str) -> int:
+    return next_split_workcycle_batch_num(agent_uid, "AGENTS")
+
+
+def next_split_workcycle_batch_num(agent_uid: str, prefix: str) -> int:
     checklists_dir = (AGENT_DIR / agent_uid / "checklists").resolve()
     if not checklists_dir.exists():
         return 1
 
-    pattern = re.compile(r"^AGENTS-workcycle-checklist-(?P<batch>\d+)\.md$")
+    pattern = re.compile(rf"^{re.escape(prefix)}-workcycle-checklist-(?P<batch>\d+)\.md$")
     max_batch = 0
     for path in checklists_dir.iterdir():
         match = pattern.match(path.name)
@@ -359,6 +396,13 @@ def next_agents_workcycle_batch_num(agent_uid: str) -> int:
 
 def latest_agents_workcycle_batch_num(agent_uid: str) -> int | None:
     next_batch = next_agents_workcycle_batch_num(agent_uid)
+    if next_batch <= 1:
+        return None
+    return next_batch - 1
+
+
+def latest_split_workcycle_batch_num(agent_uid: str, prefix: str) -> int | None:
+    next_batch = next_split_workcycle_batch_num(agent_uid, prefix)
     if next_batch <= 1:
         return None
     return next_batch - 1
@@ -393,7 +437,7 @@ def write_agents_section_checklist(
     output_path.write_text(apply_existing_item_states(rendered, existing_states or {}), encoding="utf-8")
 
 
-def materialize_agents_checklists(
+def materialize_split_checklists(
     *,
     agent_uid: str,
     display_id: str | None,
@@ -403,6 +447,10 @@ def materialize_agents_checklists(
     section: str,
     refresh_path: Path | None = None,
 ) -> dict[str, Any]:
+    prefix = split_checklist_prefix_for(source_path)
+    if prefix is None:
+        raise ItemIdChecklistError(f"source does not support split checklist generation: {relative_to_root(source_path)}")
+
     root_lines, source_blocks = split_heading_blocks(normalized_lines)
     source_block_map = {title: lines for title, lines in source_blocks}
     bootstrap_block = source_block_map.get(AGENTS_BOOTSTRAP_TITLE)
@@ -421,7 +469,11 @@ def materialize_agents_checklists(
     }
 
     if section in {"all", "bootstrap"}:
-        bootstrap_path = refresh_path if section == "bootstrap" and refresh_path is not None else agents_bootstrap_checklist_path(agent_uid)
+        bootstrap_path = (
+            refresh_path
+            if section == "bootstrap" and refresh_path is not None
+            else split_bootstrap_checklist_path(agent_uid, prefix)
+        )
         write_agents_section_checklist(
             agent_uid=agent_uid,
             display_id=display_id,
@@ -439,13 +491,13 @@ def materialize_agents_checklists(
     if section in {"all", "workcycle"}:
         if section == "workcycle" and refresh_path is not None:
             workcycle_path = refresh_path
-            batch_match = re.search(r"AGENTS-workcycle-checklist-(?P<batch>\d+)\.md$", workcycle_path.name)
+            batch_match = re.search(r"workcycle-checklist-(?P<batch>\d+)\.md$", workcycle_path.name)
             if batch_match is None:
-                raise ItemIdChecklistError("refresh path for AGENTS workcycle must target AGENTS-workcycle-checklist-<n>.md")
+                raise ItemIdChecklistError("refresh path for split workcycle checklists must target *-workcycle-checklist-<n>.md")
             batch_num = int(batch_match.group("batch"))
         else:
-            batch_num = next_agents_workcycle_batch_num(agent_uid)
-            workcycle_path = agents_workcycle_checklist_path(agent_uid, batch_num)
+            batch_num = next_split_workcycle_batch_num(agent_uid, prefix)
+            workcycle_path = split_workcycle_checklist_path(agent_uid, prefix, batch_num)
         write_agents_section_checklist(
             agent_uid=agent_uid,
             display_id=display_id,
@@ -485,8 +537,15 @@ def materialize_checklist(
     if item_count == 0:
         raise ItemIdChecklistError(f"source file has no item-id markers: {relative_to_root(source_path)}")
 
-    if source_path.name == "AGENTS.md":
-        return materialize_agents_checklists(
+    root_lines, source_blocks = split_heading_blocks(normalized_lines)
+    source_block_titles = {title for title, _ in source_blocks}
+    should_split = split_checklist_prefix_for(source_path) is not None and {
+        AGENTS_BOOTSTRAP_TITLE,
+        AGENTS_WORKCYCLE_TITLE,
+    }.issubset(source_block_titles)
+
+    if should_split:
+        return materialize_split_checklists(
             agent_uid=agent_uid,
             display_id=display_id,
             source_path=source_path,
@@ -570,15 +629,26 @@ def main() -> int:
             refresh_path = resolve_existing_agent_checklist(args.refresh, agent_uid=agent_uid)
         if args.output and args.refresh:
             raise ItemIdChecklistError("--output cannot be combined with --refresh; refresh rewrites the existing checklist in place")
-        if source_path.name == "AGENTS.md" and args.output:
-            raise ItemIdChecklistError("AGENTS.md checklist generation manages its own bootstrap/workcycle filenames; omit --output")
-        if source_path.name == "AGENTS.md" and refresh_path is not None:
+        split_prefix = split_checklist_prefix_for(source_path)
+        if split_prefix is not None and args.output:
+            raise ItemIdChecklistError(
+                f"{relative_to_root(source_path)} checklist generation manages its own bootstrap/workcycle filenames; omit --output"
+            )
+        if split_prefix is not None and refresh_path is not None:
             if args.section == "all":
-                raise ItemIdChecklistError("AGENTS.md refresh requires --section bootstrap or --section workcycle")
-            if args.section == "bootstrap" and refresh_path.name != "AGENTS-bootstrap-checklist.md":
-                raise ItemIdChecklistError("AGENTS.md bootstrap refresh must target AGENTS-bootstrap-checklist.md")
-            if args.section == "workcycle" and not re.search(r"AGENTS-workcycle-checklist-\d+\.md$", refresh_path.name):
-                raise ItemIdChecklistError("AGENTS.md workcycle refresh must target AGENTS-workcycle-checklist-<n>.md")
+                raise ItemIdChecklistError(
+                    f"{relative_to_root(source_path)} refresh requires --section bootstrap or --section workcycle"
+                )
+            expected_bootstrap = f"{split_prefix}-bootstrap-checklist.md"
+            expected_workcycle = rf"{re.escape(split_prefix)}-workcycle-checklist-\d+\.md$"
+            if args.section == "bootstrap" and refresh_path.name != expected_bootstrap:
+                raise ItemIdChecklistError(
+                    f"{relative_to_root(source_path)} bootstrap refresh must target {expected_bootstrap}"
+                )
+            if args.section == "workcycle" and not re.search(expected_workcycle, refresh_path.name):
+                raise ItemIdChecklistError(
+                    f"{relative_to_root(source_path)} workcycle refresh must target {split_prefix}-workcycle-checklist-<n>.md"
+                )
         output_path = refresh_path or resolve_checklist_path(args.output or None, agent_uid=agent_uid, source_path=source_path)
         result = materialize_checklist(
             agent_uid=agent_uid,

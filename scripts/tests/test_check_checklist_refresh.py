@@ -133,6 +133,48 @@ class CheckChecklistRefreshCliTest(unittest.TestCase):
         self.assertEqual("refresh-needed", payload["status"])
         self.assertIn("source checklist wording or structure changed", payload["reasons"])
 
+    def test_reports_refresh_needed_for_role_workcycle_wording_change(self) -> None:
+        self.write_file(
+            "docs/ROLE-CHECKLISTS/doc.md",
+            """# Doc Role Checklist
+
+## New chat bootstrap
+- Bootstrap <!-- item-id: doc.bootstrap.one -->
+
+## Work Cycle Workflow
+- Workflow updated wording <!-- item-id: doc.workflow.one -->
+""",
+        )
+        checklist = self.write_file(
+            ".agent-local/agents/agt_doc/checklists/ROLE-doc-workcycle-checklist-3.md",
+            """# Agent Item-ID Checklist Copy
+
+- Agent UID: `agt_doc`
+- Display ID: `doc-1`
+- Source: `docs/ROLE-CHECKLISTS/doc.md`
+- Generated at: `2026-03-16T09:00:00+0800`
+
+# Doc Role Checklist
+
+## Work Cycle Workflow
+
+- [ ] Workflow old wording <!-- item-id: doc.workflow.one -->
+""",
+        )
+
+        checklist.write_text(
+            checklist.read_text(encoding="utf-8").replace(
+                "# Doc Role Checklist\n\n## Work Cycle Workflow\n\n- [ ] Workflow old wording <!-- item-id: doc.workflow.one -->\n",
+                "# Doc Role Checklist\n\n## New chat bootstrap\n\n- [ ] Bootstrap <!-- item-id: doc.bootstrap.one -->\n\n## Work Cycle Workflow\n\n- [ ] Workflow old wording <!-- item-id: doc.workflow.one -->\n",
+            ),
+            encoding="utf-8",
+        )
+
+        payload = json.loads(self.run_cli(str(checklist), "--json").stdout)
+
+        self.assertEqual("refresh-needed", payload["status"])
+        self.assertIn("source checklist wording or structure changed", payload["reasons"])
+
     def test_ignores_problem_subitems_when_checking_refresh(self) -> None:
         self.write_file(
             "docs/source.md",

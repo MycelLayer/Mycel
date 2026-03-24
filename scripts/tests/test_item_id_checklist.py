@@ -95,23 +95,33 @@ class ItemIdChecklistCliTest(unittest.TestCase):
         self.assertNotIn("update checks here instead of the tracked source file", content)
         self.assertNotIn("`- [-]` not needed for this work cycle", content)
 
-    def test_role_checklist_sources_use_role_prefixed_output_names(self) -> None:
+    def test_role_checklist_sources_split_bootstrap_and_workcycle_outputs(self) -> None:
         self.write_registry()
         self.write_source(
             "docs/ROLE-CHECKLISTS/doc.md",
             """# Doc Role Checklist
 
+## New chat bootstrap
 - Review mailbox state <!-- item-id: doc.review-mailbox -->
+
+## Work Cycle Workflow
+- Continue doc work <!-- item-id: doc.work -->
 """,
         )
 
         result = json.loads(self.run_cli("agt_doc", "docs/ROLE-CHECKLISTS/doc.md", "--json").stdout)
 
         self.assertEqual(
-            ".agent-local/agents/agt_doc/checklists/ROLE-doc-checklist.md",
-            result["output"],
+            ".agent-local/agents/agt_doc/checklists/ROLE-doc-bootstrap-checklist.md",
+            result["bootstrap_output"],
         )
-        self.assertTrue((self.root / result["output"]).exists())
+        self.assertEqual(
+            ".agent-local/agents/agt_doc/checklists/ROLE-doc-workcycle-checklist-1.md",
+            result["workcycle_output"],
+        )
+        self.assertEqual(1, result["batch_num"])
+        self.assertTrue((self.root / result["bootstrap_output"]).exists())
+        self.assertTrue((self.root / result["workcycle_output"]).exists())
 
     def test_keeps_only_item_id_sections_and_items(self) -> None:
         self.write_registry()
@@ -278,6 +288,34 @@ Context line that should not be copied.
         self.assertEqual(".agent-local/agents/agt_doc/checklists/AGENTS-workcycle-checklist-2.md", second["output"])
         self.assertEqual(2, second["batch_num"])
         self.assertFalse((self.root / ".agent-local/agents/agt_doc/checklists/AGENTS-bootstrap-checklist.md").exists())
+
+    def test_role_checklist_workcycle_section_only_writes_next_batch(self) -> None:
+        self.write_registry()
+        self.write_source(
+            "docs/ROLE-CHECKLISTS/doc.md",
+            """# Doc Role Checklist
+
+## New chat bootstrap
+- Bootstrap one <!-- item-id: doc.bootstrap.one -->
+
+## Work Cycle Workflow
+- Workflow one <!-- item-id: doc.workflow.one -->
+""",
+        )
+
+        first = json.loads(
+            self.run_cli("agt_doc", "docs/ROLE-CHECKLISTS/doc.md", "--section", "workcycle", "--json").stdout
+        )
+        second = json.loads(
+            self.run_cli("agt_doc", "docs/ROLE-CHECKLISTS/doc.md", "--section", "workcycle", "--json").stdout
+        )
+
+        self.assertEqual("workcycle", first["section"])
+        self.assertEqual(".agent-local/agents/agt_doc/checklists/ROLE-doc-workcycle-checklist-1.md", first["output"])
+        self.assertEqual(1, first["batch_num"])
+        self.assertEqual(".agent-local/agents/agt_doc/checklists/ROLE-doc-workcycle-checklist-2.md", second["output"])
+        self.assertEqual(2, second["batch_num"])
+        self.assertFalse((self.root / ".agent-local/agents/agt_doc/checklists/ROLE-doc-bootstrap-checklist.md").exists())
 
     def test_agents_checklist_rejects_explicit_output_override(self) -> None:
         self.write_registry()

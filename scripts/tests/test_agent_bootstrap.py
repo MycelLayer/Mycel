@@ -11,6 +11,8 @@ SOURCE_BOOTSTRAP = REPO_ROOT / "scripts" / "agent_bootstrap.py"
 SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
+SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
+SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 
@@ -25,6 +27,8 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
+        shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
+        shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
         for script_name in [
@@ -32,6 +36,8 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "agent_work_cycle.py",
             "agent_registry.py",
             "agent_timestamp.py",
+            "agent_checklist_gc.py",
+            "mailbox_gc.py",
             "item_id_checklist.py",
             "item_id_checklist_mark.py",
         ]:
@@ -60,6 +66,40 @@ class AgentBootstrapCliTest(unittest.TestCase):
   - Use numbered options <!-- item-id: workflow.next-stage-numbered-options -->
   - Include roadmap location when relevant <!-- item-id: workflow.next-stage-roadmap-location -->
   - Ask short clarifying questions when needed <!-- item-id: workflow.next-stage-clarifying-questions -->
+""",
+            encoding="utf-8",
+        )
+        (self.root / "docs" / "ROLE-CHECKLISTS").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "ROLE-CHECKLISTS" / "doc.md").write_text(
+            """# Doc Role Checklist
+
+## New chat bootstrap
+- Doc bootstrap <!-- item-id: doc.bootstrap.one -->
+
+## Work Cycle Workflow
+- Doc workflow <!-- item-id: doc.workflow.one -->
+""",
+            encoding="utf-8",
+        )
+        (self.root / "docs" / "ROLE-CHECKLISTS" / "coding.md").write_text(
+            """# Coding Role Checklist
+
+## New chat bootstrap
+- Coding bootstrap <!-- item-id: coding.bootstrap.one -->
+
+## Work Cycle Workflow
+- Coding workflow <!-- item-id: coding.workflow.one -->
+""",
+            encoding="utf-8",
+        )
+        (self.root / "docs" / "ROLE-CHECKLISTS" / "delivery.md").write_text(
+            """# Delivery Role Checklist
+
+## New chat bootstrap
+- Delivery bootstrap <!-- item-id: delivery.bootstrap.one -->
+
+## Work Cycle Workflow
+- Delivery workflow <!-- item-id: delivery.workflow.one -->
 """,
             encoding="utf-8",
         )

@@ -7,7 +7,8 @@ progress in this file directly.
 
 Suggested per-agent copy path:
 
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-workcycle-checklist-<n>.md`
 
 ## New chat bootstrap
 

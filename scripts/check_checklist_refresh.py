@@ -74,12 +74,12 @@ def extract_metadata(checklist_path: Path) -> tuple[str, str | None, Path]:
 
 def classify_agents_section(checklist_path: Path) -> str:
     name = checklist_path.name
-    if name == "AGENTS-bootstrap-checklist.md":
+    if name.endswith("-bootstrap-checklist.md"):
         return "bootstrap"
-    if re.fullmatch(r"AGENTS-workcycle-checklist-\d+\.md", name):
+    if re.fullmatch(r".+-workcycle-checklist-\d+\.md", name):
         return "workcycle"
     raise ChecklistRefreshCheckError(
-        "AGENTS.md-derived checklist must be AGENTS-bootstrap-checklist.md or AGENTS-workcycle-checklist-<n>.md"
+        "split checklist must be *-bootstrap-checklist.md or *-workcycle-checklist-<n>.md"
     )
 
 

@@ -32,9 +32,12 @@ Role checklist sources:
 
 Per-agent checklist copies:
 
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-workcycle-checklist-<n>.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-workcycle-checklist-<n>.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-workcycle-checklist-<n>.md`
 
 Role checklist section names:
 

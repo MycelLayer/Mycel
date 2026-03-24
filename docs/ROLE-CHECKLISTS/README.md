@@ -15,9 +15,12 @@ Do not mark progress in these tracked files directly.
 Instead, each agent should materialize its own checklist copy under its own
 agent-local checklist directory, for example:
 
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-workcycle-checklist-<n>.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-workcycle-checklist-<n>.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-workcycle-checklist-<n>.md`
 
 Recommended workflow:
 
@@ -32,6 +35,7 @@ Current section naming:
 - this keeps the role-specific checklist structure aligned with the main `AGENTS.md` flow
 
 The standard `AGENTS.md` bootstrap and work-cycle checklists are still generated
-automatically by the registry and work-cycle tools. These role checklists are an
-additional role-focused layer, not a replacement for the generated `AGENTS.md`
-checklists.
+automatically by the registry and work-cycle tools. Role checklist copies now
+follow the same bootstrap/work-cycle split under each agent-local checklist
+directory. These role checklists are an additional role-focused layer, not a
+replacement for the generated `AGENTS.md` checklists.

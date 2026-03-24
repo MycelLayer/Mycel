@@ -66,6 +66,20 @@ class AgentRegistryCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def write_role_checklist(self, role: str) -> None:
+        (self.root / "docs" / "ROLE-CHECKLISTS").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "ROLE-CHECKLISTS" / f"{role}.md").write_text(
+            f"""# {role.title()} Role Checklist
+
+## New chat bootstrap
+- Role bootstrap <!-- item-id: {role}.bootstrap.one -->
+
+## Work Cycle Workflow
+- Role workflow <!-- item-id: {role}.workflow.one -->
+""",
+            encoding="utf-8",
+        )
+
     def make_v2_entry(
         self,
         *,
@@ -285,6 +299,7 @@ class AgentRegistryCliTest(unittest.TestCase):
 
     def test_touch_and_finish_accept_agent_uid(self) -> None:
         self.write_agents_md()
+        self.write_role_checklist("coding")
         claim = json.loads(self.run_cli("claim", "coding", "--scope", "lease-test", "--json").stdout)
         agent_uid = claim["agent_uid"]
         display_id = claim["display_id"]
@@ -293,7 +308,12 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertEqual(agent_uid, start["agent_uid"])
         self.assertEqual(display_id, start["display_id"])
         self.assertEqual(f".agent-local/agents/{agent_uid}/checklists/AGENTS-bootstrap-checklist.md", start["bootstrap_output"])
+        self.assertEqual(
+            f".agent-local/agents/{agent_uid}/checklists/ROLE-coding-bootstrap-checklist.md",
+            start["role_bootstrap_output"],
+        )
         self.assertTrue((self.root / start["bootstrap_output"]).exists())
+        self.assertTrue((self.root / start["role_bootstrap_output"]).exists())
         self.assertEqual(f".agent-local/agents/{agent_uid}/mailbox.md", start["mailbox_link"])
         mailbox_link = self.root / start["mailbox_link"]
         self.assertTrue(mailbox_link.is_symlink())

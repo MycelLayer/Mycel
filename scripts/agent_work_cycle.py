@@ -20,6 +20,9 @@ from item_id_checklist import (
     agents_workcycle_checklist_path,
     latest_agents_workcycle_batch_num,
     materialize_checklist,
+    role_checklist_source_path,
+    split_checklist_prefix_for,
+    split_workcycle_checklist_path,
 )
 from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_items
 
@@ -678,6 +681,19 @@ def main() -> int:
         if isinstance(batch_num, int):
             store_git_state_snapshot(agent_uid, batch_num)
         print(f"workcycle_output: {workcycle_output}")
+        role_source = role_checklist_source_path(agent_role)
+        role_prefix = split_checklist_prefix_for(role_source)
+        if role_prefix is not None and role_source.exists():
+            role_checklist_result = materialize_checklist(
+                agent_uid=agent_uid,
+                display_id=display_id,
+                source_path=role_source,
+                output_path=split_workcycle_checklist_path(agent_uid, role_prefix, 1),
+                section="workcycle",
+            )
+            role_workcycle_output = role_checklist_result.get("output")
+            if isinstance(role_workcycle_output, str):
+                print(f"role_workcycle_output: {role_workcycle_output}")
         if "batch_num" in checklist_result:
             print(f"batch_num: {checklist_result['batch_num']}")
         print(f"closeout_command: python3 scripts/agent_work_cycle.py end {agent_uid}")

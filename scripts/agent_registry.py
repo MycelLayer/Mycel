@@ -14,7 +14,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from item_id_checklist import agents_bootstrap_checklist_path, materialize_checklist
+from item_id_checklist import (
+    agents_bootstrap_checklist_path,
+    materialize_checklist,
+    role_checklist_source_path,
+    split_bootstrap_checklist_path,
+    split_checklist_prefix_for,
+)
 from item_id_checklist_mark import ItemIdChecklistMarkError, apply_updates
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -736,6 +742,9 @@ def print_start(data: dict[str, Any]) -> None:
     if "bootstrap_output" in data:
         print(f"bootstrap_output: {data['bootstrap_output']}")
         print(f"bootstrap_created: {data['bootstrap_created']}")
+    if "role_bootstrap_output" in data:
+        print(f"role_bootstrap_output: {data['role_bootstrap_output']}")
+        print(f"role_bootstrap_created: {data['role_bootstrap_created']}")
 
 
 def print_stop(data: dict[str, Any]) -> None:
@@ -1013,6 +1022,25 @@ def cmd_start(args: argparse.Namespace) -> int:
         bootstrap_path = ROOT_DIR / require_non_empty_str(checklist_result, "output", agent_uid)
         bootstrap_created = True
 
+    role_bootstrap_output = None
+    role_bootstrap_created = False
+    role = require_non_empty_str(entry, "role", agent_uid)
+    role_source = role_checklist_source_path(role)
+    role_prefix = split_checklist_prefix_for(role_source)
+    if role_prefix is not None and role_source.exists():
+        role_bootstrap_path = split_bootstrap_checklist_path(agent_uid, role_prefix)
+        if not role_bootstrap_path.exists():
+            role_checklist_result = materialize_checklist(
+                agent_uid=agent_uid,
+                display_id=display_id,
+                source_path=role_source,
+                output_path=role_bootstrap_path,
+                section="bootstrap",
+            )
+            role_bootstrap_path = ROOT_DIR / require_non_empty_str(role_checklist_result, "output", agent_uid)
+            role_bootstrap_created = True
+        role_bootstrap_output = relative_to_root(role_bootstrap_path)
+
     result = {
         "status": "ok",
         "agent_uid": agent_uid,
@@ -1025,6 +1053,9 @@ def cmd_start(args: argparse.Namespace) -> int:
         "bootstrap_output": relative_to_root(bootstrap_path),
         "bootstrap_created": bootstrap_created,
     }
+    if role_bootstrap_output is not None:
+        result["role_bootstrap_output"] = role_bootstrap_output
+        result["role_bootstrap_created"] = role_bootstrap_created
     if args.json:
         print_json(result)
     else:

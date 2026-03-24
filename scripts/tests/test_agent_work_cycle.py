@@ -103,6 +103,20 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def write_role_checklist(self, role: str) -> None:
+        (self.root / "docs" / "ROLE-CHECKLISTS").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "ROLE-CHECKLISTS" / f"{role}.md").write_text(
+            f"""# {role.title()} Role Checklist
+
+## New chat bootstrap
+- Role bootstrap <!-- item-id: {role}.bootstrap.one -->
+
+## Work Cycle Workflow
+- Role workflow <!-- item-id: {role}.workflow.one -->
+""",
+            encoding="utf-8",
+        )
+
     def init_git_repo(self) -> None:
         self.run_git("init")
         self.run_git("config", "user.name", "Test User")
@@ -210,6 +224,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
     def test_begin_touches_agent_and_prints_before_work_line(self) -> None:
         self.write_agents_md()
+        self.write_role_checklist("doc")
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
         agent_uid = claim["agent_uid"]
         self.run_registry("start", agent_uid)
@@ -221,12 +236,19 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn(f"workcycle_output: .agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md", proc.stdout)
+        self.assertIn(
+            f"role_workcycle_output: .agent-local/agents/{agent_uid}/checklists/ROLE-doc-workcycle-checklist-1.md",
+            proc.stdout,
+        )
         self.assertIn("batch_num: 1", proc.stdout)
         self.assertIn(f"closeout_command: python3 scripts/agent_work_cycle.py end {agent_uid}", proc.stdout)
         self.assertIn(f"agent_uid: {agent_uid}", proc.stdout)
         self.assertIn("current_status: active", proc.stdout)
         self.assertIn(f"Before work | doc-1 ({agent_uid}) | timestamp-wrapper", proc.stdout)
         self.assertIn("- [-] Leave a mailbox handoff <!-- item-id: workflow.mailbox-handoff-each-cycle -->", checklist)
+        self.assertTrue(
+            (self.root / f".agent-local/agents/{agent_uid}/checklists/ROLE-doc-workcycle-checklist-1.md").exists()
+        )
 
     def test_start_alias_maps_to_begin(self) -> None:
         self.write_agents_md()

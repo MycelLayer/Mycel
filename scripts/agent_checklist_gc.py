@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -50,24 +51,20 @@ def referenced_agent_uids(registry: dict[str, Any]) -> set[str]:
     return uids
 
 
-def workcycle_checklists_for(agent_dir: Path) -> list[tuple[int, Path]]:
+def workcycle_checklists_for(agent_dir: Path) -> list[tuple[str, int, Path]]:
     checklists_dir = agent_dir / "checklists"
     if not checklists_dir.exists():
         return []
-    results: list[tuple[int, Path]] = []
-    prefix = "AGENTS-workcycle-checklist-"
-    suffix = ".md"
+    results: list[tuple[str, int, Path]] = []
+    pattern = re.compile(r"^(?P<prefix>.+)-workcycle-checklist-(?P<batch>\d+)\.md$")
     for path in sorted(checklists_dir.iterdir()):
         if not path.is_file():
             continue
-        name = path.name
-        if not (name.startswith(prefix) and name.endswith(suffix)):
+        match = pattern.match(path.name)
+        if match is None:
             continue
-        batch_str = name[len(prefix):-len(suffix)]
-        if not batch_str.isdigit():
-            continue
-        results.append((int(batch_str), path))
-    return sorted(results, key=lambda item: item[0])
+        results.append((match.group("prefix"), int(match.group("batch")), path))
+    return sorted(results, key=lambda item: (item[0], item[1], item[2].name))
 
 
 def scan_agent_checklists(*, keep_workcycle_batches: int = DEFAULT_KEEP_WORKCYCLE_BATCHES) -> dict[str, Any]:
@@ -86,11 +83,20 @@ def scan_agent_checklists(*, keep_workcycle_batches: int = DEFAULT_KEEP_WORKCYCL
         agent_uid = agent_dir.name
         workcycles = workcycle_checklists_for(agent_dir)
         stale = []
-        if len(workcycles) > keep_workcycle_batches:
-            stale = [
-                {"batch": batch, "path": relative_to_root(path)}
-                for batch, path in workcycles[:-keep_workcycle_batches]
-            ]
+        by_prefix: dict[str, list[tuple[int, Path]]] = {}
+        for prefix, batch, path in workcycles:
+            by_prefix.setdefault(prefix, []).append((batch, path))
+        for prefix, family_workcycles in by_prefix.items():
+            if len(family_workcycles) <= keep_workcycle_batches:
+                continue
+            stale.extend(
+                {
+                    "prefix": prefix,
+                    "batch": batch,
+                    "path": relative_to_root(path),
+                }
+                for batch, path in family_workcycles[:-keep_workcycle_batches]
+            )
 
         record = {
             "agent_uid": agent_uid,

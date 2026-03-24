@@ -7,7 +7,8 @@ progress in this file directly.
 
 Suggested per-agent copy path:
 
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-bootstrap-checklist.md`
+- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-workcycle-checklist-<n>.md`
 
 ## New chat bootstrap
 
@@ -28,4 +29,3 @@ Suggested per-agent copy path:
 - Do not check CI as part of normal `doc` work. <!-- item-id: doc.boundary.no-ci -->
 
 ## Handoff And Finish
-
