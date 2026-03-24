@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-stale-root-object-after-heads-replace",
+    "description": "A reader should fail sync when the seed replaces advertised heads and then sends the withdrawn root revision OBJECT after its pending request was cleared.",
+    "category": "negative",
+    "topology": "sim/topologies/session-stale-root-object-after-heads-replace.example.json",
+    "fixture_set": "fixtures/object-sets/session-stale-root-object-after-heads-replace",
+    "execution_mode": "single-process",
+    "expected_result": "fail",
+    "expected_outcomes": [
+        "stale-root-object-after-heads-replace-rejected",
+        "no-invalid-index-write"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "stale-root-object-after-heads-replace-rejected",
+            "description": "Reader rejects the withdrawn root OBJECT because replace=true cleared the old pending request before that object arrived again.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "no-invalid-index-write",
+            "description": "Reader does not keep writing the stale sync state after the withdrawn root OBJECT violation.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with a post-HELLO pending-state invalidation fault after root replacement.",
+        "The harness keeps the normal peer-store transcript but injects replacement HEADS plus a replayed stale root OBJECT before BYE."
+    ]
+}

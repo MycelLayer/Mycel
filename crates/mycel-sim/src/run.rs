@@ -1895,6 +1895,9 @@ fn inject_session_fault(
         "stale-root-want-after-heads-replace" => {
             inject_stale_root_want_after_heads_replace_fault(transcript, signing_key)
         }
+        "stale-root-object-after-heads-replace" => {
+            inject_stale_root_object_after_heads_replace_fault(transcript, signing_key)
+        }
         "snapshot-want-before-manifest" => {
             inject_snapshot_want_before_manifest_fault(transcript, signing_key)
         }
@@ -2122,6 +2125,54 @@ fn inject_stale_root_want_after_heads_replace_fault(
 
     transcript.messages.insert(bye_index, replacement_heads);
     transcript.messages.insert(bye_index + 1, want);
+    Ok(())
+}
+
+fn inject_stale_root_object_after_heads_replace_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let bye_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("BYE"))
+        .ok_or_else(|| {
+            "transcript is missing BYE for stale-root-object-after-heads-replace injection"
+                .to_owned()
+        })?;
+    let stale_root_object = transcript
+        .messages
+        .iter()
+        .find(|message| {
+            message.get("type").and_then(Value::as_str) == Some("OBJECT")
+                && message
+                    .get("payload")
+                    .and_then(Value::as_object)
+                    .and_then(|payload| payload.get("object_type"))
+                    .and_then(Value::as_str)
+                    == Some("revision")
+        })
+        .cloned()
+        .ok_or_else(|| {
+            "transcript is missing a root revision OBJECT for stale-root-object-after-heads-replace injection"
+                .to_owned()
+        })?;
+
+    let replacement_heads = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "HEADS",
+        "msg:peer-sync-fault-heads-replace-object-0001",
+        json!({
+            "documents": {
+                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
+            },
+            "replace": true
+        }),
+    )?;
+
+    transcript.messages.insert(bye_index, replacement_heads);
+    transcript.messages.insert(bye_index + 1, stale_root_object);
     Ok(())
 }
 

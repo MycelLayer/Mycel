@@ -1,0 +1,26 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-stale-root-object-after-heads-replace",
+    "description": "Seed replaces advertised heads and then replays the withdrawn root revision OBJECT after its pending request should have been cleared",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-stale-root-object-after-heads-replace-test"
+        }
+    ],
+    "expected_outcomes": [
+        "stale-root-object-after-heads-replace-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "stale-root-object-after-heads-replace",
+        "seed_extra_revisions": 1
+    },
+    "notes": [
+        "Simulator injects a replacing HEADS update after the root revision has already been requested once.",
+        "The follow-on replay of that withdrawn root OBJECT should be rejected because replace=true cleared the old pending request state."
+    ]
+}
