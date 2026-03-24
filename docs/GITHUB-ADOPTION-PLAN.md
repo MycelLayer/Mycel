@@ -14,32 +14,41 @@ As of 2026-03-24, the repository already uses:
 - GitHub Discussions for open-ended conversation
 - GitHub Projects as an available planning surface
 - secret scanning and secret scanning push protection
+- classic branch protection on `main`
+- three required status checks on `main`:
+  - `rust-and-validation`
+  - `ast-grep-quality`
+  - `code-quality-hotspots-warning`
+- one required pull-request approval on `main`
+- `.github/CODEOWNERS`
+- `.github/dependabot.yml`
+- vulnerability alerts
 - the `MycelLayer/Mycel` organization-owned repository
 
 The main gaps worth addressing first are:
 
-- `main` has no ruleset or classic branch protection
-- no required status checks or review gate protect merges to `main`
-- no `CODEOWNERS` file exists yet
-- no repo-side Dependabot configuration exists yet
-- auto-merge is disabled and would not add much value until merge requirements
-  exist
+- `main` still uses classic branch protection rather than `rulesets`
+- code owner reviews are not required yet
+- admin enforcement is still off for the branch protection
+- delete-branch-on-merge is still off
+- auto-merge remains disabled
 
-## 1. Branch Governance First
+## 1. Strengthen Branch Governance
 
-Adopt GitHub `rulesets` or branch protection for `main` before adding more
-automation.
+Keep improving the `main` merge gate before adding more automation.
 
 Target settings:
 
-- require pull requests before merge
-- require the existing CI checks to pass
-- restrict direct pushes to `main`
-- optionally require at least one review
+- keep pull requests and the existing required CI checks in place
+- decide whether to move from classic branch protection to GitHub `rulesets`
+- decide whether admins should also be fully enforced by the merge gate
+- decide whether code owner reviews should become required now that
+  `CODEOWNERS` exists
 
 Why first:
 
-- this creates a real merge gate around the workflows we already maintain
+- this tightens the real merge gate that already exists around the workflows we
+  maintain
 - later features such as auto-merge become more useful only after merge
   requirements exist
 - this is the highest-leverage safety improvement with the lowest ongoing
@@ -49,9 +58,9 @@ Main tradeoff:
 
 - maintainers lose some direct-to-main speed in exchange for a safer default
 
-## 2. Add Ownership Routing
+## 2. Refine Ownership Routing
 
-Add `.github/CODEOWNERS` after branch governance is in place.
+Refine `.github/CODEOWNERS` now that the first-pass file exists.
 
 Suggested first-pass ownership split:
 
@@ -62,33 +71,36 @@ Suggested first-pass ownership split:
 
 Why second:
 
-- review routing matters more once pull-request review is part of the merge path
+- review routing matters more now that pull-request review is already part of
+  the merge path
 - Mycel already has clear directory boundaries that map well to ownership
 
 Main tradeoff:
 
 - ownership needs periodic maintenance as responsibilities evolve
 
-## 3. Enable Dependabot Security Updates
+## 3. Mature Dependabot And Security Adoption
 
-Turn on Dependabot security updates for vulnerable dependencies and GitHub
-Actions, and add a minimal repository config to keep version-update churn small.
+Keep the existing Dependabot and vulnerability-alert setup small and
+intentional.
 
 Recommended scope:
 
-- start with security updates first
-- add a minimal `dependabot.yml` for the ecosystems we already use (`cargo`,
-  GitHub Actions, and the root `npm` workspace)
-- keep version updates optional until the team decides how much update churn it
-  wants
+- keep the current `dependabot.yml` focused on the ecosystems we already use
+  (`cargo`, GitHub Actions, and the root `npm` workspace)
+- decide whether host-side Dependabot behavior should stay on grouped low-churn
+  updates or narrow further
+- keep version updates intentional until the team decides how much update churn
+  it wants
 - review grouped update settings if alert volume becomes noisy
 
 Why third:
 
-- the repository already has secret protection enabled, so dependency security
-  is the next natural GitHub-native safety layer
-- security-update pull requests fit well once branch protections and review
-  routing are in place
+- the repository now has secret protection, Dependabot config, and vulnerability
+  alerts, so the next value is tuning signal quality rather than merely turning
+  the features on
+- security-update pull requests fit well now that branch protections and review
+  routing already exist
 
 Main tradeoff:
 
@@ -101,8 +113,8 @@ Enable auto-merge only after step 1 is working well.
 Why later:
 
 - auto-merge is most useful when pull requests must wait on checks or reviews
-- enabling it before branch requirements exist provides little operational
-  value
+- enabling it before the team is comfortable with the current merge gate still
+  provides limited operational value
 
 Main tradeoff:
 
@@ -149,8 +161,9 @@ Merge queue should stay deferred for now.
 
 Reason:
 
-- it is a strong fit for busy protected branches, but branch governance is not
-  in place yet
+- it is a strong fit for busy protected branches, but the current branch
+  governance still looks light enough that merge queue would be extra process
+  weight
 - Mycel is organization-owned now, but current throughput still looks too small
   to justify merge-queue overhead yet
 
@@ -159,8 +172,8 @@ Reason:
 If we want the smallest practical rollout, use this sequence:
 
 1. configure `main` rulesets / branch protection
-2. add a minimal `CODEOWNERS`
-3. add a minimal `dependabot.yml` and enable Dependabot security updates
+2. refine `CODEOWNERS` and decide whether code owner reviews should be required
+3. tune Dependabot plus vulnerability-alert usage
 4. optionally enable auto-merge
 
 This sequence keeps the change surface small while improving safety and review
@@ -171,9 +184,11 @@ discipline quickly.
 Concrete next implementation tasks for a future work item:
 
 - draft the exact required status checks for `main`
-- draft or refine the first-pass `.github/CODEOWNERS`
+- decide whether classic branch protection should move to `rulesets`
+- decide whether code owner reviews and admin enforcement should be required
+- refine the first-pass `.github/CODEOWNERS`
 - record which maintainers can bypass rulesets, if any
 - decide whether Dependabot should stay on grouped low-churn updates or narrow
-  further to security-only host-side behavior
+  further
 - decide whether GitHub Projects should mirror the existing multi-agent workflow
   or stay out of scope
