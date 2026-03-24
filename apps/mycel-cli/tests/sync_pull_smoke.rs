@@ -879,6 +879,88 @@ fn sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised() {
 }
 
 #[test]
+fn sync_pull_json_accepts_view_announce_when_capability_is_advertised() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
+    let patch_id = patch_object["payload"]["object_id"]
+        .as_str()
+        .expect("patch object id should exist")
+        .to_string();
+    let revision_object = signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
+    let revision_id = revision_object["payload"]["object_id"]
+        .as_str()
+        .expect("revision object id should exist")
+        .to_string();
+    let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
+    let view_id = view_object["payload"]["object_id"]
+        .as_str()
+        .expect("view object id should exist")
+        .to_string();
+    let transcript_dir = create_temp_dir("sync-pull-view-announce-source");
+    let transcript_path = transcript_dir
+        .path()
+        .join("pull-view-announce-transcript.json");
+    let store_root = create_temp_dir("sync-pull-view-announce-store");
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    json!(["patch-sync", "view-sync"])
+                ),
+                signed_manifest_message_with_capabilities(
+                    &signing_key,
+                    sender,
+                    &revision_id,
+                    json!(["patch-sync", "view-sync"])
+                ),
+                signed_view_announce_message(&signing_key, sender, &view_id),
+                signed_want_message(&signing_key, sender, &[&view_id]),
+                view_object,
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_mycel(&[
+        "sync",
+        "pull",
+        &path_arg(&transcript_path),
+        "--into",
+        &path_arg(store_root.path()),
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["message_count"], 6);
+    assert_eq!(json["verified_message_count"], 6);
+    assert_eq!(json["object_message_count"], 1);
+    assert_eq!(json["verified_object_count"], 1);
+    assert_eq!(json["written_object_count"], 1);
+
+    let manifest_path = store_root.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 1);
+    assert_eq!(
+        manifest["view_governance"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(manifest["view_governance"][0]["view_id"], view_id);
+    assert_eq!(manifest["document_views"]["doc:test"][0], view_id);
+}
+
+#[test]
 fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
     let signing_key = signing_key();
     let sender = "node:alpha";

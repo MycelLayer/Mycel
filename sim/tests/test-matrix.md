@@ -104,6 +104,13 @@ Product-layer-only note:
 - `view-sync`: reader receives governance view objects via VIEW_ANNOUNCE from a view-capable seed
   Reference JSON: `sim/tests/view-sync.example.json`
 
+### Product-Layer Capability Notes
+
+| Simulator case | Product-layer counterpart | Coverage status |
+|---|---|---|
+| `snapshot-catchup` | `sync_pull_json_accepts_snapshot_offer_when_capability_is_advertised` | both layers |
+| `view-sync` | `sync_pull_json_accepts_view_announce_when_capability_is_advertised` | both layers |
+
 ## Multi-Process
 
 - `localhost-multi-process`: two OS processes exchange wire messages via stdin/stdout pipe (mycel sync stream | mycel sync pull)
