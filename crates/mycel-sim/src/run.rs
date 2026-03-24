@@ -1894,6 +1894,9 @@ fn inject_session_fault(
         "messages-after-bye" => inject_messages_after_bye_fault(transcript, signing_key),
         "object-before-hello" => inject_object_before_hello_fault(transcript),
         "object-before-manifest" => inject_object_before_manifest_fault(transcript),
+        "unrequested-root-object-after-manifest" => {
+            inject_unrequested_root_object_after_manifest_fault(transcript)
+        }
         "snapshot-offer-before-hello" => {
             inject_snapshot_offer_before_hello_fault(transcript, signing_key)
         }
@@ -2800,6 +2803,30 @@ fn inject_unadvertised_object_want_after_manifest_fault(
         }),
     )?;
     transcript.messages.insert(manifest_index + 1, want);
+    Ok(())
+}
+
+fn inject_unrequested_root_object_after_manifest_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+) -> Result<(), String> {
+    let manifest_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("MANIFEST"))
+        .ok_or_else(|| {
+            "transcript is missing MANIFEST for unrequested-root-object-after-manifest injection"
+                .to_owned()
+        })?;
+    let object_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
+        .ok_or_else(|| {
+            "transcript is missing OBJECT for unrequested-root-object-after-manifest injection"
+                .to_owned()
+        })?;
+    let object = transcript.messages.remove(object_index);
+    transcript.messages.insert(manifest_index + 1, object);
     Ok(())
 }
 

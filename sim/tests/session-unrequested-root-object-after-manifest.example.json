@@ -1,0 +1,30 @@
+{
+    "$schema": "./test-case.schema.json",
+    "test_id": "session-unrequested-root-object-after-manifest",
+    "description": "A reader should fail sync when the seed emits a root OBJECT after MANIFEST but before that root has been requested.",
+    "category": "negative",
+    "topology": "sim/topologies/session-unrequested-root-object-after-manifest.example.json",
+    "fixture_set": "fixtures/object-sets/session-unrequested-root-object-after-manifest",
+    "execution_mode": "single-process",
+    "expected_result": "fail",
+    "expected_outcomes": [
+        "unrequested-root-object-after-manifest-rejected",
+        "no-invalid-index-write"
+    ],
+    "assertions": [
+        {
+            "assertion_id": "unrequested-root-object-after-manifest-rejected",
+            "description": "Reader rejects OBJECT because the seed sent the root revision before any WANT requested it.",
+            "severity": "error"
+        },
+        {
+            "assertion_id": "no-invalid-index-write",
+            "description": "Reader does not write a manifest or verified object set after the unrequested root OBJECT violation.",
+            "severity": "error"
+        }
+    ],
+    "notes": [
+        "Extends the simulator matrix with a post-MANIFEST pending-request negative interop case for root revisions.",
+        "The seed still uses the normal peer-store transcript generator, but the harness moves the first root OBJECT to immediately after MANIFEST."
+    ]
+}

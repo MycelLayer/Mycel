@@ -1,0 +1,25 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-unrequested-root-object-after-manifest",
+    "description": "Seed injects a root OBJECT right after MANIFEST so the reader rejects the transcript as an unrequested object",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-unrequested-root-object-after-manifest-test"
+        }
+    ],
+    "expected_outcomes": [
+        "unrequested-root-object-after-manifest-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "unrequested-root-object-after-manifest"
+    },
+    "notes": [
+        "Simulator moves the first root OBJECT to immediately after MANIFEST, before any WANT establishes a pending request for it.",
+        "The transcript should fail on the standard unrequested-OBJECT rule before any object verification or store writes happen."
+    ]
+}
