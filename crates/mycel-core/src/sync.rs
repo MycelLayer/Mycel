@@ -408,6 +408,188 @@ fn sorted_object_ids_for_type(manifest: &StoreIndexManifest, object_type: &str) 
     object_ids
 }
 
+fn filtered_remote_heads(
+    all_remote_heads: BTreeMap<String, Vec<String>>,
+    requested_doc_ids: Option<&[String]>,
+) -> BTreeMap<String, Vec<String>> {
+    match requested_doc_ids {
+        Some(ids) => {
+            let ids_set: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+            all_remote_heads
+                .into_iter()
+                .filter(|(doc_id, _)| ids_set.contains(doc_id.as_str()))
+                .collect()
+        }
+        None => all_remote_heads,
+    }
+}
+
+fn push_sync_start_messages(
+    messages: &mut Vec<Value>,
+    peer_signing_key: &SigningKey,
+    peer: &SyncPeer,
+    remote_heads: &BTreeMap<String, Vec<String>>,
+    advertised_capabilities: &[&str],
+    local_store_was_empty: bool,
+) -> Result<(), StoreRebuildError> {
+    messages.push(signed_hello_message_with_capabilities(
+        peer_signing_key,
+        &peer.node_id,
+        advertised_capabilities,
+    )?);
+    if local_store_was_empty {
+        messages.push(signed_manifest_message_with_capabilities(
+            peer_signing_key,
+            &peer.node_id,
+            "msg:peer-sync-manifest-0001".to_string(),
+            remote_heads,
+            advertised_capabilities,
+        )?);
+    } else {
+        messages.push(signed_heads_message(
+            peer_signing_key,
+            &peer.node_id,
+            "msg:peer-sync-heads-0001".to_string(),
+            remote_heads,
+        )?);
+    }
+    Ok(())
+}
+
+fn require_remote_object<'a>(
+    remote_object_index: &'a HashMap<String, Value>,
+    object_id: &str,
+    missing_message: impl FnOnce() -> String,
+) -> Result<&'a Value, StoreRebuildError> {
+    remote_object_index
+        .get(object_id)
+        .ok_or_else(|| StoreRebuildError::new(missing_message()))
+}
+
+fn push_snapshot_offer_messages(
+    messages: &mut Vec<Value>,
+    peer_signing_key: &SigningKey,
+    peer: &SyncPeer,
+    remote_object_index: &HashMap<String, Value>,
+    peer_store_root: &Path,
+    remote_snapshot_ids: &[String],
+    sequence: &mut usize,
+) -> Result<(), StoreRebuildError> {
+    for snapshot_id in remote_snapshot_ids {
+        let body = require_remote_object(remote_object_index, snapshot_id, || {
+            format!(
+                "peer store {} is missing offered snapshot '{}'",
+                peer_store_root.display(),
+                snapshot_id
+            )
+        })?;
+        messages.push(signed_snapshot_offer_message(
+            peer_signing_key,
+            &peer.node_id,
+            next_wire_msg_id(sequence, "snapshot-offer"),
+            snapshot_id,
+            body,
+        )?);
+    }
+    Ok(())
+}
+
+fn push_view_announce_messages(
+    messages: &mut Vec<Value>,
+    peer_signing_key: &SigningKey,
+    peer: &SyncPeer,
+    remote_object_index: &HashMap<String, Value>,
+    peer_store_root: &Path,
+    remote_view_ids: &[String],
+    sequence: &mut usize,
+) -> Result<(), StoreRebuildError> {
+    for view_id in remote_view_ids {
+        let body = require_remote_object(remote_object_index, view_id, || {
+            format!(
+                "peer store {} is missing announced view '{}'",
+                peer_store_root.display(),
+                view_id
+            )
+        })?;
+        messages.push(signed_view_announce_message(
+            peer_signing_key,
+            &peer.node_id,
+            next_wire_msg_id(sequence, "view-announce"),
+            view_id,
+            body,
+        )?);
+    }
+    Ok(())
+}
+
+fn initial_missing_remote_object_ids(
+    remote_heads: &BTreeMap<String, Vec<String>>,
+    remote_snapshot_ids: &[String],
+    remote_view_ids: &[String],
+    known_local_ids: &BTreeSet<String>,
+) -> Vec<String> {
+    missing_object_ids(
+        remote_heads
+            .values()
+            .flatten()
+            .cloned()
+            .chain(remote_snapshot_ids.iter().cloned())
+            .chain(remote_view_ids.iter().cloned())
+            .collect::<Vec<_>>(),
+        known_local_ids,
+    )
+}
+
+fn push_requested_object_messages(
+    messages: &mut Vec<Value>,
+    peer_signing_key: &SigningKey,
+    peer: &SyncPeer,
+    remote_object_index: &HashMap<String, Value>,
+    peer_store_root: &Path,
+    known_local_ids: &mut BTreeSet<String>,
+    mut next_batch: Vec<String>,
+    sequence: &mut usize,
+) -> Result<(), StoreRebuildError> {
+    while !next_batch.is_empty() {
+        messages.push(signed_want_message(
+            peer_signing_key,
+            &peer.node_id,
+            next_wire_msg_id(sequence, "want"),
+            &next_batch,
+        )?);
+
+        let mut newly_reachable = BTreeSet::new();
+        for object_id in &next_batch {
+            let body = require_remote_object(remote_object_index, object_id, || {
+                format!(
+                    "peer store {} is missing advertised object '{}'",
+                    peer_store_root.display(),
+                    object_id
+                )
+            })?;
+            messages.push(signed_object_message(
+                peer_signing_key,
+                &peer.node_id,
+                next_wire_msg_id(sequence, "object"),
+                body,
+            )?);
+            known_local_ids.insert(object_id.clone());
+            newly_reachable.extend(discover_reachable_object_ids_from_value(body).map_err(
+                |error| {
+                    StoreRebuildError::new(format!(
+                        "failed to discover reachable IDs for '{}': {error}",
+                        object_id
+                    ))
+                },
+            )?);
+        }
+
+        next_batch = missing_object_ids(newly_reachable, known_local_ids);
+    }
+
+    Ok(())
+}
+
 fn generate_sync_pull_transcript_filtered(
     peer: &SyncPeer,
     peer_signing_key: &SigningKey,
@@ -424,17 +606,8 @@ fn generate_sync_pull_transcript_filtered(
     }
 
     let remote_manifest = load_store_index_manifest(peer_store_root)?;
-    let all_remote_heads = head_map_from_manifest(&remote_manifest);
-    let remote_heads: BTreeMap<String, Vec<String>> = match requested_doc_ids {
-        Some(ids) => {
-            let ids_set: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
-            all_remote_heads
-                .into_iter()
-                .filter(|(doc_id, _)| ids_set.contains(doc_id.as_str()))
-                .collect()
-        }
-        None => all_remote_heads,
-    };
+    let remote_heads =
+        filtered_remote_heads(head_map_from_manifest(&remote_manifest), requested_doc_ids);
     let remote_snapshot_ids = sorted_object_ids_for_type(&remote_manifest, "snapshot");
     let remote_view_ids = sorted_object_ids_for_type(&remote_manifest, "view");
     let advertised_capabilities = advertised_sync_capabilities(&remote_manifest);
@@ -451,109 +624,51 @@ fn generate_sync_pull_transcript_filtered(
     let local_store_was_empty = known_local_ids.is_empty();
 
     let mut messages = Vec::new();
-    messages.push(signed_hello_message_with_capabilities(
+    push_sync_start_messages(
+        &mut messages,
         peer_signing_key,
-        &peer.node_id,
+        peer,
+        &remote_heads,
         &advertised_capabilities,
-    )?);
-    if local_store_was_empty {
-        messages.push(signed_manifest_message_with_capabilities(
-            peer_signing_key,
-            &peer.node_id,
-            "msg:peer-sync-manifest-0001".to_string(),
-            &remote_heads,
-            &advertised_capabilities,
-        )?);
-    } else {
-        messages.push(signed_heads_message(
-            peer_signing_key,
-            &peer.node_id,
-            "msg:peer-sync-heads-0001".to_string(),
-            &remote_heads,
-        )?);
-    }
+        local_store_was_empty,
+    )?;
 
     let mut sequence = 2usize;
-    for snapshot_id in &remote_snapshot_ids {
-        let body = remote_object_index.get(snapshot_id).ok_or_else(|| {
-            StoreRebuildError::new(format!(
-                "peer store {} is missing offered snapshot '{}'",
-                peer_store_root.display(),
-                snapshot_id
-            ))
-        })?;
-        messages.push(signed_snapshot_offer_message(
-            peer_signing_key,
-            &peer.node_id,
-            next_wire_msg_id(&mut sequence, "snapshot-offer"),
-            snapshot_id,
-            body,
-        )?);
-    }
-    for view_id in &remote_view_ids {
-        let body = remote_object_index.get(view_id).ok_or_else(|| {
-            StoreRebuildError::new(format!(
-                "peer store {} is missing announced view '{}'",
-                peer_store_root.display(),
-                view_id
-            ))
-        })?;
-        messages.push(signed_view_announce_message(
-            peer_signing_key,
-            &peer.node_id,
-            next_wire_msg_id(&mut sequence, "view-announce"),
-            view_id,
-            body,
-        )?);
-    }
+    push_snapshot_offer_messages(
+        &mut messages,
+        peer_signing_key,
+        peer,
+        &remote_object_index,
+        peer_store_root,
+        &remote_snapshot_ids,
+        &mut sequence,
+    )?;
+    push_view_announce_messages(
+        &mut messages,
+        peer_signing_key,
+        peer,
+        &remote_object_index,
+        peer_store_root,
+        &remote_view_ids,
+        &mut sequence,
+    )?;
 
-    let mut next_batch = missing_object_ids(
-        remote_heads
-            .values()
-            .flatten()
-            .cloned()
-            .chain(remote_snapshot_ids.iter().cloned())
-            .chain(remote_view_ids.iter().cloned())
-            .collect::<Vec<_>>(),
+    let next_batch = initial_missing_remote_object_ids(
+        &remote_heads,
+        &remote_snapshot_ids,
+        &remote_view_ids,
         &known_local_ids,
     );
-
-    while !next_batch.is_empty() {
-        messages.push(signed_want_message(
-            peer_signing_key,
-            &peer.node_id,
-            next_wire_msg_id(&mut sequence, "want"),
-            &next_batch,
-        )?);
-
-        let mut newly_reachable = BTreeSet::new();
-        for object_id in &next_batch {
-            let body = remote_object_index.get(object_id).ok_or_else(|| {
-                StoreRebuildError::new(format!(
-                    "peer store {} is missing advertised object '{}'",
-                    peer_store_root.display(),
-                    object_id
-                ))
-            })?;
-            messages.push(signed_object_message(
-                peer_signing_key,
-                &peer.node_id,
-                next_wire_msg_id(&mut sequence, "object"),
-                body,
-            )?);
-            known_local_ids.insert(object_id.clone());
-            newly_reachable.extend(discover_reachable_object_ids_from_value(body).map_err(
-                |error| {
-                    StoreRebuildError::new(format!(
-                        "failed to discover reachable IDs for '{}': {error}",
-                        object_id
-                    ))
-                },
-            )?);
-        }
-
-        next_batch = missing_object_ids(newly_reachable, &known_local_ids);
-    }
+    push_requested_object_messages(
+        &mut messages,
+        peer_signing_key,
+        peer,
+        &remote_object_index,
+        peer_store_root,
+        &mut known_local_ids,
+        next_batch,
+        &mut sequence,
+    )?;
 
     messages.push(signed_bye_message(peer_signing_key, &peer.node_id)?);
 
