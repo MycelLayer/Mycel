@@ -229,13 +229,22 @@ fn signed_patch_object_message(
     sender: &str,
     base_revision: &str,
 ) -> Value {
+    signed_patch_object_message_for_doc(signing_key, sender, "doc:test", base_revision)
+}
+
+fn signed_patch_object_message_for_doc(
+    signing_key: &SigningKey,
+    sender: &str,
+    doc_id: &str,
+    base_revision: &str,
+) -> Value {
     let body = sign_object_value(
         signing_key,
         json!({
             "type": "patch",
             "version": "mycel/0.1",
             "patch_id": "patch:placeholder",
-            "doc_id": "doc:test",
+            "doc_id": doc_id,
             "base_revision": base_revision,
             "author": "pk:ed25519:placeholder",
             "timestamp": 1u64,
@@ -281,16 +290,26 @@ fn signed_revision_object_message(
     parents: &[&str],
     patches: &[&str],
 ) -> Value {
+    signed_revision_object_message_for_doc(signing_key, sender, "doc:test", parents, patches)
+}
+
+fn signed_revision_object_message_for_doc(
+    signing_key: &SigningKey,
+    sender: &str,
+    doc_id: &str,
+    parents: &[&str],
+    patches: &[&str],
+) -> Value {
     let body = sign_object_value(
         signing_key,
         json!({
             "type": "revision",
             "version": "mycel/0.1",
             "revision_id": "rev:placeholder",
-            "doc_id": "doc:test",
+            "doc_id": doc_id,
             "parents": parents,
             "patches": patches,
-            "state_hash": empty_state_hash("doc:test"),
+            "state_hash": empty_state_hash(doc_id),
             "author": "pk:ed25519:placeholder",
             "timestamp": 2u64,
             "signature": "sig:placeholder"
@@ -1390,6 +1409,108 @@ fn sync_peer_store_json_reports_noop_when_local_store_is_current() {
             })),
         "expected no-op note, stdout: {}",
         stdout_text(&output)
+    );
+}
+
+#[test]
+fn sync_peer_store_json_limits_sync_to_requested_document_subset() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let remote_store = create_temp_dir("sync-peer-store-partial-doc-remote");
+    let local_store = create_temp_dir("sync-peer-store-partial-doc-local");
+    let signing_key_path = remote_store.path().join("peer.key");
+
+    let alpha_patch = signed_patch_object_message_for_doc(
+        &signing_key,
+        sender,
+        "doc:partial-alpha",
+        "rev:genesis-null",
+    );
+    let alpha_patch_id = alpha_patch["payload"]["object_id"]
+        .as_str()
+        .expect("alpha patch object id should exist")
+        .to_string();
+    let alpha_revision = signed_revision_object_message_for_doc(
+        &signing_key,
+        sender,
+        "doc:partial-alpha",
+        &[],
+        &[&alpha_patch_id],
+    );
+    let alpha_revision_id = alpha_revision["payload"]["object_id"]
+        .as_str()
+        .expect("alpha revision object id should exist")
+        .to_string();
+
+    let beta_patch = signed_patch_object_message_for_doc(
+        &signing_key,
+        sender,
+        "doc:partial-beta",
+        "rev:genesis-null",
+    );
+    let beta_patch_id = beta_patch["payload"]["object_id"]
+        .as_str()
+        .expect("beta patch object id should exist")
+        .to_string();
+    let beta_revision = signed_revision_object_message_for_doc(
+        &signing_key,
+        sender,
+        "doc:partial-beta",
+        &[],
+        &[&beta_patch_id],
+    );
+
+    for body in [
+        &alpha_patch["payload"]["body"],
+        &alpha_revision["payload"]["body"],
+        &beta_patch["payload"]["body"],
+        &beta_revision["payload"]["body"],
+    ] {
+        write_object_value_to_store(remote_store.path(), body)
+            .expect("object should write to remote store");
+    }
+    write_signing_key(&signing_key_path, &signing_key);
+
+    let output = run_mycel(&[
+        "sync",
+        "peer-store",
+        "--from",
+        &path_arg(remote_store.path()),
+        "--into",
+        &path_arg(local_store.path()),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        &path_arg(&signing_key_path),
+        "--doc-id",
+        "doc:partial-alpha",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["peer_node_id"], sender);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+
+    let manifest_path = local_store.path().join("indexes").join("manifest.json");
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    assert_eq!(manifest["stored_object_count"], 2);
+    assert_eq!(
+        manifest["doc_revisions"]["doc:partial-alpha"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        manifest["doc_revisions"]["doc:partial-alpha"][0],
+        alpha_revision_id
+    );
+    assert!(
+        manifest["doc_revisions"].get("doc:partial-beta").is_none(),
+        "expected excluded document to remain absent, manifest: {manifest}"
     );
 }
 

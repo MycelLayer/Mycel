@@ -123,6 +123,13 @@ Product-layer-only note:
 - `localhost-multi-process`: two OS processes exchange wire messages via stdin/stdout pipe (mycel sync stream | mycel sync pull)
   Reference JSON: `sim/tests/localhost-multi-process.example.json`
 
+### Product-Layer Multi-Process Notes
+
+`localhost-multi-process` still has no dedicated `apps/mycel-cli/tests` counterpart yet.
+The current product-layer coverage exercises the same wire-session semantics through
+single-process CLI command invocations, but does not yet pin the OS-process pipe
+boundary as its own smoke test.
+
 ## Scalability
 
 - `four-reader-multi-doc`: four readers each start empty and converge on a two-document verified object set from a single seed
@@ -134,6 +141,8 @@ Product-layer-only note:
   Reference JSON: `sim/tests/resync-idempotency.example.json`
 - `depth-3-catchup`: reader at depth 2 catches up to seed at depth 3 in a single HEADS/WANT pass; only the delta revision is fetched
   Reference JSON: `sim/tests/depth-3-catchup.example.json`
+- `partial-doc-sync`: reader requests only a subset of the seed's documents and ends with a stable partial store plus correct accepted heads for the requested subset
+  Reference JSON: `sim/tests/partial-doc-sync.example.json`
 
 ### Product-Layer Production Replication Notes
 
@@ -141,3 +150,4 @@ Product-layer-only note:
 |---|---|---|
 | `resync-idempotency` | `sync_peer_store_json_reports_noop_when_local_store_is_current` | both layers |
 | `depth-3-catchup` | `sync_pull_json_replays_depth_3_catchup_transcript_into_existing_store` | both layers |
+| `partial-doc-sync` | `sync_peer_store_json_limits_sync_to_requested_document_subset` | both layers |

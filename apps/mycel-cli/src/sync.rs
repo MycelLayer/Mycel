@@ -7,7 +7,8 @@ use mycel_core::author::{parse_signing_key_seed, signer_id};
 use mycel_core::protocol::parse_json_strict;
 use mycel_core::sync::{
     generate_sync_pull_transcript_from_peer_store, sync_pull_from_peer_store,
-    sync_pull_from_transcript, SyncPeer, SyncPullSummary, SyncPullTranscript,
+    sync_pull_from_peer_store_with_doc_filter, sync_pull_from_transcript, SyncPeer,
+    SyncPullSummary, SyncPullTranscript,
 };
 use serde::Serialize;
 
@@ -85,6 +86,12 @@ struct SyncPeerStoreCliArgs {
         required = true
     )]
     signing_key: String,
+    #[arg(
+        long = "doc-id",
+        value_name = "DOC_ID",
+        help = "Limit the sync to one requested document ID; pass multiple times to request a subset"
+    )]
+    doc_ids: Vec<String>,
     #[arg(long, help = "Emit machine-readable peer-store sync output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -337,8 +344,18 @@ fn sync_peer_store(args: SyncPeerStoreCliArgs) -> Result<i32, CliError> {
         node_id: args.peer_node_id,
         public_key: signer_id(&signing_key),
     };
-    let summary = sync_pull_from_peer_store(&peer, &signing_key, &source_store, &store_root)
-        .map_err(|error| CliError::usage(error.to_string()))?;
+    let summary = if args.doc_ids.is_empty() {
+        sync_pull_from_peer_store(&peer, &signing_key, &source_store, &store_root)
+    } else {
+        sync_pull_from_peer_store_with_doc_filter(
+            &peer,
+            &signing_key,
+            &source_store,
+            &store_root,
+            &args.doc_ids,
+        )
+    }
+    .map_err(|error| CliError::usage(error.to_string()))?;
     let summary = peer_store_cli_summary(source_store, signing_key_path, summary);
 
     if args.json {

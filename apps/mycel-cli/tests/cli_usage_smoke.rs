@@ -224,6 +224,7 @@ fn sync_peer_store_help_prints_structured_clap_help() {
     assert!(stdout.contains("--into <STORE_ROOT>"));
     assert!(stdout.contains("--peer-node-id <NODE_ID>"));
     assert!(stdout.contains("--signing-key <FILE>"));
+    assert!(stdout.contains("--doc-id <DOC_ID>"));
     assert!(stdout.contains("--json"));
 }
 
