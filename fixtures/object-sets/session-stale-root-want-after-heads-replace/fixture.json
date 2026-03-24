@@ -1,0 +1,26 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-stale-root-want-after-heads-replace",
+    "description": "Seed replaces advertised heads and then asks again for the stale root revision that was withdrawn from the accepted root set",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-stale-root-want-after-heads-replace-test"
+        }
+    ],
+    "expected_outcomes": [
+        "stale-root-want-after-heads-replace-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "stale-root-want-after-heads-replace",
+        "seed_extra_revisions": 1
+    },
+    "notes": [
+        "Simulator injects a replacing HEADS update after the initial root revision has already been advertised and requested once.",
+        "The follow-on WANT for that withdrawn root revision should be rejected because replace=true replaced the old root set."
+    ]
+}
