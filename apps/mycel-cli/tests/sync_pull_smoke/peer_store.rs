@@ -1,5 +1,38 @@
 use super::*;
 
+fn read_manifest(store_root: &Path) -> Value {
+    let manifest_path = store_root.join("indexes").join("manifest.json");
+    serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+        .expect("manifest should parse")
+}
+
+fn run_peer_store_sync_json(
+    remote_store: &Path,
+    local_store: &Path,
+    sender: &str,
+    signing_key_path: &Path,
+    extra_args: &[&str],
+) -> std::process::Output {
+    let from = path_arg(remote_store);
+    let into = path_arg(local_store);
+    let key = path_arg(signing_key_path);
+    let mut args = vec![
+        "sync",
+        "peer-store",
+        "--from",
+        from.as_str(),
+        "--into",
+        into.as_str(),
+        "--peer-node-id",
+        sender,
+        "--signing-key",
+        key.as_str(),
+    ];
+    args.extend_from_slice(extra_args);
+    args.push("--json");
+    run_mycel(&args)
+}
+
 #[test]
 fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
     let signing_key = signing_key();
@@ -34,19 +67,13 @@ fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
     }
     write_signing_key(&signing_key_path, &signing_key);
 
-    let output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(local_store.path()),
-        "--peer-node-id",
+    let output = run_peer_store_sync_json(
+        remote_store.path(),
+        local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -57,10 +84,7 @@ fn sync_peer_store_json_fetches_offered_snapshots_into_local_store() {
     );
     assert_eq!(json["written_object_count"], 3);
 
-    let manifest_path = local_store.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = read_manifest(local_store.path());
     assert_eq!(manifest["stored_object_count"], 3);
     assert_eq!(manifest["object_ids_by_type"]["snapshot"][0], snapshot_id);
 }
@@ -86,19 +110,13 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
         .expect("revision should write to remote store");
     write_signing_key(&signing_key_path, &signing_key);
 
-    let output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(local_store.path()),
-        "--peer-node-id",
+    let output = run_peer_store_sync_json(
+        remote_store.path(),
+        local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -109,10 +127,7 @@ fn sync_peer_store_json_runs_first_time_sync_into_local_store() {
     assert_eq!(json["written_object_count"], 2);
     assert_eq!(json["existing_object_count"], 0);
 
-    let manifest_path = local_store.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = read_manifest(local_store.path());
     assert_eq!(manifest["stored_object_count"], 2);
 }
 
@@ -188,16 +203,8 @@ fn sync_stream_to_pull_via_pipe_replays_peer_store_into_local_store() {
     assert_eq!(json["object_message_count"], 2);
     assert_eq!(json["written_object_count"], 2);
 
-    let remote_manifest_path = remote_store.path().join("indexes").join("manifest.json");
-    let remote_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&remote_manifest_path).expect("remote manifest should read"),
-    )
-    .expect("remote manifest should parse");
-    let local_manifest_path = local_store.path().join("indexes").join("manifest.json");
-    let local_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&local_manifest_path).expect("local manifest should read"),
-    )
-    .expect("local manifest should parse");
+    let remote_manifest = read_manifest(remote_store.path());
+    let local_manifest = read_manifest(local_store.path());
 
     assert_eq!(local_manifest["stored_object_count"], 2);
     assert_eq!(
@@ -241,19 +248,13 @@ fn sync_peer_store_json_fetches_announced_views_into_governance_indexes() {
     }
     write_signing_key(&signing_key_path, &signing_key);
 
-    let output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(local_store.path()),
-        "--peer-node-id",
+    let output = run_peer_store_sync_json(
+        remote_store.path(),
+        local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -261,10 +262,7 @@ fn sync_peer_store_json_fetches_announced_views_into_governance_indexes() {
     assert_eq!(json["object_message_count"], 3);
     assert_eq!(json["written_object_count"], 3);
 
-    let manifest_path = local_store.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = read_manifest(local_store.path());
     assert_eq!(manifest["stored_object_count"], 3);
     assert_eq!(
         manifest["view_governance"].as_array().map(Vec::len),
@@ -297,19 +295,13 @@ fn sync_peer_store_json_reports_noop_when_local_store_is_current() {
     }
     write_signing_key(&signing_key_path, &signing_key);
 
-    let output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(local_store.path()),
-        "--peer-node-id",
+    let output = run_peer_store_sync_json(
+        remote_store.path(),
+        local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -387,21 +379,13 @@ fn sync_peer_store_json_limits_sync_to_requested_document_subset() {
     }
     write_signing_key(&signing_key_path, &signing_key);
 
-    let output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(local_store.path()),
-        "--peer-node-id",
+    let output = run_peer_store_sync_json(
+        remote_store.path(),
+        local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--doc-id",
-        "doc:partial-alpha",
-        "--json",
-    ]);
+        &signing_key_path,
+        &["--doc-id", "doc:partial-alpha"],
+    );
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
@@ -409,10 +393,7 @@ fn sync_peer_store_json_limits_sync_to_requested_document_subset() {
     assert_eq!(json["object_message_count"], 2);
     assert_eq!(json["written_object_count"], 2);
 
-    let manifest_path = local_store.path().join("indexes").join("manifest.json");
-    let manifest: Value =
-        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
-            .expect("manifest should parse");
+    let manifest = read_manifest(local_store.path());
     assert_eq!(manifest["stored_object_count"], 2);
     assert_eq!(
         manifest["doc_revisions"]["doc:partial-alpha"]
@@ -454,32 +435,20 @@ fn sync_peer_store_json_converges_partial_and_empty_local_stores() {
         .expect("patch should write to partial local store");
     write_signing_key(&signing_key_path, &signing_key);
 
-    let partial_output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(partial_local_store.path()),
-        "--peer-node-id",
+    let partial_output = run_peer_store_sync_json(
+        remote_store.path(),
+        partial_local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
-    let empty_output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(empty_local_store.path()),
-        "--peer-node-id",
+        &signing_key_path,
+        &[],
+    );
+    let empty_output = run_peer_store_sync_json(
+        remote_store.path(),
+        empty_local_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&partial_output);
     assert_success(&empty_output);
@@ -491,22 +460,8 @@ fn sync_peer_store_json_converges_partial_and_empty_local_stores() {
     assert_eq!(partial_json["written_object_count"], 1);
     assert_eq!(empty_json["written_object_count"], 2);
 
-    let partial_manifest_path = partial_local_store
-        .path()
-        .join("indexes")
-        .join("manifest.json");
-    let partial_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&partial_manifest_path).expect("manifest should read"),
-    )
-    .expect("manifest should parse");
-    let empty_manifest_path = empty_local_store
-        .path()
-        .join("indexes")
-        .join("manifest.json");
-    let empty_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&empty_manifest_path).expect("manifest should read"),
-    )
-    .expect("manifest should parse");
+    let partial_manifest = read_manifest(partial_local_store.path());
+    let empty_manifest = read_manifest(empty_local_store.path());
 
     assert_eq!(partial_manifest["stored_object_count"], 2);
     assert_eq!(empty_manifest["stored_object_count"], 2);
@@ -546,32 +501,20 @@ fn sync_peer_store_json_converges_two_empty_readers_on_same_store_state() {
         .expect("revision should write to remote store");
     write_signing_key(&signing_key_path, &signing_key);
 
-    let reader_a_output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(reader_a_store.path()),
-        "--peer-node-id",
+    let reader_a_output = run_peer_store_sync_json(
+        remote_store.path(),
+        reader_a_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
-    let reader_b_output = run_mycel(&[
-        "sync",
-        "peer-store",
-        "--from",
-        &path_arg(remote_store.path()),
-        "--into",
-        &path_arg(reader_b_store.path()),
-        "--peer-node-id",
+        &signing_key_path,
+        &[],
+    );
+    let reader_b_output = run_peer_store_sync_json(
+        remote_store.path(),
+        reader_b_store.path(),
         sender,
-        "--signing-key",
-        &path_arg(&signing_key_path),
-        "--json",
-    ]);
+        &signing_key_path,
+        &[],
+    );
 
     assert_success(&reader_a_output);
     assert_success(&reader_b_output);
@@ -583,21 +526,9 @@ fn sync_peer_store_json_converges_two_empty_readers_on_same_store_state() {
     assert_eq!(reader_a_json["written_object_count"], 2);
     assert_eq!(reader_b_json["written_object_count"], 2);
 
-    let remote_manifest_path = remote_store.path().join("indexes").join("manifest.json");
-    let remote_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&remote_manifest_path).expect("remote manifest should read"),
-    )
-    .expect("remote manifest should parse");
-    let reader_a_manifest_path = reader_a_store.path().join("indexes").join("manifest.json");
-    let reader_a_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&reader_a_manifest_path).expect("reader A manifest should read"),
-    )
-    .expect("reader A manifest should parse");
-    let reader_b_manifest_path = reader_b_store.path().join("indexes").join("manifest.json");
-    let reader_b_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&reader_b_manifest_path).expect("reader B manifest should read"),
-    )
-    .expect("reader B manifest should parse");
+    let remote_manifest = read_manifest(remote_store.path());
+    let reader_a_manifest = read_manifest(reader_a_store.path());
+    let reader_b_manifest = read_manifest(reader_b_store.path());
 
     assert_eq!(reader_a_manifest["stored_object_count"], 2);
     assert_eq!(reader_b_manifest["stored_object_count"], 2);
@@ -686,19 +617,13 @@ fn sync_peer_store_json_converges_four_readers_on_same_multi_doc_state() {
     let outputs = reader_paths
         .iter()
         .map(|store_root| {
-            run_mycel(&[
-                "sync",
-                "peer-store",
-                "--from",
-                &path_arg(remote_store.path()),
-                "--into",
-                &path_arg(store_root),
-                "--peer-node-id",
+            run_peer_store_sync_json(
+                remote_store.path(),
+                store_root,
                 sender,
-                "--signing-key",
-                &path_arg(&signing_key_path),
-                "--json",
-            ])
+                &signing_key_path,
+                &[],
+            )
         })
         .collect::<Vec<_>>();
 
@@ -709,20 +634,12 @@ fn sync_peer_store_json_converges_four_readers_on_same_multi_doc_state() {
         assert_eq!(json["written_object_count"], 4);
     }
 
-    let remote_manifest_path = remote_store.path().join("indexes").join("manifest.json");
-    let remote_manifest: Value = serde_json::from_str(
-        &fs::read_to_string(&remote_manifest_path).expect("remote manifest should read"),
-    )
-    .expect("remote manifest should parse");
+    let remote_manifest = read_manifest(remote_store.path());
 
     let reader_manifests = reader_paths
         .iter()
         .map(|store_root| {
-            let manifest_path = store_root.join("indexes").join("manifest.json");
-            serde_json::from_str::<Value>(
-                &fs::read_to_string(&manifest_path).expect("reader manifest should read"),
-            )
-            .expect("reader manifest should parse")
+            read_manifest(store_root)
         })
         .collect::<Vec<_>>();
 
