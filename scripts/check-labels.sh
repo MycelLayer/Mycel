@@ -11,14 +11,14 @@ Usage:
 
 Examples:
   scripts/check-labels.sh
-  scripts/check-labels.sh --repo ctf2090/Mycel
+  scripts/check-labels.sh --repo MycelLayer/Mycel
   scripts/check-labels.sh --strict
 EOF
 }
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 LABELS_FILE="${ROOT_DIR}/.github/labels.yml"
-REPO=""
+REPO="MycelLayer/Mycel"
 STRICT=0
 
 while [[ $# -gt 0 ]]; do
@@ -63,10 +63,7 @@ if [[ ! -f "$LABELS_FILE" ]]; then
   exit 1
 fi
 
-repo_args=()
-if [[ -n "$REPO" ]]; then
-  repo_args=(--repo "$REPO")
-fi
+repo_args=(--repo "$REPO")
 
 tmp_expected=$(mktemp)
 tmp_actual=$(mktemp)

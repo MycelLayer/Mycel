@@ -11,13 +11,13 @@ Usage:
 
 Examples:
   scripts/sync-labels.sh
-  scripts/sync-labels.sh --repo ctf2090/Mycel
+  scripts/sync-labels.sh --repo MycelLayer/Mycel
 EOF
 }
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 LABELS_FILE="${ROOT_DIR}/.github/labels.yml"
-REPO=""
+REPO="MycelLayer/Mycel"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,10 +57,7 @@ if [[ ! -f "$LABELS_FILE" ]]; then
   exit 1
 fi
 
-repo_args=()
-if [[ -n "$REPO" ]]; then
-  repo_args=(--repo "$REPO")
-fi
+repo_args=(--repo "$REPO")
 
 count=0
 while IFS=$'\t' read -r name color description; do
