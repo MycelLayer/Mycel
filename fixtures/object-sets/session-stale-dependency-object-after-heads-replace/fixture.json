@@ -1,0 +1,26 @@
+{
+    "$schema": "../fixture.schema.json",
+    "fixture_id": "session-stale-dependency-object-after-heads-replace",
+    "description": "Seed replaces advertised heads after a dependency object was requested and then delivers that stale dependency object after the pending request should have been cleared",
+    "seed_peer": "peer-seed",
+    "reader_peers": [
+        "peer-reader-a"
+    ],
+    "documents": [
+        {
+            "doc_id": "doc:session-stale-dependency-object-after-heads-replace-test"
+        }
+    ],
+    "expected_outcomes": [
+        "stale-dependency-object-after-heads-replace-rejected",
+        "no-invalid-index-write"
+    ],
+    "metadata": {
+        "session_fault": "stale-dependency-object-after-heads-replace",
+        "seed_extra_revisions": 1
+    },
+    "notes": [
+        "Simulator injects replacement HEADS after the reader has already requested the dependency patch object once.",
+        "The late delivery of that withdrawn dependency OBJECT should be rejected because replace=true cleared the old pending request state."
+    ]
+}

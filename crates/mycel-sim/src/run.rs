@@ -1898,6 +1898,9 @@ fn inject_session_fault(
         "stale-root-object-after-heads-replace" => {
             inject_stale_root_object_after_heads_replace_fault(transcript, signing_key)
         }
+        "stale-dependency-object-after-heads-replace" => {
+            inject_stale_dependency_object_after_heads_replace_fault(transcript, signing_key)
+        }
         "snapshot-want-before-manifest" => {
             inject_snapshot_want_before_manifest_fault(transcript, signing_key)
         }
@@ -2173,6 +2176,54 @@ fn inject_stale_root_object_after_heads_replace_fault(
 
     transcript.messages.insert(bye_index, replacement_heads);
     transcript.messages.insert(bye_index + 1, stale_root_object);
+    Ok(())
+}
+
+fn inject_stale_dependency_object_after_heads_replace_fault(
+    transcript: &mut mycel_core::sync::SyncPullTranscript,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let bye_index = transcript
+        .messages
+        .iter()
+        .position(|message| message.get("type").and_then(Value::as_str) == Some("BYE"))
+        .ok_or_else(|| {
+            "transcript is missing BYE for stale-dependency-object-after-heads-replace injection"
+                .to_owned()
+        })?;
+    let dependency_object_index = transcript
+        .messages
+        .iter()
+        .position(|message| {
+            message.get("type").and_then(Value::as_str) == Some("OBJECT")
+                && message
+                    .get("payload")
+                    .and_then(Value::as_object)
+                    .and_then(|payload| payload.get("object_type"))
+                    .and_then(Value::as_str)
+                    == Some("patch")
+        })
+        .ok_or_else(|| {
+            "transcript is missing a dependency patch OBJECT for stale-dependency-object-after-heads-replace injection"
+                .to_owned()
+        })?;
+    let dependency_object = transcript.messages.remove(dependency_object_index);
+
+    let replacement_heads = signed_sim_wire_message(
+        signing_key,
+        &transcript.peer.node_id,
+        "HEADS",
+        "msg:peer-sync-fault-heads-replace-dependency-object-0001",
+        json!({
+            "documents": {
+                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
+            },
+            "replace": true
+        }),
+    )?;
+
+    transcript.messages.insert(bye_index - 1, replacement_heads);
+    transcript.messages.insert(bye_index, dependency_object);
     Ok(())
 }
 
