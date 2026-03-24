@@ -638,9 +638,7 @@ fn sync_peer_store_json_converges_four_readers_on_same_multi_doc_state() {
 
     let reader_manifests = reader_paths
         .iter()
-        .map(|store_root| {
-            read_manifest(store_root)
-        })
+        .map(|store_root| read_manifest(store_root))
         .collect::<Vec<_>>();
 
     for manifest in &reader_manifests {
