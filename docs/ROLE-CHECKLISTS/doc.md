@@ -18,6 +18,7 @@ Suggested per-agent copy path:
 
 - Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: doc.cycle.git-status -->
 - Treat `ROADMAP.*` and `IMPLEMENTATION-CHECKLIST.*` as the higher planning authority when surfaces disagree. <!-- item-id: doc.cycle.source-of-truth-order -->
+- Before starting `sync doc`, `sync web`, or `sync plan`, scan the relevant registry mailboxes and use those notes as planning-sync input. <!-- item-id: doc.cycle.scan-mailboxes-before-sync -->
 - Use `docs/PLANNING-SYNC-PLAN.md` as the entry point for `sync doc`, `sync web`, and `sync plan` batches. <!-- item-id: doc.cycle.planning-entry-point -->
 
 ## Planning Sync
