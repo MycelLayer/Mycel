@@ -90,7 +90,7 @@ If you want to contribute from a fresh environment:
 
 If you want a narrow first task, browse the current GitHub issue list:
 
-- <https://github.com/ctf2090/Mycel/issues>
+- <https://github.com/MycelLayer/Mycel/issues>
 
 For more structured task intake, start with issues labeled `ai-ready` and `well-scoped`.
 

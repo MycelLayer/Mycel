@@ -96,7 +96,7 @@ scripts/check-runtime-preflight.sh --require grep --require tail
 ## 2. Clone 并进入仓库
 
 ```bash
-git clone https://github.com/ctf2090/Mycel.git
+git clone https://github.com/MycelLayer/Mycel.git
 cd Mycel
 ```
 

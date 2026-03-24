@@ -96,7 +96,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 
 如果你想先接一个范围窄的任务，请直接浏览当前的 GitHub issue 列表：
 
-- <https://github.com/ctf2090/Mycel/issues>
+- <https://github.com/MycelLayer/Mycel/issues>
 
 如果你想看更结构化的任务入口，请优先找带有 `ai-ready` 和 `well-scoped` 标签的 issues。
 

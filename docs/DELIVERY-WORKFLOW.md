@@ -140,7 +140,7 @@ Then, if the question is deployment visibility rather than static-page content,
 check the live Pages surface:
 
 ```bash
-curl -I -L https://ctf2090.github.io/Mycel/
+curl -I -L https://mycellayer.github.io/Mycel/
 ```
 
 Use only the narrowest command set needed to confirm the failing step.
@@ -150,10 +150,10 @@ Use only the narrowest command set needed to confirm the failing step.
 If the work touches outward-facing surfaces such as `README` or `pages/`, use:
 
 ```bash
-gh run list -R ctf2090/Mycel --limit 5
-gh api repos/ctf2090/Mycel/community/profile
-curl -I -L https://ctf2090.github.io/Mycel/
-curl -I https://ctf2090.github.io/Mycel/social-preview.png
+gh run list -R MycelLayer/Mycel --limit 5
+gh api repos/MycelLayer/Mycel/community/profile
+curl -I -L https://mycellayer.github.io/Mycel/
+curl -I https://mycellayer.github.io/Mycel/social-preview.png
 ```
 
 Use [`docs/OUTWARD-RELEASE-CHECKLIST.md`](./OUTWARD-RELEASE-CHECKLIST.md) as

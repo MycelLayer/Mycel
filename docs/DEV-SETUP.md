@@ -96,7 +96,7 @@ Treat missing commands, or follow-on command exits such as `126` and `127`, as e
 ## 2. Clone and Enter the Repo
 
 ```bash
-git clone https://github.com/ctf2090/Mycel.git
+git clone https://github.com/MycelLayer/Mycel.git
 cd Mycel
 ```
 

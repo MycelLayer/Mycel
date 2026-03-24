@@ -34,7 +34,7 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 - [ ] The main CTA links still point to the intended GitHub and spec pages.
 - [ ] `og:title`, `og:description`, and `og:image` still match the current landing message.
 - [ ] `twitter:image` still points to the intended social preview image.
-- [ ] The page still loads from `https://ctf2090.github.io/Mycel/`.
+- [ ] The page still loads from `https://mycellayer.github.io/Mycel/`.
 
 ## 4. Social Preview
 
@@ -49,14 +49,14 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 - [ ] Repo description, README first paragraph, and homepage hero say the same core thing.
 - [ ] Repo share card and Pages share card do not contradict each other.
 - [ ] Links shared to GitHub should preview the repo card we expect.
-- [ ] Links shared to `https://ctf2090.github.io/Mycel/` should preview the Pages card we expect.
+- [ ] Links shared to `https://mycellayer.github.io/Mycel/` should preview the Pages card we expect.
 
 ## 6. Post-publish Verification
 
 - [ ] Latest `CI` workflow completed successfully after the outward-facing change.
 - [ ] Latest `pages-build-deployment` workflow completed successfully if homepage assets changed.
-- [ ] `curl -I https://ctf2090.github.io/Mycel/` returns `200`.
-- [ ] `curl -I https://ctf2090.github.io/Mycel/social-preview.png` returns `200` when that asset changed.
+- [ ] `curl -I https://mycellayer.github.io/Mycel/` returns `200`.
+- [ ] `curl -I https://mycellayer.github.io/Mycel/social-preview.png` returns `200` when that asset changed.
 - [ ] GitHub Community profile remains healthy enough for public contribution entry.
 
 ## 7. Optional Commands
@@ -64,11 +64,11 @@ This checklist is intentionally narrow. It is for outward presentation consisten
 These commands are useful for a quick re-check:
 
 ```bash
-gh run list -R ctf2090/Mycel --limit 5
-gh api repos/ctf2090/Mycel --jq '{description:.description,homepage:.homepage,topics:.topics,has_discussions:.has_discussions,has_pages:.has_pages}'
-gh api repos/ctf2090/Mycel/community/profile
-curl -I -L https://ctf2090.github.io/Mycel/
-curl -I https://ctf2090.github.io/Mycel/social-preview.png
-curl -s https://github.com/ctf2090/Mycel | rg 'og:image|og:title|og:description'
-curl -s https://ctf2090.github.io/Mycel/ | rg 'og:image|og:title|og:description|twitter:image'
+gh run list -R MycelLayer/Mycel --limit 5
+gh api repos/MycelLayer/Mycel --jq '{description:.description,homepage:.homepage,topics:.topics,has_discussions:.has_discussions,has_pages:.has_pages}'
+gh api repos/MycelLayer/Mycel/community/profile
+curl -I -L https://mycellayer.github.io/Mycel/
+curl -I https://mycellayer.github.io/Mycel/social-preview.png
+curl -s https://github.com/MycelLayer/Mycel | rg 'og:image|og:title|og:description'
+curl -s https://mycellayer.github.io/Mycel/ | rg 'og:image|og:title|og:description|twitter:image'
 ```
