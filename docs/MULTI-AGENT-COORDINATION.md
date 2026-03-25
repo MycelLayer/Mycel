@@ -4,6 +4,8 @@ Status: draft
 
 This note describes how multiple agents with `coding` or `doc` roles should work in parallel in the Mycel repository without colliding on scope, files, push order, or handoff flow.
 
+Shared agent-process source of truth: [AGENTS.md](../AGENTS.md)
+
 For the higher-level operating model that connects planning, issue intake, execution, verification, and human control, see [AI-CO-WORKING-MODEL.md](./AI-CO-WORKING-MODEL.md).
 
 For the short maintainer version, see [MULTI-AGENT-CHEATSHEET.md](./MULTI-AGENT-CHEATSHEET.md).
@@ -79,8 +81,7 @@ Role checklist sources:
 
 - read [`docs/ROLE-CHECKLISTS/README.md`](./ROLE-CHECKLISTS/README.md) before role-specific checklist work starts
 - canonical sources live in [`docs/ROLE-CHECKLISTS/coding.md`](./ROLE-CHECKLISTS/coding.md) and [`docs/ROLE-CHECKLISTS/doc.md`](./ROLE-CHECKLISTS/doc.md)
-- per-agent copies should live under `.agent-local/agents/<agent_uid>/checklists/`
-- keep role checklist section names aligned with `New chat bootstrap` and `Work Cycle Workflow`
+- shared checklist layout and copy-path conventions live in [`docs/ROLE-CHECKLISTS/README.md`](./ROLE-CHECKLISTS/README.md)
 
 Recommended startup self-label:
 
@@ -129,12 +130,8 @@ Before an agent starts:
 7. check whether another agent or human is already working on it
 8. leave a short claim note in the issue or team channel
 9. confirm the likely file set before editing
-10. prefer `scripts/agent_work_cycle.py` before working the current user-command cycle; it advances the work cycle and emits the canonical before-work timestamp line that should be surfaced in user-visible commentary
+10. follow the shared work-cycle rules in [AGENTS.md](../AGENTS.md) for begin/end, canonical timestamp lines, and mailbox closeout
 11. update the local registry entry when scope or status changes
-12. prefer `scripts/agent_work_cycle.py` after the command-level work is complete; it closes the work cycle and emits the canonical after-work timestamp line that should be surfaced in user-visible commentary
-13. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same work cycle
-14. use `scripts/agent_timestamp.py` only when you need the timestamp line without the registry transition, and paste the emitted line directly instead of restating the format in docs or chat text
-15. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
 
 When the chat itself starts, use one short self-label line first, such as:
 
@@ -293,8 +290,7 @@ Recovery sequence:
 
 Inactive lease rule:
 
-1. `touch` before each user-command work cycle
-2. `finish` when that command completes
+1. use the canonical begin/end work-cycle flow from [AGENTS.md](../AGENTS.md)
 3. inactive entries older than one hour become stale and release their `display_id`
 4. stale entries remain recoverable by `agent_uid` during the retention window
 5. once an inactive entry remains inactive for 3 days, `scripts/agent_registry.py` should remove it from `.agent-local/agents.json` and delete that agent's local mailbox plus agent directory
@@ -314,7 +310,8 @@ When an agent stops or finishes, leave a short handoff:
 - what remains open
 - whether another issue is now unblocked
 
-For every completed work cycle, this is not optional. Every agent should leave one mailbox handoff entry in its declared mailbox before ending the cycle so the latest state is visible to `doc`, a takeover agent, or the next resumed chat.
+For the shared per-cycle handoff requirement, follow [AGENTS.md](../AGENTS.md).
+This note adds the coordination-specific expectations below.
 
 For `coding`, satisfy that rule with one open `Work Continuation Handoff` in the coding mailbox and assume the current user task may be the last one assigned before pause, interruption, or takeover.
 

@@ -4,6 +4,8 @@ Status: draft
 
 Use this as the short maintainer view of [MULTI-AGENT-COORDINATION.md](./MULTI-AGENT-COORDINATION.md).
 
+Shared agent-process source of truth: [AGENTS.md](../AGENTS.md)
+
 Tracked registry spec: [AGENT-REGISTRY.md](./AGENT-REGISTRY.md)
 
 Tracked mailbox spec: [AGENT-HANDOFF.md](./AGENT-HANDOFF.md)
@@ -32,12 +34,8 @@ Role checklist sources:
 
 Per-agent checklist copies:
 
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-bootstrap-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-coding-workcycle-checklist-<n>.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-bootstrap-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-delivery-workcycle-checklist-<n>.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-bootstrap-checklist.md`
-- `.agent-local/agents/<agent_uid>/checklists/ROLE-doc-workcycle-checklist-<n>.md`
+- standard pattern: `.agent-local/agents/<agent_uid>/checklists/ROLE-<role>-bootstrap-checklist.md`
+- standard pattern: `.agent-local/agents/<agent_uid>/checklists/ROLE-<role>-workcycle-checklist-<n>.md`
 
 Role checklist section names:
 
@@ -112,11 +110,13 @@ Startup self-label:
 
 Fresh-chat fast path:
 
-1. `ls`
-2. read `AGENTS-LOCAL.md` if present, then `.agent-local/dev-setup-status.md`
-3. read `docs/ROLE-CHECKLISTS/README.md`, `docs/AGENT-REGISTRY.md`, and `.agent-local/agents.json`
-4. run `python3 scripts/agent_bootstrap.py <role>` or `python3 scripts/agent_bootstrap.py auto`
-5. if `coding` or `delivery`, check the latest completed CI result before new implementation or delivery work
+Follow the canonical bootstrap flow in [AGENTS.md](../AGENTS.md).
+
+Cheat-sheet reminder:
+
+1. keep bootstrap narrow
+2. use `python3 scripts/agent_bootstrap.py <role> --model-id <model_id>` or `auto`
+3. if `coding` or `delivery`, include the latest completed CI baseline before new work
 
 Defer until task work starts:
 
@@ -127,7 +127,7 @@ Defer until task work starts:
 Startup order:
 
 1. use the bootstrap wrapper or registry tool to confirm or claim the agent identity
-2. keep bootstrap narrow; defer roadmap, mailbox, and broad markdown reads until task work starts
+2. defer roadmap, mailbox, and broad markdown reads until task work starts unless the canonical bootstrap flow says otherwise
 3. use the work-cycle tool before working the current command
 4. if the new implementation scope overlaps prior coding work, run `npm run handoffs:inactive-coding` before continuing
 5. first chat line: `<display-id> | <scope-label>`
@@ -136,14 +136,15 @@ Do not run `claim`, `start`, and `status` in parallel.
 
 Per-command activity:
 
-1. prefer `scripts/agent_work_cycle.py` before and after tracked work so the canonical timestamp line comes from the tool itself
-2. do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle step for the same cycle
-3. use `scripts/agent_timestamp.py` only when you need the timestamp line without the registry change, and paste the emitted line directly instead of hand-writing the format
-5. normal progress updates should not add hand-written date or time prefixes; reserve timestamps for the canonical before/after lines
-6. inactive entries older than one hour become stale and release their `display_id`
-7. once an inactive entry stays inactive for 3 days, `cleanup` removes it from `.agent-local/agents.json` and deletes the local mailbox plus agent directory
-8. paused entries older than one hour become stale-paused and release their `display_id`
-9. paused entries older than 3 days are cleanup candidates and should be removed from `.agent-local/agents.json` together with their local mailbox plus agent directory
+Follow the shared work-cycle rules in [AGENTS.md](../AGENTS.md) for begin/end,
+timestamp handling, mailbox handoff, and final-output requirements.
+
+Registry-specific reminders:
+
+1. inactive entries older than one hour become stale and release their `display_id`
+2. once an inactive entry stays inactive for 3 days, `cleanup` removes it from `.agent-local/agents.json` and deletes the local mailbox plus agent directory
+3. paused entries older than one hour become stale-paused and release their `display_id`
+4. paused entries older than 3 days are cleanup candidates and should be removed from `.agent-local/agents.json` together with their local mailbox plus agent directory
 
 ## Bootstrap Transcript
 
@@ -155,7 +156,7 @@ Please read AGENTS.md and treat this chat as the coding role.
 Repo status: `## main...origin/main`
 
 Short plan:
-1. Read `AGENTS.md`, `AGENTS-LOCAL.md` if it exists locally, `docs/AGENT-REGISTRY.md`, and `.agent-local/agents.json`.
+1. Follow the canonical bootstrap flow in `AGENTS.md`.
 2. Claim the `coding` role for this chat and start the registry entry.
 3. Begin the current work cycle with the canonical timestamp line, then report the claimed role and repo status.
 
@@ -193,7 +194,7 @@ Please take over the existing handoff.
 Repo status: `## main...origin/main`
 
 Short plan:
-1. Check the latest completed CI result for `main`.
+1. Follow the canonical takeover/startup expectations in `AGENTS.md` and `AGENT-REGISTRY.md`.
 2. Scan leftover inactive-coding continuation handoffs and choose the takeover target.
 3. Run `takeover`, read the source mailbox, and begin the work cycle for the resumed scope.
 
