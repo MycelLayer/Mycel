@@ -1308,6 +1308,155 @@ fn view_current_reports_missing_profile_or_doc_cleanly() {
 }
 
 #[test]
+fn view_document_json_reports_current_governance_state_across_profiles() {
+    let store_dir = create_temp_dir("view-document-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(81);
+    let maintainer_b = signing_key(82);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a = signed_view(
+        &maintainer_a,
+        &policy_a,
+        documents_value(
+            "doc:shared",
+            "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ),
+        10,
+    );
+    let view_b = signed_view(
+        &maintainer_b,
+        &policy_b,
+        documents_value(
+            "doc:shared",
+            "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ),
+        20,
+    );
+
+    let (_dir_a, path_a) = write_json_file("view-document-a", "view-a.json", &view_a);
+    let (_dir_b, path_b) = write_json_file("view-document-b", "view-b.json", &view_b);
+
+    let publish_a = publish_view(&path_a, &store_root);
+    let publish_b = publish_view(&path_b, &store_root);
+
+    let output = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:shared",
+        "--json",
+    ]);
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["doc_id"], json!("doc:shared"));
+    assert_eq!(json["profiles"].as_array().map(Vec::len), Some(2));
+    assert_eq!(json["profiles"][0]["current_view_id"], publish_a["view_id"]);
+    assert_eq!(json["profiles"][1]["current_view_id"], publish_b["view_id"]);
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current document governance is read from persisted document-governance summaries instead of scanning every profile at query time"
+        })),
+        "expected persisted document-governance note in document summary: {json}",
+    );
+}
+
+#[test]
+fn view_document_profile_filter_and_missing_cases_report_cleanly() {
+    let store_dir = create_temp_dir("view-document-filter-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer = signing_key(83);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(
+            "doc:only",
+            "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ),
+        10,
+    );
+    let (_dir, path) = write_json_file("view-document-filter", "view.json", &view);
+    let publish = publish_view(&path, &store_root);
+
+    let filtered = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:only",
+        "--profile-id",
+        publish["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--json",
+    ]);
+    assert_success(&filtered);
+    let filtered_json = parse_json_stdout(&filtered);
+    assert_eq!(filtered_json["profiles"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        filtered_json["profiles"][0]["current_view_id"],
+        publish["view_id"]
+    );
+
+    let missing_doc = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:missing",
+    ]);
+    assert_exit_code(&missing_doc, 1);
+    assert_stdout_contains(&missing_doc, "view document: failed");
+    assert_stderr_contains(
+        &missing_doc,
+        "was not found in persisted current document governance state",
+    );
+
+    let missing_profile = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:only",
+        "--profile-id",
+        "hash:missing",
+    ]);
+    assert_exit_code(&missing_profile, 1);
+    assert_stdout_contains(&missing_profile, "view document: failed");
+    assert_stderr_contains(
+        &missing_profile,
+        "was not found in persisted current document governance state for profile",
+    );
+}
+
+#[test]
 fn view_inspect_json_reports_related_governance_indexes() {
     let store_dir = create_temp_dir("view-inspect-related-store");
     let store_root = path_arg(store_dir.path());

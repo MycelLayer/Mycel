@@ -1582,6 +1582,7 @@ mod tests {
             latest_profile_views: BTreeMap::new(),
             latest_document_profile_views: BTreeMap::new(),
             current_governance: BTreeMap::new(),
+            current_document_governance: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::from([(
                 "doc:test".to_string(),
@@ -1623,6 +1624,7 @@ mod tests {
             latest_profile_views: BTreeMap::new(),
             latest_document_profile_views: BTreeMap::new(),
             current_governance: BTreeMap::new(),
+            current_document_governance: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::new(),
         };

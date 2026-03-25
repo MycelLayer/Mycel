@@ -3,6 +3,7 @@ use clap::{Args, Subcommand, ValueEnum};
 use crate::CliError;
 
 mod current;
+mod document;
 mod inspect;
 mod list;
 mod publish;
@@ -18,6 +19,8 @@ pub(crate) struct ViewCliArgs {
 enum ViewSubcommand {
     #[command(about = "Inspect the current persisted governance state for one profile")]
     Current(ViewCurrentCliArgs),
+    #[command(about = "Inspect the current persisted governance state for one document")]
+    Document(ViewDocumentCliArgs),
     #[command(about = "Inspect one persisted governance View object")]
     Inspect(ViewInspectCliArgs),
     #[command(about = "List persisted governance View records with optional filters")]
@@ -67,6 +70,28 @@ struct ViewInspectCliArgs {
     )]
     store_root: String,
     #[arg(long, help = "Emit machine-readable view inspection output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Args)]
+struct ViewDocumentCliArgs {
+    #[arg(
+        long,
+        value_name = "STORE_ROOT",
+        help = "Store root directory to read governance indexes from",
+        required = true
+    )]
+    store_root: String,
+    #[arg(long, help = "Document ID to inspect", required = true)]
+    doc_id: String,
+    #[arg(
+        long,
+        help = "Only return the current document governance for one profile ID"
+    )]
+    profile_id: Option<String>,
+    #[arg(long, help = "Emit machine-readable document-governance output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
@@ -222,6 +247,12 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
                 return Err(CliError::usage(message));
             }
             current::handle(args)
+        }
+        Some(ViewSubcommand::Document(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "view document") {
+                return Err(CliError::usage(message));
+            }
+            document::handle(args)
         }
         Some(ViewSubcommand::Inspect(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "view inspect") {
