@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Summarize per-turn Codex token usage from session JSONL files."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+
+CODEX_HOME = Path.home() / ".codex"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Read the latest matching Codex session JSONL for a cwd and print "
+            "per-turn token usage."
+        )
+    )
+    parser.add_argument(
+        "--cwd",
+        default=str(Path.cwd()),
+        help="Working directory to match against Codex turn_context cwd.",
+    )
+    parser.add_argument(
+        "--codex-home",
+        default=str(CODEX_HOME),
+        help="Codex home directory. Defaults to ~/.codex.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of recent token_count rows to print.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON instead of a table.",
+    )
+    return parser.parse_args()
+
+
+def find_latest_rollout_path(sessions_dir: Path, cwd: str) -> Path:
+    latest_path: Path | None = None
+    latest_ts = ""
+    for path in sorted(sessions_dir.rglob("rollout-*.jsonl")):
+        with path.open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if entry.get("type") != "turn_context":
+                    continue
+                payload = entry.get("payload", {})
+                if payload.get("cwd") != cwd:
+                    continue
+                timestamp = entry.get("timestamp", "")
+                if timestamp >= latest_ts:
+                    latest_ts = timestamp
+                    latest_path = path
+    if latest_path is None:
+        raise SystemExit(
+            f"Could not find any rollout JSONL under {sessions_dir} for cwd {cwd!r}."
+        )
+    return latest_path
+
+
+def load_usage_rows(rollout_path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for raw_line in rollout_path.open("r", encoding="utf-8"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        payload = entry.get("payload", {})
+        if entry.get("type") != "event_msg" or payload.get("type") != "token_count":
+            continue
+        info = payload.get("info")
+        if not info:
+            continue
+        last = info.get("last_token_usage")
+        total = info.get("total_token_usage")
+        if not last or not total:
+            continue
+        rows.append(
+            {
+                "timestamp": entry.get("timestamp"),
+                "input_tokens": int(last.get("input_tokens", 0)),
+                "cached_input_tokens": int(last.get("cached_input_tokens", 0)),
+                "output_tokens": int(last.get("output_tokens", 0)),
+                "reasoning_output_tokens": int(last.get("reasoning_output_tokens", 0)),
+                "total_tokens": int(last.get("total_tokens", 0)),
+                "cumulative_total_tokens": int(total.get("total_tokens", 0)),
+            }
+        )
+    return rows
+
+
+def format_int(value: int) -> str:
+    return f"{value:,}"
+
+
+def render_table(rows: list[dict[str, Any]], rollout_path: Path) -> str:
+    headers = [
+        "timestamp",
+        "input",
+        "cached",
+        "output",
+        "reasoning",
+        "turn_total",
+        "cum_total",
+    ]
+    body: list[list[str]] = []
+    for row in rows:
+        body.append(
+            [
+                str(row["timestamp"]),
+                format_int(row["input_tokens"]),
+                format_int(row["cached_input_tokens"]),
+                format_int(row["output_tokens"]),
+                format_int(row["reasoning_output_tokens"]),
+                format_int(row["total_tokens"]),
+                format_int(row["cumulative_total_tokens"]),
+            ]
+        )
+
+    widths = [len(header) for header in headers]
+    for line in body:
+        for idx, cell in enumerate(line):
+            widths[idx] = max(widths[idx], len(cell))
+
+    lines = [f"rollout_path: {rollout_path}", ""]
+    lines.append("  ".join(header.ljust(widths[idx]) for idx, header in enumerate(headers)))
+    lines.append("  ".join("-" * widths[idx] for idx in range(len(headers))))
+    for line in body:
+        lines.append("  ".join(cell.ljust(widths[idx]) for idx, cell in enumerate(line)))
+    return "\n".join(lines)
+
+
+def main() -> int:
+    args = parse_args()
+    codex_home = Path(args.codex_home).expanduser()
+    rollout_path = find_latest_rollout_path(codex_home / "sessions", args.cwd)
+    rows = load_usage_rows(rollout_path)
+    if args.limit > 0:
+        rows = rows[-args.limit :]
+
+    result = {
+        "cwd": args.cwd,
+        "rollout_path": str(rollout_path),
+        "row_count": len(rows),
+        "rows": rows,
+    }
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=True, indent=2))
+        return 0
+
+    print(render_table(rows, rollout_path))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
