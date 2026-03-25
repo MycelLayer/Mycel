@@ -6,7 +6,8 @@ use common::{
     assert_report_latest_help, assert_report_list_help, assert_report_stats_help,
     assert_sim_run_help, assert_stderr_text, assert_stdout_text, assert_top_level_help,
     assert_validate_help, assert_view_current_help, assert_view_document_help,
-    assert_view_inspect_help, assert_view_list_help, assert_view_publish_help, mycel_command,
+    assert_view_inspect_help, assert_view_list_help, assert_view_maintainer_help,
+    assert_view_publish_help, mycel_command,
 };
 
 #[test]
@@ -97,6 +98,17 @@ fn view_document_help_prints_structured_clap_help() {
 
     assert_eq!(assert_stderr_text(&assert), "");
     assert_view_document_help(&stdout);
+}
+
+#[test]
+fn view_maintainer_help_prints_structured_clap_help() {
+    let assert = mycel_command(&["view", "maintainer", "--help"])
+        .assert()
+        .success();
+    let stdout = assert_stdout_text(&assert);
+
+    assert_eq!(assert_stderr_text(&assert), "");
+    assert_view_maintainer_help(&stdout);
 }
 
 #[test]

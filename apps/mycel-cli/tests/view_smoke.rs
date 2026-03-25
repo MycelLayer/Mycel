@@ -1308,6 +1308,204 @@ fn view_current_reports_missing_profile_or_doc_cleanly() {
 }
 
 #[test]
+fn view_maintainer_json_reports_current_governance_state() {
+    let store_dir = create_temp_dir("view-maintainer-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(78);
+    let maintainer_b = signing_key(79);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+
+    let view_a1 = signed_view(
+        &maintainer_a,
+        &policy,
+        json!({
+            "doc:alpha": "rev:1111111111111111111111111111111111111111111111111111111111111111",
+            "doc:beta": "rev:2222222222222222222222222222222222222222222222222222222222222222"
+        }),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer_b,
+        &policy,
+        json!({
+            "doc:alpha": "rev:3333333333333333333333333333333333333333333333333333333333333333"
+        }),
+        20,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-maintainer-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-maintainer-a2", "view-a2.json", &view_a2);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_a2 = publish_view(&path_a2, &store_root);
+
+    let output = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        view_a1["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--json",
+    ]);
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["maintainer"], view_a1["maintainer"]);
+    assert_eq!(json["source"], json!("persisted"));
+    assert_eq!(json["current_profiles"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["current_documents"].as_array().map(Vec::len), Some(1));
+    assert_eq!(json["current_documents"][0]["doc_id"], json!("doc:beta"));
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["profile_id"],
+        publish_a2["profile_id"]
+    );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["current_view_id"],
+        publish_a1["view_id"]
+    );
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current maintainer governance is read from persisted maintainer-governance summaries instead of rebuilding maintainer coverage at query time"
+        })),
+        "expected persisted maintainer-governance note in maintainer summary: {json}",
+    );
+}
+
+#[test]
+fn view_maintainer_reports_synthesized_and_missing_cases_cleanly() {
+    let store_dir = create_temp_dir("view-maintainer-fallback-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(85);
+    let maintainer_b = signing_key(86);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+
+    let view_a1 = signed_view(
+        &maintainer_a,
+        &policy,
+        json!({
+            "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer_b,
+        &policy,
+        json!({
+            "doc:alpha": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }),
+        20,
+    );
+
+    let (_dir_a1, path_a1) =
+        write_json_file("view-maintainer-fallback-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) =
+        write_json_file("view-maintainer-fallback-a2", "view-a2.json", &view_a2);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_a2 = publish_view(&path_a2, &store_root);
+
+    rewrite_store_manifest(&store_root, |manifest| {
+        manifest["current_maintainer_governance"] = json!({});
+    });
+
+    let fallback = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        view_a2["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--profile-id",
+        publish_a2["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--doc-id",
+        "doc:alpha",
+        "--json",
+    ]);
+    assert_success(&fallback);
+    let json = parse_json_stdout(&fallback);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["source"], json!("synthesized"));
+    assert_eq!(json["current_profiles"].as_array().map(Vec::len), Some(1));
+    assert_eq!(json["current_documents"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        json["current_profiles"][0]["current_view_id"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["current_view_id"],
+        publish_a2["view_id"]
+    );
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current maintainer governance was synthesized from persisted profile/document governance state because the persisted maintainer-governance summary was unavailable"
+        })),
+        "expected synthesized maintainer-governance note in maintainer summary: {json}",
+    );
+
+    let missing_doc = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        view_a2["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--doc-id",
+        "doc:missing",
+    ]);
+    assert_exit_code(&missing_doc, 1);
+    assert_stdout_contains(&missing_doc, "view maintainer: failed");
+    assert_stderr_contains(
+        &missing_doc,
+        "was not found in persisted current maintainer governance state for maintainer",
+    );
+
+    let missing_profile = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        view_a1["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--profile-id",
+        "hash:missing",
+    ]);
+    assert_exit_code(&missing_profile, 1);
+    assert_stdout_contains(&missing_profile, "view maintainer: failed");
+    assert_stderr_contains(&missing_profile, "profile '");
+    assert_stderr_contains(
+        &missing_profile,
+        "was not found in persisted current maintainer governance state for maintainer",
+    );
+}
+
+#[test]
 fn view_document_json_reports_current_governance_state_across_profiles() {
     let store_dir = create_temp_dir("view-document-store");
     let store_root = path_arg(store_dir.path());

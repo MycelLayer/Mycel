@@ -408,6 +408,37 @@ pub fn assert_view_document_help(stdout: &str) {
     );
 }
 
+pub fn assert_view_maintainer_help(stdout: &str) {
+    assert!(
+        stdout.contains("Usage: mycel view maintainer"),
+        "expected view maintainer usage, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("Inspect the current persisted governance state for one maintainer"),
+        "expected view maintainer description, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--store-root <STORE_ROOT>"),
+        "expected store-root flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--maintainer <MAINTAINER>"),
+        "expected maintainer flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--profile-id <PROFILE_ID>"),
+        "expected profile-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--doc-id <DOC_ID>"),
+        "expected doc-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--json"),
+        "expected json flag in help, stdout: {stdout}"
+    );
+}
+
 pub fn assert_view_list_help(stdout: &str) {
     assert!(
         stdout.contains("Usage: mycel view list"),
