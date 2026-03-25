@@ -387,23 +387,24 @@ def estimate_cycle_token_spend(
 def after_work_token_usage_field(
     start_snapshot: dict[str, object] | None, end_snapshot: dict[str, object] | None
 ) -> str | None:
-    parts: list[str] = []
+    usage_part: str | None = None
+    spent_part: str | None = None
 
     estimated = estimate_cycle_token_spend(start_snapshot, end_snapshot)
     if estimated is not None and estimated > 0:
-        parts.append(f"token spent: {format_ui_token_usage(estimated)} (this workcycle, est.)")
+        spent_part = f"+{format_ui_token_usage(estimated)} this cycle est."
 
     if end_snapshot is not None:
         input_tokens = end_snapshot.get("input_tokens")
         context_window = end_snapshot.get("model_context_window")
         if isinstance(input_tokens, int) and input_tokens >= 0 and isinstance(context_window, int) and context_window > 0:
-            parts.append(
-                f"thread usage: {format_ui_token_usage(input_tokens)}/{format_ui_token_usage(context_window)}"
+            usage_part = (
+                f"usage {format_ui_token_usage(input_tokens)}/{format_ui_token_usage(context_window)}"
             )
 
-    if not parts:
-        return None
-    return ", ".join(parts)
+    if usage_part and spent_part:
+        return f"{usage_part} | {spent_part}"
+    return usage_part or spent_part
 
 
 def load_git_state_snapshot(agent_uid: str, batch_num: int) -> dict[str, object] | None:
