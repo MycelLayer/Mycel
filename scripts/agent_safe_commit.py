@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
+from codex_token_usage_summary import load_latest_usage_snapshot
+
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+AGENT_LOCAL_DIR = ROOT_DIR / ".agent-local" / "agents"
 
 
 class AgentSafeCommitError(Exception):
     pass
+
+
+TOKEN_USAGE_FILENAME_RE = re.compile(r"token-usage-(\d+)\.json$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -162,14 +169,91 @@ def load_codex_metadata(args: argparse.Namespace) -> tuple[str, str]:
     return model, effort
 
 
+def workcycle_dir(agent_id: str) -> Path:
+    return AGENT_LOCAL_DIR / agent_id / "workcycles"
+
+
+def latest_workcycle_batch_num(agent_id: str) -> int | None:
+    directory = workcycle_dir(agent_id)
+    if not directory.exists():
+        return None
+    latest: int | None = None
+    for path in directory.iterdir():
+        match = TOKEN_USAGE_FILENAME_RE.fullmatch(path.name)
+        if match is None:
+            continue
+        batch = int(match.group(1))
+        if latest is None or batch > latest:
+            latest = batch
+    return latest
+
+
+def load_json_dict(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def token_snapshot_path(agent_id: str, batch_num: int) -> Path:
+    return workcycle_dir(agent_id) / f"token-usage-{batch_num}.json"
+
+
+def end_token_snapshot_path(agent_id: str, batch_num: int) -> Path:
+    return workcycle_dir(agent_id) / f"token-usage-end-{batch_num}.json"
+
+
+def estimate_token_spent(agent_id: str) -> int | None:
+    batch_num = latest_workcycle_batch_num(agent_id)
+    if batch_num is None:
+        return None
+
+    start_snapshot = load_json_dict(token_snapshot_path(agent_id, batch_num))
+    if start_snapshot is None:
+        return None
+
+    thread_id = start_snapshot.get("thread_id")
+    start_total = start_snapshot.get("cumulative_total_tokens")
+    if not isinstance(thread_id, str) or not thread_id.strip() or not isinstance(start_total, int):
+        return None
+
+    end_snapshot = load_json_dict(end_token_snapshot_path(agent_id, batch_num))
+    if end_snapshot is None:
+        end_snapshot = load_latest_usage_snapshot(cwd=str(ROOT_DIR), thread_id=thread_id)
+    if end_snapshot is None:
+        return None
+
+    end_thread = end_snapshot.get("thread_id")
+    end_total = end_snapshot.get("cumulative_total_tokens")
+    if not isinstance(end_thread, str) or end_thread != thread_id or not isinstance(end_total, int):
+        return None
+    if end_total < start_total:
+        return None
+    return end_total - start_total
+
+
+def format_token_spent(value: int) -> str:
+    if value < 1000:
+        return str(value)
+    return f"{round(value / 1000):,}K"
+
+
 def create_commit(args: argparse.Namespace, allowed_paths: list[str]) -> str:
     model, effort = load_codex_metadata(args)
+    token_spent = estimate_token_spent(args.agent_id)
+    token_spent_trailer = (
+        f"Token-Spent: {format_token_spent(token_spent)}\n" if token_spent is not None else ""
+    )
     commit_message = (
         args.message.rstrip()
         + (
             f"\n\nAgent-Id: {args.agent_id}\n"
             f"Model: {model}\n"
             f"Reasoning-Effort: {effort}\n"
+            f"{token_spent_trailer}"
         )
     )
     commit_args = [
