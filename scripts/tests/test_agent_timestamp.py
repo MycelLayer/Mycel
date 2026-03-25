@@ -69,6 +69,28 @@ class AgentTimestampCliTest(unittest.TestCase):
             proc.stdout.strip(),
         )
 
+    def test_before_message_includes_model_id_and_reasoning_effort(self) -> None:
+        proc = self.run_cli(
+            "before",
+            "--agent",
+            "coding-10",
+            "--agent-uid",
+            "agt_1234abcd",
+            "--model-id",
+            "gpt-5.4",
+            "--reasoning-effort",
+            "medium",
+            "--scope",
+            "ci triage",
+            "--now",
+            "2026-03-12T06:15:30Z",
+        )
+
+        self.assertEqual(
+            "[2026-03-12 14:15:30 UTC+8] Before work | coding-10 (agt_1234abcd/gpt-5.4/medium) | ci triage",
+            proc.stdout.strip(),
+        )
+
     def test_after_message_without_optional_fields(self) -> None:
         proc = self.run_cli("after", "--now", "2026-03-12T06:15:30Z")
 

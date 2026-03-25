@@ -151,6 +151,23 @@ class AgentBootstrapCliTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
+    def write_fake_codex_thread_metadata(self, *, model: str = "gpt-5.4", effort: str = "medium") -> None:
+        path = self.root / "scripts" / "codex_thread_metadata.py"
+        path.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "if '--shell' in sys.argv:\n"
+            f"    print('MODEL=\"{model}\"')\n"
+            f"    print('EFFORT=\"{effort}\"')\n"
+            "    print('THREAD_ID=\"test-thread\"')\n"
+            "    print('STATE_DB=\"/tmp/test.sqlite\"')\n"
+            "else:\n"
+            f"    print('model: {model}')\n"
+            f"    print('effort: {effort}')\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
+
     def run_cli(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         env = dict(os.environ)
         env.pop("CODEX_THREAD_ID", None)
@@ -294,11 +311,12 @@ class AgentBootstrapCliTest(unittest.TestCase):
         )
 
     def test_model_id_appears_in_timestamp_and_claimed_agent_label(self) -> None:
+        self.write_fake_codex_thread_metadata()
         proc = self.run_cli("coding", "--scope", "ci-triage", "--model-id", "claude-sonnet-4-6", "--concise")
 
         self.assertIn("claimed_agent: coding-1 (agt_", proc.stdout)
-        self.assertIn("/claude-sonnet-4-6)", proc.stdout)
-        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+/claude-sonnet-4-6\) \| ci-triage")
+        self.assertIn("/gpt-5.4/medium)", proc.stdout)
+        self.assertRegex(proc.stdout, r"Before work \| coding-1 \(agt_[a-z0-9]+/gpt-5\.4/medium\) \| ci-triage")
 
     def test_concise_text_output_keeps_user_facing_summary_short(self) -> None:
         proc = self.run_cli("coding", "--scope", "relay-ready", "--model-id", "test-model", "--concise")

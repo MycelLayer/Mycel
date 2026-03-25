@@ -17,6 +17,7 @@ from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_it
 ROOT_DIR = Path(__file__).resolve().parent.parent
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 WORK_CYCLE_SCRIPT = ROOT_DIR / "scripts" / "agent_work_cycle.py"
+CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
 FAST_PATH_STEPS = [
     "scan the repo root with ls",
     "read AGENTS-LOCAL.md if it exists, then read .agent-local/dev-setup-status.md",
@@ -141,6 +142,34 @@ def run_json_array_command(command: list[str]) -> list[dict[str, Any]]:
 
 def run_registry_json(*args: str) -> dict[str, Any]:
     return run_json_command([sys.executable, str(REGISTRY_SCRIPT), *args, "--json"])
+
+
+def resolve_current_codex_metadata() -> tuple[str | None, str | None]:
+    if not CODEX_THREAD_METADATA_SCRIPT.exists():
+        return (None, None)
+    proc = subprocess.run(
+        [sys.executable, str(CODEX_THREAD_METADATA_SCRIPT), "--shell", "--cwd", str(ROOT_DIR)],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return (None, None)
+
+    values: dict[str, str] = {}
+    for raw_line in proc.stdout.splitlines():
+        line = raw_line.strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, str) and parsed.strip():
+            values[key] = parsed.strip()
+    return (values.get("MODEL"), values.get("EFFORT"))
 
 
 def load_registry() -> dict[str, Any]:
@@ -575,6 +604,8 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
     role = claim_payload.get("role")
     if not isinstance(role, str) or not role.strip():
         raise BootstrapError("claim did not return role")
+    current_model, current_effort = resolve_current_codex_metadata()
+    claimed_model = current_model or args.model_id
 
     latest_completed_ci = lookup_latest_completed_ci(role)
     same_role_handoff = latest_same_role_handoff(registry, role=role, current_agent_uid=agent_uid)
@@ -624,7 +655,11 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         "next_actions": next_actions,
         "latest_same_role_handoff": same_role_handoff,
         "latest_same_role_handoff_persisted": persisted_handoff_review,
-        "claimed_agent_label": f"{claim_payload.get('display_id')} ({agent_uid}/{args.model_id})",
+        "claimed_agent_label": (
+            f"{claim_payload.get('display_id')} "
+            f"({agent_uid}/{claimed_model}"
+            f"{'/' + current_effort if current_effort else ''})"
+        ),
     }
     return result
 

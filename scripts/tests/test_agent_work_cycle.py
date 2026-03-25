@@ -51,6 +51,23 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.remote_temp_dir.cleanup()
         self.temp_dir.cleanup()
 
+    def write_fake_codex_thread_metadata(self, *, model: str = "gpt-5.4", effort: str = "medium") -> None:
+        path = self.root / "scripts" / "codex_thread_metadata.py"
+        path.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "if '--shell' in sys.argv:\n"
+            f"    print('MODEL=\"{model}\"')\n"
+            f"    print('EFFORT=\"{effort}\"')\n"
+            "    print('THREAD_ID=\"test-thread\"')\n"
+            "    print('STATE_DB=\"/tmp/test.sqlite\"')\n"
+            "else:\n"
+            f"    print('model: {model}')\n"
+            f"    print('effort: {effort}')\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
+
     def build_env(self, extra_env: dict[str, str] | None = None) -> dict[str, str]:
         env = dict(os.environ)
         env.pop("CODEX_THREAD_ID", None)
@@ -456,16 +473,18 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
     def test_begin_includes_model_id_in_timestamp_when_set(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         claim = self.run_registry("claim", "delivery", "--scope", "ci-triage", "--model-id", "claude-sonnet-4-6")
         agent_uid = claim["agent_uid"]
         self.run_registry("start", agent_uid)
 
         proc = self.run_cli("begin", agent_uid, "--scope", "ci-triage")
 
-        self.assertIn(f"Before work | delivery-1 ({agent_uid}/claude-sonnet-4-6) | ci-triage", proc.stdout)
+        self.assertIn(f"Before work | delivery-1 ({agent_uid}/gpt-5.4/medium) | ci-triage", proc.stdout)
 
     def test_begin_omits_token_usage_when_available(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
@@ -483,13 +502,14 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
 
         self.assertIn(
-            f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper",
+            f"Before work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper",
             proc.stdout,
         )
         self.assertNotIn("last thread turn:", proc.stdout)
 
     def test_begin_prefers_current_thread_id_over_newer_same_cwd_rollout(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
@@ -510,7 +530,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
         )
 
-        self.assertIn(f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper", proc.stdout)
+        self.assertIn(f"Before work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper", proc.stdout)
         self.assertNotIn("last thread turn:", proc.stdout)
         self.assertNotIn("500,000 tok", proc.stdout)
 
@@ -562,6 +582,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
     def test_end_appends_estimated_cycle_token_usage_when_available(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
@@ -605,12 +626,13 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | usage 45K/258K",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             proc.stdout,
         )
 
     def test_end_reuses_frozen_end_token_snapshot_on_repeat_closeout(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
@@ -653,7 +675,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.assertEqual(0, first_end.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | usage 45K/258K",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             first_end.stdout,
         )
 
@@ -675,13 +697,14 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.assertEqual(0, second_end.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | usage 45K/258K",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             second_end.stdout,
         )
         self.assertNotIn("98,000 tok", second_end.stdout)
 
     def test_after_work_uses_compact_k_format_for_large_cycle_estimates(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
@@ -725,12 +748,13 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | usage 45K/258K",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             proc.stdout,
         )
 
     def test_after_work_estimates_token_spent_from_ui_usage_delta(self) -> None:
         self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
             totals=[("2026-03-25T06:20:03.000Z", 100000, 887020)],
@@ -774,7 +798,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | usage 150K/258K | +50K this cycle est.",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 150K/258K | +50K this cycle est.",
             proc.stdout,
         )
 

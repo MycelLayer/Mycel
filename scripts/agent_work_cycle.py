@@ -34,6 +34,7 @@ AGENT_LOCAL_DIR = (ROOT_DIR / ".agent-local").resolve()
 MAILBOX_DIR = (AGENT_LOCAL_DIR / "mailboxes").resolve()
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 MAILBOX_HANDOFF_SCRIPT = ROOT_DIR / "scripts" / "mailbox_handoff.py"
+CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
 SHARED_FALLBACK_MAILBOX_LIMIT_BYTES = 1024
 SHARED_FALLBACK_MAILBOX_PATHS = [
@@ -196,6 +197,34 @@ def resolve_agent_model_id(agent_ref: str) -> str | None:
         return None
     model_id = agents[0].get("model_id")
     return model_id if isinstance(model_id, str) and model_id.strip() else None
+
+
+def resolve_current_codex_metadata() -> tuple[str | None, str | None]:
+    if not CODEX_THREAD_METADATA_SCRIPT.exists():
+        return (None, None)
+    proc = subprocess.run(
+        [sys.executable, str(CODEX_THREAD_METADATA_SCRIPT), "--shell", "--cwd", str(ROOT_DIR)],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return (None, None)
+
+    values: dict[str, str] = {}
+    for raw_line in proc.stdout.splitlines():
+        line = raw_line.strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, str) and parsed.strip():
+            values[key] = parsed.strip()
+    return (values.get("MODEL"), values.get("EFFORT"))
 
 
 def set_checklist_item_states(checklist_path: Path, updates: list[tuple[str, str]]) -> None:
@@ -1017,6 +1046,8 @@ def main() -> int:
     display_id = payload.get("display_id")
     agent_role = resolve_agent_role(agent_uid)
     model_id = resolve_agent_model_id(agent_uid)
+    current_model, current_effort = resolve_current_codex_metadata()
+    label_model = current_model or model_id
 
     checklist_paths: list[Path] = []
     unchecked_by_path: dict[Path, list[str]] = {}
@@ -1109,7 +1140,8 @@ def main() -> int:
                 stage,
                 agent=label,
                 agent_uid=agent_uid,
-                model_id=model_id,
+                model_id=label_model,
+                reasoning_effort=current_effort,
                 scope=args.scope,
                 token_usage=after_work_token_usage_field(
                     start_token_snapshot, end_token_snapshot
@@ -1199,7 +1231,8 @@ def main() -> int:
             stage,
             agent=label,
             agent_uid=agent_uid,
-            model_id=model_id,
+            model_id=label_model,
+            reasoning_effort=current_effort,
             scope=args.scope,
         )
     )
