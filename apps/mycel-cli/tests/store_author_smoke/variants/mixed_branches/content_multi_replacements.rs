@@ -3,11 +3,17 @@ use super::*;
 #[test]
 fn store_merge_authoring_flow_reports_selected_content_replacement_with_multiple_replacements_and_removal(
 ) {
-    let store_dir = create_temp_dir("store-merge-content-select-many-root");
-    let (_key_dir, key_path) = write_signing_key_file("store-merge-content-select-many-key");
+    let doc_id = "doc:author-smoke-content-select-many";
+    let flow = VariantScenarioFlow::new(
+        "store-merge-content-select-many-root",
+        "store-merge-content-select-many-key",
+        doc_id,
+        "Author Smoke Content Select Many",
+        "110",
+    );
     let (_resolved_dir, resolved_state_path) = write_content_entries_resolved_state_for_doc_file(
         "store-merge-content-select-many-state",
-        "doc:author-smoke-content-select-many",
+        doc_id,
         &[("blk:author-smoke-select-many-001", "Right A")],
     );
     let (_base_ops_dir, base_ops_path) = write_content_addition_ops_for_block_file(
@@ -25,194 +31,28 @@ fn store_merge_authoring_flow_reports_selected_content_replacement_with_multiple
         "blk:author-smoke-select-many-001",
         "Right B",
     );
-    let store_root = path_arg(store_dir.path());
-    let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let base_ops_file = path_arg(&base_ops_path);
     let replace_a_ops_file = path_arg(&replace_a_ops_path);
     let replace_b_ops_file = path_arg(&replace_b_ops_path);
 
-    let init = run_mycel(&["store", "init", &store_root, "--json"]);
-    assert_success(&init);
-
-    let document = run_mycel(&[
-        "store",
-        "create-document",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--title",
-        "Author Smoke Content Select Many",
-        "--language",
-        "en",
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "110",
-        "--json",
-    ]);
-    assert_success(&document);
-    let genesis_revision_id = assert_json_status(&document, "ok")["genesis_revision_id"]
-        .as_str()
-        .expect("genesis revision should be string")
-        .to_string();
-
-    let base_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &base_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "111",
-        "--json",
-    ]);
-    assert_success(&base_patch);
-    let base_patch_id = assert_json_status(&base_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("base patch_id should be string")
-        .to_string();
-
-    let base_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &base_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "112",
-        "--json",
-    ]);
-    assert_success(&base_revision);
-    let base_revision_id = assert_json_status(&base_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("base revision_id should be string")
-        .to_string();
-
-    let replace_a_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--base-revision",
-        &base_revision_id,
-        "--ops",
-        &replace_a_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "113",
-        "--json",
-    ]);
-    assert_success(&replace_a_patch);
-    let replace_a_patch_id = assert_json_status(&replace_a_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("replace_a patch_id should be string")
-        .to_string();
-
-    let replace_a_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--parent",
-        &base_revision_id,
-        "--patch",
-        &replace_a_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "114",
-        "--json",
-    ]);
-    assert_success(&replace_a_revision);
-    let replace_a_revision_id = assert_json_status(&replace_a_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("replace_a revision_id should be string")
-        .to_string();
-
-    let replace_b_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--base-revision",
-        &base_revision_id,
-        "--ops",
-        &replace_b_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "115",
-        "--json",
-    ]);
-    assert_success(&replace_b_patch);
-    let replace_b_patch_id = assert_json_status(&replace_b_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("replace_b patch_id should be string")
-        .to_string();
-
-    let replace_b_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--parent",
-        &base_revision_id,
-        "--patch",
-        &replace_b_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "116",
-        "--json",
-    ]);
-    assert_success(&replace_b_revision);
-    let replace_b_revision_id = assert_json_status(&replace_b_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("replace_b revision_id should be string")
-        .to_string();
-
-    let merge = run_mycel(&[
-        "store",
-        "create-merge-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-select-many",
-        "--parent",
-        &base_revision_id,
-        "--parent",
-        &replace_a_revision_id,
-        "--parent",
-        &replace_b_revision_id,
-        "--parent",
-        &genesis_revision_id,
-        "--resolved-state",
+    let base_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &base_ops_file, "111", "112");
+    let replace_a_revision_id =
+        flow.commit_ops_revision(&base_revision_id, &replace_a_ops_file, "113", "114");
+    let replace_b_revision_id =
+        flow.commit_ops_revision(&base_revision_id, &replace_b_ops_file, "115", "116");
+    let merge_json = flow.create_merge_revision(
+        &[
+            &base_revision_id,
+            &replace_a_revision_id,
+            &replace_b_revision_id,
+            flow.genesis_revision_id(),
+        ],
         &resolved_state_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
         "117",
-        "--json",
-    ]);
-    assert_success(&merge);
-    let merge_json = assert_json_status(&merge, "ok");
+    );
+
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
     assert!(
         merge_json["merge_reasons"].as_array().is_some_and(|reasons| reasons
@@ -252,11 +92,17 @@ fn store_merge_authoring_flow_reports_selected_content_replacement_with_multiple
 #[test]
 fn store_merge_authoring_flow_reports_kept_primary_content_over_multiple_replacements_and_removals()
 {
-    let store_dir = create_temp_dir("store-merge-content-keep-many-root");
-    let (_key_dir, key_path) = write_signing_key_file("store-merge-content-keep-many-key");
+    let doc_id = "doc:author-smoke-content-keep-many";
+    let flow = VariantScenarioFlow::new(
+        "store-merge-content-keep-many-root",
+        "store-merge-content-keep-many-key",
+        doc_id,
+        "Author Smoke Content Keep Many",
+        "118",
+    );
     let (_resolved_dir, resolved_state_path) = write_content_entries_resolved_state_for_doc_file(
         "store-merge-content-keep-many-state",
-        "doc:author-smoke-content-keep-many",
+        doc_id,
         &[("blk:author-smoke-keep-many-001", "Base")],
     );
     let (_base_ops_dir, base_ops_path) = write_content_addition_ops_for_block_file(
@@ -274,194 +120,28 @@ fn store_merge_authoring_flow_reports_kept_primary_content_over_multiple_replace
         "blk:author-smoke-keep-many-001",
         "Right B",
     );
-    let store_root = path_arg(store_dir.path());
-    let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let base_ops_file = path_arg(&base_ops_path);
     let replace_a_ops_file = path_arg(&replace_a_ops_path);
     let replace_b_ops_file = path_arg(&replace_b_ops_path);
 
-    let init = run_mycel(&["store", "init", &store_root, "--json"]);
-    assert_success(&init);
-
-    let document = run_mycel(&[
-        "store",
-        "create-document",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--title",
-        "Author Smoke Content Keep Many",
-        "--language",
-        "en",
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "118",
-        "--json",
-    ]);
-    assert_success(&document);
-    let genesis_revision_id = assert_json_status(&document, "ok")["genesis_revision_id"]
-        .as_str()
-        .expect("genesis revision should be string")
-        .to_string();
-
-    let base_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &base_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "119",
-        "--json",
-    ]);
-    assert_success(&base_patch);
-    let base_patch_id = assert_json_status(&base_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("base patch_id should be string")
-        .to_string();
-
-    let base_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &base_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "120",
-        "--json",
-    ]);
-    assert_success(&base_revision);
-    let base_revision_id = assert_json_status(&base_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("base revision_id should be string")
-        .to_string();
-
-    let replace_a_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--base-revision",
-        &base_revision_id,
-        "--ops",
-        &replace_a_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "121",
-        "--json",
-    ]);
-    assert_success(&replace_a_patch);
-    let replace_a_patch_id = assert_json_status(&replace_a_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("replace_a patch_id should be string")
-        .to_string();
-
-    let replace_a_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--parent",
-        &base_revision_id,
-        "--patch",
-        &replace_a_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "122",
-        "--json",
-    ]);
-    assert_success(&replace_a_revision);
-    let replace_a_revision_id = assert_json_status(&replace_a_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("replace_a revision_id should be string")
-        .to_string();
-
-    let replace_b_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--base-revision",
-        &base_revision_id,
-        "--ops",
-        &replace_b_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "123",
-        "--json",
-    ]);
-    assert_success(&replace_b_patch);
-    let replace_b_patch_id = assert_json_status(&replace_b_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("replace_b patch_id should be string")
-        .to_string();
-
-    let replace_b_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--parent",
-        &base_revision_id,
-        "--patch",
-        &replace_b_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "124",
-        "--json",
-    ]);
-    assert_success(&replace_b_revision);
-    let replace_b_revision_id = assert_json_status(&replace_b_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("replace_b revision_id should be string")
-        .to_string();
-
-    let merge = run_mycel(&[
-        "store",
-        "create-merge-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-keep-many",
-        "--parent",
-        &base_revision_id,
-        "--parent",
-        &replace_a_revision_id,
-        "--parent",
-        &replace_b_revision_id,
-        "--parent",
-        &genesis_revision_id,
-        "--resolved-state",
+    let base_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &base_ops_file, "119", "120");
+    let replace_a_revision_id =
+        flow.commit_ops_revision(&base_revision_id, &replace_a_ops_file, "121", "122");
+    let replace_b_revision_id =
+        flow.commit_ops_revision(&base_revision_id, &replace_b_ops_file, "123", "124");
+    let merge_json = flow.create_merge_revision(
+        &[
+            &base_revision_id,
+            &replace_a_revision_id,
+            &replace_b_revision_id,
+            flow.genesis_revision_id(),
+        ],
         &resolved_state_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
         "125",
-        "--json",
-    ]);
-    assert_success(&merge);
-    let merge_json = assert_json_status(&merge, "ok");
+    );
+
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
     assert!(
         merge_json["merge_reasons"].as_array().is_some_and(|reasons| reasons
