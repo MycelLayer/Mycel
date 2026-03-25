@@ -583,6 +583,37 @@ def cycle_committed_source_paths(agent_uid: str, batch_num: int) -> set[str] | N
     }
 
 
+def cycle_owned_commit_refs(agent_uid: str, batch_num: int) -> list[str] | None:
+    snapshot = load_git_state_snapshot(agent_uid, batch_num)
+    if snapshot is None or snapshot.get("available") is not True:
+        return None
+
+    base_head = snapshot.get("head")
+    current_snapshot = capture_git_state_snapshot()
+    if current_snapshot.get("available") is not True:
+        return None
+
+    current_head = current_snapshot.get("head")
+    if not (isinstance(base_head, str) and base_head and isinstance(current_head, str) and current_head):
+        return []
+
+    rev_list_proc = run_git(["rev-list", "--reverse", f"{base_head}..{current_head}"])
+    if rev_list_proc.returncode != 0:
+        return None
+
+    owned: list[str] = []
+    for commit_ref in rev_list_proc.stdout.splitlines():
+        commit_ref = commit_ref.strip()
+        if not commit_ref:
+            continue
+        body_proc = run_git(["show", "-s", "--format=%B", commit_ref])
+        if body_proc.returncode != 0:
+            return None
+        if f"Agent-Id: {agent_uid}" in body_proc.stdout:
+            owned.append(commit_ref)
+    return owned
+
+
 def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str, str | bool | None]:
     source_changes_present = cycle_has_source_changes(agent_uid, batch_num)
     if source_changes_present is not True:
@@ -607,6 +638,22 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
             "required": False,
             "ok": True,
             "reason": "no committed source changes detected in the cycle",
+            "remote_head": None,
+        }
+
+    owned_commits = cycle_owned_commit_refs(agent_uid, batch_num)
+    if owned_commits is None:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "unable to resolve cycle-owned commits for push verification",
+            "remote_head": None,
+        }
+    if not owned_commits:
+        return {
+            "required": False,
+            "ok": True,
+            "reason": "no cycle-owned source commits detected; foreign local commits do not block closeout",
             "remote_head": None,
         }
 
@@ -660,12 +707,17 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
             "remote_head": None,
         }
 
-    ancestor_proc = run_git(["merge-base", "--is-ancestor", current_head, remote_head])
+    push_target = owned_commits[-1]
+    ancestor_proc = run_git(["merge-base", "--is-ancestor", push_target, remote_head])
     if ancestor_proc.returncode == 0:
         return {
             "required": True,
             "ok": True,
-            "reason": "HEAD is reachable from origin/main",
+            "reason": (
+                "HEAD is reachable from origin/main"
+                if push_target == current_head
+                else "latest cycle-owned source commit is reachable from origin/main"
+            ),
             "remote_head": remote_head,
         }
 
@@ -673,7 +725,11 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
         return {
             "required": True,
             "ok": False,
-            "reason": "HEAD is not yet reachable from origin/main; push your agent commit first",
+            "reason": (
+                "HEAD is not yet reachable from origin/main; push your agent commit first"
+                if push_target == current_head
+                else "latest cycle-owned source commit is not yet reachable from origin/main; push your agent commit first"
+            ),
             "remote_head": remote_head,
         }
 

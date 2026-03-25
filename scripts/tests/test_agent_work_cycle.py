@@ -96,6 +96,23 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             self.fail(f"git command failed {args}: {proc.stderr or proc.stdout}")
         return proc
 
+    def commit_as_agent(self, agent_uid: str, message: str) -> None:
+        self.run_git(
+            "-c",
+            f"user.name=gpt-5.4:{agent_uid}",
+            "-c",
+            "user.email=ctf2090+mycel@gmail.com",
+            "commit",
+            "--no-gpg-sign",
+            "-m",
+            (
+                f"{message}\n\n"
+                f"Agent-Id: {agent_uid}\n"
+                "Model: gpt-5.4\n"
+                "Reasoning-Effort: medium"
+            ),
+        )
+
     def load_work_cycle_module(self):
         sys.path.insert(0, str(self.root / "scripts"))
         spec = importlib.util.spec_from_file_location("agent_work_cycle_under_test", self.root / "scripts" / "agent_work_cycle.py")
@@ -1055,7 +1072,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.run_git("add", "scripts/agent_timestamp.py")
-        self.run_git("commit", "-m", "local source change")
+        self.commit_as_agent(agent_uid, "local source change")
         self.set_checklist_state(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
             "workflow.files-changed-summary",
@@ -1090,7 +1107,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.run_git("add", "scripts/agent_timestamp.py")
-        self.run_git("commit", "-m", "pushed source change")
+        self.commit_as_agent(agent_uid, "pushed source change")
         self.run_git("push", "origin", "HEAD:main")
         self.set_checklist_state(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
@@ -1159,7 +1176,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             encoding="utf-8",
         )
         self.run_git("add", "scripts/agent_timestamp.py")
-        self.run_git("commit", "-m", "pushed source change")
+        self.commit_as_agent(agent_uid, "pushed source change")
         self.run_git("push", "origin", "HEAD:main")
 
         (self.root / "scripts" / "agent_registry.py").write_text(
@@ -1181,6 +1198,54 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("source_push_required: true", proc.stdout)
         self.assertIn("source_push_ok: true", proc.stdout)
         self.assertIn("HEAD is reachable from origin/main", proc.stdout)
+
+    def test_end_ignores_foreign_committed_source_changes_after_pushed_source_cycle(self) -> None:
+        self.write_agents_md()
+        self.init_git_repo()
+        self.init_origin_main_remote()
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        (self.root / "scripts" / "agent_timestamp.py").write_text(
+            (self.root / "scripts" / "agent_timestamp.py").read_text(encoding="utf-8")
+            + "\n# pushed source change\n",
+            encoding="utf-8",
+        )
+        self.run_git("add", "scripts/agent_timestamp.py")
+        self.commit_as_agent(agent_uid, "pushed source change")
+        self.run_git("push", "origin", "HEAD:main")
+
+        (self.root / "scripts" / "agent_registry.py").write_text(
+            (self.root / "scripts" / "agent_registry.py").read_text(encoding="utf-8")
+            + "\n# foreign committed source change\n",
+            encoding="utf-8",
+        )
+        self.run_git("add", "scripts/agent_registry.py")
+        self.run_git("commit", "-m", "foreign local source change")
+
+        self.set_checklist_state(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "workflow.files-changed-summary",
+            "X",
+            "Include a files-changed summary when source changes land",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: true", proc.stdout)
+        self.assertIn(
+            "latest cycle-owned source commit is reachable from origin/main",
+            proc.stdout,
+        )
 
 
 if __name__ == "__main__":
