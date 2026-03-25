@@ -64,9 +64,6 @@ SCRUTINIZED_NOT_NEEDED_ITEMS: dict[str, str] = {
     "workflow.files-changed-summary": (
         "required when source files changed; paste render_files_changed_table.py output verbatim"
     ),
-    "workflow.runtime-preflight-before-verification": (
-        "required before running cargo test, scripts, or cargo run in the cycle"
-    ),
     "workflow.reply-with-plan-and-status": (
         "required at the start of every non-bootstrap work cycle batch"
     ),
@@ -824,14 +821,12 @@ def scan_scrutinized_not_needed_items(
     is the main mechanism by which agents silently skip required steps.
     """
     scrutinized = dict(SCRUTINIZED_NOT_NEEDED_ITEMS)
-    # Batch 1 is a bootstrap-only cycle: no source files are changed and no
-    # tests or scripts are run, so files-changed-summary and
-    # runtime-preflight-before-verification are legitimately not-needed.
+    # Batch 1 is a bootstrap-only cycle: no source files are changed, so
+    # files-changed-summary is legitimately not-needed.
     # reply-with-plan-and-status is auto-marked not-needed by begin for batch 1.
     if batch_num == 1:
         scrutinized.pop("workflow.reply-with-plan-and-status", None)
         scrutinized.pop("workflow.files-changed-summary", None)
-        scrutinized.pop("workflow.runtime-preflight-before-verification", None)
     elif source_changes_present is False:
         scrutinized.pop("workflow.files-changed-summary", None)
 

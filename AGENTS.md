@@ -63,6 +63,7 @@
 - Dev setup:
   - Before repeating environment checks, read `.agent-local/dev-setup-status.md` if it exists. <!-- item-id: bootstrap.read-dev-setup-status -->
   - If `.agent-local/dev-setup-status.md` says `Status: ready` and records the required tool/setup checks for this workspace, a new chat does not need to re-check dev setup during bootstrap. <!-- item-id: bootstrap.skip-dev-setup-when-ready -->
+  - During bootstrap, run one lightweight runtime preflight with `scripts/check-runtime-preflight.py` for the baseline agent shell tools used in this workspace. If a required command is missing or exits `126`/`127`, report it as an environment block before starting task work. Do not repeat this generic preflight in every later work cycle unless the user is explicitly debugging the environment. <!-- item-id: bootstrap.runtime-preflight -->
   - If `.agent-local/dev-setup-status.md` is missing or does not say `Status: ready`, read [`docs/DEV-SETUP.md`](docs/DEV-SETUP.md), ensure the required setup items are satisfied, and refresh `.agent-local/dev-setup-status.md` with the repo-local dev-setup status tool. <!-- item-id: bootstrap.refresh-dev-setup-when-needed -->
   - Use [`.agent-local/DEV-SETUP-STATUS.example.md`](.agent-local/DEV-SETUP-STATUS.example.md) as the template for the local status file. <!-- item-id: bootstrap.dev-setup-template -->
 - Agent startup:
@@ -79,7 +80,6 @@
 - Before work in each user command cycle, run `python3 scripts/agent_work_cycle.py begin <agent_ref>`; it handles the active registry transition for the cycle and generates the next agent-specific workcycle checklist copy. <!-- item-id: workflow.touch-work-cycle -->
 - Run `git status -sb` to understand the repo state. <!-- item-id: bootstrap.git-status -->
 - If a task needs an additional tool or module, the agent should install it directly unless the user explicitly says not to. <!-- item-id: workflow.install-needed-tools -->
-- If `.agent-local/dev-setup-status.md` says `Status: ready`, treat that as static workspace readiness only; before running tests, scripts, `cargo run`, or `cargo test`, do a lightweight runtime preflight with `scripts/check-runtime-preflight.py` plus any shell utilities used in the exact command (for example `--require grep` or `--require tail`). If a required command is missing or a command exits `126`/`127`, report it as an environment block first and do not treat the result as product validation or checklist closure. <!-- item-id: workflow.runtime-preflight-before-verification -->
 - Reply with a short plan and the current repo status before making changes. <!-- item-id: workflow.reply-with-plan-and-status -->
 - Use the exact before/after timestamp line emitted by `scripts/agent_work_cycle.py`; do not hand-write replacements or swap in a different timestamp format. <!-- item-id: workflow.timestamped-commentary -->
 - Do not immediately follow `scripts/agent_work_cycle.py` with a separate manual registry lifecycle change for the same work cycle. <!-- item-id: workflow.no-double-touch-finish -->
@@ -108,7 +108,6 @@
 - Use these meanings consistently in the agent-local copy: `- [ ]` means not checked yet, `- [X]` means checked and completed without problems, `- [-]` means not needed for this work cycle, and `- [!]` means checked but problems were found.
 - A small set of workcycle items are **scrutinized**: marking them `not-needed` (`[-]`) causes `scripts/agent_work_cycle.py end` to fail with exit code 2. Only mark a scrutinized item `not-needed` if it genuinely does not apply to the current cycle. Scrutinized item IDs and their applicable conditions: <!-- item-id: checklist.scrutinized-not-needed -->
   - `workflow.files-changed-summary` — required whenever this agent changed any source file in the current cycle; pre-existing unrelated worktree changes do not make it required by themselves, and the `render_files_changed_table.py` output must be pasted verbatim when it does apply
-  - `workflow.runtime-preflight-before-verification` — required before running `cargo test`, `cargo run`, or any script that validates product behavior
   - `workflow.reply-with-plan-and-status` — required at the start of every batch > 1; the tool auto-marks it `not-needed` on batch 1, so it is legitimately `[-]` there
 - When an item is marked `- [!]`, the agent should add an indented subitem immediately below it explaining the problem.
 - Agents may update their own checklist copy with `scripts/item_id_checklist_mark.py`. Use `--update <item-id>=<state>` (batch-friendly) or `--state <state>` (single item); do not pass the state as a bare positional argument.

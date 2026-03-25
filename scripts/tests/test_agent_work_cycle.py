@@ -145,12 +145,12 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
 ## New chat bootstrap
 - Bootstrap one <!-- item-id: bootstrap.one -->
+- Run bootstrap runtime preflight <!-- item-id: bootstrap.runtime-preflight -->
 
 ## Work Cycle Workflow
 - Run git status <!-- item-id: bootstrap.git-status -->
 - Begin the work cycle <!-- item-id: workflow.touch-work-cycle -->
 - Install additional tools if needed <!-- item-id: workflow.install-needed-tools -->
-- Run runtime preflight before verification <!-- item-id: workflow.runtime-preflight-before-verification -->
 - Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->
 - Use the exact emitted timestamp line <!-- item-id: workflow.timestamped-commentary -->
 - Avoid double-touching the registry <!-- item-id: workflow.no-double-touch-finish -->
@@ -211,6 +211,14 @@ class AgentWorkCycleCliTest(unittest.TestCase):
                 return
         self.fail(f"missing checklist item {item_id} in {relative_path}")
 
+    def mark_bootstrap_defaults(self, relative_path: str) -> None:
+        states = [
+            ("bootstrap.one", "Bootstrap one", "X"),
+            ("bootstrap.runtime-preflight", "Run bootstrap runtime preflight", "X"),
+        ]
+        for item_id, label, state in states:
+            self.set_checklist_state(relative_path, item_id, state, label)
+
     def mark_workcycle_defaults(
         self,
         relative_path: str,
@@ -222,7 +230,6 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         states = [
             ("bootstrap.git-status", "Run git status", "X"),
             ("workflow.install-needed-tools", "Install additional tools if needed", "-"),
-            ("workflow.runtime-preflight-before-verification", "Run runtime preflight before verification", scrutinized_state),
             ("workflow.reply-with-plan-and-status", "Reply with a short plan", plan_state),
             ("workflow.timestamped-commentary", "Use the exact emitted timestamp line", "X"),
             ("workflow.no-double-touch-finish", "Avoid double-touching the registry", "X"),
@@ -329,11 +336,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", role, "--scope", "timestamp-wrapper")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
         self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
         self.mark_workcycle_defaults(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
@@ -444,11 +447,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
 
         begin = self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
         self.assertEqual(0, begin.returncode)
@@ -590,11 +589,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
 
         begin = self.run_cli(
             "begin",
@@ -640,11 +635,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
 
         begin = self.run_cli(
             "begin",
@@ -712,11 +703,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
 
         begin = self.run_cli(
             "begin",
@@ -762,11 +749,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
         agent_uid = claim["agent_uid"]
         start = self.run_registry("start", agent_uid)
-        self.replace_in_file(
-            start["bootstrap_output"],
-            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
-            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
-        )
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
 
         begin = self.run_cli(
             "begin",

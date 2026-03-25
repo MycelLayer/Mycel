@@ -13,6 +13,7 @@ SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
 SOURCE_CODEX_TOKEN_USAGE = REPO_ROOT / "scripts" / "codex_token_usage_summary.py"
+SOURCE_RUNTIME_PREFLIGHT = REPO_ROOT / "scripts" / "check-runtime-preflight.py"
 SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
 SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
@@ -31,6 +32,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
         shutil.copy2(SOURCE_CODEX_TOKEN_USAGE, self.root / "scripts" / "codex_token_usage_summary.py")
+        shutil.copy2(SOURCE_RUNTIME_PREFLIGHT, self.root / "scripts" / "check-runtime-preflight.py")
         shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
         shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
@@ -41,6 +43,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "agent_registry.py",
             "agent_timestamp.py",
             "codex_token_usage_summary.py",
+            "check-runtime-preflight.py",
             "agent_checklist_gc.py",
             "mailbox_gc.py",
             "item_id_checklist.py",
@@ -55,6 +58,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 - Scan the repo root <!-- item-id: bootstrap.repo-layout -->
 - Read dev setup status when present <!-- item-id: bootstrap.read-dev-setup-status -->
 - Skip repeated dev setup checks when status is ready <!-- item-id: bootstrap.skip-dev-setup-when-ready -->
+- Run bootstrap runtime preflight <!-- item-id: bootstrap.runtime-preflight -->
 - Refresh dev setup status when it is missing or not ready <!-- item-id: bootstrap.refresh-dev-setup-when-needed -->
 - Use the dev setup template when refreshing local status <!-- item-id: bootstrap.dev-setup-template -->
 - Read the role checklist entrypoint <!-- item-id: bootstrap.read-role-checklists -->
@@ -68,7 +72,6 @@ class AgentBootstrapCliTest(unittest.TestCase):
 - Begin the work cycle <!-- item-id: workflow.touch-work-cycle -->
 - Run git status <!-- item-id: bootstrap.git-status -->
 - Install additional tools if needed <!-- item-id: workflow.install-needed-tools -->
-- Run runtime preflight before verification <!-- item-id: workflow.runtime-preflight-before-verification -->
 - Reply with a short plan <!-- item-id: workflow.reply-with-plan-and-status -->
 - Use the exact emitted timestamp line <!-- item-id: workflow.timestamped-commentary -->
 - Avoid double-touching the registry <!-- item-id: workflow.no-double-touch-finish -->
@@ -220,7 +223,6 @@ class AgentBootstrapCliTest(unittest.TestCase):
         states = [
             ("bootstrap.git-status", "Run git status", "X"),
             ("workflow.install-needed-tools", "Install additional tools if needed", "-"),
-            ("workflow.runtime-preflight-before-verification", "Run runtime preflight before verification", "-"),
             ("workflow.reply-with-plan-and-status", "Reply with a short plan", "-"),
             ("workflow.timestamped-commentary", "Use the exact emitted timestamp line", "X"),
             ("workflow.no-double-touch-finish", "Avoid double-touching the registry", "X"),
@@ -438,6 +440,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("- [X] Scan the repo root <!-- item-id: bootstrap.repo-layout -->", bootstrap_text)
         self.assertIn("- [X] Read dev setup status when present <!-- item-id: bootstrap.read-dev-setup-status -->", bootstrap_text)
         self.assertIn("- [X] Skip repeated dev setup checks when status is ready <!-- item-id: bootstrap.skip-dev-setup-when-ready -->", bootstrap_text)
+        self.assertIn("- [X] Run bootstrap runtime preflight <!-- item-id: bootstrap.runtime-preflight -->", bootstrap_text)
         self.assertIn("- [-] Refresh dev setup status when it is missing or not ready <!-- item-id: bootstrap.refresh-dev-setup-when-needed -->", bootstrap_text)
         self.assertIn("- [X] Read the role checklist entrypoint <!-- item-id: bootstrap.read-role-checklists -->", bootstrap_text)
         self.assertIn("- [X] Read the agent registry docs and local registry <!-- item-id: bootstrap.read-agent-registry -->", bootstrap_text)

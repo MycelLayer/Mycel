@@ -45,6 +45,7 @@ ROLE_HANDOFF_HEADINGS = {
     "delivery": "Delivery Continuation Note",
     "doc": "Doc Continuation Note",
 }
+BOOTSTRAP_PREFLIGHT_REQUIREMENTS = ["python3", "git", "rg", "sed"]
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 DATE_PATTERN = "%Y-%m-%d %H:%M UTC+8"
 STATUS_PATTERN = re.compile(r"^- Status:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
@@ -142,6 +143,25 @@ def run_json_array_command(command: list[str]) -> list[dict[str, Any]]:
 
 def run_registry_json(*args: str) -> dict[str, Any]:
     return run_json_command([sys.executable, str(REGISTRY_SCRIPT), *args, "--json"])
+
+
+def run_bootstrap_runtime_preflight() -> bool:
+    command = [
+        sys.executable,
+        str(ROOT_DIR / "scripts" / "check-runtime-preflight.py"),
+        *[item for requirement in BOOTSTRAP_PREFLIGHT_REQUIREMENTS for item in ("--require", requirement)],
+    ]
+    proc = subprocess.run(
+        command,
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        message = proc.stderr.strip() or proc.stdout.strip() or "bootstrap runtime preflight failed"
+        raise BootstrapError(message)
+    return True
 
 
 def resolve_current_codex_metadata() -> tuple[str | None, str | None]:
@@ -548,6 +568,7 @@ def record_bootstrap_checklist_progress(
     *,
     role_arg: str,
     same_role_handoff: dict[str, Any] | None,
+    runtime_preflight_ok: bool,
 ) -> None:
     updates: list[tuple[str, str]] = [("bootstrap.repo-layout", "checked")]
 
@@ -560,6 +581,12 @@ def record_bootstrap_checklist_progress(
         updates.append(("bootstrap.read-agent-registry", "checked"))
 
     updates.extend(dev_setup_status_updates())
+    updates.append(
+        (
+            "bootstrap.runtime-preflight",
+            "checked" if runtime_preflight_ok else "not-needed",
+        )
+    )
     updates.append(("bootstrap.claim-fresh-agent-for-new-chat", "checked"))
     updates.append(
         (
@@ -586,6 +613,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
     scan_root_layout()
     read_text_if_exists(ROOT_DIR / "docs" / "ROLE-CHECKLISTS" / "README.md")
     read_text_if_exists(ROOT_DIR / "docs" / "AGENT-REGISTRY.md")
+    runtime_preflight_ok = run_bootstrap_runtime_preflight()
     claim_payload = run_registry_json(
         "claim", args.role, "--scope", args.scope, "--assigned-by", args.assigned_by, "--model-id", args.model_id
     )
@@ -625,6 +653,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
             bootstrap_checklist_path,
             role_arg=args.role,
             same_role_handoff=same_role_handoff,
+            runtime_preflight_ok=runtime_preflight_ok,
         )
 
     result: dict[str, Any] = {
