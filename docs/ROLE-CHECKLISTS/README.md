@@ -38,6 +38,5 @@ replacement for the generated `AGENTS.md` checklists.
 
 Layering rule:
 
-- keep shared agent-process rules in [`AGENTS.md`](../../AGENTS.md)
-- keep registry-specific coordination rules in [`docs/AGENT-REGISTRY.md`](../AGENT-REGISTRY.md)
-- keep only role-specific deltas in `coding.md`, `delivery.md`, and `doc.md`
+- follow the shared document-layering rule in [`AGENTS.md`](../../AGENTS.md)
+- in this directory, keep only role-checklist system guidance and role-specific deltas

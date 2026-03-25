@@ -27,6 +27,14 @@
 ## Local overlays
 - If [`AGENTS-LOCAL.md`](./AGENTS-LOCAL.md) exists, apply it together with this file for repo-local or user-local communication, language, timezone, or workflow overlays.
 
+## Documentation layering
+- Treat this file, [`AGENTS.md`](./AGENTS.md), as the canonical source for shared agent-process rules that apply across roles and chats.
+- Treat [`AGENTS-LOCAL.md`](./AGENTS-LOCAL.md) as the canonical overlay for repo-local or user-local variations on those shared rules.
+- Treat [`docs/AGENT-REGISTRY.md`](docs/AGENT-REGISTRY.md) as the registry-specific source for agent identity, mailbox, lifecycle, recovery, and coordination details; keep shared workflow restatements there short and point back to this file when possible.
+- Treat [`docs/ROLE-CHECKLISTS/README.md`](docs/ROLE-CHECKLISTS/README.md) as the checklist-system source for role-checklist layout, copy locations, and shared checklist conventions.
+- Treat the tracked role checklist sources under [`docs/ROLE-CHECKLISTS/`](docs/ROLE-CHECKLISTS/README.md) as role-specific delta documents; they should add role-specific requirements and avoid restating shared process rules except for a short pointer when needed.
+- When multiple agent-process Markdown files overlap, keep the normative shared rule in the highest-layer document and trim lower-layer documents to the role-specific or system-specific details plus a clear link back here.
+
 ## Communication
 - When replying, assume the agent and user are on the same team; use “we/our” phrasing where appropriate.
 - If the user misuses a technical or product term, correct it plainly and continue the answer using the correct term; do not mirror the incorrect term in the response except when briefly identifying the mistake.
