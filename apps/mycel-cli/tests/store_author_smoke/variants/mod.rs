@@ -1,5 +1,80 @@
 use super::*;
 
+struct VariantScenarioFlow {
+    flow: StoreAuthoringFlow,
+    doc_id: &'static str,
+    genesis_revision_id: String,
+}
+
+impl VariantScenarioFlow {
+    fn new(
+        store_prefix: &str,
+        key_prefix: &str,
+        doc_id: &'static str,
+        title: &str,
+        timestamp: &str,
+    ) -> Self {
+        let flow = StoreAuthoringFlow::new(store_prefix, key_prefix);
+        let genesis_revision_id = flow.create_document(doc_id, title, "en", timestamp);
+        Self {
+            flow,
+            doc_id,
+            genesis_revision_id,
+        }
+    }
+
+    fn genesis_revision_id(&self) -> &str {
+        &self.genesis_revision_id
+    }
+
+    fn commit_ops_revision(
+        &self,
+        base_revision_id: &str,
+        ops_file: &str,
+        patch_timestamp: &str,
+        revision_timestamp: &str,
+    ) -> String {
+        let patch_id =
+            self.flow
+                .create_patch(self.doc_id, base_revision_id, ops_file, patch_timestamp);
+        self.flow
+            .commit_revision(self.doc_id, base_revision_id, &patch_id, revision_timestamp)
+    }
+
+    fn create_merge_revision(
+        &self,
+        parent_revision_ids: &[&str],
+        resolved_state_file: &str,
+        timestamp: &str,
+    ) -> serde_json::Value {
+        self.flow.create_merge_revision(
+            self.doc_id,
+            parent_revision_ids,
+            resolved_state_file,
+            timestamp,
+        )
+    }
+}
+
+fn write_empty_resolved_state_for_doc_file(
+    prefix: &str,
+    doc_id: &str,
+) -> (common::TempDir, PathBuf) {
+    let dir = create_temp_dir(prefix);
+    let path = dir.path().join("resolved-state.json");
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&json!({
+            "doc_id": doc_id,
+            "blocks": [],
+            "metadata": {}
+        }))
+        .expect("empty resolved state JSON should serialize"),
+    )
+    .expect("empty resolved state JSON should write");
+    (dir, path)
+}
+
 fn assert_content_variant_merge_reasons(merge_json: &serde_json::Value) {
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
     assert!(
