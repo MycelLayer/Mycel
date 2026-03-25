@@ -86,6 +86,23 @@ fn publish_view(source_path: &Path, store_root: &str) -> Value {
     parse_json_stdout(&output)
 }
 
+fn rewrite_store_manifest(
+    store_root: &str,
+    update: impl FnOnce(&mut Value),
+) {
+    let manifest_path = Path::new(store_root).join("indexes").join("manifest.json");
+    let mut manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&manifest_path).expect("manifest should read"),
+    )
+    .expect("manifest should parse");
+    update(&mut manifest);
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).expect("manifest should serialize"),
+    )
+    .expect("manifest should write");
+}
+
 #[test]
 fn view_publish_json_writes_verified_view_into_store() {
     let store_dir = create_temp_dir("view-publish-store");
@@ -733,6 +750,78 @@ fn view_list_json_supports_limit_latest_per_profile_and_summary_only() {
         publish_a1["profile_id"]
             .as_str()
             .expect("profile id should exist")
+    );
+}
+
+#[test]
+fn view_list_current_profile_fields_fall_back_to_latest_indexes_when_current_governance_is_missing() {
+    let store_dir = create_temp_dir("view-list-current-fallback-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer = signing_key(81);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let view_a1 = signed_view(
+        &maintainer,
+        &policy,
+        documents_value(
+            "doc:alpha",
+            "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer,
+        &policy,
+        json!({
+            "doc:alpha": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        20,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-list-current-fallback-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-list-current-fallback-a2", "view-a2.json", &view_a2);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_a2 = publish_view(&path_a2, &store_root);
+
+    rewrite_store_manifest(&store_root, |manifest| {
+        manifest["current_governance"] = json!({});
+    });
+
+    let output = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        publish_a1["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--sort",
+        "profile-id",
+        "--json",
+    ]);
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["record_count"], 2);
+    assert_eq!(
+        json["records"][0]["current_profile_view_id"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        json["records"][0]["current_profile_document_view_ids"]["doc:alpha"],
+        publish_a2["view_id"]
+    );
+    assert_eq!(
+        json["records"][0]["current_profile_document_view_ids"]["doc:beta"],
+        publish_a2["view_id"]
     );
 }
 

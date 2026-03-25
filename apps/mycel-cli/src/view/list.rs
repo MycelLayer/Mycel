@@ -302,22 +302,15 @@ pub(super) fn handle(args: ViewListCliArgs) -> Result<i32, CliError> {
             .cloned()
             .unwrap_or_default();
         let document_view_ids = related_document_view_ids(&manifest, &record.documents);
-        let (current_profile_view_id, current_profile_document_view_ids) = manifest
-            .current_governance
+        let current_profile_view_id = manifest
+            .latest_profile_views
             .get(&record.profile_id)
-            .map(|current| {
-                (
-                    Some(current.current_view_id.clone()),
-                    current
-                        .current_documents
-                        .iter()
-                        .map(|(doc_id, current_document)| {
-                            (doc_id.clone(), current_document.view_id.clone())
-                        })
-                        .collect(),
-                )
-            })
-            .unwrap_or_else(|| (None, BTreeMap::new()));
+            .cloned();
+        let current_profile_document_view_ids = manifest
+            .latest_document_profile_views
+            .get(&record.profile_id)
+            .cloned()
+            .unwrap_or_default();
         summary.records.push(ViewListRecord {
             view_id: record.view_id,
             maintainer: record.maintainer,
