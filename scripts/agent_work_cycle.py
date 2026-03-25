@@ -102,6 +102,16 @@ def run_registry(command: str, agent_ref: str, *, scope: str | None = None) -> d
     )
     if proc.returncode != 0:
         message = proc.stderr.strip() or proc.stdout.strip() or f"{command} failed"
+        if (
+            command == "touch"
+            and "has no active display_id; recover it before touch" in message
+        ):
+            message = (
+                message
+                + "; this is a display-slot recovery problem, not by itself "
+                + "a compact_context_detected guard block. Recover or claim a fresh agent "
+                + "before treating the thread as blocked."
+            )
         raise WorkCycleError(message)
     return json.loads(proc.stdout)
 
@@ -1199,6 +1209,7 @@ def main() -> int:
         if args.blocked_closeout and guard_result.get("blocked") is not True:
             raise WorkCycleError(
                 "blocked closeout requested, but the agent is not currently blocked by agent_guard; "
+                "blocked closeout is only valid when `agent_guard.py check` reports `blocked: true`; "
                 f"use `python3 scripts/agent_work_cycle.py end {agent_uid}` instead."
             )
 

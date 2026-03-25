@@ -209,6 +209,11 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         content = path.read_text(encoding="utf-8")
         path.write_text(content.replace(old, new), encoding="utf-8")
 
+    def write_registry(self, payload: dict[str, object]) -> None:
+        path = self.root / ".agent-local" / "agents.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
     def set_checklist_state(self, relative_path: str, item_id: str, state: str, label: str) -> None:
         path = self.root / relative_path
         content = path.read_text(encoding="utf-8")
@@ -659,6 +664,37 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(1, proc.returncode)
         self.assertIn("--blocked-closeout", proc.stderr)
+
+    def test_begin_explains_recoverable_display_slot_loss_is_not_guard_block(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "recover-needed", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        registry_path = self.root / ".agent-local" / "agents.json"
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry["agents"][0]["current_display_id"] = None
+        registry["agents"][0]["display_history"][0]["released_at"] = "2026-03-25T15:40:00+0800"
+        registry["agents"][0]["display_history"][0]["released_reason"] = "stale_release"
+        self.write_registry(registry)
+
+        proc = self.run_cli("begin", agent_uid, "--scope", "recover-needed", check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("has no active display_id; recover it before touch", proc.stderr)
+        self.assertIn("display-slot recovery problem", proc.stderr)
+        self.assertIn("not by itself a compact_context_detected guard block", proc.stderr)
+
+    def test_blocked_closeout_rejection_explains_guard_precondition(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "blocked-closeout", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+        self.run_cli("begin", agent_uid, "--scope", "blocked-closeout")
+
+        proc = self.run_cli("end", agent_uid, "--scope", "blocked-closeout", "--blocked-closeout", check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("blocked closeout is only valid when `agent_guard.py check` reports `blocked: true`", proc.stderr)
+        self.assertIn(f"use `python3 scripts/agent_work_cycle.py end {agent_uid}` instead.", proc.stderr)
 
     def test_blocked_closeout_succeeds_without_normal_checklist_completion(self) -> None:
         self.write_agents_md()
