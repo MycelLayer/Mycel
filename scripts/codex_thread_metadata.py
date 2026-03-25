@@ -47,6 +47,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit only the latest matching thread_id.",
     )
+    parser.add_argument(
+        "--shell",
+        action="store_true",
+        help="Emit shell-friendly KEY=VALUE lines for model, effort, and thread id.",
+    )
     return parser.parse_args()
 
 
@@ -133,19 +138,25 @@ def main() -> int:
         if thread is None
         else thread.get("reasoning_effort"),
     }
+    model = result["thread_model"] or result["session_model"] or "unknown-model"
+    effort = (
+        result["thread_reasoning_effort"]
+        or result["session_effort"]
+        or "unknown-effort"
+    )
 
     if args.latest_thread_id_only:
         print(result["thread_id"])
         return 0
 
     if args.current:
-        model = result["thread_model"] or result["session_model"] or "unknown-model"
-        effort = (
-            result["thread_reasoning_effort"]
-            or result["session_effort"]
-            or "unknown-effort"
-        )
         print(f"{model} {effort} {result['thread_id']}")
+        return 0
+
+    if args.shell:
+        print(f"MODEL={json.dumps(model)}")
+        print(f"EFFORT={json.dumps(effort)}")
+        print(f"THREAD_ID={json.dumps(result['thread_id'])}")
         return 0
 
     if args.json:
