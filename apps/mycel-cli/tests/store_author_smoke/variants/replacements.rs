@@ -264,4 +264,3 @@ fn store_merge_authoring_flow_preserves_duplicate_non_primary_metadata_replaceme
     );
     assert_duplicate_non_primary_metadata_replacement_reasons(&merge_json);
 }
-

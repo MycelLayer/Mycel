@@ -516,7 +516,12 @@ fn sim_run_with_seed_view_sync_publishes_governance_views_to_readers() {
 #[test]
 fn sim_run_replays_snapshot_catchup_into_reader_store() {
     let _guard = sim_run_lock();
-    let output = run_sim(&["sim", "run", "sim/tests/snapshot-catchup.example.json", "--json"]);
+    let output = run_sim(&[
+        "sim",
+        "run",
+        "sim/tests/snapshot-catchup.example.json",
+        "--json",
+    ]);
 
     assert!(
         output.status.success(),
@@ -578,9 +583,7 @@ fn sim_run_replays_view_sync_into_reader_store() {
         .as_array()
         .expect("matched_expected_outcomes should be an array");
     assert!(
-        outcomes
-            .iter()
-            .any(|entry| entry == "view-sync-success"),
+        outcomes.iter().any(|entry| entry == "view-sync-success"),
         "expected view-sync-success outcome, stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -633,9 +636,7 @@ fn sim_run_replays_resync_idempotency_into_reader_store() {
         .as_array()
         .expect("matched_expected_outcomes should be an array");
     assert!(
-        outcomes
-            .iter()
-            .any(|entry| entry == "resync-idempotent"),
+        outcomes.iter().any(|entry| entry == "resync-idempotent"),
         "expected resync-idempotent outcome, stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
