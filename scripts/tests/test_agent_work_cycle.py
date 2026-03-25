@@ -16,6 +16,7 @@ SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
 SOURCE_CODEX_TOKEN_USAGE = REPO_ROOT / "scripts" / "codex_token_usage_summary.py"
 SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
 SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
+SOURCE_MAILBOX_HANDOFF = REPO_ROOT / "scripts" / "mailbox_handoff.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 
@@ -33,6 +34,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_CODEX_TOKEN_USAGE, self.root / "scripts" / "codex_token_usage_summary.py")
         shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
         shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
+        shutil.copy2(SOURCE_MAILBOX_HANDOFF, self.root / "scripts" / "mailbox_handoff.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
         (self.root / "scripts" / "agent_work_cycle.py").chmod(0o755)
@@ -41,6 +43,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         (self.root / "scripts" / "codex_token_usage_summary.py").chmod(0o755)
         (self.root / "scripts" / "agent_checklist_gc.py").chmod(0o755)
         (self.root / "scripts" / "mailbox_gc.py").chmod(0o755)
+        (self.root / "scripts" / "mailbox_handoff.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
 
@@ -219,6 +222,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         cwd: str | None = None,
         totals: list[tuple[str, int, int]],
         model_context_window: int = 258400,
+        include_compaction: bool = False,
     ) -> None:
         rollout_dir = self.root / ".codex" / "sessions" / "2026" / "03" / "25"
         rollout_dir.mkdir(parents=True, exist_ok=True)
@@ -264,6 +268,16 @@ class AgentWorkCycleCliTest(unittest.TestCase):
                                 "model_context_window": model_context_window,
                             },
                         },
+                    }
+                )
+            )
+        if include_compaction:
+            lines.append(
+                json.dumps(
+                    {
+                        "timestamp": "2026-03-25T06:26:03.000Z",
+                        "type": "compaction",
+                        "encrypted_content": "test-compaction-payload",
                     }
                 )
             )
@@ -482,6 +496,39 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn(f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper", proc.stdout)
         self.assertNotIn("last thread turn:", proc.stdout)
         self.assertNotIn("500,000 tok", proc.stdout)
+
+    def test_begin_aborts_and_writes_handoff_when_compaction_detected(self) -> None:
+        self.write_agents_md()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+            include_compaction=True,
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+
+        proc = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+            check=False,
+        )
+
+        self.assertEqual(3, proc.returncode)
+        self.assertIn("compact_context_detected: true", proc.stdout)
+        self.assertIn("alert: compact context detected, we better open a new chat for better performance, and handoff is ready.", proc.stdout)
+        self.assertNotIn("Before work |", proc.stdout)
+
+        status = self.run_registry("status", agent_uid)
+        self.assertEqual("inactive", status["agents"][0]["status"])
+
+        mailbox = (self.root / ".agent-local" / "mailboxes" / f"{agent_uid}.md").read_text(encoding="utf-8")
+        self.assertIn("## Doc Continuation Note", mailbox)
+        self.assertIn("Compact context detected in the current chat thread before work started", mailbox)
+        self.assertIn("Open a fresh chat for better performance and continue from this handoff.", mailbox)
 
     def test_end_returns_pending_when_bootstrap_or_workcycle_items_are_unchecked(self) -> None:
         self.write_agents_md()
