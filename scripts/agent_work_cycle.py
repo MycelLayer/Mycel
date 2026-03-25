@@ -363,15 +363,6 @@ def format_ui_token_usage(value: int) -> str:
     return f"{round(value / 1000):,}K"
 
 
-def before_work_token_usage_field(snapshot: dict[str, object] | None) -> str | None:
-    if snapshot is None:
-        return None
-    total = snapshot.get("last_turn_total_tokens")
-    if not isinstance(total, int):
-        return None
-    return f"last thread turn: {format_token_count(total)}"
-
-
 def estimate_cycle_token_spend(
     start_snapshot: dict[str, object] | None, end_snapshot: dict[str, object] | None
 ) -> int | None:
@@ -1034,9 +1025,6 @@ def main() -> int:
             agent_uid=agent_uid,
             model_id=model_id,
             scope=args.scope,
-            token_usage=before_work_token_usage_field(
-                begin_token_snapshot if args.stage == "begin" else None
-            ),
         )
     )
     return 0

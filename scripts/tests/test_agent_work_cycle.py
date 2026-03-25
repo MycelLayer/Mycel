@@ -433,7 +433,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertIn(f"Before work | delivery-1 ({agent_uid}/claude-sonnet-4-6) | ci-triage", proc.stdout)
 
-    def test_begin_appends_last_turn_token_usage_when_available(self) -> None:
+    def test_begin_omits_token_usage_when_available(self) -> None:
         self.write_agents_md()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
@@ -452,9 +452,10 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
 
         self.assertIn(
-            f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | last thread turn: 60,135 tok",
+            f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper",
             proc.stdout,
         )
+        self.assertNotIn("last thread turn:", proc.stdout)
 
     def test_begin_prefers_current_thread_id_over_newer_same_cwd_rollout(self) -> None:
         self.write_agents_md()
@@ -478,7 +479,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
         )
 
-        self.assertIn("last thread turn: 60,135 tok", proc.stdout)
+        self.assertIn(f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper", proc.stdout)
+        self.assertNotIn("last thread turn:", proc.stdout)
         self.assertNotIn("500,000 tok", proc.stdout)
 
     def test_end_returns_pending_when_bootstrap_or_workcycle_items_are_unchecked(self) -> None:
