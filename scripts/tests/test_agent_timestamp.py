@@ -74,6 +74,28 @@ class AgentTimestampCliTest(unittest.TestCase):
 
         self.assertEqual("[2026-03-12 14:15:30 UTC+8] After work", proc.stdout.strip())
 
+    def test_before_message_appends_token_usage_field(self) -> None:
+        proc = self.run_cli(
+            "before",
+            "--agent",
+            "doc-8",
+            "--agent-uid",
+            "agt_f48f55a7",
+            "--model-id",
+            "gpt-5.4",
+            "--scope",
+            "token sync",
+            "--token-usage",
+            "last turn: 60,135 tok",
+            "--now",
+            "2026-03-25T06:20:03Z",
+        )
+
+        self.assertEqual(
+            "[2026-03-25 14:20:03 UTC+8] Before work | doc-8 (agt_f48f55a7/gpt-5.4) | token sync | last turn: 60,135 tok",
+            proc.stdout.strip(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

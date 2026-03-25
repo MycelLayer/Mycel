@@ -14,6 +14,7 @@ from agent_checklist_gc import (
     prune_agent_checklists,
 )
 from agent_timestamp import build_message
+from codex_token_usage_summary import load_latest_usage_snapshot
 from mailbox_gc import DEFAULT_DELETE_AGE_DAYS, MailboxGcError, delete_stale_mailboxes
 from item_id_checklist import (
     agents_bootstrap_checklist_path,
@@ -216,6 +217,17 @@ def workcycle_git_state_path(agent_uid: str, batch_num: int) -> Path:
     )
 
 
+def workcycle_token_state_path(agent_uid: str, batch_num: int) -> Path:
+    return (
+        ROOT_DIR
+        / ".agent-local"
+        / "agents"
+        / agent_uid
+        / "workcycles"
+        / f"token-usage-{batch_num}.json"
+    )
+
+
 def run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
@@ -262,6 +274,78 @@ def store_git_state_snapshot(agent_uid: str, batch_num: int) -> None:
         json.dumps(capture_git_state_snapshot(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def capture_token_usage_snapshot() -> dict[str, object] | None:
+    snapshot = load_latest_usage_snapshot(cwd=str(ROOT_DIR))
+    if snapshot is None:
+        return None
+    return snapshot
+
+
+def store_token_usage_snapshot(agent_uid: str, batch_num: int) -> dict[str, object] | None:
+    snapshot = capture_token_usage_snapshot()
+    path = workcycle_token_state_path(agent_uid, batch_num)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if snapshot is None:
+        path.write_text("null\n", encoding="utf-8")
+    else:
+        path.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return snapshot
+
+
+def load_token_usage_snapshot(agent_uid: str, batch_num: int) -> dict[str, object] | None:
+    path = workcycle_token_state_path(agent_uid, batch_num)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def format_token_count(value: int) -> str:
+    return f"{value:,} tok"
+
+
+def before_work_token_usage_field(snapshot: dict[str, object] | None) -> str | None:
+    if snapshot is None:
+        return None
+    total = snapshot.get("last_turn_total_tokens")
+    if not isinstance(total, int):
+        return None
+    return f"last turn: {format_token_count(total)}"
+
+
+def estimate_cycle_token_spend(
+    start_snapshot: dict[str, object] | None, end_snapshot: dict[str, object] | None
+) -> int | None:
+    if start_snapshot is None or end_snapshot is None:
+        return None
+    start_thread = start_snapshot.get("thread_id")
+    end_thread = end_snapshot.get("thread_id")
+    start_total = start_snapshot.get("cumulative_total_tokens")
+    end_total = end_snapshot.get("cumulative_total_tokens")
+    if not (
+        isinstance(start_thread, str)
+        and isinstance(end_thread, str)
+        and start_thread == end_thread
+        and isinstance(start_total, int)
+        and isinstance(end_total, int)
+        and end_total >= start_total
+    ):
+        return None
+    return end_total - start_total
+
+
+def after_work_token_usage_field(
+    start_snapshot: dict[str, object] | None, end_snapshot: dict[str, object] | None
+) -> str | None:
+    estimated = estimate_cycle_token_spend(start_snapshot, end_snapshot)
+    if estimated is None:
+        return None
+    return f"this turn est.: {format_token_count(estimated)}"
 
 
 def load_git_state_snapshot(agent_uid: str, batch_num: int) -> dict[str, object] | None:
@@ -743,6 +827,9 @@ def main() -> int:
         batch_num = checklist_result.get("batch_num")
         if isinstance(batch_num, int):
             store_git_state_snapshot(agent_uid, batch_num)
+            begin_token_snapshot = store_token_usage_snapshot(agent_uid, batch_num)
+        else:
+            begin_token_snapshot = None
         print(f"workcycle_output: {workcycle_output}")
         role_source = role_checklist_source_path(agent_role)
         role_prefix = split_checklist_prefix_for(role_source)
@@ -781,7 +868,20 @@ def main() -> int:
         stage = "after"
         label = display_id or args.agent_ref
         emit_registry_summary(payload)
-        print(build_message(stage, agent=label, agent_uid=agent_uid, model_id=model_id, scope=args.scope))
+        start_token_snapshot = load_token_usage_snapshot(agent_uid, latest_batch)
+        end_token_snapshot = capture_token_usage_snapshot()
+        print(
+            build_message(
+                stage,
+                agent=label,
+                agent_uid=agent_uid,
+                model_id=model_id,
+                scope=args.scope,
+                token_usage=after_work_token_usage_field(
+                    start_token_snapshot, end_token_snapshot
+                ),
+            )
+        )
 
         for path in checklist_paths:
             unchecked_by_path[path] = scan_unchecked_items(path)
@@ -860,7 +960,18 @@ def main() -> int:
 
     stage = "before" if args.stage == "begin" else "after"
     label = display_id or args.agent_ref
-    print(build_message(stage, agent=label, agent_uid=agent_uid, model_id=model_id, scope=args.scope))
+    print(
+        build_message(
+            stage,
+            agent=label,
+            agent_uid=agent_uid,
+            model_id=model_id,
+            scope=args.scope,
+            token_usage=before_work_token_usage_field(
+                begin_token_snapshot if args.stage == "begin" else None
+            ),
+        )
+    )
     return 0
 
 

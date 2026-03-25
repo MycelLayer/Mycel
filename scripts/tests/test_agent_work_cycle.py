@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
+SOURCE_CODEX_TOKEN_USAGE = REPO_ROOT / "scripts" / "codex_token_usage_summary.py"
 SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
 SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
@@ -29,6 +30,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
+        shutil.copy2(SOURCE_CODEX_TOKEN_USAGE, self.root / "scripts" / "codex_token_usage_summary.py")
         shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
         shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
@@ -36,6 +38,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         (self.root / "scripts" / "agent_work_cycle.py").chmod(0o755)
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
         (self.root / "scripts" / "agent_timestamp.py").chmod(0o755)
+        (self.root / "scripts" / "codex_token_usage_summary.py").chmod(0o755)
         (self.root / "scripts" / "agent_checklist_gc.py").chmod(0o755)
         (self.root / "scripts" / "mailbox_gc.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
@@ -51,6 +54,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             cwd=self.root,
             text=True,
             capture_output=True,
+            env={**os.environ, "HOME": str(self.root)},
         )
         if check and proc.returncode != 0:
             self.fail(f"command failed {args}: {proc.stderr or proc.stdout}")
@@ -63,6 +67,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             text=True,
             capture_output=True,
             check=True,
+            env={**os.environ, "HOME": str(self.root)},
         )
         return json.loads(proc.stdout)
 
@@ -72,6 +77,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             cwd=self.root,
             text=True,
             capture_output=True,
+            env={**os.environ, "HOME": str(self.root)},
         )
         if check and proc.returncode != 0:
             self.fail(f"git command failed {args}: {proc.stderr or proc.stdout}")
@@ -195,6 +201,61 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         path = self.root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
+
+    def write_codex_rollout(
+        self,
+        thread_id: str,
+        *,
+        cwd: str | None = None,
+        totals: list[tuple[str, int, int]],
+    ) -> None:
+        rollout_dir = self.root / ".codex" / "sessions" / "2026" / "03" / "25"
+        rollout_dir.mkdir(parents=True, exist_ok=True)
+        rollout_path = rollout_dir / f"rollout-2026-03-25T06-14-58-{thread_id}.jsonl"
+        actual_cwd = cwd or str(self.root)
+        lines = [
+            json.dumps(
+                {
+                    "timestamp": "2026-03-25T06:14:58.000Z",
+                    "type": "turn_context",
+                    "payload": {
+                        "cwd": actual_cwd,
+                        "turn_id": "turn_1",
+                        "model": "gpt-5.4",
+                        "effort": "medium",
+                    },
+                }
+            )
+        ]
+        for timestamp, last_turn_total, cumulative_total in totals:
+            lines.append(
+                json.dumps(
+                    {
+                        "timestamp": timestamp,
+                        "type": "event_msg",
+                        "payload": {
+                            "type": "token_count",
+                            "info": {
+                                "last_token_usage": {
+                                    "input_tokens": last_turn_total,
+                                    "cached_input_tokens": 0,
+                                    "output_tokens": 0,
+                                    "reasoning_output_tokens": 0,
+                                    "total_tokens": last_turn_total,
+                                },
+                                "total_token_usage": {
+                                    "input_tokens": cumulative_total,
+                                    "cached_input_tokens": 0,
+                                    "output_tokens": 0,
+                                    "reasoning_output_tokens": 0,
+                                    "total_tokens": cumulative_total,
+                                },
+                            },
+                        },
+                    }
+                )
+            )
+        rollout_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def set_mtime_days_ago(self, relative_path: str, days: int) -> None:
         path = self.root / relative_path
@@ -360,6 +421,23 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertIn(f"Before work | delivery-1 ({agent_uid}/claude-sonnet-4-6) | ci-triage", proc.stdout)
 
+    def test_begin_appends_last_turn_token_usage_when_available(self) -> None:
+        self.write_agents_md()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+
+        proc = self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
+
+        self.assertIn(
+            f"Before work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | last turn: 60,135 tok",
+            proc.stdout,
+        )
+
     def test_end_returns_pending_when_bootstrap_or_workcycle_items_are_unchecked(self) -> None:
         self.write_agents_md()
         claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper")
@@ -372,6 +450,43 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertEqual(2, proc.returncode)
         self.assertIn("bootstrap_batch: true", proc.stdout)
         self.assertIn("unchecked_items: 12", proc.stdout)
+
+    def test_end_appends_estimated_cycle_token_usage_when_available(self) -> None:
+        self.write_agents_md()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.replace_in_file(
+            start["bootstrap_output"],
+            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
+            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
+        )
+
+        begin = self.run_cli("begin", agent_uid, "--scope", "timestamp-wrapper")
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 932020),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper")
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn(
+            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | this turn est.: 45,000 tok",
+            proc.stdout,
+        )
 
     def test_end_returns_pending_when_mailbox_has_multiple_open_handoffs(self) -> None:
         agent_uid = self.prepare_second_batch(role="doc")

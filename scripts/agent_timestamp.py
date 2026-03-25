@@ -28,6 +28,7 @@ def build_message(
     agent_uid: str | None = None,
     model_id: str | None = None,
     scope: str | None,
+    token_usage: str | None = None,
     now: datetime | None = None,
 ) -> str:
     label = "Before work" if stage == "before" else "After work"
@@ -37,6 +38,8 @@ def build_message(
         message += f" | {agent_label}"
     if scope:
         message += f" | {scope}"
+    if token_usage:
+        message += f" | {token_usage}"
     return message
 
 
@@ -49,6 +52,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--agent-uid", help="agent uid to pair with the display id in the message")
     parser.add_argument("--model-id", help="model identifier to append inside the agent uid parens")
     parser.add_argument("--scope", help="scope label to include in the message")
+    parser.add_argument("--token-usage", help="token usage summary to append as the final message field")
     parser.add_argument(
         "--now",
         help="override the current time with an ISO 8601 timestamp; intended for tests",
@@ -77,6 +81,7 @@ def main() -> int:
             agent_uid=args.agent_uid,
             model_id=args.model_id,
             scope=args.scope,
+            token_usage=args.token_usage,
             now=parse_now(args.now),
         )
     )

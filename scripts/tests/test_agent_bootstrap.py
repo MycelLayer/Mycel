@@ -11,6 +11,7 @@ SOURCE_BOOTSTRAP = REPO_ROOT / "scripts" / "agent_bootstrap.py"
 SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
+SOURCE_CODEX_TOKEN_USAGE = REPO_ROOT / "scripts" / "codex_token_usage_summary.py"
 SOURCE_CHECKLIST_GC = REPO_ROOT / "scripts" / "agent_checklist_gc.py"
 SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
@@ -27,6 +28,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
+        shutil.copy2(SOURCE_CODEX_TOKEN_USAGE, self.root / "scripts" / "codex_token_usage_summary.py")
         shutil.copy2(SOURCE_CHECKLIST_GC, self.root / "scripts" / "agent_checklist_gc.py")
         shutil.copy2(SOURCE_MAILBOX_GC, self.root / "scripts" / "mailbox_gc.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
@@ -36,6 +38,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "agent_work_cycle.py",
             "agent_registry.py",
             "agent_timestamp.py",
+            "codex_token_usage_summary.py",
             "agent_checklist_gc.py",
             "mailbox_gc.py",
             "item_id_checklist.py",
