@@ -27,7 +27,7 @@ from item_id_checklist import (
     split_workcycle_checklist_path,
 )
 from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_items
-from agent_guard import block_agent
+from agent_guard import check_agent
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -139,6 +139,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("stage", choices=["begin", "end"], help="begin or end the current work cycle")
     parser.add_argument("agent_ref", help="agent_uid or current display_id")
     parser.add_argument("--scope", help="scope label to append to the timestamp line")
+    parser.add_argument(
+        "--blocked-closeout",
+        action="store_true",
+        help="allow an explicit non-normal closeout when the agent is blocked by agent_guard",
+    )
     return parser.parse_args(argv)
 
 
@@ -473,6 +478,8 @@ def record_compaction_block(
     detection: dict[str, str],
     handoff_mailbox: str,
 ) -> None:
+    from agent_guard import block_agent
+
     block_agent(
         agent_ref,
         reason="compact_context_detected",
@@ -1015,6 +1022,25 @@ def emit_mailbox_summary(mailbox_path: Path, open_handoff_lines: dict[str, list[
             print(f"  - {line_no}")
 
 
+def emit_blocked_closeout_summary(guard_result: dict[str, object] | None) -> None:
+    blocked = bool(guard_result and guard_result.get("blocked") is True)
+    print(f"blocked_closeout: {str(blocked).lower()}")
+    if not blocked:
+        return
+    block = guard_result.get("block")
+    if not isinstance(block, dict):
+        print("blocked_closeout_reason: unknown")
+        return
+    reason = block.get("reason")
+    detected_at = block.get("detected_at")
+    handoff_path = block.get("handoff_path")
+    print(f"blocked_closeout_reason: {reason if isinstance(reason, str) and reason else 'unknown'}")
+    if isinstance(detected_at, str) and detected_at.strip():
+        print(f"blocked_closeout_detected_at: {detected_at}")
+    if isinstance(handoff_path, str) and handoff_path.strip():
+        print(f"blocked_closeout_handoff: {handoff_path}")
+
+
 def scan_shared_fallback_mailboxes() -> list[dict[str, int | str | bool]]:
     results: list[dict[str, int | str | bool]] = []
     for path in SHARED_FALLBACK_MAILBOX_PATHS:
@@ -1092,6 +1118,7 @@ def main() -> int:
     model_id = resolve_agent_model_id(agent_uid)
     current_model, current_effort = resolve_current_codex_metadata()
     label_model = current_model or model_id
+    guard_result = check_agent(agent_uid)
 
     checklist_paths: list[Path] = []
     unchecked_by_path: dict[Path, list[str]] = {}
@@ -1163,6 +1190,18 @@ def main() -> int:
             return COMPACTION_ABORT_EXIT_CODE
         print(f"closeout_command: python3 scripts/agent_work_cycle.py end {agent_uid}")
     else:
+        if guard_result.get("blocked") is True and not args.blocked_closeout:
+            raise WorkCycleError(
+                "agent execution is blocked; use "
+                f"`python3 scripts/agent_work_cycle.py end {agent_uid} --blocked-closeout` "
+                "to close out this thread explicitly without treating it as a normal completion."
+            )
+        if args.blocked_closeout and guard_result.get("blocked") is not True:
+            raise WorkCycleError(
+                "blocked closeout requested, but the agent is not currently blocked by agent_guard; "
+                f"use `python3 scripts/agent_work_cycle.py end {agent_uid}` instead."
+            )
+
         latest_batch = latest_agents_workcycle_batch_num(agent_uid)
         if latest_batch is None:
             raise WorkCycleError(f"no workcycle checklist found for {agent_uid}")
@@ -1232,6 +1271,7 @@ def main() -> int:
         emit_push_status_summary(push_status)
         emit_scope_consistency_summary(registry_scope=registry_scope, handoff_scope=handoff_scope)
         emit_mailbox_summary(mailbox_path, open_handoff_lines)
+        emit_blocked_closeout_summary(guard_result if args.blocked_closeout else None)
         shared_fallback_records = scan_shared_fallback_mailboxes()
         emit_shared_fallback_summary(shared_fallback_records)
         mailbox_gc_result: dict[str, object] | None = None
@@ -1262,6 +1302,8 @@ def main() -> int:
         shared_fallback_pending = any(record["over_limit"] for record in shared_fallback_records)
         not_needed_pending = len(not_needed_violations) > 0
         push_pending = push_status.get("required") is True and push_status.get("ok") is not True
+        if args.blocked_closeout:
+            return 2 if mailbox_pending or shared_fallback_pending else 0
         return (
             2
             if any(unchecked_by_path.values())

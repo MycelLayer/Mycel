@@ -626,6 +626,92 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("bootstrap_batch: true", proc.stdout)
         self.assertIn("unchecked_items: 12", proc.stdout)
 
+    def test_end_refuses_normal_closeout_when_agent_is_blocked(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "blocked-closeout", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+        self.run_cli("begin", agent_uid, "--scope", "blocked-closeout")
+        runtime_dir = self.root / ".agent-local" / "runtime"
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        (runtime_dir / "agent-blocks.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "blocks": {
+                        agent_uid: {
+                            "blocked": True,
+                            "reason": "compact_context_detected",
+                            "detected_at": "2026-03-25T15:28:43.925Z",
+                            "source": "agent_work_cycle.begin",
+                            "handoff_path": f".agent-local/mailboxes/{agent_uid}.md",
+                            "clear_requires": "new_chat_bootstrap",
+                        }
+                    },
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "blocked-closeout", check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("--blocked-closeout", proc.stderr)
+
+    def test_blocked_closeout_succeeds_without_normal_checklist_completion(self) -> None:
+        self.write_agents_md()
+        claim = self.run_registry("claim", "doc", "--scope", "blocked-closeout", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        self.run_registry("start", agent_uid)
+        self.run_cli("begin", agent_uid, "--scope", "blocked-closeout")
+        runtime_dir = self.root / ".agent-local" / "runtime"
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        (runtime_dir / "agent-blocks.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "blocks": {
+                        agent_uid: {
+                            "blocked": True,
+                            "reason": "compact_context_detected",
+                            "detected_at": "2026-03-25T15:28:43.925Z",
+                            "source": "agent_work_cycle.begin",
+                            "handoff_path": f".agent-local/mailboxes/{agent_uid}.md",
+                            "clear_requires": "new_chat_bootstrap",
+                        }
+                    },
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.write_mailbox(
+            agent_uid,
+            (
+                f"# Mailbox for {agent_uid}\n\n"
+                "## Doc Continuation Note\n\n"
+                "- Status: open\n"
+                "- Date: 2026-03-25 15:30 UTC+8\n"
+                "- Source agent: doc-1\n"
+                "- Source role: doc\n"
+                "- Scope: blocked-closeout\n"
+                "- Current state:\n"
+                "  - Compact context detected.\n"
+                "- Next suggested step:\n"
+                "  - Open a fresh chat.\n"
+            ),
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "blocked-closeout", "--blocked-closeout")
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("blocked_closeout: true", proc.stdout)
+        self.assertIn("blocked_closeout_reason: compact_context_detected", proc.stdout)
+        self.assertIn("unchecked_items: 12", proc.stdout)
+
     def test_end_appends_estimated_cycle_token_usage_when_available(self) -> None:
         self.write_agents_md()
         self.write_fake_codex_thread_metadata()
