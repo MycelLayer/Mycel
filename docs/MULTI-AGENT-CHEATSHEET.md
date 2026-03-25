@@ -101,6 +101,7 @@ Registry and lifecycle tools:
 
 - `scripts/agent_bootstrap.py` for the repo-standard bootstrap flow
 - `scripts/agent_registry.py` for claiming, confirming, pausing, recovering, taking over, cleaning up, and inspecting agent state
+- `scripts/agent_registry_reconcile.py` for scanning stale-active entries with workcycle snapshots, rollout mtimes, and Codex sqlite thread timestamps
 - `scripts/agent_work_cycle.py` for starting and ending a tracked user-command work cycle
 - `scripts/agent_timestamp.py` for canonical timestamp lines when no registry transition is needed
 
@@ -127,10 +128,11 @@ Defer until task work starts:
 Startup order:
 
 1. use the bootstrap wrapper or registry tool to confirm or claim the agent identity
-2. defer roadmap, mailbox, and broad markdown reads until task work starts unless the canonical bootstrap flow says otherwise
-3. use the work-cycle tool before working the current command
-4. if the new implementation scope overlaps prior coding work, run `npm run handoffs:inactive-coding` before continuing
-5. first chat line: `<display-id> | <scope-label>`
+2. if a supposedly active peer may actually be stale after host or Codespaces disconnects, run `python3 scripts/agent_registry_reconcile.py scan --stale-after-minutes 15`
+3. defer roadmap, mailbox, and broad markdown reads until task work starts unless the canonical bootstrap flow says otherwise
+4. use the work-cycle tool before working the current command
+5. if the new implementation scope overlaps prior coding work, run `npm run handoffs:inactive-coding` before continuing
+6. first chat line: `<display-id> | <scope-label>`
 
 Do not run `claim`, `start`, and `status` in parallel.
 
@@ -145,6 +147,8 @@ Registry-specific reminders:
 2. once an inactive entry stays inactive for 3 days, `cleanup` removes it from `.agent-local/agents.json` and deletes the local mailbox plus agent directory
 3. paused entries older than one hour become stale-paused and release their `display_id`
 4. paused entries older than 3 days are cleanup candidates and should be removed from `.agent-local/agents.json` together with their local mailbox plus agent directory
+5. a same-role handoff owned by a still-`active` peer is awareness-only during fresh bootstrap; report it as skipped instead of treating it as continuation context
+6. if host evidence shows an `active` peer is actually stale, reconcile that registry entry before using its handoff to drive bootstrap decisions
 
 ## Bootstrap Transcript
 

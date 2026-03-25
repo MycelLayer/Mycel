@@ -17,6 +17,7 @@ Recommended startup and lifecycle tools:
 
 - `scripts/agent_bootstrap.py` for the repo-standard bootstrap flow
 - `scripts/agent_registry.py` for role claim, startup confirmation, lifecycle state, recovery, takeover, cleanup, and checklist management
+- `scripts/agent_registry_reconcile.py` for stale-active liveness inspection and optional registry downgrade based on persisted workcycle evidence plus Codex session metadata
 - `scripts/agent_work_cycle.py` for tracked per-command activity transitions via `begin` / `end`
 - `scripts/agent_timestamp.py` for canonical timestamp lines when no registry transition is needed
 
@@ -191,6 +192,14 @@ Field rules:
 - `inactive_at` should be non-null only when `status == "inactive"`
 - `paused_at` should be non-null only when `status == "paused"`
 
+Status interpretation:
+
+- `active` means the registry currently believes the chat is in an open command cycle
+- `inactive` means the registry believes the last command cycle ended cleanly
+- `paused` means the work is intentionally parked and should not be resumed implicitly
+- handoff content is never the canonical source for `active` / `inactive`; it is only coordination detail
+- Codex sqlite or rollout data is not the canonical state by itself; it is liveness evidence that may justify reconciling a stale registry entry
+
 `scripts/agent_registry.py` writes timestamps in `Asia/Taipei (UTC+8)` using the `+0800` offset form.
 
 ## Identity Model
@@ -312,8 +321,10 @@ Registry-specific startup additions:
 2. prefer `scripts/agent_bootstrap.py <role> --model-id <model_id>` or `scripts/agent_bootstrap.py auto --model-id <model_id>` for the claim/begin wrapper
 3. immediately tell the user which role was claimed for this chat
 4. begin the chat with `<display-id> | <scope-label>`
-5. only when the scope overlaps existing coding work, recovery, or takeover, inspect the relevant mailbox before continuing
-6. if a personalized task list would help, use the registry tool to materialize one after the bootstrap flow is complete
+5. if the repo or host may have lost agent connectivity abruptly, reconcile stale-active peers before treating registry `active` entries as live blockers
+6. when bootstrap notices an open same-role handoff owned by a still-`active` same-role agent, report that it was detected and skipped instead of treating it as a continuation target
+7. only when the scope overlaps existing coding work, recovery, or takeover, inspect the relevant inactive mailbox before continuing
+8. if a personalized task list would help, use the registry tool to materialize one after the bootstrap flow is complete
 
 Keep startup output narrow:
 
@@ -321,6 +332,7 @@ Keep startup output narrow:
 - do not run `claim`, `start`, and `status` in parallel
 - when the role is `coding` or `delivery`, keep the CI line about the latest completed workflow, not a possibly in-progress run
 - when the role is `coding`, treat `check handoffs` as task-start context for overlapping or resumed work, not a default bootstrap-time read
+- when bootstrap scans same-role handoffs for awareness, skip open handoffs whose owning same-role agent is still `active` after reconciliation and tell the user they were skipped
 - after `claim`, include a short user-facing role announcement before moving on to task work
 
 ## Workflow
@@ -365,6 +377,38 @@ Rules:
 7. once an entry stays `paused` for at least 1 hour, it becomes stale-paused and releases its `display_id`
 8. once an entry has remained `paused` for 3 days, `scripts/agent_registry.py` removes it from `.agent-local/agents.json` and deletes that agent's local mailbox and agent directory
 9. `cleanup` reports both retained stale agents and removed agents
+
+## Liveness Reconciliation
+
+Registry status remains the canonical lifecycle state, but long-running chats may disappear without a clean `finish` when Codespaces disconnects or the host drops the session. In that case, a registry entry may remain `active` even though the chat is effectively gone.
+
+Use `scripts/agent_registry_reconcile.py` to compare registry `active` entries against persisted liveness evidence and optionally downgrade stale-active entries to `inactive` or `paused`.
+
+Evidence priority:
+
+1. the latest persisted workcycle token snapshot under `.agent-local/agents/<agent_uid>/workcycles/token-usage*.json`
+2. the rollout file referenced by that snapshot, including its last modified time
+3. the Codex `threads.updated_at` value from `state_*.sqlite` for the snapshot's `thread_id`
+4. the registry's own `last_touched_at` as a fallback only
+
+Interpretation rules:
+
+- if the newest available evidence is within the configured freshness window, the `active` entry stays `active`
+- if the newest available evidence is older than the configured freshness window, the entry is `stale-active`
+- `stale-active` is a diagnosis, not a permanent status value; reconciliation should downgrade it to `inactive` or `paused`
+- auto-reconciliation must never mark an entry `done`
+- a skipped active same-role handoff should be reported to the user as an old handoff still owned by a live registry entry, not silently treated as continuation context
+
+Recommended command pattern:
+
+- inspect only: `python3 scripts/agent_registry_reconcile.py scan --stale-after-minutes 15`
+- apply downgrade: `python3 scripts/agent_registry_reconcile.py reconcile --stale-after-minutes 15 --downgrade-to inactive`
+
+Recommended usage:
+
+- before bootstrap or takeover when the team suspects abrupt disconnects left stale `active` entries behind
+- before treating a same-role `active` handoff as blocking evidence that another agent is still alive
+- during recovery triage when registry `active` and observed host reality disagree
 
 ## Recovery Model
 
