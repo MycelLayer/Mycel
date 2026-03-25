@@ -1457,6 +1457,80 @@ fn view_document_profile_filter_and_missing_cases_report_cleanly() {
 }
 
 #[test]
+fn view_document_reports_synthesized_note_when_persisted_document_summary_is_missing() {
+    let store_dir = create_temp_dir("view-document-fallback-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer = signing_key(84);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let view_a1 = signed_view(
+        &maintainer,
+        &policy,
+        json!({
+            "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        10,
+    );
+    let view_a2 = signed_view(
+        &maintainer,
+        &policy,
+        json!({
+            "doc:alpha": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }),
+        20,
+    );
+
+    let (_dir_a1, path_a1) = write_json_file("view-document-fallback-a1", "view-a1.json", &view_a1);
+    let (_dir_a2, path_a2) = write_json_file("view-document-fallback-a2", "view-a2.json", &view_a2);
+
+    let publish_a1 = publish_view(&path_a1, &store_root);
+    let publish_a2 = publish_view(&path_a2, &store_root);
+
+    rewrite_store_manifest(&store_root, |manifest| {
+        manifest["current_document_governance"] = json!({});
+    });
+
+    let output = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:beta",
+        "--json",
+    ]);
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["profiles"].as_array().map(Vec::len), Some(1));
+    assert_eq!(json["profiles"][0]["profile_id"], publish_a2["profile_id"]);
+    assert_eq!(
+        json["profiles"][0]["current_view_id"],
+        publish_a1["view_id"]
+    );
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current document governance was synthesized from persisted latest profile/document indexes because the persisted document-governance summary was unavailable"
+        })),
+        "expected synthesized document-governance note in document summary: {json}",
+    );
+    assert!(
+        json["notes"].as_array().is_some_and(|notes| notes.iter().all(|note| {
+            note != "current document governance is read from persisted document-governance summaries instead of scanning every profile at query time"
+        })),
+        "did not expect persisted document-governance note in fallback summary: {json}",
+    );
+}
+
+#[test]
 fn view_inspect_json_reports_related_governance_indexes() {
     let store_dir = create_temp_dir("view-inspect-related-store");
     let store_root = path_arg(store_dir.path());

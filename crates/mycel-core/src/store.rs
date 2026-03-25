@@ -86,9 +86,17 @@ pub struct GovernanceDocumentProfileSummary {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernanceDocumentSummarySource {
+    Persisted,
+    Synthesized,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GovernanceDocumentSummary {
     pub doc_id: String,
+    pub source: GovernanceDocumentSummarySource,
     pub profiles: Vec<GovernanceDocumentProfileSummary>,
 }
 
@@ -1551,11 +1559,15 @@ pub fn inspect_document_governance(
     doc_id: &str,
     profile_id: Option<&str>,
 ) -> Result<GovernanceDocumentSummary, StoreRebuildError> {
-    let current_document = manifest
+    let (source, current_document) = manifest
         .current_document_governance
         .get(doc_id)
         .cloned()
-        .or_else(|| synthesize_current_document_governance(manifest, doc_id))
+        .map(|record| (GovernanceDocumentSummarySource::Persisted, record))
+        .or_else(|| {
+            synthesize_current_document_governance(manifest, doc_id)
+                .map(|record| (GovernanceDocumentSummarySource::Synthesized, record))
+        })
         .ok_or_else(|| {
             StoreRebuildError::new(format!(
                 "document '{}' was not found in persisted current document governance state",
@@ -1590,6 +1602,7 @@ pub fn inspect_document_governance(
 
     Ok(GovernanceDocumentSummary {
         doc_id: doc_id.to_string(),
+        source,
         profiles,
     })
 }
@@ -1755,7 +1768,7 @@ mod tests {
         inspect_document_governance, inspect_governance_view, load_local_store_policy,
         load_store_index_manifest, load_store_object_index, load_stored_object_value,
         local_store_policy_path, persist_local_store_policy, rebuild_store_from_path,
-        LocalStorePolicy, StoreIndexManifest,
+        GovernanceDocumentSummarySource, LocalStorePolicy, StoreIndexManifest,
     };
     use crate::canonical::{prefixed_canonical_hash, signed_payload_bytes};
     use crate::protocol::recompute_object_id;
@@ -1980,6 +1993,7 @@ mod tests {
             Some(&profile_id),
         )
         .expect("document governance should inspect");
+        assert_eq!(document.source, GovernanceDocumentSummarySource::Persisted);
         assert_eq!(document.profiles.len(), 1);
         assert_eq!(document.profiles[0].current_revision_id, revision_id);
 

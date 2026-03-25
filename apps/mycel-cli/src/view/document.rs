@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use mycel_core::store::{inspect_document_governance, load_store_index_manifest};
+use mycel_core::store::{
+    inspect_document_governance, load_store_index_manifest, GovernanceDocumentSummarySource,
+};
 use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
@@ -125,6 +127,16 @@ pub(super) fn handle(args: ViewDocumentCliArgs) -> Result<i32, CliError> {
 
     match inspect_document_governance(&manifest, &doc_id, profile_id.as_deref()) {
         Ok(document) => {
+            match document.source {
+                GovernanceDocumentSummarySource::Persisted => summary.notes.push(
+                    "current document governance is read from persisted document-governance summaries instead of scanning every profile at query time"
+                        .to_string(),
+                ),
+                GovernanceDocumentSummarySource::Synthesized => summary.notes.push(
+                    "current document governance was synthesized from persisted latest profile/document indexes because the persisted document-governance summary was unavailable"
+                        .to_string(),
+                ),
+            }
             summary.profiles = document
                 .profiles
                 .into_iter()
@@ -142,10 +154,6 @@ pub(super) fn handle(args: ViewDocumentCliArgs) -> Result<i32, CliError> {
         }
     }
 
-    summary.notes.push(
-        "current document governance is read from persisted document-governance summaries instead of scanning every profile at query time"
-            .to_string(),
-    );
     summary.notes.push(
         "document-centric governance inspection complements profile-centric view current output"
             .to_string(),
