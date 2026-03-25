@@ -1579,7 +1579,9 @@ pub fn inspect_document_governance(
         .profiles
         .into_iter()
         .filter(|(candidate_profile_id, _)| {
-            profile_id.is_none_or(|selected| selected == candidate_profile_id)
+            profile_id
+                .map(|selected| selected == candidate_profile_id)
+                .unwrap_or(true)
         })
         .map(|(profile_id, current)| GovernanceDocumentProfileSummary {
             profile_id,
