@@ -2,12 +2,17 @@ use super::*;
 
 #[test]
 fn store_merge_authoring_flow_reports_selected_content_addition_with_competing_additions() {
-    let store_dir = create_temp_dir("store-merge-content-selected-addition-competing-root");
-    let (_key_dir, key_path) =
-        write_signing_key_file("store-merge-content-selected-addition-competing-key");
+    let doc_id = "doc:author-smoke-content-selected-addition-competing";
+    let flow = VariantScenarioFlow::new(
+        "store-merge-content-selected-addition-competing-root",
+        "store-merge-content-selected-addition-competing-key",
+        doc_id,
+        "Author Smoke Content Selected Addition Competing",
+        "44",
+    );
     let (_resolved_dir, resolved_state_path) = write_content_entries_resolved_state_for_doc_file(
         "store-merge-content-selected-addition-competing-state",
-        "doc:author-smoke-content-selected-addition-competing",
+        doc_id,
         &[("blk:author-smoke-added-choice", "right")],
     );
     let (_right_ops_dir, right_ops_path) = write_content_addition_ops_for_block_file(
@@ -20,155 +25,31 @@ fn store_merge_authoring_flow_reports_selected_content_addition_with_competing_a
         "blk:author-smoke-added-choice",
         "center",
     );
-    let store_root = path_arg(store_dir.path());
-    let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let right_ops_file = path_arg(&right_ops_path);
     let center_ops_file = path_arg(&center_ops_path);
 
-    let init = run_mycel(&["store", "init", &store_root, "--json"]);
-    assert_success(&init);
-
-    let document = run_mycel(&[
-        "store",
-        "create-document",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--title",
-        "Author Smoke Content Selected Addition Competing",
-        "--language",
-        "en",
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "44",
-        "--json",
-    ]);
-    assert_success(&document);
-    let document_json = assert_json_status(&document, "ok");
-    let genesis_revision_id = document_json["genesis_revision_id"]
-        .as_str()
-        .expect("genesis revision should be string")
-        .to_string();
-
-    let right_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &right_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "45",
-        "--json",
-    ]);
-    assert_success(&right_patch);
-    let right_patch_id = assert_json_status(&right_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("right patch_id should be string")
-        .to_string();
-
-    let right_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &right_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "46",
-        "--json",
-    ]);
-    assert_success(&right_revision);
-    let right_revision_id = assert_json_status(&right_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("right revision_id should be string")
-        .to_string();
-
-    let center_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &center_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "47",
-        "--json",
-    ]);
-    assert_success(&center_patch);
-    let center_patch_id = assert_json_status(&center_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("center patch_id should be string")
-        .to_string();
-
-    let center_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &center_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "48",
-        "--json",
-    ]);
-    assert_success(&center_revision);
-    let center_revision_id = assert_json_status(&center_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("center revision_id should be string")
-        .to_string();
-
-    let merge = run_mycel(&[
-        "store",
-        "create-merge-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-selected-addition-competing",
-        "--parent",
-        &genesis_revision_id,
-        "--parent",
-        &right_revision_id,
-        "--parent",
-        &center_revision_id,
-        "--resolved-state",
+    let right_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &right_ops_file, "45", "46");
+    let center_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &center_ops_file, "47", "48");
+    let merge_json = flow.create_merge_revision(
+        &[
+            flow.genesis_revision_id(),
+            &right_revision_id,
+            &center_revision_id,
+        ],
         &resolved_state_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
         "49",
-        "--json",
-    ]);
-    assert_success(&merge);
-    let merge_json = assert_json_status(&merge, "ok");
+    );
+
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
     assert!(
         merge_json["merge_reasons"]
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
-                    reason.as_str().is_some_and(|reason| {
-                        reason.contains(
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains(
                         "block 'blk:author-smoke-added-choice' adopted a non-primary parent addition",
                     )
                 })
@@ -179,8 +60,8 @@ fn store_merge_authoring_flow_reports_selected_content_addition_with_competing_a
         merge_json["merge_reasons"]
             .as_array()
             .is_some_and(|reasons| reasons.iter().any(|reason| {
-                    reason.as_str().is_some_and(|reason| {
-                        reason.contains(
+                reason.as_str().is_some_and(|reason| {
+                    reason.contains(
                         "block 'blk:author-smoke-added-choice' selected one non-primary addition while other competing non-primary additions remained",
                     )
                 })
@@ -218,12 +99,17 @@ fn store_merge_authoring_flow_reports_selected_content_addition_with_competing_a
 
 #[test]
 fn store_merge_authoring_flow_preserves_duplicate_non_primary_content_additions() {
-    let store_dir = create_temp_dir("store-merge-content-duplicate-additions-root");
-    let (_key_dir, key_path) =
-        write_signing_key_file("store-merge-content-duplicate-additions-key");
+    let doc_id = "doc:author-smoke-content-duplicate-additions";
+    let flow = VariantScenarioFlow::new(
+        "store-merge-content-duplicate-additions-root",
+        "store-merge-content-duplicate-additions-key",
+        doc_id,
+        "Author Smoke Content Duplicate Additions",
+        "50",
+    );
     let (_resolved_dir, resolved_state_path) = write_content_entries_resolved_state_for_doc_file(
         "store-merge-content-duplicate-additions-state",
-        "doc:author-smoke-content-duplicate-additions",
+        doc_id,
         &[("blk:author-smoke-added-duplicate", "right")],
     );
     let (_right_ops_dir, right_ops_path) = write_content_addition_ops_for_block_file(
@@ -236,147 +122,24 @@ fn store_merge_authoring_flow_preserves_duplicate_non_primary_content_additions(
         "blk:author-smoke-added-duplicate",
         "right",
     );
-    let store_root = path_arg(store_dir.path());
-    let key_file = path_arg(&key_path);
     let resolved_state_file = path_arg(&resolved_state_path);
     let right_ops_file = path_arg(&right_ops_path);
     let center_ops_file = path_arg(&center_ops_path);
 
-    let init = run_mycel(&["store", "init", &store_root, "--json"]);
-    assert_success(&init);
-
-    let document = run_mycel(&[
-        "store",
-        "create-document",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--title",
-        "Author Smoke Content Duplicate Additions",
-        "--language",
-        "en",
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "50",
-        "--json",
-    ]);
-    assert_success(&document);
-    let genesis_revision_id = assert_json_status(&document, "ok")["genesis_revision_id"]
-        .as_str()
-        .expect("genesis revision should be string")
-        .to_string();
-
-    let right_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &right_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "51",
-        "--json",
-    ]);
-    assert_success(&right_patch);
-    let right_patch_id = assert_json_status(&right_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("right patch_id should be string")
-        .to_string();
-
-    let right_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &right_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "52",
-        "--json",
-    ]);
-    assert_success(&right_revision);
-    let right_revision_id = assert_json_status(&right_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("right revision_id should be string")
-        .to_string();
-
-    let center_patch = run_mycel(&[
-        "store",
-        "create-patch",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--base-revision",
-        &genesis_revision_id,
-        "--ops",
-        &center_ops_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "53",
-        "--json",
-    ]);
-    assert_success(&center_patch);
-    let center_patch_id = assert_json_status(&center_patch, "ok")["patch_id"]
-        .as_str()
-        .expect("center patch_id should be string")
-        .to_string();
-
-    let center_revision = run_mycel(&[
-        "store",
-        "commit-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--parent",
-        &genesis_revision_id,
-        "--patch",
-        &center_patch_id,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
-        "54",
-        "--json",
-    ]);
-    assert_success(&center_revision);
-    let center_revision_id = assert_json_status(&center_revision, "ok")["revision_id"]
-        .as_str()
-        .expect("center revision_id should be string")
-        .to_string();
-
-    let merge = run_mycel(&[
-        "store",
-        "create-merge-revision",
-        &store_root,
-        "--doc-id",
-        "doc:author-smoke-content-duplicate-additions",
-        "--parent",
-        &genesis_revision_id,
-        "--parent",
-        &right_revision_id,
-        "--parent",
-        &center_revision_id,
-        "--resolved-state",
+    let right_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &right_ops_file, "51", "52");
+    let center_revision_id =
+        flow.commit_ops_revision(flow.genesis_revision_id(), &center_ops_file, "53", "54");
+    let merge_json = flow.create_merge_revision(
+        &[
+            flow.genesis_revision_id(),
+            &right_revision_id,
+            &center_revision_id,
+        ],
         &resolved_state_file,
-        "--signing-key",
-        &key_file,
-        "--timestamp",
         "55",
-        "--json",
-    ]);
-    assert_success(&merge);
-    let merge_json = assert_json_status(&merge, "ok");
+    );
+
     assert_eq!(merge_json["merge_outcome"], "multi-variant");
     assert!(
         merge_json["merge_reason_details"].as_array().is_some_and(|details| details.iter().any(|detail| {
