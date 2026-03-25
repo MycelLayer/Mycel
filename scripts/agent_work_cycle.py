@@ -357,6 +357,12 @@ def format_token_count(value: int) -> str:
     return f"{value:,} tok"
 
 
+def format_compact_token_count(value: int) -> str:
+    if value < 1000:
+        return format_token_count(value)
+    return f"{value / 1000:,.1f}K tok"
+
+
 def before_work_token_usage_field(snapshot: dict[str, object] | None) -> str | None:
     if snapshot is None:
         return None
@@ -393,7 +399,7 @@ def after_work_token_usage_field(
     estimated = estimate_cycle_token_spend(start_snapshot, end_snapshot)
     if estimated is None:
         return None
-    return f"cycle est. on thread: {format_token_count(estimated)}"
+    return f"cycle est. on thread: {format_compact_token_count(estimated)}"
 
 
 def load_git_state_snapshot(agent_uid: str, batch_num: int) -> dict[str, object] | None:

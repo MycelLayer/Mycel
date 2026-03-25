@@ -537,7 +537,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45,000 tok",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45.0K tok",
             proc.stdout,
         )
 
@@ -585,7 +585,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.assertEqual(0, first_end.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45,000 tok",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45.0K tok",
             first_end.stdout,
         )
 
@@ -607,10 +607,59 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.assertEqual(0, second_end.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45,000 tok",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 45.0K tok",
             second_end.stdout,
         )
         self.assertNotIn("98,000 tok", second_end.stdout)
+
+    def test_after_work_uses_compact_k_format_for_large_cycle_estimates(self) -> None:
+        self.write_agents_md()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.replace_in_file(
+            start["bootstrap_output"],
+            "- [ ] Bootstrap one <!-- item-id: bootstrap.one -->",
+            "- [X] Bootstrap one <!-- item-id: bootstrap.one -->",
+        )
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 2084574),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn(
+            f"After work | doc-1 ({agent_uid}/gpt-5.4) | timestamp-wrapper | cycle est. on thread: 1,197.6K tok",
+            proc.stdout,
+        )
 
     def test_end_returns_pending_when_mailbox_has_multiple_open_handoffs(self) -> None:
         agent_uid = self.prepare_second_batch(role="doc")
