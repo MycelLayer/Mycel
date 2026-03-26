@@ -1380,6 +1380,52 @@ fn view_maintainer_json_reports_current_governance_state() {
         })),
         "expected persisted maintainer-governance note in maintainer summary: {json}",
     );
+
+    let store_index = run_mycel(&[
+        "store",
+        "index",
+        &store_root,
+        "--governance-only",
+        "--maintainer",
+        view_a1["maintainer"]
+            .as_str()
+            .expect("maintainer should exist"),
+        "--json",
+    ]);
+    assert_success(&store_index);
+    let store_index_json = parse_json_stdout(&store_index);
+
+    let view_current = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        publish_a2["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--doc-id",
+        "doc:beta",
+        "--json",
+    ]);
+    assert_success(&view_current);
+    let view_current_json = parse_json_stdout(&view_current);
+
+    assert_eq!(
+        store_index_json["current_maintainer_governance"][view_a1["maintainer"]
+            .as_str()
+            .expect("maintainer should exist")]["current_documents"]["doc:beta"]["profiles"]
+            [publish_a2["profile_id"]
+                .as_str()
+                .expect("profile id should exist")]["view_id"],
+        json["current_documents"][0]["profiles"][0]["current_view_id"]
+    );
+    assert_eq!(
+        store_index_json["current_governance"][publish_a2["profile_id"]
+            .as_str()
+            .expect("profile id should exist")]["current_documents"]["doc:beta"]["view_id"],
+        view_current_json["current_view_id"]
+    );
 }
 
 #[test]

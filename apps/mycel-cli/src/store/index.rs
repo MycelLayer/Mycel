@@ -561,6 +561,65 @@ fn summarize_current_governance(
         .collect()
 }
 
+fn summarize_current_governance_document(
+    current_document: &mycel_core::store::CurrentGovernanceDocumentRecord,
+) -> StoreIndexCurrentGovernanceDocumentSummary {
+    StoreIndexCurrentGovernanceDocumentSummary {
+        view_id: current_document.view_id.clone(),
+        revision_id: current_document.revision_id.clone(),
+        maintainer: current_document.maintainer.clone(),
+        timestamp: current_document.timestamp,
+    }
+}
+
+fn summarize_current_maintainer_profile(
+    allowed_docs: &std::collections::BTreeSet<String>,
+    profile: &CurrentGovernanceProfileRecord,
+) -> StoreIndexCurrentMaintainerProfileSummary {
+    StoreIndexCurrentMaintainerProfileSummary {
+        current_view_id: profile.current_view_id.clone(),
+        timestamp: profile.timestamp,
+        documents: profile
+            .documents
+            .iter()
+            .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
+            .map(|(doc_id, revision_id)| (doc_id.clone(), revision_id.clone()))
+            .collect(),
+        current_documents: profile
+            .current_documents
+            .iter()
+            .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
+            .map(|(doc_id, current_document)| {
+                (
+                    doc_id.clone(),
+                    summarize_current_governance_document(current_document),
+                )
+            })
+            .collect(),
+    }
+}
+
+fn summarize_current_maintainer_document(
+    allowed_profiles: &std::collections::BTreeSet<String>,
+    profiles: &std::collections::BTreeMap<
+        String,
+        mycel_core::store::CurrentGovernanceDocumentRecord,
+    >,
+) -> StoreIndexCurrentMaintainerDocumentSummary {
+    StoreIndexCurrentMaintainerDocumentSummary {
+        profiles: profiles
+            .iter()
+            .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
+            .map(|(profile_id, current_document)| {
+                (
+                    profile_id.clone(),
+                    summarize_current_governance_document(current_document),
+                )
+            })
+            .collect(),
+    }
+}
+
 fn summarize_current_maintainer_governance(
     current_maintainer_governance: &std::collections::BTreeMap<
         String,
@@ -592,32 +651,7 @@ fn summarize_current_maintainer_governance(
                 .map(|(profile_id, profile)| {
                     (
                         profile_id.clone(),
-                        StoreIndexCurrentMaintainerProfileSummary {
-                            current_view_id: profile.current_view_id.clone(),
-                            timestamp: profile.timestamp,
-                            documents: profile
-                                .documents
-                                .iter()
-                                .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
-                                .map(|(doc_id, revision_id)| (doc_id.clone(), revision_id.clone()))
-                                .collect(),
-                            current_documents: profile
-                                .current_documents
-                                .iter()
-                                .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
-                                .map(|(doc_id, current_document)| {
-                                    (
-                                        doc_id.clone(),
-                                        StoreIndexCurrentGovernanceDocumentSummary {
-                                            view_id: current_document.view_id.clone(),
-                                            revision_id: current_document.revision_id.clone(),
-                                            maintainer: current_document.maintainer.clone(),
-                                            timestamp: current_document.timestamp,
-                                        },
-                                    )
-                                })
-                                .collect(),
-                        },
+                        summarize_current_maintainer_profile(&allowed_docs, profile),
                     )
                 })
                 .collect();
@@ -629,23 +663,7 @@ fn summarize_current_maintainer_governance(
                 .map(|(doc_id, profiles)| {
                     (
                         doc_id.clone(),
-                        StoreIndexCurrentMaintainerDocumentSummary {
-                            profiles: profiles
-                                .iter()
-                                .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
-                                .map(|(profile_id, current_document)| {
-                                    (
-                                        profile_id.clone(),
-                                        StoreIndexCurrentGovernanceDocumentSummary {
-                                            view_id: current_document.view_id.clone(),
-                                            revision_id: current_document.revision_id.clone(),
-                                            maintainer: current_document.maintainer.clone(),
-                                            timestamp: current_document.timestamp,
-                                        },
-                                    )
-                                })
-                                .collect(),
-                        },
+                        summarize_current_maintainer_document(&allowed_profiles, profiles),
                     )
                 })
                 .filter(|(_, summary)| !summary.profiles.is_empty())
@@ -878,10 +896,159 @@ fn build_store_index_query_summary(
     summary
 }
 
+fn print_store_index_header(
+    store_root: &std::path::Path,
+    manifest_path: &std::path::Path,
+    status: &str,
+) {
+    println!("store root: {}", store_root.display());
+    println!("manifest path: {}", manifest_path.display());
+    println!("status: {status}");
+}
+
+fn print_store_index_filters(filters: &StoreIndexQueryFilters, projection: &Option<String>) {
+    if let Some(doc_id) = &filters.doc_id {
+        println!("filter doc_id: {doc_id}");
+    }
+    if let Some(author) = &filters.author {
+        println!("filter author: {author}");
+    }
+    if let Some(maintainer) = &filters.maintainer {
+        println!("filter maintainer: {maintainer}");
+    }
+    if let Some(revision_id) = &filters.revision_id {
+        println!("filter revision_id: {revision_id}");
+    }
+    if let Some(view_id) = &filters.view_id {
+        println!("filter view_id: {view_id}");
+    }
+    if let Some(profile_id) = &filters.profile_id {
+        println!("filter profile_id: {profile_id}");
+    }
+    if let Some(object_type) = &filters.object_type {
+        println!("filter object_type: {object_type}");
+    }
+    if let Some(projection) = projection {
+        println!("projection: {projection}");
+    }
+}
+
+fn print_store_index_result(status: &str) -> i32 {
+    println!("store index: {status}");
+    if status == "ok" {
+        0
+    } else {
+        1
+    }
+}
+
+fn print_store_index_view_governance_record(record: &StoreIndexGovernanceRecordSummary) {
+    println!("view governance record: {}", record.view_id);
+    println!("  maintainer: {}", record.maintainer);
+    println!("  profile id: {}", record.profile_id);
+    println!("  timestamp: {}", record.timestamp);
+    if let Some(current_profile_view_id) = &record.current_profile_view_id {
+        println!("  current profile view id: {current_profile_view_id}");
+    }
+    println!(
+        "  maintainer related views: {}",
+        record.maintainer_view_ids.join(", ")
+    );
+    println!(
+        "  profile related views: {}",
+        record.profile_view_ids.join(", ")
+    );
+    for (doc_id, revision_id) in &record.documents {
+        println!("  document: {doc_id} -> {revision_id}");
+        let related = record
+            .document_view_ids
+            .get(doc_id)
+            .cloned()
+            .unwrap_or_default();
+        println!(
+            "  document related views: {doc_id} -> {}",
+            related.join(", ")
+        );
+        if let Some(current_view_id) = record.current_profile_document_view_ids.get(doc_id) {
+            println!("  current profile document view: {doc_id} -> {current_view_id}");
+        }
+    }
+}
+
+fn print_store_index_current_governance_record(
+    profile_id: &str,
+    current: &StoreIndexCurrentGovernanceSummary,
+) {
+    println!("current governance profile: {profile_id}");
+    println!("  current view id: {}", current.current_view_id);
+    println!("  maintainer: {}", current.maintainer);
+    println!("  timestamp: {}", current.timestamp);
+    for (doc_id, revision_id) in &current.documents {
+        println!("  document: {doc_id} -> {revision_id}");
+    }
+    for (doc_id, current_document) in &current.current_documents {
+        println!(
+            "  current document: {doc_id} view={} revision={} maintainer={} timestamp={}",
+            current_document.view_id,
+            current_document.revision_id,
+            current_document.maintainer,
+            current_document.timestamp
+        );
+    }
+}
+
+fn print_store_index_current_maintainer_governance_record(
+    maintainer: &str,
+    current: &StoreIndexCurrentMaintainerGovernanceSummary,
+) {
+    println!("current maintainer governance: {maintainer}");
+    for (profile_id, profile) in &current.current_profiles {
+        println!(
+            "  current profile: {} view={} timestamp={}",
+            profile_id, profile.current_view_id, profile.timestamp
+        );
+        for (doc_id, revision_id) in &profile.documents {
+            println!("  profile document: {doc_id} -> {revision_id}");
+        }
+        for (doc_id, current_document) in &profile.current_documents {
+            println!(
+                "  profile current document: {doc_id} view={} revision={} maintainer={} timestamp={}",
+                current_document.view_id,
+                current_document.revision_id,
+                current_document.maintainer,
+                current_document.timestamp
+            );
+        }
+    }
+    for (doc_id, document) in &current.current_documents {
+        println!("  current maintainer document: {doc_id}");
+        for (profile_id, current_document) in &document.profiles {
+            println!(
+                "    document profile: {} view={} revision={} maintainer={} timestamp={}",
+                profile_id,
+                current_document.view_id,
+                current_document.revision_id,
+                current_document.maintainer,
+                current_document.timestamp
+            );
+        }
+    }
+}
+
+fn print_store_index_governance_details(summary: &StoreIndexQuerySummary) {
+    for record in &summary.view_governance {
+        print_store_index_view_governance_record(record);
+    }
+    for (profile_id, current) in &summary.current_governance {
+        print_store_index_current_governance_record(profile_id, current);
+    }
+    for (maintainer, current) in &summary.current_maintainer_governance {
+        print_store_index_current_maintainer_governance_record(maintainer, current);
+    }
+}
+
 fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
-    println!("store root: {}", summary.store_root.display());
-    println!("manifest path: {}", summary.manifest_path.display());
-    println!("status: {}", summary.status);
+    print_store_index_header(&summary.store_root, &summary.manifest_path, &summary.status);
     println!("stored objects: {}", summary.stored_object_count);
     println!("object type indexes: {}", summary.object_ids_by_type.len());
     println!("document revision indexes: {}", summary.doc_revisions.len());
@@ -906,123 +1073,11 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
         summary.current_maintainer_governance.len()
     );
     println!("profile head indexes: {}", summary.profile_heads.len());
-    if let Some(doc_id) = &summary.filters.doc_id {
-        println!("filter doc_id: {doc_id}");
-    }
-    if let Some(author) = &summary.filters.author {
-        println!("filter author: {author}");
-    }
-    if let Some(maintainer) = &summary.filters.maintainer {
-        println!("filter maintainer: {maintainer}");
-    }
-    if let Some(revision_id) = &summary.filters.revision_id {
-        println!("filter revision_id: {revision_id}");
-    }
-    if let Some(view_id) = &summary.filters.view_id {
-        println!("filter view_id: {view_id}");
-    }
-    if let Some(profile_id) = &summary.filters.profile_id {
-        println!("filter profile_id: {profile_id}");
-    }
-    if let Some(object_type) = &summary.filters.object_type {
-        println!("filter object_type: {object_type}");
-    }
-    if let Some(projection) = &summary.projection {
-        println!("projection: {projection}");
-    }
+    print_store_index_filters(&summary.filters, &summary.projection);
     if summary.projection.as_deref() == Some("governance-only") {
-        for record in &summary.view_governance {
-            println!("view governance record: {}", record.view_id);
-            println!("  maintainer: {}", record.maintainer);
-            println!("  profile id: {}", record.profile_id);
-            println!("  timestamp: {}", record.timestamp);
-            if let Some(current_profile_view_id) = &record.current_profile_view_id {
-                println!("  current profile view id: {current_profile_view_id}");
-            }
-            println!(
-                "  maintainer related views: {}",
-                record.maintainer_view_ids.join(", ")
-            );
-            println!(
-                "  profile related views: {}",
-                record.profile_view_ids.join(", ")
-            );
-            for (doc_id, revision_id) in &record.documents {
-                println!("  document: {doc_id} -> {revision_id}");
-                let related = record
-                    .document_view_ids
-                    .get(doc_id)
-                    .cloned()
-                    .unwrap_or_default();
-                println!(
-                    "  document related views: {doc_id} -> {}",
-                    related.join(", ")
-                );
-                if let Some(current_view_id) = record.current_profile_document_view_ids.get(doc_id)
-                {
-                    println!("  current profile document view: {doc_id} -> {current_view_id}");
-                }
-            }
-        }
-        for (profile_id, current) in &summary.current_governance {
-            println!("current governance profile: {profile_id}");
-            println!("  current view id: {}", current.current_view_id);
-            println!("  maintainer: {}", current.maintainer);
-            println!("  timestamp: {}", current.timestamp);
-            for (doc_id, revision_id) in &current.documents {
-                println!("  document: {doc_id} -> {revision_id}");
-            }
-            for (doc_id, current_document) in &current.current_documents {
-                println!(
-                    "  current document: {doc_id} view={} revision={} maintainer={} timestamp={}",
-                    current_document.view_id,
-                    current_document.revision_id,
-                    current_document.maintainer,
-                    current_document.timestamp
-                );
-            }
-        }
-        for (maintainer, current) in &summary.current_maintainer_governance {
-            println!("current maintainer governance: {maintainer}");
-            for (profile_id, profile) in &current.current_profiles {
-                println!(
-                    "  current profile: {} view={} timestamp={}",
-                    profile_id, profile.current_view_id, profile.timestamp
-                );
-                for (doc_id, revision_id) in &profile.documents {
-                    println!("  profile document: {doc_id} -> {revision_id}");
-                }
-                for (doc_id, current_document) in &profile.current_documents {
-                    println!(
-                        "  profile current document: {doc_id} view={} revision={} maintainer={} timestamp={}",
-                        current_document.view_id,
-                        current_document.revision_id,
-                        current_document.maintainer,
-                        current_document.timestamp
-                    );
-                }
-            }
-            for (doc_id, document) in &current.current_documents {
-                println!("  current maintainer document: {doc_id}");
-                for (profile_id, current_document) in &document.profiles {
-                    println!(
-                        "    document profile: {} view={} revision={} maintainer={} timestamp={}",
-                        profile_id,
-                        current_document.view_id,
-                        current_document.revision_id,
-                        current_document.maintainer,
-                        current_document.timestamp
-                    );
-                }
-            }
-        }
+        print_store_index_governance_details(summary);
     }
-    println!("store index: {}", summary.status);
-    if summary.status == "ok" {
-        0
-    } else {
-        1
-    }
+    print_store_index_result(&summary.status)
 }
 
 fn print_store_index_json(summary: &StoreIndexQuerySummary) -> Result<i32, CliError> {
@@ -1093,9 +1148,7 @@ fn build_store_index_manifest_only_summary(
 }
 
 fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
-    println!("store root: {}", summary.store_root.display());
-    println!("manifest path: {}", summary.manifest_path.display());
-    println!("status: {}", summary.status);
+    print_store_index_header(&summary.store_root, &summary.manifest_path, &summary.status);
     println!("stored objects: {}", summary.stored_object_count);
     println!("object type indexes: {}", summary.object_type_index_count);
     println!(
@@ -1129,36 +1182,8 @@ fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
         summary.current_maintainer_governance_count
     );
     println!("profile head indexes: {}", summary.profile_head_index_count);
-    if let Some(doc_id) = &summary.filters.doc_id {
-        println!("filter doc_id: {doc_id}");
-    }
-    if let Some(author) = &summary.filters.author {
-        println!("filter author: {author}");
-    }
-    if let Some(maintainer) = &summary.filters.maintainer {
-        println!("filter maintainer: {maintainer}");
-    }
-    if let Some(revision_id) = &summary.filters.revision_id {
-        println!("filter revision_id: {revision_id}");
-    }
-    if let Some(view_id) = &summary.filters.view_id {
-        println!("filter view_id: {view_id}");
-    }
-    if let Some(profile_id) = &summary.filters.profile_id {
-        println!("filter profile_id: {profile_id}");
-    }
-    if let Some(object_type) = &summary.filters.object_type {
-        println!("filter object_type: {object_type}");
-    }
-    if let Some(projection) = &summary.projection {
-        println!("projection: {projection}");
-    }
-    println!("store index: {}", summary.status);
-    if summary.status == "ok" {
-        0
-    } else {
-        1
-    }
+    print_store_index_filters(&summary.filters, &summary.projection);
+    print_store_index_result(&summary.status)
 }
 
 fn print_store_index_counts_json(summary: &StoreIndexCountsSummary) -> Result<i32, CliError> {
@@ -1175,39 +1200,9 @@ fn print_store_index_counts_json(summary: &StoreIndexCountsSummary) -> Result<i3
 }
 
 fn print_store_index_filters_only_text(summary: &StoreIndexFiltersOnlySummary) -> i32 {
-    println!("store root: {}", summary.store_root.display());
-    println!("manifest path: {}", summary.manifest_path.display());
-    println!("status: {}", summary.status);
-    if let Some(doc_id) = &summary.filters.doc_id {
-        println!("filter doc_id: {doc_id}");
-    }
-    if let Some(author) = &summary.filters.author {
-        println!("filter author: {author}");
-    }
-    if let Some(maintainer) = &summary.filters.maintainer {
-        println!("filter maintainer: {maintainer}");
-    }
-    if let Some(revision_id) = &summary.filters.revision_id {
-        println!("filter revision_id: {revision_id}");
-    }
-    if let Some(view_id) = &summary.filters.view_id {
-        println!("filter view_id: {view_id}");
-    }
-    if let Some(profile_id) = &summary.filters.profile_id {
-        println!("filter profile_id: {profile_id}");
-    }
-    if let Some(object_type) = &summary.filters.object_type {
-        println!("filter object_type: {object_type}");
-    }
-    if let Some(projection) = &summary.projection {
-        println!("projection: {projection}");
-    }
-    println!("store index: {}", summary.status);
-    if summary.status == "ok" {
-        0
-    } else {
-        1
-    }
+    print_store_index_header(&summary.store_root, &summary.manifest_path, &summary.status);
+    print_store_index_filters(&summary.filters, &summary.projection);
+    print_store_index_result(&summary.status)
 }
 
 fn print_store_index_filters_only_json(
@@ -1226,18 +1221,11 @@ fn print_store_index_filters_only_json(
 }
 
 fn print_store_index_manifest_only_text(summary: &StoreIndexManifestOnlySummary) -> i32 {
-    println!("store root: {}", summary.store_root.display());
-    println!("manifest path: {}", summary.manifest_path.display());
-    println!("status: {}", summary.status);
+    print_store_index_header(&summary.store_root, &summary.manifest_path, &summary.status);
     println!("manifest version: {}", summary.version);
     println!("stored objects: {}", summary.stored_object_count);
     println!("object types: {}", summary.object_type_count);
-    println!("store index: {}", summary.status);
-    if summary.status == "ok" {
-        0
-    } else {
-        1
-    }
+    print_store_index_result(&summary.status)
 }
 
 fn print_store_index_manifest_only_json(
