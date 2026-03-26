@@ -41,6 +41,7 @@ struct StoreFixtureInfo {
 
 struct RelatedGovernanceFixtureInfo {
     store_dir: common::TempDir,
+    maintainer: String,
     profile_a_id: String,
     profile_b_id: String,
     view_a1_id: String,
@@ -249,6 +250,7 @@ fn build_store_with_related_views() -> RelatedGovernanceFixtureInfo {
 
     RelatedGovernanceFixtureInfo {
         store_dir,
+        maintainer: signer_id(&signing_key()),
         profile_a_id,
         profile_b_id,
         view_a1_id,
@@ -594,6 +596,7 @@ fn store_index_counts_only_json_emits_section_counts() {
     assert_eq!(json["maintainer_view_index_count"], 1);
     assert_eq!(json["profile_view_index_count"], 1);
     assert_eq!(json["document_view_index_count"], 1);
+    assert_eq!(json["current_maintainer_governance_count"], 1);
     assert_eq!(json["profile_head_index_count"], 1);
     assert!(
         !object.contains_key("object_ids_by_type"),
@@ -733,6 +736,12 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
         Some(1)
     );
     assert_eq!(
+        json["current_maintainer_governance"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
         json["profile_heads"].as_object().map(|values| values.len()),
         Some(1)
     );
@@ -765,6 +774,16 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
     assert_eq!(
         json["current_governance"][fixture.profile_id.as_str()]["documents"]["doc:index"],
         json!(fixture.revision_id)
+    );
+    assert_eq!(
+        json["current_maintainer_governance"][fixture.signer.as_str()]["current_profiles"]
+            [fixture.profile_id.as_str()]["current_view_id"],
+        json!(fixture.view_id.clone())
+    );
+    assert_eq!(
+        json["current_maintainer_governance"][fixture.signer.as_str()]["current_documents"]
+            ["doc:index"]["profiles"][fixture.profile_id.as_str()]["view_id"],
+        json!(fixture.view_id)
     );
 }
 
@@ -833,6 +852,22 @@ fn store_index_governance_only_json_embeds_related_view_context_per_record() {
             ["view_id"],
         json!(fixture.view_a1_id)
     );
+    assert_eq!(
+        json["current_maintainer_governance"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        json["current_maintainer_governance"][fixture.maintainer.as_str()]["current_profiles"]
+            [fixture.profile_a_id.as_str()]["current_view_id"],
+        json!(fixture.view_a2_id)
+    );
+    assert_eq!(
+        json["current_maintainer_governance"][fixture.maintainer.as_str()]["current_documents"]
+            ["doc:beta"]["profiles"][fixture.profile_a_id.as_str()]["view_id"],
+        json!(fixture.view_a1_id)
+    );
     assert!(
         json["current_governance"][fixture.profile_b_id.as_str()].is_null(),
         "view-id scoped governance summary should not include unrelated profile, json: {json}"
@@ -891,7 +926,26 @@ fn store_index_governance_only_text_reports_related_view_context() {
         "stdout: {stdout}"
     );
     assert!(
+        stdout.contains("current maintainer governance summaries: 1"),
+        "stdout: {stdout}"
+    );
+    assert!(
         stdout.contains(&format!("  current view id: {}", fixture.view_a2_id)),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current maintainer governance:"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "  current profile: {} view={}",
+            fixture.profile_a_id, fixture.view_a2_id
+        )),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("  current maintainer document: doc:beta"),
         "stdout: {stdout}"
     );
 }

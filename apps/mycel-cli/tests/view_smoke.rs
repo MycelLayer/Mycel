@@ -1422,6 +1422,7 @@ fn view_maintainer_reports_synthesized_and_missing_cases_cleanly() {
 
     let publish_a1 = publish_view(&path_a1, &store_root);
     let publish_a2 = publish_view(&path_a2, &store_root);
+    let _ = &publish_a1;
 
     rewrite_store_manifest(&store_root, |manifest| {
         manifest["current_maintainer_governance"] = json!({});
