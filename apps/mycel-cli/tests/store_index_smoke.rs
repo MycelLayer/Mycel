@@ -9,8 +9,8 @@ mod common;
 
 use common::{
     assert_empty_stderr, assert_exit_code, assert_json_status, assert_stderr_contains,
-    assert_success, create_temp_dir, prefixed_hash_for_test, run_mycel, signed_test_object,
-    stdout_text,
+    assert_success, create_temp_dir, parse_json_stdout, prefixed_hash_for_test, run_mycel,
+    signed_test_object, stdout_text,
 };
 
 fn path_arg(path: &Path) -> String {
@@ -882,6 +882,76 @@ fn store_index_governance_only_json_embeds_related_view_context_per_record() {
         json["current_governance"][fixture.profile_b_id.as_str()].is_null(),
         "view-id scoped governance summary should not include unrelated profile, json: {json}"
     );
+}
+
+#[test]
+fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
+    let fixture = build_store_with_related_views();
+    let store_root = path_arg(fixture.store_dir.path());
+    let store_index = run_mycel(&["store", "index", &store_root, "--governance-only", "--json"]);
+    assert_success(&store_index);
+    let store_index_json = assert_json_status(&store_index, "ok");
+
+    let view_maintainer = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        &fixture.maintainer,
+        "--json",
+    ]);
+    assert_success(&view_maintainer);
+    let view_maintainer_json = parse_json_stdout(&view_maintainer);
+
+    let maintainer_summary =
+        &store_index_json["current_maintainer_governance"][fixture.maintainer.as_str()];
+    let maintainer_profiles = maintainer_summary["current_profiles"]
+        .as_object()
+        .expect("store index maintainer profiles should be an object");
+    let maintainer_documents = maintainer_summary["current_documents"]
+        .as_object()
+        .expect("store index maintainer documents should be an object");
+    let current_profiles = view_maintainer_json["current_profiles"]
+        .as_array()
+        .expect("view maintainer current_profiles should be an array");
+    let current_documents = view_maintainer_json["current_documents"]
+        .as_array()
+        .expect("view maintainer current_documents should be an array");
+
+    assert_eq!(
+        store_index_json["current_maintainer_governance"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(1)
+    );
+    assert_eq!(
+        store_index_json["current_maintainer_governance_profile_count"],
+        json!(current_profiles.len())
+    );
+    assert_eq!(
+        store_index_json["current_maintainer_governance_document_count"],
+        json!(current_documents.len())
+    );
+    assert_eq!(maintainer_profiles.len(), current_profiles.len());
+    assert_eq!(maintainer_documents.len(), current_documents.len());
+
+    for document in current_documents {
+        let doc_id = document["doc_id"]
+            .as_str()
+            .expect("view maintainer current document should have doc_id");
+        let view_profiles = document["profiles"]
+            .as_array()
+            .expect("view maintainer current document profiles should be an array");
+        let store_profiles = maintainer_documents[doc_id]["profiles"]
+            .as_object()
+            .expect("store index current document profiles should be an object");
+        assert_eq!(
+            store_profiles.len(),
+            view_profiles.len(),
+            "profile coverage mismatch for document {doc_id}"
+        );
+    }
 }
 
 #[test]
