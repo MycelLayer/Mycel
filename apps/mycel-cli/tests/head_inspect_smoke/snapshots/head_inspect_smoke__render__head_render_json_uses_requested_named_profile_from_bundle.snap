@@ -1,0 +1,35 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [
+    "preview",
+    "stable"
+  ],
+  "doc_id": "doc:render-named-profile",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "selected reader profile 'preview' with policy_hash=hash:e90efe75a255f528126a4c34899c7dc654086301103d326325b8cd99bbf01e06",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:a99963e2100e80a8d6a416e6684830003ceebbc20406d581515934ade130c4ef' from bundle-backed replay objects"
+  ],
+  "profile_id": "preview",
+  "recomputed_state_hash": "hash:489c499883e008bdfc9fa39ffd8533872982b214b9d3ae68d2159d0ae23f4f90",
+  "rendered_block_count": 1,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-profile-001",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Preview line",
+      "depth": 0
+    }
+  ],
+  "rendered_text": "Preview line",
+  "selected_head": "rev:a99963e2100e80a8d6a416e6684830003ceebbc20406d581515934ade130c4ef",
+  "status": "ok",
+  "store_root": null
+}

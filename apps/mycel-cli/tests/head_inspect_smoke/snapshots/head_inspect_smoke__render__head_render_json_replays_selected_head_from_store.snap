@@ -1,0 +1,40 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "doc_id": "doc:render",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "[store_selector_note]",
+    "selected reader profile 'hash:59605909aaf4e11a490195a5c4b19b50381c508bfd5b3a64a1e269b8d3afe0fe' with policy_hash=hash:59605909aaf4e11a490195a5c4b19b50381c508bfd5b3a64a1e269b8d3afe0fe",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:9afed7d772ac5e705f03b494931b73ea0a674fefc35f3091c551e35d0a3cf836' from store-backed replay"
+  ],
+  "profile_id": "hash:59605909aaf4e11a490195a5c4b19b50381c508bfd5b3a64a1e269b8d3afe0fe",
+  "recomputed_state_hash": "hash:1ce0f09582b92e28f1070a4e571ac34319326c5108061151feb0a5194578a846",
+  "rendered_block_count": 2,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-001",
+      "block_type": "paragraph",
+      "child_count": 1,
+      "content": "Hello render",
+      "depth": 0
+    },
+    {
+      "block_id": "blk:render-002",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Nested reply",
+      "depth": 1
+    }
+  ],
+  "rendered_text": "Hello render\n  Nested reply",
+  "selected_head": "rev:9afed7d772ac5e705f03b494931b73ea0a674fefc35f3091c551e35d0a3cf836",
+  "status": "ok",
+  "store_root": "[store_root]"
+}

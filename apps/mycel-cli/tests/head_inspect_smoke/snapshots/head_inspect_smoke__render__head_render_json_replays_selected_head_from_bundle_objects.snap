@@ -1,0 +1,32 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "doc_id": "doc:render-bundle",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "selected reader profile 'hash:657251e8622ff4bb50c4d6c82e68b6542ec80025ab64b009ec5bcbf2b87e0ba9' with policy_hash=hash:657251e8622ff4bb50c4d6c82e68b6542ec80025ab64b009ec5bcbf2b87e0ba9",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:89f57603b091bb73da1aa510940bc84836651fb389b3480c5407199a9222a04b' from bundle-backed replay objects"
+  ],
+  "profile_id": "hash:657251e8622ff4bb50c4d6c82e68b6542ec80025ab64b009ec5bcbf2b87e0ba9",
+  "recomputed_state_hash": "hash:34593c31cebb2ace9ae4288aebcf52af595e8c8d526b4ff1a9fe110725b0842b",
+  "rendered_block_count": 1,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-bundle-001",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Bundle line",
+      "depth": 0
+    }
+  ],
+  "rendered_text": "Bundle line",
+  "selected_head": "rev:89f57603b091bb73da1aa510940bc84836651fb389b3480c5407199a9222a04b",
+  "status": "ok",
+  "store_root": null
+}

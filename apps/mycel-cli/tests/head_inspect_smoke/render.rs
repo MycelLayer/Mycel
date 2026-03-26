@@ -1,4 +1,5 @@
 use super::*;
+use insta::assert_json_snapshot;
 
 #[test]
 fn head_render_json_replays_selected_head_from_store() {
@@ -113,19 +114,14 @@ fn head_render_json_replays_selected_head_from_store() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
-    assert_eq!(json["selected_head"], revision_b["revision_id"]);
-    assert_eq!(json["rendered_block_count"], 2);
-    assert_eq!(json["rendered_text"], "Hello render\n  Nested reply");
-    assert!(json["recomputed_state_hash"]
-        .as_str()
-        .is_some_and(|value| value.starts_with("hash:")));
-    assert_eq!(
-        json["rendered_blocks"]
-            .as_array()
-            .and_then(|blocks| blocks.first())
-            .and_then(|block| block["content"].as_str()),
-        Some("Hello render")
+    assert_json_snapshot!(
+        "head_render_json_replays_selected_head_from_store",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -396,16 +392,14 @@ fn head_render_store_backed_applies_editor_admission_from_profile() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
-    assert_eq!(json["rendered_text"], "Admitted render line");
-    assert!(
-        json["notes"]
-            .as_array()
-            .is_some_and(|notes| notes.iter().any(|entry| entry
-                .as_str()
-                .is_some_and(|message| message.contains("store-backed replay")))),
-        "expected store-backed render note, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_render_store_backed_applies_editor_admission_from_profile",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -540,8 +534,15 @@ fn head_render_store_backed_accepts_shared_dual_role_key_with_independent_admiss
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], dual_revision["revision_id"]);
-    assert_eq!(json["rendered_text"], "Shared dual-role line");
+    assert_json_snapshot!(
+        "head_render_store_backed_accepts_shared_dual_role_key_with_independent_admission",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
+    );
 }
 
 #[test]
@@ -717,18 +718,12 @@ fn head_render_json_replays_selected_head_from_bundle_objects() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
-    assert_eq!(json["selected_head"], revision_b["revision_id"]);
-    assert_eq!(json["rendered_text"], "Bundle line");
-    assert_eq!(json["store_root"], Value::Null);
-    assert!(
-        json["notes"]
-            .as_array()
-            .is_some_and(|notes| notes.iter().any(|entry| entry
-                .as_str()
-                .is_some_and(|message| message.contains("bundle-backed replay objects")))),
-        "expected bundle-backed render note, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_render_json_replays_selected_head_from_bundle_objects",
+        json,
+        {
+            ".input_path" => "[input_path]",
+        }
     );
 }
 
@@ -824,10 +819,13 @@ fn head_render_json_uses_requested_named_profile_from_bundle() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["available_profile_ids"], json!(["preview", "stable"]));
-    assert_eq!(json["profile_id"], "preview");
-    assert_eq!(json["selected_head"], revision_b["revision_id"]);
-    assert_eq!(json["rendered_text"], "Preview line");
+    assert_json_snapshot!(
+        "head_render_json_uses_requested_named_profile_from_bundle",
+        json,
+        {
+            ".input_path" => "[input_path]",
+        }
+    );
 }
 
 #[test]
@@ -1032,9 +1030,13 @@ fn head_render_named_profile_applies_requested_editor_admission_mode() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["profile_id"], "preview");
-    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
-    assert_eq!(json["rendered_text"], "Named admitted line");
+    assert_json_snapshot!(
+        "head_render_named_profile_applies_requested_editor_admission_mode",
+        json,
+        {
+            ".input_path" => "[input_path]",
+        }
+    );
 }
 
 #[test]

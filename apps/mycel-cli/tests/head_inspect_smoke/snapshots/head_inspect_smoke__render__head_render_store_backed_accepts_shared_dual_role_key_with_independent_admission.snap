@@ -1,0 +1,33 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "doc_id": "doc:render-store-shared-dual-role",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "[store_selector_note]",
+    "selected reader profile 'hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52' with policy_hash=hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:8cdf6c85b3f2f1039e26681275f9f6ff3770e95e49694b5cb46598cee7a0f619' from store-backed replay"
+  ],
+  "profile_id": "hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+  "recomputed_state_hash": "hash:212c59fa7cca1821ba797c45443bccae039d5d35c8273f6b8137c998a7dc6398",
+  "rendered_block_count": 1,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-dual-role-001",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Shared dual-role line",
+      "depth": 0
+    }
+  ],
+  "rendered_text": "Shared dual-role line",
+  "selected_head": "rev:8cdf6c85b3f2f1039e26681275f9f6ff3770e95e49694b5cb46598cee7a0f619",
+  "status": "ok",
+  "store_root": "[store_root]"
+}

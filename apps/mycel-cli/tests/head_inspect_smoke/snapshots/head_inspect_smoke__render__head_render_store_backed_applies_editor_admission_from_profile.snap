@@ -1,0 +1,33 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "doc_id": "doc:render-store-editor-admission",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "[store_selector_note]",
+    "selected reader profile 'hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52' with policy_hash=hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:ed719b148e672ad5c65b11ff5ffc70302910573329d8b576aff61a4f99208e9a' from store-backed replay"
+  ],
+  "profile_id": "hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+  "recomputed_state_hash": "hash:9fafc6aede93a1d4a20a2f26be6096cf3c1c84c47acd6947182b576bd0d53290",
+  "rendered_block_count": 1,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-admitted-001",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Admitted render line",
+      "depth": 0
+    }
+  ],
+  "rendered_text": "Admitted render line",
+  "selected_head": "rev:ed719b148e672ad5c65b11ff5ffc70302910573329d8b576aff61a4f99208e9a",
+  "status": "ok",
+  "store_root": "[store_root]"
+}

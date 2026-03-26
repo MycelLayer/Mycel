@@ -1,0 +1,35 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/render.rs
+expression: json
+---
+{
+  "available_profile_ids": [
+    "preview",
+    "stable"
+  ],
+  "doc_id": "doc:render-editor-profile",
+  "effective_selection_time": 1200,
+  "errors": [],
+  "input_path": "[input_path]",
+  "notes": [
+    "selected reader profile 'preview' with policy_hash=hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet",
+    "rendered accepted head 'rev:f8ab2486cc7a4e9b228f4df0691e64e2f6d160aa521443b90cc254dc715d201f' from bundle-backed replay objects"
+  ],
+  "profile_id": "preview",
+  "recomputed_state_hash": "hash:bd496757f9ef548e41e95e99bd2bf8aade24e65ab563c9cb14b38a1be5a1ad4b",
+  "rendered_block_count": 1,
+  "rendered_blocks": [
+    {
+      "block_id": "blk:render-profile-admitted-001",
+      "block_type": "paragraph",
+      "child_count": 0,
+      "content": "Named admitted line",
+      "depth": 0
+    }
+  ],
+  "rendered_text": "Named admitted line",
+  "selected_head": "rev:f8ab2486cc7a4e9b228f4df0691e64e2f6d160aa521443b90cc254dc715d201f",
+  "status": "ok",
+  "store_root": null
+}
