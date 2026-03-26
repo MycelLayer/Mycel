@@ -2,6 +2,7 @@ use proptest::prelude::*;
 use serde_json::{json, Value};
 
 use super::*;
+use crate::wire::validate_wire_timestamp;
 
 proptest! {
     #[test]

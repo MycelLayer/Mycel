@@ -1,6 +1,10 @@
+use std::fs;
+
 use serde_json::json;
 
 use super::*;
+use crate::store::write_object_value_to_store;
+use crate::wire::{WirePeerDirectory, WireSession};
 
 #[test]
 fn wire_session_verifies_incoming_hello_from_registered_peer() {
