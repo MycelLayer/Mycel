@@ -597,6 +597,8 @@ fn store_index_counts_only_json_emits_section_counts() {
     assert_eq!(json["profile_view_index_count"], 1);
     assert_eq!(json["document_view_index_count"], 1);
     assert_eq!(json["current_maintainer_governance_count"], 1);
+    assert_eq!(json["current_maintainer_governance_profile_count"], 1);
+    assert_eq!(json["current_maintainer_governance_document_count"], 1);
     assert_eq!(json["profile_head_index_count"], 1);
     assert!(
         !object.contains_key("object_ids_by_type"),
@@ -740,6 +742,14 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
             .as_object()
             .map(|values| values.len()),
         Some(1)
+    );
+    assert_eq!(
+        json["current_maintainer_governance_profile_count"],
+        json!(1)
+    );
+    assert_eq!(
+        json["current_maintainer_governance_document_count"],
+        json!(1)
     );
     assert_eq!(
         json["profile_heads"].as_object().map(|values| values.len()),
@@ -927,6 +937,14 @@ fn store_index_governance_only_text_reports_related_view_context() {
     );
     assert!(
         stdout.contains("current maintainer governance summaries: 1"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current maintainer governance profiles: 1"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current maintainer governance documents: 2"),
         "stdout: {stdout}"
     );
     assert!(

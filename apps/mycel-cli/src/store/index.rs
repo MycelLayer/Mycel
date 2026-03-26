@@ -129,6 +129,8 @@ struct StoreIndexQuerySummary {
     current_governance: std::collections::BTreeMap<String, StoreIndexCurrentGovernanceSummary>,
     current_maintainer_governance:
         std::collections::BTreeMap<String, StoreIndexCurrentMaintainerGovernanceSummary>,
+    current_maintainer_governance_profile_count: usize,
+    current_maintainer_governance_document_count: usize,
     profile_heads:
         std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<String>>>,
     filters: StoreIndexQueryFilters,
@@ -151,6 +153,8 @@ struct StoreIndexCountsSummary {
     document_view_index_count: usize,
     current_governance_profile_count: usize,
     current_maintainer_governance_count: usize,
+    current_maintainer_governance_profile_count: usize,
+    current_maintainer_governance_document_count: usize,
     profile_head_index_count: usize,
     filters: StoreIndexQueryFilters,
     projection: Option<String>,
@@ -683,6 +687,30 @@ fn summarize_current_maintainer_governance(
         .collect()
 }
 
+fn count_current_maintainer_governance_profiles(
+    current_maintainer_governance: &std::collections::BTreeMap<
+        String,
+        StoreIndexCurrentMaintainerGovernanceSummary,
+    >,
+) -> usize {
+    current_maintainer_governance
+        .values()
+        .map(|current| current.current_profiles.len())
+        .sum()
+}
+
+fn count_current_maintainer_governance_documents(
+    current_maintainer_governance: &std::collections::BTreeMap<
+        String,
+        StoreIndexCurrentMaintainerGovernanceSummary,
+    >,
+) -> usize {
+    current_maintainer_governance
+        .values()
+        .map(|current| current.current_documents.len())
+        .sum()
+}
+
 fn filtered_doc_revisions(
     manifest: &StoreIndexManifest,
     doc_id: &Option<String>,
@@ -869,6 +897,10 @@ fn build_store_index_query_summary(
         &manifest.current_maintainer_governance,
         &filtered_view_governance,
     );
+    let current_maintainer_governance_profile_count =
+        count_current_maintainer_governance_profiles(&current_maintainer_governance);
+    let current_maintainer_governance_document_count =
+        count_current_maintainer_governance_documents(&current_maintainer_governance);
     let view_governance = summarize_view_governance(&manifest, filtered_view_governance);
     let revision_ids = selected_revision_ids(&doc_revisions, &filters.revision_id);
     let revision_parents = filtered_revision_parents(&manifest, &revision_ids);
@@ -888,6 +920,8 @@ fn build_store_index_query_summary(
         document_views,
         current_governance,
         current_maintainer_governance,
+        current_maintainer_governance_profile_count,
+        current_maintainer_governance_document_count,
         profile_heads,
         filters,
         projection: None,
@@ -1072,6 +1106,14 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
         "current maintainer governance summaries: {}",
         summary.current_maintainer_governance.len()
     );
+    println!(
+        "current maintainer governance profiles: {}",
+        summary.current_maintainer_governance_profile_count
+    );
+    println!(
+        "current maintainer governance documents: {}",
+        summary.current_maintainer_governance_document_count
+    );
     println!("profile head indexes: {}", summary.profile_heads.len());
     print_store_index_filters(&summary.filters, &summary.projection);
     if summary.projection.as_deref() == Some("governance-only") {
@@ -1114,6 +1156,10 @@ fn build_store_index_counts_summary(summary: &StoreIndexQuerySummary) -> StoreIn
         document_view_index_count: summary.document_views.len(),
         current_governance_profile_count: summary.current_governance.len(),
         current_maintainer_governance_count: summary.current_maintainer_governance.len(),
+        current_maintainer_governance_profile_count: summary
+            .current_maintainer_governance_profile_count,
+        current_maintainer_governance_document_count: summary
+            .current_maintainer_governance_document_count,
         profile_head_index_count: summary.profile_heads.len(),
         filters: summary.filters.clone(),
         projection: summary.projection.clone(),
@@ -1180,6 +1226,14 @@ fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
     println!(
         "current maintainer governance summaries: {}",
         summary.current_maintainer_governance_count
+    );
+    println!(
+        "current maintainer governance profiles: {}",
+        summary.current_maintainer_governance_profile_count
+    );
+    println!(
+        "current maintainer governance documents: {}",
+        summary.current_maintainer_governance_document_count
     );
     println!("profile head indexes: {}", summary.profile_head_index_count);
     print_store_index_filters(&summary.filters, &summary.projection);
