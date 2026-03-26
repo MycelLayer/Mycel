@@ -1352,7 +1352,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("source_push_ok: true", proc.stdout)
         self.assertIn("HEAD is reachable from origin/main", proc.stdout)
 
-    def test_end_allows_foreign_uncommitted_source_changes_without_files_changed_summary(self) -> None:
+    def test_end_returns_pending_when_cycle_has_uncommitted_source_changes(self) -> None:
         self.write_agents_md()
         self.init_git_repo()
         self.init_origin_main_remote()
@@ -1380,10 +1380,13 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
 
-        self.assertEqual(0, proc.returncode)
-        self.assertIn("scrutinized_not_needed_violations: 0", proc.stdout)
-        self.assertIn("source_push_required: false", proc.stdout)
-        self.assertIn("no committed source changes detected in the cycle", proc.stdout)
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: false", proc.stdout)
+        self.assertIn(
+            "cycle source changes are still uncommitted; commit and push them first",
+            proc.stdout,
+        )
 
     def test_end_ignores_foreign_uncommitted_source_changes_after_pushed_source_cycle(self) -> None:
         self.write_agents_md()

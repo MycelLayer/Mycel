@@ -745,17 +745,17 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
     committed_source_paths = cycle_committed_source_paths(agent_uid, batch_num)
     if committed_source_paths is None:
         return {
-            "required": False,
-            "ok": True,
-            "reason": "no committed source changes detected in the cycle",
+            "required": True,
+            "ok": False,
+            "reason": "unable to determine whether cycle source changes were committed",
             "remote_head": None,
         }
 
     if not committed_source_paths:
         return {
-            "required": False,
-            "ok": True,
-            "reason": "no committed source changes detected in the cycle",
+            "required": True,
+            "ok": False,
+            "reason": "cycle source changes are still uncommitted; commit and push them first",
             "remote_head": None,
         }
 
