@@ -1,0 +1,43 @@
+---
+source: apps/mycel-cli/tests/view_smoke.rs
+assertion_line: 149
+expression: inspect_json
+---
+{
+  "current_profile_document_view_ids": {
+    "doc:view-publish": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  },
+  "current_profile_view_id": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c",
+  "document_view_ids": {
+    "doc:view-publish": [
+      "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+    ]
+  },
+  "documents": {
+    "doc:view-publish": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "errors": [],
+  "maintainer": "pk:ed25519:+kg0FH9uaQw2k+/2EzYEZAPNiuKhTzGzxAc1hWkjlWU=",
+  "maintainer_view_ids": [
+    "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  ],
+  "manifest_path": "[manifest_path]",
+  "notes": [
+    "governance inspection is separate from reader-facing accepted-head workflows",
+    "related maintainer/profile/document view IDs come from persisted governance indexes",
+    "current profile governance state comes from persisted governance summaries and latest-view indexes"
+  ],
+  "profile_heads": {
+    "doc:view-publish": [
+      "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+  },
+  "profile_id": "hash:be1f3be17c5e9567121ec8df22d021525efb9e7e732fd8f76e5760dd3e85a957",
+  "profile_view_ids": [
+    "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  ],
+  "status": "ok",
+  "store_root": "[store_root]",
+  "timestamp": 10,
+  "view_id": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+}

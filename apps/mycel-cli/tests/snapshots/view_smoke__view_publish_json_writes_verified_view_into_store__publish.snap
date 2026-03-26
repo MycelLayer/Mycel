@@ -1,0 +1,35 @@
+---
+source: apps/mycel-cli/tests/view_smoke.rs
+assertion_line: 128
+expression: json
+---
+{
+  "created": true,
+  "document_view_ids": {
+    "doc:view-publish": [
+      "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+    ]
+  },
+  "documents": {
+    "doc:view-publish": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "errors": [],
+  "index_manifest_path": "[index_manifest_path]",
+  "maintainer": "pk:ed25519:+kg0FH9uaQw2k+/2EzYEZAPNiuKhTzGzxAc1hWkjlWU=",
+  "maintainer_view_ids": [
+    "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  ],
+  "notes": [
+    "published governance state is separate from revision publication and accepted-head inspection",
+    "related maintainer/profile/document view IDs come from persisted governance indexes"
+  ],
+  "profile_id": "hash:be1f3be17c5e9567121ec8df22d021525efb9e7e732fd8f76e5760dd3e85a957",
+  "profile_view_ids": [
+    "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  ],
+  "source_path": "[source_path]",
+  "status": "ok",
+  "store_root": "[store_root]",
+  "stored_path": "[stored_path]",
+  "view_id": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+}

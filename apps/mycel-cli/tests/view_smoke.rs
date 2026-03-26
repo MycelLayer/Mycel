@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ed25519_dalek::SigningKey;
+use insta::assert_json_snapshot;
 use mycel_core::author::signer_id;
 use serde_json::{json, Value};
 
@@ -124,38 +125,15 @@ fn view_publish_json_writes_verified_view_into_store() {
     let (_source_dir, source_path) = write_json_file("view-publish-source", "view.json", &view);
 
     let json = publish_view(&source_path, &store_root);
-    assert_eq!(json["status"], "ok");
-    assert_eq!(json["view_id"], view["view_id"]);
-    assert_eq!(json["maintainer"], view["maintainer"]);
-    assert_eq!(
-        json["documents"]["doc:view-publish"],
-        "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    );
-    assert_eq!(json["created"], Value::Bool(true));
-    assert!(
-        json["profile_id"]
-            .as_str()
-            .is_some_and(|value| value.starts_with("hash:")),
-        "expected hashed profile id, published summary: {json}",
-    );
-    assert_eq!(
-        json["maintainer_view_ids"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
-    );
-    assert_eq!(
-        json["profile_view_ids"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
-    );
-    assert_eq!(
-        json["document_view_ids"]["doc:view-publish"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
-    );
-    assert!(
-        json["notes"]
-            .as_array()
-            .is_some_and(|notes| notes.iter().any(|note| note
-                == "related maintainer/profile/document view IDs come from persisted governance indexes")),
-        "expected persisted-governance note in publish summary: {json}",
+    assert_json_snapshot!(
+        "view_publish_json_writes_verified_view_into_store__publish",
+        json,
+        {
+            ".index_manifest_path" => "[index_manifest_path]",
+            ".source_path" => "[source_path]",
+            ".store_root" => "[store_root]",
+            ".stored_path" => "[stored_path]",
+        }
     );
 
     let inspect = run_mycel(&[
@@ -168,23 +146,13 @@ fn view_publish_json_writes_verified_view_into_store() {
     ]);
     assert_success(&inspect);
     let inspect_json = parse_json_stdout(&inspect);
-    assert_eq!(inspect_json["status"], "ok");
-    assert_eq!(inspect_json["view_id"], view["view_id"]);
-    assert_eq!(
-        inspect_json["profile_heads"]["doc:view-publish"],
-        json!(["rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"])
-    );
-    assert_eq!(
-        inspect_json["maintainer_view_ids"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
-    );
-    assert_eq!(
-        inspect_json["profile_view_ids"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
-    );
-    assert_eq!(
-        inspect_json["document_view_ids"]["doc:view-publish"],
-        json!([view["view_id"].as_str().expect("view id should exist")])
+    assert_json_snapshot!(
+        "view_publish_json_writes_verified_view_into_store__inspect",
+        inspect_json,
+        {
+            ".manifest_path" => "[manifest_path]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -232,8 +200,16 @@ fn view_publish_reports_existing_view_on_repeat_publish() {
     ]);
     assert_success(&second);
     let json = parse_json_stdout(&second);
-    assert_eq!(json["status"], "ok");
-    assert_eq!(json["created"], Value::Bool(false));
+    assert_json_snapshot!(
+        "view_publish_reports_existing_view_on_repeat_publish__second_publish",
+        json,
+        {
+            ".index_manifest_path" => "[index_manifest_path]",
+            ".source_path" => "[source_path]",
+            ".store_root" => "[store_root]",
+            ".stored_path" => "[stored_path]",
+        }
+    );
 }
 
 #[test]
