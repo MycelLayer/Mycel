@@ -49,18 +49,22 @@
           因为 richer mixed content/metadata competing-branch classification、多文档 index-loss 后
           rebuild proof，以及 richer metadata multi-variant rebuild/reporting proof 都已落地；因此现在的
           active lane 转向更广的 <code>M3</code> governance persistence、更完整的 governance
-          tooling、reader-facing profile ergonomics，以及最后的独立 dual-role 收尾，再加上剩余的
-          <code>M4</code> session/capability/error-path interop proof；而更广的
+          tooling、reader-facing profile ergonomics，以及最后的独立 dual-role 收尾，同时是建立在当前
+          inspect/list/publish 加上 per-document current-governance summaries 基线之上；再加上剩余的
+          <code>M4</code> session/capability/error-path interop proof，而更广的
           pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、
           <code>HEADS</code> 先于 <code>MANIFEST</code> 建立 sync roots、
           <code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object
           <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested
-          <code>OBJECT</code>，以及 missing-<code>BYE</code> warning handling 也都已有 proof。
+          <code>OBJECT</code>、unknown-sender 与 HELLO sender-identity mismatch rejection、
+          <code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 与
+          unreachable <code>WANT</code> proof，以及常设 messages-after-<code>BYE</code> rejection 与
+          missing-<code>BYE</code> warning handling 也都已补上。
         </p>
         <ol class="lane-list">
           <li>维持 <code>M2</code> 在当前窄版 replay/storage/rebuild 范围内的已关闭状态，并以 richer mixed content/metadata competing-branch rebuild/reporting proof 作为基线。</li>
-          <li>在 accepted-head inspect/render、更清楚的 available-profile 和 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish/current surfaces，以及 persisted governance relationship 与 current-governance summaries 之上，谨慎扩展 <code>M3</code> 的 reader-plus-governance workflows，同时把更广的 governance persistence、更完整的 governance tooling、超出当前初步打磨的 profile ergonomics，以及最后的独立 dual-role 收尾明确保留下来。</li>
-          <li>让 <code>M4</code> 保持窄范围；现在 sender-validation、更广的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先于 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested <code>OBJECT</code>、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only、unreachable <code>WANT</code>，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage 也都已有 proof，接下来把 peer-store sync proof 往剩余的 session/capability/error-path interop closure 收敛。</li>
+          <li>在 accepted-head inspect/render、更清楚的 available-profile 和 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish/current surfaces、persisted governance relationship summaries，以及 per-document current-governance summaries 之上，谨慎扩展 <code>M3</code> 的 reader-plus-governance workflows，同时把更广的 governance persistence、更完整的 governance tooling、超出当前初步打磨的 profile ergonomics，以及最后的独立 dual-role 收尾明确保留下来。</li>
+          <li>让 <code>M4</code> 保持窄范围；现在更广的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先于 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested <code>OBJECT</code>、unknown-sender 与 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only、unreachable <code>WANT</code>，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage 都已有 proof，接下来把 peer-store sync proof 往剩余的 session/capability/error-path interop closure 收敛。</li>
         </ol>
       </header>
 
