@@ -653,42 +653,13 @@ fn store_index_doc_only_json_prunes_other_sections() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
-    assert_eq!(json["projection"], "doc-only");
-    assert_eq!(
-        json["doc_revisions"].as_object().map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["revision_parents"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["view_governance"]
-            .as_array()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["maintainer_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["profile_views"].as_object().map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["document_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["profile_heads"].as_object().map(|values| values.len()),
-        Some(0)
+    assert_json_snapshot!(
+        "store_index_doc_only_json_prunes_other_sections",
+        json,
+        {
+            ".manifest_path" => "[manifest_path]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -705,92 +676,13 @@ fn store_index_governance_only_json_prunes_non_governance_sections() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
-    assert_eq!(json["projection"], "governance-only");
-    assert_eq!(
-        json["view_governance"]
-            .as_array()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["maintainer_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["profile_views"].as_object().map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["document_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["current_governance"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["current_maintainer_governance"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["current_maintainer_governance_profile_count"],
-        json!(1)
-    );
-    assert_eq!(
-        json["current_maintainer_governance_document_count"],
-        json!(1)
-    );
-    assert_eq!(
-        json["profile_heads"].as_object().map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["doc_revisions"].as_object().map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["revision_parents"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["view_governance"][0]["maintainer_view_ids"],
-        json!([fixture.view_id.clone()])
-    );
-    assert_eq!(
-        json["view_governance"][0]["profile_view_ids"],
-        json!([fixture.view_id.clone()])
-    );
-    assert_eq!(
-        json["view_governance"][0]["document_view_ids"]["doc:index"],
-        json!([fixture.view_id])
-    );
-    assert_eq!(
-        json["current_governance"][fixture.profile_id.as_str()]["current_view_id"],
-        json!(fixture.view_id.clone())
-    );
-    assert_eq!(
-        json["current_governance"][fixture.profile_id.as_str()]["documents"]["doc:index"],
-        json!(fixture.revision_id)
-    );
-    assert_eq!(
-        json["current_maintainer_governance"][fixture.signer.as_str()]["current_profiles"]
-            [fixture.profile_id.as_str()]["current_view_id"],
-        json!(fixture.view_id.clone())
-    );
-    assert_eq!(
-        json["current_maintainer_governance"][fixture.signer.as_str()]["current_documents"]
-            ["doc:index"]["profiles"][fixture.profile_id.as_str()]["view_id"],
-        json!(fixture.view_id)
+    assert_json_snapshot!(
+        "store_index_governance_only_json_prunes_non_governance_sections",
+        json,
+        {
+            ".manifest_path" => "[manifest_path]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
