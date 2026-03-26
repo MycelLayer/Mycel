@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
+use proptest::prelude::*;
 use serde_json::{json, Value};
 
 use crate::canonical::{signed_payload_bytes, wire_envelope_signed_payload_bytes};
@@ -12,9 +13,148 @@ use crate::store::write_object_value_to_store;
 
 use super::{
     derive_wire_object_payload_identity, parse_wire_envelope, validate_wire_envelope,
-    validate_wire_object_payload_behavior, validate_wire_payload, verify_wire_envelope_signature,
-    WireMessageType, WirePeerDirectory, WireSession,
+    validate_wire_object_payload_behavior, validate_wire_payload, validate_wire_timestamp,
+    verify_wire_envelope_signature, WireMessageType, WirePeerDirectory, WireSession,
 };
+
+fn hello_envelope_with(timestamp: &str) -> Value {
+    json!({
+        "type": "HELLO",
+        "version": "mycel-wire/0.1",
+        "msg_id": "msg:hello-proptest-001",
+        "timestamp": timestamp,
+        "from": "node:alpha",
+        "payload": {
+            "node_id": "node:alpha",
+            "capabilities": ["patch-sync"],
+            "nonce": "n:test"
+        },
+        "sig": "sig:placeholder"
+    })
+}
+
+fn valid_wire_timestamp_strategy() -> impl Strategy<Value = String> {
+    (
+        0u16..=9999,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        any::<bool>(),
+        prop_oneof![Just('+'), Just('-')],
+        0u8..=99,
+        0u8..=99,
+    )
+        .prop_map(
+            |(year, month, day, hour, minute, second, use_z, offset_sign, offset_hour, offset_minute)| {
+                if use_z {
+                    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+                } else {
+                    format!(
+                        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}{offset_sign}{offset_hour:02}:{offset_minute:02}"
+                    )
+                }
+            },
+        )
+}
+
+fn invalid_wire_timestamp_strategy() -> impl Strategy<Value = String> {
+    (
+        0u16..=9999,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        0u8..=99,
+        prop_oneof![Just('+'), Just('-')],
+        0u8..=99,
+        0u8..=99,
+    )
+        .prop_flat_map(
+            |(year, month, day, hour, minute, second, offset_sign, offset_hour, offset_minute)| {
+                let no_t = format!(
+                    "{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02}Z"
+                );
+                let slash_date = format!(
+                    "{year:04}/{month:02}/{day:02}T{hour:02}:{minute:02}:{second:02}Z"
+                );
+                let no_offset_colon = format!(
+                    "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}{offset_sign}{offset_hour:02}{offset_minute:02}"
+                );
+                let missing_offset =
+                    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}");
+                let short_time = format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}Z");
+                prop_oneof![
+                    Just(no_t),
+                    Just(slash_date),
+                    Just(no_offset_colon),
+                    Just(missing_offset),
+                    Just(short_time),
+                ]
+            },
+        )
+}
+
+proptest! {
+    #[test]
+    fn validate_wire_timestamp_accepts_generated_rfc3339_shapes(
+        timestamp in valid_wire_timestamp_strategy()
+    ) {
+        prop_assert!(validate_wire_timestamp(&timestamp).is_ok());
+    }
+
+    #[test]
+    fn validate_wire_timestamp_rejects_generated_non_rfc3339_shapes(
+        timestamp in invalid_wire_timestamp_strategy()
+    ) {
+        prop_assert_eq!(
+            validate_wire_timestamp(&timestamp).unwrap_err(),
+            "wire envelope 'timestamp' must use RFC 3339 format"
+        );
+    }
+
+    #[test]
+    fn validate_wire_envelope_accepts_generated_hello_top_level_shapes(
+        timestamp in valid_wire_timestamp_strategy()
+    ) {
+        let value = hello_envelope_with(&timestamp);
+        prop_assert!(validate_wire_envelope(&value).is_ok());
+        let envelope = validate_wire_envelope(&value)
+            .expect("validated generated HELLO envelope should parse on the happy path");
+        prop_assert_eq!(envelope.message_type(), WireMessageType::Hello);
+        prop_assert_eq!(envelope.from(), "node:alpha");
+    }
+
+    #[test]
+    fn parse_wire_envelope_rejects_invalid_top_level_fields(
+        timestamp in valid_wire_timestamp_strategy(),
+        invalid_case in prop_oneof![
+            Just("bad_msg_id"),
+            Just("bad_from"),
+            Just("missing_payload"),
+            Just("payload_not_object"),
+            Just("bad_sig"),
+        ]
+    ) {
+        let mut value = hello_envelope_with(&timestamp);
+        match invalid_case {
+            "bad_msg_id" => value["msg_id"] = Value::String("hello-proptest-001".to_owned()),
+            "bad_from" => value["from"] = Value::String("alpha".to_owned()),
+            "missing_payload" => {
+                let object = value
+                    .as_object_mut()
+                    .expect("hello envelope helper should return an object");
+                object.remove("payload");
+            }
+            "payload_not_object" => value["payload"] = Value::String("not-an-object".to_owned()),
+            "bad_sig" => value["sig"] = Value::String("placeholder".to_owned()),
+            _ => unreachable!("invalid_case strategy produced unexpected discriminator"),
+        }
+
+        prop_assert!(parse_wire_envelope(&value).is_err());
+    }
+}
 
 fn signing_key() -> SigningKey {
     SigningKey::from_bytes(&[9u8; 32])
