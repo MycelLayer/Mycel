@@ -130,6 +130,23 @@ fn invalid_wire_timestamp_strategy() -> impl Strategy<Value = String> {
         )
 }
 
+fn invalid_object_type_strategy() -> impl Strategy<Value = String> {
+    ".*".prop_filter("object_type must be unsupported", |value| {
+        !matches!(
+            value.as_str(),
+            "document" | "block" | "patch" | "revision" | "view" | "snapshot"
+        )
+    })
+}
+
+fn invalid_canonical_object_id_strategy() -> impl Strategy<Value = String> {
+    ".*".prop_filter("object_id must violate canonical prefix rules", |value| {
+        !["patch:", "rev:", "view:", "snap:"]
+            .iter()
+            .any(|prefix| value.starts_with(prefix) && value.len() > prefix.len())
+    })
+}
+
 proptest! {
     #[test]
     fn validate_wire_timestamp_accepts_generated_rfc3339_shapes(
@@ -252,6 +269,54 @@ proptest! {
         prop_assert_eq!(
             validate_wire_payload(WireMessageType::Object, payload_object).unwrap_err(),
             "OBJECT payload 'encoding' must equal 'json'"
+        );
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_generated_invalid_object_hash_algorithm(
+        invalid_hash_alg in ".*".prop_filter("hash_alg must differ from sha256", |value| value != "sha256")
+    ) {
+        let mut payload = valid_object_payload_for_proptests();
+        payload["hash_alg"] = Value::String(invalid_hash_alg);
+
+        let payload_object = payload
+            .as_object()
+            .expect("valid OBJECT payload helper should return an object");
+        prop_assert_eq!(
+            validate_wire_payload(WireMessageType::Object, payload_object).unwrap_err(),
+            "OBJECT payload 'hash_alg' must equal 'sha256'"
+        );
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_generated_unsupported_object_type(
+        invalid_object_type in invalid_object_type_strategy()
+    ) {
+        let mut payload = valid_object_payload_for_proptests();
+        payload["object_type"] = Value::String(invalid_object_type);
+
+        let payload_object = payload
+            .as_object()
+            .expect("valid OBJECT payload helper should return an object");
+        prop_assert_eq!(
+            validate_wire_payload(WireMessageType::Object, payload_object).unwrap_err(),
+            "OBJECT payload 'object_type' must be a supported object type"
+        );
+    }
+
+    #[test]
+    fn validate_wire_payload_rejects_generated_invalid_canonical_object_id(
+        invalid_object_id in invalid_canonical_object_id_strategy()
+    ) {
+        let mut payload = valid_object_payload_for_proptests();
+        payload["object_id"] = Value::String(invalid_object_id);
+
+        let payload_object = payload
+            .as_object()
+            .expect("valid OBJECT payload helper should return an object");
+        prop_assert_eq!(
+            validate_wire_payload(WireMessageType::Object, payload_object).unwrap_err(),
+            "top-level 'object_id' must use a canonical object ID prefix"
         );
     }
 
