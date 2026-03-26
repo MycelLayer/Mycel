@@ -940,38 +940,13 @@ fn store_index_head_only_json_prunes_non_head_sections() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
-    assert_eq!(json["projection"], "head-only");
-    assert_eq!(
-        json["profile_heads"].as_object().map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["author_patches"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["view_governance"]
-            .as_array()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["maintainer_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["profile_views"].as_object().map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["document_views"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(0)
+    assert_json_snapshot!(
+        "store_index_head_only_json_prunes_non_head_sections",
+        json,
+        {
+            ".manifest_path" => "[manifest_path]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -988,20 +963,13 @@ fn store_index_patches_only_json_prunes_non_patch_sections() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
-    assert_eq!(json["projection"], "patches-only");
-    assert_eq!(
-        json["author_patches"]
-            .as_object()
-            .map(|values| values.len()),
-        Some(1)
-    );
-    assert_eq!(
-        json["profile_heads"].as_object().map(|values| values.len()),
-        Some(0)
-    );
-    assert_eq!(
-        json["doc_revisions"].as_object().map(|values| values.len()),
-        Some(0)
+    assert_json_snapshot!(
+        "store_index_patches_only_json_prunes_non_patch_sections",
+        json,
+        {
+            ".manifest_path" => "[manifest_path]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
