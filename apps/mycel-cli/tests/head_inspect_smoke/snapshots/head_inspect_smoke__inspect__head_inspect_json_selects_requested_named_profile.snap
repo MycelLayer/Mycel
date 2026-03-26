@@ -1,0 +1,131 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/inspect.rs
+expression: json
+---
+{
+  "available_profile_ids": [
+    "preview",
+    "stable"
+  ],
+  "critical_violations": [],
+  "decision_trace": [
+    {
+      "detail": "effective_selection_time=30 epoch_seconds=3600 epoch_zero_timestamp=0 selector_epoch=0",
+      "step": "selector_epoch"
+    },
+    {
+      "detail": "verified_revisions=2 verified_views=2 viewer_signals=0",
+      "step": "verified_inputs"
+    },
+    {
+      "detail": "count=0 affected_maintainers=0",
+      "step": "critical_violations"
+    },
+    {
+      "detail": "count=1",
+      "step": "eligible_heads"
+    },
+    {
+      "detail": "mode=open structural_heads=1 eligible=1 formal=1 admitted=0",
+      "step": "editor_admission"
+    },
+    {
+      "detail": "mode=open maintainers=1 view_admitted=1",
+      "step": "view_admission"
+    },
+    {
+      "detail": "maintainers=1 admitted=1 penalized=0 zero_weight=0 max_effective_weight=1",
+      "step": "effective_weight"
+    },
+    {
+      "detail": "supporting_maintainers=1 supported_heads=1 active_epoch=0",
+      "step": "maintainer_support"
+    },
+    {
+      "detail": "head_count=1 max_selector_score=1 supported_head_count=1",
+      "step": "selector_scores"
+    },
+    {
+      "detail": "selected=rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89 tie_break_reason=higher_selector_score",
+      "step": "selected_head"
+    }
+  ],
+  "doc_id": "doc:selected-profile",
+  "editor_candidates": [
+    {
+      "author": "pk:ed25519:Pw3agearvMXxfDWd+FFxd3adLf/z1M6ULnzpqC37DbI=",
+      "candidate_eligible": true,
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "revision_id": "rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89"
+    }
+  ],
+  "effective_selection_time": 30,
+  "effective_weights": [
+    {
+      "admitted": true,
+      "critical_violation_counts": [],
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:fqDjvVLiB8nTsOumXAcE5m/KLY4WWhdSGLF0/EFg5BM=",
+      "valid_view_counts": [
+        {
+          "count": 2,
+          "epoch": 0
+        }
+      ],
+      "view_admitted": true
+    }
+  ],
+  "eligible_heads": [
+    {
+      "author": "pk:ed25519:Pw3agearvMXxfDWd+FFxd3adLf/z1M6ULnzpqC37DbI=",
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "maintainer_score": 1,
+      "revision_id": "rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89",
+      "revision_timestamp": 20,
+      "selector_score": 1,
+      "supporter_count": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "weighted_support": 1
+    }
+  ],
+  "errors": [],
+  "input_path": "[input_path]",
+  "maintainer_support": [
+    {
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:fqDjvVLiB8nTsOumXAcE5m/KLY4WWhdSGLF0/EFg5BM=",
+      "revision_id": "rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89"
+    }
+  ],
+  "notes": [
+    "selected reader profile 'preview' with policy_hash=hash:49057719e31250e58a6ff86b1e20c1fff6a1e99abd490ad62e9665af0db8347f",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet"
+  ],
+  "profile_id": "preview",
+  "selected_head": "rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89",
+  "selector_epoch": 0,
+  "status": "ok",
+  "tie_break_reason": "higher_selector_score",
+  "verified_revision_count": 2,
+  "verified_view_count": 2,
+  "viewer_score_channels": [
+    {
+      "approval_signal_count": 0,
+      "challenge_freeze_pressure": 0,
+      "challenge_review_pressure": 0,
+      "challenge_signal_count": 0,
+      "maintainer_score": 1,
+      "objection_signal_count": 0,
+      "revision_id": "rev:d4d137d3e6b5b630c3aeb8e20a1a6187afba1bd1a21599084d50d51b92f82f89",
+      "selector_score": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "viewer_review_state": "none"
+    }
+  ],
+  "viewer_signal_count": 0,
+  "viewer_signals": []
+}

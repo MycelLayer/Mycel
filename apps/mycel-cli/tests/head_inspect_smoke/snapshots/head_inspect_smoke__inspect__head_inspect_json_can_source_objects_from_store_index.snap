@@ -1,0 +1,198 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/inspect.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "critical_violations": [],
+  "decision_trace": [
+    {
+      "detail": "effective_selection_time=1200 epoch_seconds=3600 epoch_zero_timestamp=0 selector_epoch=0",
+      "step": "selector_epoch"
+    },
+    {
+      "detail": "verified_revisions=3 verified_views=3 viewer_signals=0",
+      "step": "verified_inputs"
+    },
+    {
+      "detail": "count=0 affected_maintainers=0",
+      "step": "critical_violations"
+    },
+    {
+      "detail": "count=2",
+      "step": "eligible_heads"
+    },
+    {
+      "detail": "mode=open structural_heads=2 eligible=2 formal=2 admitted=0",
+      "step": "editor_admission"
+    },
+    {
+      "detail": "mode=open maintainers=3 view_admitted=3",
+      "step": "view_admission"
+    },
+    {
+      "detail": "maintainers=3 admitted=3 penalized=0 zero_weight=0 max_effective_weight=1",
+      "step": "effective_weight"
+    },
+    {
+      "detail": "supporting_maintainers=3 supported_heads=2 active_epoch=0",
+      "step": "maintainer_support"
+    },
+    {
+      "detail": "head_count=2 max_selector_score=2 supported_head_count=2",
+      "step": "selector_scores"
+    },
+    {
+      "detail": "selected=rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f tie_break_reason=higher_selector_score",
+      "step": "selected_head"
+    }
+  ],
+  "doc_id": "doc:sample",
+  "editor_candidates": [
+    {
+      "author": "pk:ed25519:cN+eInmtvsbRK/KSEYTJIi6yTthSAFv2QBOfUuWc2a4=",
+      "candidate_eligible": true,
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "revision_id": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f"
+    },
+    {
+      "author": "pk:ed25519:cN+eInmtvsbRK/KSEYTJIi6yTthSAFv2QBOfUuWc2a4=",
+      "candidate_eligible": true,
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "revision_id": "rev:4fbe2f2bff37a8de706e2ef481a0a3fea72a9b0c31fee820319e4a47ab521e58"
+    }
+  ],
+  "effective_selection_time": 1200,
+  "effective_weights": [
+    {
+      "admitted": true,
+      "critical_violation_counts": [],
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:1O7Bhp+xuKToF1Fq1akxVXy1aAXD6xbo86gD1kffeGk=",
+      "valid_view_counts": [
+        {
+          "count": 1,
+          "epoch": 0
+        }
+      ],
+      "view_admitted": true
+    },
+    {
+      "admitted": true,
+      "critical_violation_counts": [],
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:4oqJcHUzMr1y/vQT5rCy7xtKrdp6osFB8jNxKmh2s1E=",
+      "valid_view_counts": [
+        {
+          "count": 1,
+          "epoch": 0
+        }
+      ],
+      "view_admitted": true
+    },
+    {
+      "admitted": true,
+      "critical_violation_counts": [],
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:dyyKRCt9sG4WbPvBzLy83m8+unak6Y7z/8UZUCI31u8=",
+      "valid_view_counts": [
+        {
+          "count": 1,
+          "epoch": 0
+        }
+      ],
+      "view_admitted": true
+    }
+  ],
+  "eligible_heads": [
+    {
+      "author": "pk:ed25519:cN+eInmtvsbRK/KSEYTJIi6yTthSAFv2QBOfUuWc2a4=",
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "maintainer_score": 2,
+      "revision_id": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f",
+      "revision_timestamp": 1010,
+      "selector_score": 2,
+      "supporter_count": 2,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "weighted_support": 2
+    },
+    {
+      "author": "pk:ed25519:cN+eInmtvsbRK/KSEYTJIi6yTthSAFv2QBOfUuWc2a4=",
+      "editor_admitted": false,
+      "formal_candidate": true,
+      "maintainer_score": 1,
+      "revision_id": "rev:4fbe2f2bff37a8de706e2ef481a0a3fea72a9b0c31fee820319e4a47ab521e58",
+      "revision_timestamp": 1020,
+      "selector_score": 1,
+      "supporter_count": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "weighted_support": 1
+    }
+  ],
+  "errors": [],
+  "input_path": "[input_path]",
+  "maintainer_support": [
+    {
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:1O7Bhp+xuKToF1Fq1akxVXy1aAXD6xbo86gD1kffeGk=",
+      "revision_id": "rev:4fbe2f2bff37a8de706e2ef481a0a3fea72a9b0c31fee820319e4a47ab521e58"
+    },
+    {
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:4oqJcHUzMr1y/vQT5rCy7xtKrdp6osFB8jNxKmh2s1E=",
+      "revision_id": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f"
+    },
+    {
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:dyyKRCt9sG4WbPvBzLy83m8+unak6Y7z/8UZUCI31u8=",
+      "revision_id": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f"
+    }
+  ],
+  "notes": [
+    "[store_selector_note]",
+    "selected reader profile 'hash:5efb3dc6cbebd9b54e0918ac86e9330343b118b5a569e5f4f70a3f33a2eac4de' with policy_hash=hash:5efb3dc6cbebd9b54e0918ac86e9330343b118b5a569e5f4f70a3f33a2eac4de",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet"
+  ],
+  "profile_id": "hash:5efb3dc6cbebd9b54e0918ac86e9330343b118b5a569e5f4f70a3f33a2eac4de",
+  "selected_head": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f",
+  "selector_epoch": 0,
+  "status": "ok",
+  "tie_break_reason": "higher_selector_score",
+  "verified_revision_count": 3,
+  "verified_view_count": 3,
+  "viewer_score_channels": [
+    {
+      "approval_signal_count": 0,
+      "challenge_freeze_pressure": 0,
+      "challenge_review_pressure": 0,
+      "challenge_signal_count": 0,
+      "maintainer_score": 2,
+      "objection_signal_count": 0,
+      "revision_id": "rev:33a679ffe62acd229c5098c5f1d9fc6bdb28fbf34918ea2937929dccc73c282f",
+      "selector_score": 2,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "viewer_review_state": "none"
+    },
+    {
+      "approval_signal_count": 0,
+      "challenge_freeze_pressure": 0,
+      "challenge_review_pressure": 0,
+      "challenge_signal_count": 0,
+      "maintainer_score": 1,
+      "objection_signal_count": 0,
+      "revision_id": "rev:4fbe2f2bff37a8de706e2ef481a0a3fea72a9b0c31fee820319e4a47ab521e58",
+      "selector_score": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "viewer_review_state": "none"
+    }
+  ],
+  "viewer_signal_count": 0,
+  "viewer_signals": []
+}

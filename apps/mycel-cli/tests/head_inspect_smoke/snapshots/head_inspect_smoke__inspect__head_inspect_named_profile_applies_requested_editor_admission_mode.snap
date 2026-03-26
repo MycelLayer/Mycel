@@ -1,0 +1,118 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/inspect.rs
+expression: json
+---
+{
+  "available_profile_ids": [
+    "preview",
+    "stable"
+  ],
+  "critical_violations": [],
+  "decision_trace": [
+    {
+      "detail": "effective_selection_time=30 epoch_seconds=3600 epoch_zero_timestamp=0 selector_epoch=0",
+      "step": "selector_epoch"
+    },
+    {
+      "detail": "verified_revisions=2 verified_views=0 viewer_signals=0",
+      "step": "verified_inputs"
+    },
+    {
+      "detail": "count=0 affected_maintainers=0",
+      "step": "critical_violations"
+    },
+    {
+      "detail": "count=2",
+      "step": "eligible_heads"
+    },
+    {
+      "detail": "mode=admitted-only structural_heads=2 eligible=1 formal=1 admitted=1",
+      "step": "editor_admission"
+    },
+    {
+      "detail": "mode=open maintainers=0 view_admitted=0",
+      "step": "view_admission"
+    },
+    {
+      "detail": "maintainers=0 admitted=0 penalized=0 zero_weight=0 max_effective_weight=0",
+      "step": "effective_weight"
+    },
+    {
+      "detail": "supporting_maintainers=0 supported_heads=0 active_epoch=0",
+      "step": "maintainer_support"
+    },
+    {
+      "detail": "head_count=1 max_selector_score=0 supported_head_count=0",
+      "step": "selector_scores"
+    },
+    {
+      "detail": "selected=rev:6feddf7e0ef601b9058df9caa81d5b2ab8ef1bb6fd0ff0df572477b15414a068 tie_break_reason=newer_revision_timestamp_or_lexicographic_tiebreak",
+      "step": "selected_head"
+    }
+  ],
+  "doc_id": "doc:selected-editor-profile",
+  "editor_candidates": [
+    {
+      "author": "pk:ed25519:IVL40Zt5HSRFMkLhXy6rbLfP+ntqXtMAl5YOBpiB2xI=",
+      "candidate_eligible": true,
+      "editor_admitted": true,
+      "formal_candidate": true,
+      "revision_id": "rev:6feddf7e0ef601b9058df9caa81d5b2ab8ef1bb6fd0ff0df572477b15414a068"
+    },
+    {
+      "author": "pk:ed25519:Ivwpd5Lwtv/Av8/bftsMCqFOAlo2XsDjQuhuOCnLdLY=",
+      "candidate_eligible": false,
+      "editor_admitted": false,
+      "formal_candidate": false,
+      "revision_id": "rev:a4b0da28826fb0d485726e931cd91bcc39ef2430e9ede197917d716233fa10f2"
+    }
+  ],
+  "effective_selection_time": 30,
+  "effective_weights": [],
+  "eligible_heads": [
+    {
+      "author": "pk:ed25519:IVL40Zt5HSRFMkLhXy6rbLfP+ntqXtMAl5YOBpiB2xI=",
+      "editor_admitted": true,
+      "formal_candidate": true,
+      "maintainer_score": 0,
+      "revision_id": "rev:6feddf7e0ef601b9058df9caa81d5b2ab8ef1bb6fd0ff0df572477b15414a068",
+      "revision_timestamp": 10,
+      "selector_score": 0,
+      "supporter_count": 0,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "weighted_support": 0
+    }
+  ],
+  "errors": [],
+  "input_path": "[input_path]",
+  "maintainer_support": [],
+  "notes": [
+    "selected reader profile 'preview' with policy_hash=hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet"
+  ],
+  "profile_id": "preview",
+  "selected_head": "rev:6feddf7e0ef601b9058df9caa81d5b2ab8ef1bb6fd0ff0df572477b15414a068",
+  "selector_epoch": 0,
+  "status": "ok",
+  "tie_break_reason": "newer_revision_timestamp_or_lexicographic_tiebreak",
+  "verified_revision_count": 2,
+  "verified_view_count": 0,
+  "viewer_score_channels": [
+    {
+      "approval_signal_count": 0,
+      "challenge_freeze_pressure": 0,
+      "challenge_review_pressure": 0,
+      "challenge_signal_count": 0,
+      "maintainer_score": 0,
+      "objection_signal_count": 0,
+      "revision_id": "rev:6feddf7e0ef601b9058df9caa81d5b2ab8ef1bb6fd0ff0df572477b15414a068",
+      "selector_score": 0,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "viewer_review_state": "none"
+    }
+  ],
+  "viewer_signal_count": 0,
+  "viewer_signals": []
+}

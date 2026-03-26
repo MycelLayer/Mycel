@@ -1,4 +1,5 @@
 use super::*;
+use insta::assert_json_snapshot;
 
 #[test]
 fn head_inspect_json_selects_highest_supported_head() {
@@ -11,91 +12,7 @@ fn head_inspect_json_selects_highest_supported_head() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["status"], "ok");
-    assert_eq!(json["doc_id"], doc_id);
-    assert_eq!(
-        json["selected_head"],
-        "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
-    );
-    assert_eq!(json["tie_break_reason"], "higher_selector_score");
-    assert_eq!(json["verified_revision_count"], 3);
-    assert_eq!(json["verified_view_count"], 3);
-    assert_eq!(
-        json["critical_violations"]
-            .as_array()
-            .expect("critical_violations should be array")
-            .len(),
-        0
-    );
-    let effective_weights = json["effective_weights"]
-        .as_array()
-        .expect("effective_weights should be array");
-    assert_eq!(effective_weights.len(), 3);
-    assert!(effective_weights.iter().all(|entry| {
-        entry["admitted"] == Value::Bool(true)
-            && entry["effective_weight"] == 1
-            && entry["critical_violation_counts"]
-                .as_array()
-                .is_some_and(|counts| counts.is_empty())
-    }));
-    let maintainer_support = json["maintainer_support"]
-        .as_array()
-        .expect("maintainer_support should be array");
-    assert_eq!(maintainer_support.len(), 3);
-    assert!(maintainer_support.iter().all(|entry| {
-        entry["effective_weight"] == 1
-            && entry["maintainer"].as_str().is_some()
-            && entry["revision_id"].as_str().is_some()
-    }));
-    let decision_trace = json["decision_trace"]
-        .as_array()
-        .expect("decision_trace should be array");
-    let trace_steps = decision_trace
-        .iter()
-        .map(|entry| {
-            entry["step"]
-                .as_str()
-                .expect("decision_trace step should be a string")
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        trace_steps,
-        vec![
-            "selector_epoch",
-            "verified_inputs",
-            "critical_violations",
-            "eligible_heads",
-            "editor_admission",
-            "view_admission",
-            "effective_weight",
-            "maintainer_support",
-            "selector_scores",
-            "selected_head"
-        ]
-    );
-    assert!(decision_trace.iter().all(|entry| {
-        entry["detail"]
-            .as_str()
-            .is_some_and(|detail| !detail.contains("pk:ed25519:"))
-    }));
-    assert!(
-        json["eligible_heads"]
-            .as_array()
-            .is_some_and(|heads| heads.len() == 2),
-        "expected two eligible heads, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        json["notes"]
-            .as_array()
-            .is_some_and(|notes| notes.iter().any(|entry| {
-                entry
-                    .as_str()
-                    .is_some_and(|message| message.contains("minimal selector mode"))
-            })),
-        "expected minimal selector note, stdout: {}",
-        stdout_text(&output)
-    );
+    assert_json_snapshot!("head_inspect_json_selects_highest_supported_head", json);
 }
 
 #[test]
@@ -111,17 +28,7 @@ fn head_inspect_json_resolves_repo_native_fixture_name() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(
-        json["input_path"],
-        repo_root()
-            .join("fixtures/head-inspect/minimal-head-selection/bundle.json")
-            .to_string_lossy()
-            .into_owned()
-    );
-    assert_eq!(
-        json["selected_head"],
-        "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
-    );
+    assert_json_snapshot!("head_inspect_json_resolves_repo_native_fixture_name", json);
 }
 
 #[test]
@@ -137,169 +44,9 @@ fn head_inspect_json_applies_fixture_backed_viewer_score_channels() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(
-        json["input_path"],
-        repo_root()
-            .join("fixtures/head-inspect/viewer-score-channels/bundle.json")
-            .to_string_lossy()
-            .into_owned()
-    );
-    assert_eq!(json["doc_id"], "doc:sample");
-    assert_eq!(json["viewer_signal_count"], Value::from(7));
-    assert_eq!(
-        json["selected_head"],
-        "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
-    );
-    assert_eq!(
-        json["status"],
-        Value::String("ok-with-viewer-freeze-block".to_string())
-    );
-    assert_eq!(
-        json["tie_break_reason"],
-        "higher_selector_score_after_viewer-freeze-block"
-    );
-
-    let eligible_heads = json["eligible_heads"]
-        .as_array()
-        .expect("eligible_heads should be array");
-    assert_eq!(eligible_heads.len(), 2);
-    let selected = eligible_heads
-        .iter()
-        .find(|entry| {
-            entry["revision_id"]
-                == Value::String(
-                    "rev:b98e3dca59291ebab04e88eadafaf30d52fcc78dd18df41568e5689c2be300ad"
-                        .to_string(),
-                )
-        })
-        .expect("selected viewer fixture head should exist");
-    let alternative = eligible_heads
-        .iter()
-        .find(|entry| {
-            entry["revision_id"]
-                == Value::String(
-                    "rev:552fce487de89e2e8c7a002249b200440f4c24bfed735d1e7f730ea774f06430"
-                        .to_string(),
-                )
-        })
-        .expect("alternative viewer fixture head should exist");
-    assert_eq!(selected["maintainer_score"], Value::from(2));
-    assert_eq!(selected["viewer_bonus"], Value::from(2));
-    assert_eq!(selected["viewer_penalty"], Value::from(0));
-    assert_eq!(selected["selector_score"], Value::from(4));
-    assert_eq!(alternative["maintainer_score"], Value::from(1));
-    assert_eq!(alternative["viewer_bonus"], Value::from(0));
-    assert_eq!(alternative["viewer_penalty"], Value::from(2));
-    assert_eq!(alternative["selector_score"], Value::from(0));
-
-    let viewer_signals = json["viewer_signals"]
-        .as_array()
-        .expect("viewer_signals should be array");
-    assert_eq!(viewer_signals.len(), 7);
-    assert!(
-        viewer_signals.iter().any(|entry| {
-            entry["signal_id"] == Value::String("signal-expired-approval".to_string())
-                && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == 0
-        }),
-        "expected expired approval signal to stay inactive, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        viewer_signals.iter().any(|entry| {
-            entry["signal_id"] == Value::String("signal-pending-admission".to_string())
-                && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == 0
-        }),
-        "expected pending admission signal to stay gated, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        viewer_signals.iter().any(|entry| {
-            entry["signal_id"] == Value::String("signal-no-identity".to_string())
-                && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == 0
-        }),
-        "expected none-tier objection signal to stay gated, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        viewer_signals.iter().any(|entry| {
-            entry["signal_id"] == Value::String("signal-challenge-alternative-high".to_string())
-                && entry["selector_eligible"] == Value::Bool(true)
-                && entry["effective_signal_weight"] == 0
-                && entry["evidence_ref"] == Value::String("evidence:challenge-alt-1".to_string())
-        }),
-        "expected evidenced challenge to contribute review pressure only, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        viewer_signals.iter().any(|entry| {
-            entry["signal_id"] == Value::String("signal-challenge-without-evidence".to_string())
-                && entry["selector_eligible"] == Value::Bool(false)
-                && entry["effective_signal_weight"] == 0
-                && entry["evidence_ref"] == Value::Null
-        }),
-        "expected unevidenced challenge to stay gated, stdout: {}",
-        stdout_text(&output)
-    );
-
-    let viewer_score_channels = json["viewer_score_channels"]
-        .as_array()
-        .expect("viewer_score_channels should be array");
-    let selected_channel = viewer_score_channels
-        .iter()
-        .find(|entry| entry["revision_id"] == selected["revision_id"])
-        .expect("selected viewer fixture channel should exist");
-    let alternative_channel = viewer_score_channels
-        .iter()
-        .find(|entry| entry["revision_id"] == alternative["revision_id"])
-        .expect("alternative viewer fixture channel should exist");
-    assert_eq!(selected_channel["viewer_bonus"], Value::from(2));
-    assert_eq!(selected_channel["approval_signal_count"], Value::from(1));
-    assert_eq!(selected_channel["challenge_signal_count"], Value::from(0));
-    assert_eq!(
-        selected_channel["viewer_review_state"],
-        Value::String("none".to_string())
-    );
-    assert_eq!(alternative_channel["viewer_penalty"], Value::from(2));
-    assert_eq!(
-        alternative_channel["objection_signal_count"],
-        Value::from(1)
-    );
-    assert_eq!(
-        alternative_channel["challenge_signal_count"],
-        Value::from(1)
-    );
-    assert_eq!(
-        alternative_channel["challenge_review_pressure"],
-        Value::from(2)
-    );
-    assert_eq!(
-        alternative_channel["challenge_freeze_pressure"],
-        Value::from(2)
-    );
-    assert_eq!(
-        alternative_channel["viewer_review_state"],
-        Value::String("freeze-pressure".to_string())
-    );
-
-    assert!(
-        json["decision_trace"]
-            .as_array()
-            .is_some_and(|trace| trace.iter().any(|entry| {
-                entry["step"].as_str() == Some("viewer_score_channels")
-                    && entry["detail"].as_str().is_some_and(|detail| {
-                        detail.contains("mode=bounded-bonus-penalty")
-                            && detail.contains("signals=7")
-                            && detail.contains("eligible=3")
-                            && detail.contains("contributing=2")
-                            && detail.contains("bonus_cap=2")
-                            && detail.contains("penalty_cap=2")
-                    })
-            })),
-        "expected fixture-backed viewer_score_channels trace entry, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_inspect_json_applies_fixture_backed_viewer_score_channels",
+        json
     );
 }
 
@@ -521,19 +268,14 @@ fn head_inspect_json_can_source_objects_from_store_index() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], revision_b["revision_id"]);
-    assert_eq!(json["verified_revision_count"], 3);
-    assert_eq!(json["verified_view_count"], 3);
-    assert!(
-        json["notes"]
-            .as_array()
-            .is_some_and(|notes| notes.iter().any(|entry| {
-                entry.as_str().is_some_and(|message| {
-                    message.contains("store-backed selector inputs loaded from")
-                })
-            })),
-        "expected store-backed note, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_inspect_json_can_source_objects_from_store_index",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -663,41 +405,14 @@ fn head_inspect_store_backed_applies_editor_admission_from_profile() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
-    let editor_candidates = json["editor_candidates"]
-        .as_array()
-        .expect("editor_candidates should be array");
-    assert!(
-        editor_candidates.iter().any(|entry| {
-            entry["revision_id"] == admitted_revision["revision_id"]
-                && entry["editor_admitted"] == Value::Bool(true)
-                && entry["candidate_eligible"] == Value::Bool(true)
-        }),
-        "expected admitted store-backed candidate summary, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        editor_candidates.iter().any(|entry| {
-            entry["revision_id"] == non_admitted_revision["revision_id"]
-                && entry["editor_admitted"] == Value::Bool(false)
-                && entry["candidate_eligible"] == Value::Bool(false)
-        }),
-        "expected filtered store-backed candidate summary, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        json["decision_trace"]
-            .as_array()
-            .is_some_and(|trace| trace.iter().any(|entry| {
-                entry["step"].as_str() == Some("editor_admission")
-                    && entry["detail"].as_str().is_some_and(|detail| {
-                        detail.contains("mode=admitted-only")
-                            && detail.contains("structural_heads=2")
-                            && detail.contains("eligible=1")
-                    })
-            })),
-        "expected store-backed editor_admission trace, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_inspect_store_backed_applies_editor_admission_from_profile",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -753,32 +468,14 @@ fn head_inspect_store_backed_accepts_shared_dual_role_key_with_independent_admis
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], dual_revision["revision_id"]);
-    assert!(
-        json["effective_weights"]
-            .as_array()
-            .is_some_and(|weights| weights.iter().any(|entry| {
-                entry["maintainer"] == Value::String(signer_id(&dual_role_author))
-                    && entry["view_admitted"] == Value::Bool(true)
-                    && entry["admitted"] == Value::Bool(true)
-                    && entry["effective_weight"] == 1_u64
-            })),
-        "expected shared dual-role maintainer to pass view admission, stdout: {}",
-        stdout_text(&output)
-    );
-    assert!(
-        json["decision_trace"]
-            .as_array()
-            .is_some_and(|trace| trace.iter().any(|entry| {
-                entry["step"].as_str() == Some("view_admission")
-                    && entry["detail"].as_str().is_some_and(|detail| {
-                        detail.contains("mode=admitted-only")
-                            && detail.contains("maintainers=1")
-                            && detail.contains("view_admitted=1")
-                    })
-            })),
-        "expected view_admission trace entry, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_inspect_store_backed_accepts_shared_dual_role_key_with_independent_admission",
+        json,
+        {
+            ".input_path" => "[input_path]",
+            ".notes[0]" => "[store_selector_note]",
+            ".store_root" => "[store_root]",
+        }
     );
 }
 
@@ -840,10 +537,13 @@ fn head_inspect_json_selects_requested_named_profile() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["available_profile_ids"], json!(["preview", "stable"]));
-    assert_eq!(json["profile_id"], "preview");
-    assert_eq!(json["selected_head"], revision_b["revision_id"]);
-    assert_eq!(json["effective_selection_time"], 30);
+    assert_json_snapshot!(
+        "head_inspect_json_selects_requested_named_profile",
+        json,
+        {
+            ".input_path" => "[input_path]",
+        }
+    );
 }
 
 #[test]
@@ -888,30 +588,12 @@ fn head_inspect_named_profile_applies_requested_editor_admission_mode() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["profile_id"], "preview");
-    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
-    let eligible_heads = json["eligible_heads"]
-        .as_array()
-        .expect("eligible_heads should be array");
-    assert_eq!(eligible_heads.len(), 1);
-    assert_eq!(
-        eligible_heads[0]["revision_id"],
-        admitted_revision["revision_id"]
-    );
-    assert_eq!(eligible_heads[0]["editor_admitted"], Value::Bool(true));
-    assert!(
-        json["decision_trace"]
-            .as_array()
-            .is_some_and(|trace| trace.iter().any(|entry| {
-                entry["step"].as_str() == Some("editor_admission")
-                    && entry["detail"].as_str().is_some_and(|detail| {
-                        detail.contains("mode=admitted-only")
-                            && detail.contains("structural_heads=2")
-                            && detail.contains("eligible=1")
-                    })
-            })),
-        "expected named-profile editor_admission trace, stdout: {}",
-        stdout_text(&output)
+    assert_json_snapshot!(
+        "head_inspect_named_profile_applies_requested_editor_admission_mode",
+        json,
+        {
+            ".input_path" => "[input_path]",
+        }
     );
 }
 

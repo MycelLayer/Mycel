@@ -1,0 +1,136 @@
+---
+source: apps/mycel-cli/tests/head_inspect_smoke/inspect.rs
+expression: json
+---
+{
+  "available_profile_ids": [],
+  "critical_violations": [],
+  "decision_trace": [
+    {
+      "detail": "effective_selection_time=1200 epoch_seconds=3600 epoch_zero_timestamp=0 selector_epoch=0",
+      "step": "selector_epoch"
+    },
+    {
+      "detail": "verified_revisions=2 verified_views=1 viewer_signals=0",
+      "step": "verified_inputs"
+    },
+    {
+      "detail": "count=0 affected_maintainers=0",
+      "step": "critical_violations"
+    },
+    {
+      "detail": "count=2",
+      "step": "eligible_heads"
+    },
+    {
+      "detail": "mode=admitted-only structural_heads=2 eligible=1 formal=1 admitted=1",
+      "step": "editor_admission"
+    },
+    {
+      "detail": "mode=admitted-only maintainers=1 view_admitted=1",
+      "step": "view_admission"
+    },
+    {
+      "detail": "maintainers=1 admitted=1 penalized=0 zero_weight=0 max_effective_weight=1",
+      "step": "effective_weight"
+    },
+    {
+      "detail": "supporting_maintainers=1 supported_heads=1 active_epoch=0",
+      "step": "maintainer_support"
+    },
+    {
+      "detail": "head_count=1 max_selector_score=1 supported_head_count=1",
+      "step": "selector_scores"
+    },
+    {
+      "detail": "selected=rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749 tie_break_reason=higher_selector_score",
+      "step": "selected_head"
+    }
+  ],
+  "doc_id": "doc:store-backed-shared-dual-role",
+  "editor_candidates": [
+    {
+      "author": "pk:ed25519:qz+i/at3+YcGx2aXtCvJnXtflnytzVnBljPqUC/R3PM=",
+      "candidate_eligible": false,
+      "editor_admitted": false,
+      "formal_candidate": false,
+      "revision_id": "rev:1d613874a6c0d0aa38a68eb6d85c6416bdea66b57c50c35891c62078a391edb8"
+    },
+    {
+      "author": "pk:ed25519:jD2oeb0JyCG2NW2VJN5zhuQiQWrsdBOaRvAwEZfRsts=",
+      "candidate_eligible": true,
+      "editor_admitted": true,
+      "formal_candidate": true,
+      "revision_id": "rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749"
+    }
+  ],
+  "effective_selection_time": 1200,
+  "effective_weights": [
+    {
+      "admitted": true,
+      "critical_violation_counts": [],
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:jD2oeb0JyCG2NW2VJN5zhuQiQWrsdBOaRvAwEZfRsts=",
+      "valid_view_counts": [
+        {
+          "count": 1,
+          "epoch": 0
+        }
+      ],
+      "view_admitted": true
+    }
+  ],
+  "eligible_heads": [
+    {
+      "author": "pk:ed25519:jD2oeb0JyCG2NW2VJN5zhuQiQWrsdBOaRvAwEZfRsts=",
+      "editor_admitted": true,
+      "formal_candidate": true,
+      "maintainer_score": 1,
+      "revision_id": "rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749",
+      "revision_timestamp": 1000,
+      "selector_score": 1,
+      "supporter_count": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "weighted_support": 1
+    }
+  ],
+  "errors": [],
+  "input_path": "[input_path]",
+  "maintainer_support": [
+    {
+      "effective_weight": 1,
+      "maintainer": "pk:ed25519:jD2oeb0JyCG2NW2VJN5zhuQiQWrsdBOaRvAwEZfRsts=",
+      "revision_id": "rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749"
+    }
+  ],
+  "notes": [
+    "[store_selector_note]",
+    "selected reader profile 'hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52' with policy_hash=hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+    "minimal selector mode: critical violations are bundle-provided fixture evidence; external dispute / penalty objects are not implemented yet"
+  ],
+  "profile_id": "hash:45650b25dc60bc1565ed6ced4c0cec149735304eff25ef28e594b42ff39bea52",
+  "selected_head": "rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749",
+  "selector_epoch": 0,
+  "status": "ok",
+  "tie_break_reason": "higher_selector_score",
+  "verified_revision_count": 2,
+  "verified_view_count": 1,
+  "viewer_score_channels": [
+    {
+      "approval_signal_count": 0,
+      "challenge_freeze_pressure": 0,
+      "challenge_review_pressure": 0,
+      "challenge_signal_count": 0,
+      "maintainer_score": 1,
+      "objection_signal_count": 0,
+      "revision_id": "rev:5fea30353b993ffc716b701b6e1ad812d0b757aaafa480079df8dcadc6d8c749",
+      "selector_score": 1,
+      "viewer_bonus": 0,
+      "viewer_penalty": 0,
+      "viewer_review_state": "none"
+    }
+  ],
+  "viewer_signal_count": 0,
+  "viewer_signals": []
+}
