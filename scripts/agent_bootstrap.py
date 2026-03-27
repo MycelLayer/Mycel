@@ -405,9 +405,9 @@ def latest_same_role_handoff(registry: dict[str, Any], *, role: str, current_age
 
 def fast_path_steps_for_role(role: str) -> list[str]:
     steps = list(FAST_PATH_STEPS)
-    if role in {"coding", "delivery"}:
+    if role == "delivery":
         steps.append(
-            "check the latest completed CI result for the previous push before implementation or delivery work"
+            "check the latest completed CI result for the previous push before delivery work"
         )
     return steps
 
@@ -417,7 +417,7 @@ def deferred_reads_for_role(role: str) -> list[str]:
 
 
 def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
-    if role not in {"coding", "delivery"}:
+    if role != "delivery":
         return None
     fields = ",".join(LATEST_CI_GH_FIELDS)
     command = [
@@ -463,14 +463,8 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
 
 def next_actions_for_role(role: str, latest_ci: dict[str, Any] | None) -> list[str]:
     if role == "coding":
-        latest_ci_status = latest_ci.get("status") if isinstance(latest_ci, dict) else None
-        ci_action = (
-            "re-run the latest completed CI lookup before implementation work because bootstrap could not confirm it"
-            if latest_ci_status in {"unavailable", "missing"}
-            else "use the latest completed CI result above as the baseline before choosing the next implementation slice"
-        )
         return [
-            ci_action,
+            "check the latest completed CI result for the previous push before choosing the next implementation slice",
             "defer mailbox scans unless the scope overlaps existing coding work, recovery, or takeover",
         ]
     if role == "delivery":

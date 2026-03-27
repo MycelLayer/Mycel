@@ -117,7 +117,7 @@ Cheat-sheet reminder:
 
 1. keep bootstrap narrow
 2. use `python3 scripts/agent_bootstrap.py <role> --model-id <model_id>` or `auto`
-3. if `coding` or `delivery`, include the latest completed CI baseline before new work
+3. if `coding`, list the latest completed CI check as the first next work item before implementation; if `delivery`, include the latest completed CI baseline before new work
 
 Defer until task work starts:
 

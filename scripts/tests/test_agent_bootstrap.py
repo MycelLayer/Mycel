@@ -295,23 +295,20 @@ class AgentBootstrapCliTest(unittest.TestCase):
                 "read AGENTS-LOCAL.md if it exists, then read .agent-local/dev-setup-status.md",
                 "read docs/ROLE-CHECKLISTS/README.md, docs/AGENT-REGISTRY.md, and .agent-local/agents.json",
                 "run scripts/agent_bootstrap.py <role> --model-id <model_id> or scripts/agent_bootstrap.py auto --model-id <model_id>",
-                "check the latest completed CI result for the previous push before implementation or delivery work",
             ],
             payload["fast_path_steps"],
         )
         self.assertIn(
-            "use the latest completed CI result above as the baseline before choosing the next implementation slice",
+            "check the latest completed CI result for the previous push before choosing the next implementation slice",
             payload["next_actions"],
         )
         self.assertIn(
             "full mailbox scans unless the chat is resuming, taking over, or working an overlapping coding scope",
             payload["deferred_reads"],
         )
-        self.assertEqual("completed", payload["latest_completed_ci"]["status"])
-        self.assertEqual("CI", payload["latest_completed_ci"]["workflowName"])
-        self.assertEqual("success", payload["latest_completed_ci"]["conclusion"])
+        self.assertIsNone(payload["latest_completed_ci"])
         self.assertEqual(
-            "use the latest completed CI result above as the baseline before choosing the next implementation slice",
+            "check the latest completed CI result for the previous push before choosing the next implementation slice",
             payload["next_actions"][0],
         )
 
@@ -339,9 +336,11 @@ class AgentBootstrapCliTest(unittest.TestCase):
         )
         self.assertIn("next_actions:", proc.stdout)
         self.assertIn("deferred_reads:", proc.stdout)
-        self.assertIn("latest_completed_ci:", proc.stdout)
-        self.assertIn("workflowName: CI", proc.stdout)
-        self.assertIn("conclusion: success", proc.stdout)
+        self.assertIn(
+            "check the latest completed CI result for the previous push before choosing the next implementation slice",
+            proc.stdout,
+        )
+        self.assertNotIn("latest_completed_ci:", proc.stdout)
         self.assertNotIn("bootstrap_output:", proc.stdout)
         self.assertNotIn("mailbox_link:", proc.stdout)
         self.assertNotIn("fast_path_steps:", proc.stdout)
