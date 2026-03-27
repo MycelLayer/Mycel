@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mycel Blog</title>
+    <meta
+      name="description"
+      content="Field notes, design arguments, and coordination patterns from building Mycel and operating AI coding agents in a real repository."
+    >
+    <meta name="theme-color" content="#0d6b57">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mycel">
+    <meta property="og:title" content="Mycel Blog">
+    <meta
+      property="og:description"
+      content="Field notes, design arguments, and coordination patterns from building Mycel and operating AI coding agents in a real repository."
+    >
+    <meta property="og:url" content="https://mycellayer.github.io/Mycel/blog/">
+    <meta property="og:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mycel blog field notes overview">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mycel Blog">
+    <meta
+      name="twitter:description"
+      content="Field notes, design arguments, and coordination patterns from building Mycel and operating AI coding agents in a real repository."
+    >
+    <meta name="twitter:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <link rel="stylesheet" href="/Mycel/assets/landing-common.css">
+    <link rel="stylesheet" href="/Mycel/assets/blog.css">
+  </head>
+  <body class="landing-page blog-page">
+    <div class="page">
+      <nav class="nav">
+        <div class="brand"><a href="/Mycel/" aria-label="Back to the Mycel landing page">Mycel</a> / Blog</div>
+        <div class="nav-links">
+          <a href="https://mycellayer.github.io/Mycel/zh-TW/">繁體中文</a>
+          <a href="https://mycellayer.github.io/Mycel/zh-CN/">简体中文</a>
+          <a href="https://github.com/MycelLayer/Mycel">GitHub</a>
+          <a href="https://github.com/MycelLayer/Mycel/blob/main/README.md">README</a>
+          <a href="/Mycel/docs.html">Docs</a>
+          <a href="/Mycel/blog/" aria-current="page">Blog</a>
+          <a href="/Mycel/progress.html">Progress</a>
+          <a href="/Mycel/support.html">Support</a>
+        </div>
+      </nav>
+
+      <section class="hero" aria-labelledby="blog-home-title">
+        <div class="panel hero-copy">
+          <p class="eyebrow">Field Notes</p>
+          <h1 id="blog-home-title">Practical writing from the coordination layer, not framework hype.</h1>
+          <p>
+            The Mycel blog is where we publish the arguments, failure modes, and
+            design tradeoffs that emerged while building protocol-first text
+            systems and operating multiple AI coding agents in one repository.
+          </p>
+          <p>
+            The goal is not to announce "another agent framework." The goal is
+            to explain what actually has to work when repository state, Git
+            boundaries, and handoffs must survive interruption and parallel work.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="/Mycel/blog/multi-agent-coding-is-coordination.html">Read the Pilot Post</a>
+            <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/AGENT-COORDINATION-BLOG-SERIES-DRAFT.md">Open Series Draft</a>
+          </div>
+        </div>
+
+        <div class="panel hero-sidebar">
+          <div class="stats-list">
+            <div class="stats-card">
+              <strong>Publishing Model</strong>
+              <p>Markdown in the repo stays the source of truth. These pages are static presentation layers.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Current Focus</strong>
+              <p>Early posts center on coordination primitives: registry, workcycle, handoff quality, and Git ownership.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Language Scope</strong>
+              <p>v1 publishes English first. Localized blog pages can arrive later for durable, strategic posts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-panel split-panel" aria-labelledby="blog-latest-title">
+        <div>
+          <p class="section-kicker">Latest</p>
+          <h2 id="blog-latest-title">Start with the framing post</h2>
+          <p>
+            The first pilot article sets the argument for the whole series:
+            multi-agent coding failures usually come from stale state, weak
+            handoffs, and ownership ambiguity more often than from task routing.
+          </p>
+          <div class="post-grid">
+            <article class="post-card">
+              <div class="meta-row">
+                <span class="meta-pill">Agent Coordination Field Notes</span>
+                <span class="meta-pill">Part 1</span>
+                <span class="meta-pill">6 min read</span>
+              </div>
+              <h3>Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem</h3>
+              <p>
+                Why real-world multi-agent repo work breaks down on ownership,
+                lifecycle, and continuation surfaces long before it runs out of
+                clever delegation strategies.
+              </p>
+              <div class="meta-row">
+                <span class="meta-pill">Published 2026-04-03</span>
+                <span class="meta-pill">multi-agent</span>
+                <span class="meta-pill">handoff</span>
+                <span class="meta-pill">git</span>
+              </div>
+              <div class="card-actions">
+                <a class="button primary" href="/Mycel/blog/multi-agent-coding-is-coordination.html">Read Article</a>
+                <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-03.multi-agent-coding-is-coordination.md">Open Markdown</a>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="quote-card">
+          <blockquote>
+            "For real teams, multi-agent coding is a coordination problem before
+            it is an orchestration problem."
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="panel section-panel" aria-labelledby="blog-series-title">
+        <p class="section-kicker">Series</p>
+        <h2 id="blog-series-title">Agent Coordination Field Notes</h2>
+        <p>
+          This first series turns repo-local practice into public writing. It is
+          intentionally technical, concrete, and explicit about overhead rather
+          than treating process as invisible magic.
+        </p>
+        <ol class="series-list">
+          <li>Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem</li>
+          <li>Why Chat Memory Is Not a Coordination System</li>
+          <li>The Smallest Useful Primitive Is a Registry, Not a Swarm</li>
+          <li>Handoffs Should Be First-Class Artifacts</li>
+          <li>Workcycles Beat Vague "In Progress" State</li>
+        </ol>
+        <div class="footer-link-row">
+          <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/BLOG-PUBLISHING-PLAN.md">Publishing Plan</a>
+          <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/AGENT-COORDINATION-BLOG-SERIES-DRAFT.md">Series Draft</a>
+        </div>
+      </section>
+
+      <footer>
+        The Mycel blog is a public interpretation layer over repo-native
+        writing. For normative protocol and project state, return to the docs,
+        roadmap, and checklist surfaces.
+      </footer>
+    </div>
+  </body>
+</html>

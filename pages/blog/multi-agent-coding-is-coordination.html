@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coordination Beats Orchestration in Multi-Agent Coding | Mycel Blog</title>
+    <meta
+      name="description"
+      content="Why real multi-agent coding failures usually come from ownership drift, stale state, and weak handoffs more often than from task routing."
+    >
+    <meta name="theme-color" content="#0d6b57">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Mycel">
+    <meta property="og:title" content="Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem">
+    <meta
+      property="og:description"
+      content="Why real multi-agent coding failures usually come from ownership drift, stale state, and weak handoffs more often than from task routing."
+    >
+    <meta property="og:url" content="https://mycellayer.github.io/Mycel/blog/multi-agent-coding-is-coordination.html">
+    <meta property="og:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mycel blog pilot article">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem">
+    <meta
+      name="twitter:description"
+      content="Why real multi-agent coding failures usually come from ownership drift, stale state, and weak handoffs more often than from task routing."
+    >
+    <meta name="twitter:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <link rel="stylesheet" href="/Mycel/assets/landing-common.css">
+    <link rel="stylesheet" href="/Mycel/assets/blog.css">
+  </head>
+  <body class="landing-page blog-page">
+    <div class="page">
+      <nav class="nav">
+        <div class="brand"><a href="/Mycel/" aria-label="Back to the Mycel landing page">Mycel</a> / <a href="/Mycel/blog/">Blog</a></div>
+        <div class="nav-links">
+          <a href="https://mycellayer.github.io/Mycel/zh-TW/">繁體中文</a>
+          <a href="https://mycellayer.github.io/Mycel/zh-CN/">简体中文</a>
+          <a href="https://github.com/MycelLayer/Mycel">GitHub</a>
+          <a href="https://github.com/MycelLayer/Mycel/blob/main/README.md">README</a>
+          <a href="/Mycel/docs.html">Docs</a>
+          <a href="/Mycel/blog/" aria-current="page">Blog</a>
+          <a href="/Mycel/progress.html">Progress</a>
+          <a href="/Mycel/support.html">Support</a>
+        </div>
+      </nav>
+
+      <section class="hero" aria-labelledby="post-title">
+        <div class="panel hero-copy">
+          <p class="eyebrow">Agent Coordination Field Notes</p>
+          <h1 id="post-title">Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem</h1>
+          <div class="meta-row">
+            <span class="meta-pill">Published 2026-04-03</span>
+            <span class="meta-pill">Part 1</span>
+            <span class="meta-pill">6 min read</span>
+          </div>
+          <p>
+            Most public work on multi-agent systems starts with routing,
+            delegation, and tool access. In real repositories, teams get hurt
+            more often by stale state, handoff ambiguity, and weak ownership
+            boundaries.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-03.multi-agent-coding-is-coordination.md">Open Markdown</a>
+            <a class="button secondary" href="/Mycel/blog/">Back to Blog Index</a>
+          </div>
+        </div>
+
+        <div class="panel hero-sidebar">
+          <div class="stats-list">
+            <div class="stats-card">
+              <strong>Core claim</strong>
+              <p>For real teams, repo-local coordination usually breaks before orchestration ideas run out.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Failure mode</strong>
+              <p>Ownership drift, resumed-session confusion, stale-active agents, and handoffs that do not safely continue work.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Takeaway</strong>
+              <p>Ask which coordination surfaces survive interruption and resume, not only which runtime delegates next.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="article-layout" aria-labelledby="article-body-title">
+        <article class="panel article-body">
+          <h2 id="article-body-title">Why this matters</h2>
+          <p>
+            Most public discussion of multi-agent systems starts with
+            orchestration: which agent delegates, which one plans, which model
+            should route which task, and what tools sit behind the runtime.
+          </p>
+          <p>
+            That is useful, but it is not the operational center of gravity once
+            several AI coding chats are working in one real repository.
+          </p>
+          <p>
+            In practice, teams get hurt more often by coordination failures:
+          </p>
+          <ul>
+            <li>two agents think they own the same slice</li>
+            <li>nobody knows which state is still active</li>
+            <li>a resumed chat inherits ambiguous context</li>
+            <li>a handoff says too little to continue safely</li>
+            <li>Git history records that something changed, but not why the boundary was chosen</li>
+          </ul>
+          <p>
+            These are not failures of model capability alone. They are failures
+            of shared operating structure.
+          </p>
+
+          <h2>A concrete failure mode</h2>
+          <p>
+            Imagine three parallel coding chats in one repository. One starts a
+            narrow bug fix. Another notices a nearby edge case and touches the
+            same file. A third resumes an older conversation that still thinks
+            the original task is active.
+          </p>
+          <p>
+            Each individual move may look reasonable. The repo-level result is
+            worse: ownership is unclear, lifecycle state is stale, follow-up
+            work is guessed instead of transferred, and reviewers have to
+            reconstruct intent from fragmented chat context.
+          </p>
+
+          <h2>Why orchestration is not enough</h2>
+          <p>
+            An orchestrator can decide who should do what next. That still does
+            not answer who currently holds a role, whether an earlier agent is
+            really inactive, what artifact another session should trust, or
+            which commit boundary belongs to which work item.
+          </p>
+          <p>
+            Routing does not solve shared-state discipline. A team can have
+            excellent delegation and still get confused because the repository
+            lacks durable, explicit coordination surfaces.
+          </p>
+
+          <h2>The primitives that matter</h2>
+          <p>
+            The smallest useful multi-agent stack usually needs a registry of
+            active agents and roles, explicit begin/end workcycle boundaries,
+            handoff artifacts that outlive chat memory, Git ownership rules that
+            reduce collision, and reconcile logic for stale-active sessions.
+          </p>
+          <p>
+            None of these ideas are glamorous. All of them become important the
+            moment parallel work stops being a demo.
+          </p>
+
+          <h2>The tradeoff</h2>
+          <p>
+            Coordination adds overhead. You write down state that a single
+            uninterrupted chat might have carried in memory for a while. You
+            define boundaries that feel formal compared with free-form pair
+            coding. You accept a small amount of process in exchange for much
+            lower ambiguity.
+          </p>
+          <p>
+            That trade is usually worth it once multiple agents, multiple
+            sessions, or resumed work become normal.
+          </p>
+
+          <h2>Takeaway</h2>
+          <p>
+            If a team wants reliable multi-agent coding, the first question
+            should not be "Which swarm runtime should we use?"
+          </p>
+          <p>
+            It should be: "What explicit coordination surfaces will still make
+            sense after interruption, parallelism, handoff, and resume?"
+          </p>
+        </article>
+
+        <div class="meta-stack">
+          <div class="panel meta-panel">
+            <strong>Series</strong>
+            <p>Agent Coordination Field Notes</p>
+            <p>Part 1 of the opening framing arc.</p>
+          </div>
+          <div class="panel meta-panel">
+            <strong>Related</strong>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/docs/AGENT-COORDINATION-BLOG-SERIES-DRAFT.md">Series draft</a></p>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/docs/BLOG-PUBLISHING-PLAN.md">Publishing plan</a></p>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/docs/MULTI-AGENT-COORDINATION.md">Coordination docs</a></p>
+          </div>
+          <div class="panel meta-panel">
+            <strong>Next up</strong>
+            <p>Why Chat Memory Is Not a Coordination System</p>
+            <div class="footer-link-row">
+              <a class="button secondary" href="/Mycel/blog/">See Blog Index</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        This article is a public explanation layer. For normative repo workflow
+        and planning state, use the repository docs, roadmap, and checklists.
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,180 @@
+body.landing-page.blog-page .hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
+  gap: 20px;
+}
+
+body.landing-page.blog-page .hero-copy,
+body.landing-page.blog-page .hero-sidebar,
+body.landing-page.blog-page .section-panel {
+  padding: 30px;
+}
+
+body.landing-page.blog-page .eyebrow,
+body.landing-page.blog-page .meta-kicker,
+body.landing-page.blog-page .section-kicker {
+  margin: 0 0 10px;
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.landing-page.blog-page .hero-copy h1 {
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  margin-bottom: 14px;
+}
+
+body.landing-page.blog-page .hero-copy p,
+body.landing-page.blog-page .hero-sidebar p,
+body.landing-page.blog-page .section-panel > p,
+body.landing-page.blog-page .article-body p,
+body.landing-page.blog-page .article-body li,
+body.landing-page.blog-page .series-list li {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.72;
+}
+
+body.landing-page.blog-page .hero-copy p + p,
+body.landing-page.blog-page .hero-sidebar p + p,
+body.landing-page.blog-page .article-body p + p,
+body.landing-page.blog-page .article-body ul + p,
+body.landing-page.blog-page .article-body p + ul {
+  margin-top: 16px;
+}
+
+body.landing-page.blog-page .stats-list,
+body.landing-page.blog-page .post-grid {
+  display: grid;
+  gap: 16px;
+}
+
+body.landing-page.blog-page .stats-card,
+body.landing-page.blog-page .post-card,
+body.landing-page.blog-page .quote-card,
+body.landing-page.blog-page .meta-panel {
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+}
+
+body.landing-page.blog-page .stats-card strong,
+body.landing-page.blog-page .post-card strong,
+body.landing-page.blog-page .meta-panel strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body.landing-page.blog-page .post-card h3,
+body.landing-page.blog-page .article-body h2 {
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  margin-bottom: 12px;
+}
+
+body.landing-page.blog-page .post-card p + .meta-row,
+body.landing-page.blog-page .post-card .meta-row + .card-actions {
+  margin-top: 14px;
+}
+
+body.landing-page.blog-page .meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+body.landing-page.blog-page .meta-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(13, 107, 87, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+}
+
+body.landing-page.blog-page .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+body.landing-page.blog-page .split-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 20px;
+}
+
+body.landing-page.blog-page .quote-card {
+  display: flex;
+  align-items: center;
+}
+
+body.landing-page.blog-page blockquote {
+  margin: 0;
+  font-family: var(--landing-heading-font);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.24;
+  color: var(--text);
+}
+
+body.landing-page.blog-page .series-list {
+  margin-top: 18px;
+  padding-left: 18px;
+}
+
+body.landing-page.blog-page .article-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.7fr);
+  gap: 20px;
+}
+
+body.landing-page.blog-page .article-body {
+  padding: 30px;
+}
+
+body.landing-page.blog-page .article-body ul {
+  margin: 16px 0 0;
+}
+
+body.landing-page.blog-page .article-body li + li,
+body.landing-page.blog-page .series-list li + li {
+  margin-top: 10px;
+}
+
+body.landing-page.blog-page .meta-stack {
+  display: grid;
+  gap: 16px;
+}
+
+body.landing-page.blog-page .meta-panel p + p {
+  margin-top: 10px;
+}
+
+body.landing-page.blog-page .footer-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 920px) {
+  body.landing-page.blog-page .hero,
+  body.landing-page.blog-page .split-panel,
+  body.landing-page.blog-page .article-layout {
+    grid-template-columns: 1fr;
+  }
+
+  body.landing-page.blog-page .hero-copy,
+  body.landing-page.blog-page .hero-sidebar,
+  body.landing-page.blog-page .section-panel,
+  body.landing-page.blog-page .article-body {
+    padding: 26px;
+  }
+}
