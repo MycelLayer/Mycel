@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mycel 部落格</title>
+    <meta
+      name="description"
+      content="Mycel 部落格的繁體中文入口頁，整理系列定位、英文首篇文章，以及目前的語言策略。"
+    >
+    <meta name="theme-color" content="#0d6b57">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Mycel">
+    <meta property="og:title" content="Mycel 部落格">
+    <meta
+      property="og:description"
+      content="Mycel 部落格的繁體中文入口頁，整理系列定位、英文首篇文章，以及目前的語言策略。"
+    >
+    <meta property="og:url" content="https://mycellayer.github.io/Mycel/zh-TW/blog/">
+    <meta property="og:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mycel 部落格繁體中文入口">
+    <link rel="alternate" hreflang="en" href="https://mycellayer.github.io/Mycel/blog/">
+    <link rel="alternate" hreflang="zh-CN" href="https://mycellayer.github.io/Mycel/zh-CN/blog/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mycel 部落格">
+    <meta
+      name="twitter:description"
+      content="Mycel 部落格的繁體中文入口頁，整理系列定位、英文首篇文章，以及目前的語言策略。"
+    >
+    <meta name="twitter:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <style>
+      :root {
+        --landing-body-font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        --landing-heading-font: "Noto Serif TC", "PMingLiU", serif;
+        --landing-heading-line-height: 1.08;
+        --landing-card-line-height: 1.78;
+        --landing-section-line-height: 1.84;
+        --bg: #f3efe6;
+        --surface: rgba(255, 250, 242, 0.88);
+        --surface-strong: #fffaf1;
+        --text: #1d2a26;
+        --muted: #5a6a62;
+        --accent: #0d6b57;
+        --accent-strong: #084d3f;
+        --line: rgba(29, 42, 38, 0.12);
+        --shadow: 0 24px 80px rgba(20, 32, 27, 0.12);
+      }
+    </style>
+    <link rel="stylesheet" href="/Mycel/assets/landing-common.css">
+    <link rel="stylesheet" href="/Mycel/assets/blog.css">
+  </head>
+  <body class="landing-page blog-page">
+    <div class="page">
+      <nav class="nav">
+        <div class="brand"><a href="/Mycel/zh-TW/" aria-label="返回 Mycel 繁體中文首頁">Mycel</a> / 部落格</div>
+        <div class="nav-links">
+          <a href="https://mycellayer.github.io/Mycel/blog/">English</a>
+          <a href="https://mycellayer.github.io/Mycel/zh-CN/blog/">简体中文</a>
+          <a href="https://github.com/MycelLayer/Mycel">GitHub</a>
+          <a href="https://github.com/MycelLayer/Mycel/blob/main/README.zh-TW.md">README</a>
+          <a href="/Mycel/docs.html">文件</a>
+          <a href="/Mycel/zh-TW/blog/" aria-current="page">部落格</a>
+          <a href="/Mycel/zh-TW/progress.html">進度</a>
+          <a href="/Mycel/zh-TW/support.html">贊助</a>
+        </div>
+      </nav>
+
+      <section class="hero" aria-labelledby="blog-home-title-zh-tw">
+        <div class="panel hero-copy">
+          <p class="eyebrow">Field Notes</p>
+          <h1 id="blog-home-title-zh-tw">從 coordination layer 寫起，而不是從 framework hype 寫起。</h1>
+          <p>
+            這裡是 Mycel 部落格的繁體中文入口頁。我們會用它整理系列定位、
+            英文原文入口，以及未來哪些文章值得做繁體中文版本。
+          </p>
+          <p>
+            目前 v1 仍以英文首發為主。中文頁先作為閱讀入口與導覽層，避免中文站使用者
+            一進來就直接跳到完全沒有脈絡的英文頁面。
+          </p>
+          <div class="actions">
+            <a class="button primary" href="/Mycel/blog/multi-agent-coding-is-coordination.html">閱讀英文首篇文章</a>
+            <a class="button secondary" href="/Mycel/blog/">英文 Blog Index</a>
+          </div>
+        </div>
+
+        <div class="panel hero-sidebar">
+          <div class="stats-list">
+            <div class="stats-card">
+              <strong>目前模式</strong>
+              <p>repo 內的 Markdown 仍然是 source of truth，公開頁面只是展示層。</p>
+            </div>
+            <div class="stats-card">
+              <strong>目前主題</strong>
+              <p>第一批文章聚焦在 multi-agent coding 的 coordination primitives，例如 registry、workcycle、handoff 與 Git ownership。</p>
+            </div>
+            <div class="stats-card">
+              <strong>語言策略</strong>
+              <p>v1 先以英文發表，對長期有價值的文章再補繁體中文與簡體中文入口或譯文。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel section-panel split-panel" aria-labelledby="blog-latest-title-zh-tw">
+        <div>
+          <p class="section-kicker">目前文章</p>
+          <h2 id="blog-latest-title-zh-tw">先從 framing post 開始</h2>
+          <p>
+            第一篇文章先定義整個系列的主論點：多 agent coding 真正容易失敗的地方，
+            多半不是 task routing 不夠聰明，而是 ownership、handoff 與 stale state 沒有被清楚治理。
+          </p>
+          <div class="post-grid">
+            <article class="post-card">
+              <div class="meta-row">
+                <span class="meta-pill">Agent Coordination Field Notes</span>
+                <span class="meta-pill">Part 1</span>
+                <span class="meta-pill">英文原文</span>
+              </div>
+              <h3>Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem</h3>
+              <p>
+                說明為什麼真實 repo 裡的 multi-agent 工作，更常因 ownership、lifecycle 和 continuation surfaces 出問題，而不是先卡在 orchestration 本身。
+              </p>
+              <div class="card-actions">
+                <a class="button primary" href="/Mycel/blog/multi-agent-coding-is-coordination.html">閱讀文章</a>
+                <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-03.multi-agent-coding-is-coordination.md">開啟 Markdown</a>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="quote-card">
+          <blockquote>
+            對真實團隊來說，multi-agent coding 先是 coordination 問題，才是 orchestration 問題。
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="panel section-panel" aria-labelledby="blog-series-title-zh-tw">
+        <p class="section-kicker">系列定位</p>
+        <h2 id="blog-series-title-zh-tw">Agent Coordination Field Notes</h2>
+        <p>
+          這個系列會把 repo 內實際運作過的 coordination patterns 寫成公開文章。
+          語氣會偏技術、偏實務，也會明說 overhead 與 tradeoff，而不是把流程包裝成看不見的魔法。
+        </p>
+        <ol class="series-list">
+          <li>Multi-Agent Coding Is a Coordination Problem, Not Just an Orchestration Problem</li>
+          <li>Why Chat Memory Is Not a Coordination System</li>
+          <li>The Smallest Useful Primitive Is a Registry, Not a Swarm</li>
+          <li>Handoffs Should Be First-Class Artifacts</li>
+          <li>Workcycles Beat Vague "In Progress" State</li>
+        </ol>
+        <div class="footer-link-row">
+          <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/BLOG-PUBLISHING-PLAN.md">發布規劃</a>
+          <a class="button secondary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/AGENT-COORDINATION-BLOG-SERIES-DRAFT.md">系列草稿</a>
+        </div>
+      </section>
+
+      <footer>
+        這個中文 blog 頁目前是導覽與說明層。若要看規範性專案狀態，請回到 docs、roadmap 與 checklist。
+      </footer>
+    </div>
+  </body>
+</html>
