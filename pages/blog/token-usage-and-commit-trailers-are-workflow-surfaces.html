@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Token Usage, Commit Trailers, and Agent Workflow | Mycel Blog</title>
+    <meta
+      name="description"
+      content="Token usage and commit trailers are workflow surfaces that help humans and agents understand cost, ownership, reasoning context, and landed boundaries."
+    >
+    <meta name="theme-color" content="#0d6b57">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Mycel">
+    <meta property="og:title" content="Why Token Usage and Commit Trailers Belong in Agent Workflow">
+    <meta
+      property="og:description"
+      content="Token usage and commit trailers are workflow surfaces that help humans and agents understand cost, ownership, reasoning context, and landed boundaries."
+    >
+    <meta property="og:url" content="https://mycellayer.github.io/Mycel/blog/token-usage-and-commit-trailers-are-workflow-surfaces.html">
+    <meta property="og:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mycel blog article about token usage and commit trailers">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Why Token Usage and Commit Trailers Belong in Agent Workflow">
+    <meta
+      name="twitter:description"
+      content="Token usage and commit trailers are workflow surfaces that help humans and agents understand cost, ownership, reasoning context, and landed boundaries."
+    >
+    <meta name="twitter:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
+    <link rel="stylesheet" href="/Mycel/assets/landing-common.css">
+    <link rel="stylesheet" href="/Mycel/assets/blog.css">
+  </head>
+  <body class="landing-page blog-page">
+    <div class="page">
+      <nav class="nav">
+        <div class="brand"><a href="/Mycel/" aria-label="Back to the Mycel landing page">Mycel</a> / <a href="/Mycel/blog/">Blog</a></div>
+        <div class="nav-links">
+          <a href="https://mycellayer.github.io/Mycel/zh-TW/blog/">繁體中文</a>
+          <a href="https://mycellayer.github.io/Mycel/zh-CN/blog/">简体中文</a>
+          <a href="https://github.com/MycelLayer/Mycel">GitHub</a>
+          <a href="https://github.com/MycelLayer/Mycel/blob/main/README.md">README</a>
+          <a href="/Mycel/docs.html">Docs</a>
+          <a href="/Mycel/blog/" aria-current="page">Blog</a>
+          <a href="/Mycel/progress.html">Progress</a>
+          <a href="/Mycel/support.html">Support</a>
+        </div>
+      </nav>
+
+      <section class="hero" aria-labelledby="post-title">
+        <div class="panel hero-copy">
+          <p class="eyebrow">Agent Coordination Field Notes</p>
+          <h1 id="post-title">Why Token Usage and Commit Trailers Belong in Agent Workflow</h1>
+          <div class="meta-row">
+            <span class="meta-pill">Published 2026-04-17</span>
+            <span class="meta-pill">Part 3</span>
+            <span class="meta-pill">7 min read</span>
+          </div>
+          <p>
+            Token usage and commit trailers are not side metadata. They are
+            workflow surfaces that help both humans and agents understand cost,
+            ownership, reasoning context, and landed boundaries.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-17.token-usage-and-commit-trailers-are-workflow-surfaces.md">Open Markdown</a>
+            <a class="button secondary" href="/Mycel/blog/">Back to Blog Index</a>
+          </div>
+        </div>
+
+        <div class="panel hero-sidebar">
+          <div class="stats-list">
+            <div class="stats-card">
+              <strong>Core claim</strong>
+              <p>Usage summaries and commit trailers are part of the coordination layer, not decorative logging.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Main tools</strong>
+              <p><code>agent_work_cycle.py</code>, <code>codex_token_usage_summary.py</code>, <code>agent_safe_commit.py</code>, and <code>codex_thread_metadata.py</code>.</p>
+            </div>
+            <div class="stats-card">
+              <strong>Takeaway</strong>
+              <p>Good workflow metadata preserves cost, ownership, and model context after the chat itself is gone.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="article-layout" aria-labelledby="article-body-title">
+        <article class="panel article-body">
+          <h2 id="article-body-title">Why this metadata matters</h2>
+          <p>
+            Once multiple coding agents are working in one repository, "the code
+            changed" stops being enough information. Teams also need to know
+            which agent spent the effort, how expensive a cycle was, which model
+            produced the result, and where one owned boundary ended.
+          </p>
+          <p>
+            That is why token usage and commit trailers belong inside the
+            workflow layer. They are not side notes. They help the repo stay
+            understandable to both humans and agents.
+          </p>
+
+          <h2>The coordination problem behind the metadata</h2>
+          <p>
+            In a single uninterrupted chat, usage and trailer fields can look
+            optional. In a real multi-agent repo, they answer operational
+            questions: was a cycle unexpectedly expensive, did the agent really
+            close the work it claimed to close, and which model and reasoning
+            mode produced the landed change?
+          </p>
+          <p>
+            That is why we treat them as workflow surfaces, not just logging
+            output.
+          </p>
+
+          <h2>The tools we use</h2>
+          <p>
+            The main repo-native tools in this part of the workflow are
+            <code>scripts/agent_work_cycle.py</code>,
+            <code>scripts/codex_token_usage_summary.py</code>,
+            <code>scripts/agent_safe_commit.py</code>, and
+            <code>scripts/codex_thread_metadata.py</code>.
+          </p>
+          <p>
+            <code>agent_work_cycle.py</code> records begin and end boundaries
+            for a user-command cycle and can surface a usage summary like
+            <code>+53K this cycle est.</code> during closeout. The token summary
+            helper turns raw session evidence into a reusable usage surface.
+          </p>
+          <p>
+            <code>codex_thread_metadata.py</code> exposes model and reasoning
+            metadata, and <code>agent_safe_commit.py</code> uses it when it
+            creates a guarded commit with trailers such as
+            <code>Agent-Id</code>, <code>Model</code>,
+            <code>Reasoning-Effort</code>, and <code>Token-Spent</code> when
+            usage evidence is available.
+          </p>
+
+          <h2>Why token usage belongs in the workflow</h2>
+          <p>
+            Token usage is not only a cost metric. It is coordination feedback.
+            If one cycle burns far more tokens than expected, that can signal an
+            unclear boundary, repeated failed attempts, or a context load that
+            should have been split earlier.
+          </p>
+          <p>
+            That information helps human reviewers understand how work happened.
+            It also helps later agents inherit better expectations about slice
+            size and handoff discipline.
+          </p>
+
+          <h2>Why commit trailers matter</h2>
+          <p>
+            Commit trailers do similar work for landed history. Without them, a
+            diff may show what changed while hiding who owned the slice, which
+            model produced it, and how much token spend the cycle likely
+            consumed.
+          </p>
+          <p>
+            With trailers, the commit boundary becomes more than a patch. It
+            becomes a compact continuation record that later humans and agents
+            can audit without guessing.
+          </p>
+
+          <h2>Human-readable and agent-usable at the same time</h2>
+          <p>
+            This is the same principle we use for checklists and handoffs. The
+            metadata should stay useful to both audiences: humans can read
+            timestamp lines and commit trailers directly, and agents can parse
+            the same fields to preserve identity and continuation context.
+          </p>
+          <p>
+            If the data is only machine-friendly, humans stop trusting it
+            because they cannot inspect it easily. If it is only prose for
+            humans, agents cannot reuse it safely in automation.
+          </p>
+
+          <h2>The tradeoff</h2>
+          <p>
+            Adding token summaries and commit trailers creates more explicit
+            process. It makes the workflow more opinionated, and it preserves
+            metadata that lightweight demos would often skip.
+          </p>
+          <p>
+            But the upside is clarity: cost becomes visible, ownership becomes
+            durable, model context survives beyond one chat, and landed history
+            becomes easier to audit.
+          </p>
+
+          <h2>Takeaway</h2>
+          <p>
+            Token usage and commit trailers are not side channels. They are part
+            of the coordination layer: workcycle timestamps make usage visible,
+            helper scripts summarize token spend, and safe commits preserve
+            agent plus model identity in landed history.
+          </p>
+          <p>
+            Important workflow context should not disappear just because a chat
+            ends. That is the broader Mycel pattern these tools try to enforce.
+          </p>
+        </article>
+
+        <div class="meta-stack">
+          <div class="panel meta-panel">
+            <strong>Series</strong>
+            <p>Agent Coordination Field Notes</p>
+            <p>Part 3 of the workflow-metadata arc.</p>
+          </div>
+          <div class="panel meta-panel">
+            <strong>Metadata surfaces</strong>
+            <p><code>Token-Spent</code></p>
+            <p><code>Agent-Id</code></p>
+            <p><code>Model</code></p>
+            <p><code>Reasoning-Effort</code></p>
+            <p>Before/after workcycle timestamps</p>
+          </div>
+          <div class="panel meta-panel">
+            <strong>Related</strong>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-10.what-actually-manages-agent-workflow.md">Part 2 article</a></p>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/AGENTS.md">AGENTS.md</a></p>
+            <p><a href="https://github.com/MycelLayer/Mycel/blob/main/docs/BOOTSTRAP-TOKEN-ANALYSIS.md">Token analysis note</a></p>
+          </div>
+          <div class="panel meta-panel">
+            <strong>Previous</strong>
+            <p><a href="/Mycel/blog/what-actually-manages-agent-workflow.html">What Actually Manages Agent Workflow: The Repo-Native Scripts We Use</a></p>
+            <div class="footer-link-row">
+              <a class="button secondary" href="/Mycel/blog/">See Blog Index</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        This article is a public explanation layer. For normative repo workflow
+        and planning state, use the repository docs, roadmap, and checklists.
+      </footer>
+    </div>
+  </body>
+</html>
