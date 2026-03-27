@@ -133,7 +133,7 @@ body.landing-page.blog-page .article-body h2 {
 
 body.landing-page.blog-page .article-body p + h2,
 body.landing-page.blog-page .article-body ul + h2 {
-  margin-top: 34px;
+  margin-top: 60px;
 }
 
 body.landing-page.blog-page .post-card p + .meta-row,
