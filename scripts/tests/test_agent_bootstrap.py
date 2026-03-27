@@ -369,7 +369,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## Work Continuation Handoff
 
 - Status: open
-- Date: 2026-03-24 12:10 UTC+8
+- Date: 2026-03-27 12:10 UTC+8
 - Source agent: coding-7
 - Source role: coding
 - Scope: restore-sync-gap
@@ -382,7 +382,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             json.dumps(
                 {
                     "version": 2,
-                    "updated_at": "2026-03-24T12:12:00+0800",
+                    "updated_at": "2026-03-27T12:12:00+0800",
                     "agent_count": 1,
                     "agents": [
                         {
@@ -392,17 +392,17 @@ class AgentBootstrapCliTest(unittest.TestCase):
                             "display_history": [
                                 {
                                     "display_id": "coding-7",
-                                    "assigned_at": "2026-03-24T11:00:00+0800",
-                                    "released_at": "2026-03-24T12:12:00+0800",
+                                    "assigned_at": "2026-03-27T11:00:00+0800",
+                                    "released_at": "2026-03-27T12:12:00+0800",
                                     "released_reason": "finished",
                                 }
                             ],
                             "assigned_by": "user",
-                            "assigned_at": "2026-03-24T11:00:00+0800",
+                            "assigned_at": "2026-03-27T11:00:00+0800",
                             "confirmed_by_agent": True,
-                            "confirmed_at": "2026-03-24T11:00:10+0800",
-                            "last_touched_at": "2026-03-24T12:12:00+0800",
-                            "inactive_at": "2026-03-24T12:12:00+0800",
+                            "confirmed_at": "2026-03-27T11:00:10+0800",
+                            "last_touched_at": "2026-03-27T12:12:00+0800",
+                            "inactive_at": "2026-03-27T12:12:00+0800",
                             "paused_at": None,
                             "status": "inactive",
                             "scope": "restore-sync-gap",

@@ -109,6 +109,20 @@ def load_latest_turn_context(sessions_dir: Path, cwd: str) -> dict[str, Any]:
     return latest
 
 
+def load_latest_thread_for_cwd(state_db: Path, cwd: str) -> dict[str, Any] | None:
+    query = """
+        SELECT id, cwd, model, reasoning_effort, updated_at
+        FROM threads
+        WHERE cwd = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+    """
+    with sqlite3.connect(state_db) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(query, (cwd,)).fetchone()
+    return dict(row) if row is not None else None
+
+
 def discover_state_db(codex_home: Path) -> Path:
     candidates: list[tuple[int, Path]] = []
     for path in codex_home.glob("state_*.sqlite"):
@@ -134,6 +148,45 @@ def load_thread_row(state_db: Path, thread_id: str) -> dict[str, Any] | None:
     return dict(row) if row is not None else None
 
 
+def load_latest_turn_context_for_thread(
+    sessions_dir: Path, *, thread_id: str, cwd: str
+) -> dict[str, Any] | None:
+    latest: dict[str, Any] | None = None
+    latest_ts = ""
+    pattern = f"rollout-*{thread_id}.jsonl"
+    for path in sorted(sessions_dir.rglob(pattern), reverse=True):
+        with path.open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if entry.get("type") != "turn_context":
+                    continue
+                payload = entry.get("payload", {})
+                if payload.get("cwd") != cwd:
+                    continue
+                timestamp = entry.get("timestamp", "")
+                if timestamp >= latest_ts:
+                    latest_ts = timestamp
+                    latest = {
+                        "timestamp": timestamp,
+                        "session_path": str(path),
+                        "thread_id": thread_id,
+                        "turn_id": payload.get("turn_id"),
+                        "cwd": payload.get("cwd"),
+                        "model": payload.get("model"),
+                        "effort": payload.get("effort")
+                        or payload.get("collaboration_mode", {})
+                        .get("settings", {})
+                        .get("reasoning_effort"),
+                    }
+    return latest
+
+
 def main() -> int:
     args = parse_args()
     codex_home = Path(args.codex_home).expanduser()
@@ -143,8 +196,46 @@ def main() -> int:
         if args.state_db is not None
         else discover_state_db(codex_home)
     )
-    turn = load_latest_turn_context(sessions_dir, args.cwd)
-    thread = load_thread_row(state_db, turn["thread_id"])
+    thread = load_latest_thread_for_cwd(state_db, args.cwd)
+
+    if args.latest_thread_id_only:
+        if thread is not None:
+            print(thread["id"])
+            return 0
+        turn = load_latest_turn_context(sessions_dir, args.cwd)
+        print(turn["thread_id"])
+        return 0
+
+    if args.current or args.shell:
+        if thread is not None:
+            model = thread.get("model") or "unknown-model"
+            effort = thread.get("reasoning_effort") or "unknown-effort"
+            if args.current:
+                print(f"{model} {effort} {thread['id']}")
+                return 0
+            print(f"MODEL={json.dumps(model)}")
+            print(f"EFFORT={json.dumps(effort)}")
+            print(f"THREAD_ID={json.dumps(thread['id'])}")
+            print(f"STATE_DB={json.dumps(str(state_db))}")
+            return 0
+
+    if thread is not None:
+        turn = load_latest_turn_context_for_thread(
+            sessions_dir, thread_id=thread["id"], cwd=args.cwd
+        )
+        if turn is None:
+            turn = {
+                "timestamp": None,
+                "session_path": None,
+                "thread_id": thread["id"],
+                "turn_id": None,
+                "cwd": args.cwd,
+                "model": None,
+                "effort": None,
+            }
+    else:
+        turn = load_latest_turn_context(sessions_dir, args.cwd)
+        thread = load_thread_row(state_db, turn["thread_id"])
 
     result = {
         "cwd": args.cwd,
