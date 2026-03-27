@@ -6,7 +6,7 @@
     <title>What Actually Manages Agent Workflow | Mycel Blog</title>
     <meta
       name="description"
-      content="The Mycel agent workflow is managed by repo-native scripts and files that make identity, workcycles, handoffs, Git boundaries, and planning refresh explicit."
+      content="The Mycel agent workflow is managed by repo-native scripts and files that stay readable to humans while remaining directly usable by agents."
     >
     <meta name="theme-color" content="#0d6b57">
     <meta property="og:type" content="article">
@@ -14,7 +14,7 @@
     <meta property="og:title" content="What Actually Manages Agent Workflow: The Repo-Native Scripts We Use">
     <meta
       property="og:description"
-      content="The Mycel agent workflow is managed by repo-native scripts and files that make identity, workcycles, handoffs, Git boundaries, and planning refresh explicit."
+      content="The Mycel agent workflow is managed by repo-native scripts and files that stay readable to humans while remaining directly usable by agents."
     >
     <meta property="og:url" content="https://mycellayer.github.io/Mycel/blog/what-actually-manages-agent-workflow.html">
     <meta property="og:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
@@ -25,7 +25,7 @@
     <meta name="twitter:title" content="What Actually Manages Agent Workflow: The Repo-Native Scripts We Use">
     <meta
       name="twitter:description"
-      content="The Mycel agent workflow is managed by repo-native scripts and files that make identity, workcycles, handoffs, Git boundaries, and planning refresh explicit."
+      content="The Mycel agent workflow is managed by repo-native scripts and files that stay readable to humans while remaining directly usable by agents."
     >
     <meta name="twitter:image" content="https://mycellayer.github.io/Mycel/social-preview.png">
     <link rel="stylesheet" href="/Mycel/assets/landing-common.css">
@@ -59,8 +59,8 @@
           <p>
             Our workflow is not managed by a hidden supervisor runtime. It is
             managed by a small set of repo-native scripts and files that make
-            identity, workcycles, handoffs, Git boundaries, and planning drift
-            visible.
+            identity, workcycles, handoffs, checklists, Git boundaries, and
+            planning drift visible to both humans and agents.
           </p>
           <div class="actions">
             <a class="button primary" href="https://github.com/MycelLayer/Mycel/blob/main/docs/blog/2026-04-10.what-actually-manages-agent-workflow.md">Open Markdown</a>
@@ -72,7 +72,7 @@
           <div class="stats-list">
             <div class="stats-card">
               <strong>Core claim</strong>
-              <p>The coordination layer is a set of explicit repo surfaces, not one invisible control loop.</p>
+              <p>The coordination layer is a set of explicit repo surfaces that humans can read and agents can act on.</p>
             </div>
             <div class="stats-card">
               <strong>Main tools</strong>
@@ -103,6 +103,12 @@
             inspectable in the repository instead of trapped inside one long
             chat or one opaque orchestration service.
           </p>
+          <p>
+            The goal is not only machine action. It is dual readability:
+            agents should be able to execute against these surfaces directly,
+            and humans should still be able to open the same files and
+            understand what is going on.
+          </p>
 
           <h2>The main surfaces we rely on</h2>
           <p>
@@ -119,6 +125,12 @@
             The important point is that a resumed or replacement session can
             inspect these files and recover enough context to continue safely.
           </p>
+          <p>
+            These are shared coordination artifacts, not agent-only internals.
+            A checklist copy is a good example: an agent can mark stable item
+            states, while a human can read the same Markdown file and see what
+            was checked, skipped, or left unresolved.
+          </p>
 
           <h2>Bootstrap and identity</h2>
           <p>
@@ -133,6 +145,12 @@
             cycle. The registry owns the durable identity model: stable
             <code>agent_uid</code>, human-facing <code>display_id</code>, role,
             scope, mailbox path, and lifecycle state.
+          </p>
+          <p>
+            That registry is designed to work for both audiences. Agents can
+            parse it as structured state. Humans can inspect it as a repo-local
+            status surface instead of treating the workflow as invisible
+            background magic.
           </p>
 
           <h2>Workcycles instead of vague progress</h2>
@@ -161,6 +179,11 @@
             superseded. That is much more reliable than assuming another agent
             can safely continue from chat memory alone.
           </p>
+          <p>
+            The same structure helps humans too. A maintainer can read a short
+            handoff and understand where work stands without replaying a whole
+            chat log just to recover intent.
+          </p>
 
           <h2>Git safety is part of the workflow</h2>
           <p>
@@ -188,6 +211,13 @@
             planning surfaces aligned without editing the tracked source docs
             directly or guessing whether doc sync is overdue.
           </p>
+          <p>
+            This is one of the clearest human-agent dual-use examples. The
+            checklist is agent-usable because scripts can create it, find
+            stable item ids, and mark exact states. It is also human-readable
+            because the output stays plain Markdown instead of disappearing into
+            a special dashboard or hidden runtime console.
+          </p>
 
           <h2>The tradeoff</h2>
           <p>
@@ -200,13 +230,19 @@
             independently, and makes it possible to tighten one primitive
             without rewriting the whole stack.
           </p>
+          <p>
+            Just as importantly, the same files remain useful to both human
+            maintainers and agent sessions. That shared readability is part of
+            the point, not a side effect.
+          </p>
 
           <h2>Takeaway</h2>
           <p>
             The workflow is not managed by one secret master agent. It is
             managed by a small repo-native coordination layer: registry for
             identity, workcycles for lifecycle, mailbox handoffs for
-            continuation, Git guardrails for ownership, and planning checks for
+            continuation, checklist copies that agents can update and humans
+            can read, Git guardrails for ownership, and planning checks for
             drift.
           </p>
           <p>
