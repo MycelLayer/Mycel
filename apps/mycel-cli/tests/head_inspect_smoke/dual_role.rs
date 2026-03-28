@@ -74,7 +74,7 @@ fn head_inspect_store_backed_separates_editor_and_view_admission() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], view_revision["revision_id"]);
+    assert_eq!(json["selected_head"], editor_revision["revision_id"]);
     assert!(
         json["editor_candidates"]
             .as_array()
@@ -108,6 +108,17 @@ fn head_inspect_store_backed_separates_editor_and_view_admission() {
                     && entry["effective_weight"] == 1_u64
             })),
         "expected view-only key to retain selector weight, stdout: {}",
+        stdout_text(&output)
+    );
+    assert!(
+        json["maintainer_support"]
+            .as_array()
+            .is_some_and(|support| support.iter().any(|entry| {
+                entry["maintainer"] == Value::String(signer_id(&editor_only_author))
+                    && entry["revision_id"] == editor_revision["revision_id"]
+                    && entry["effective_weight"] == 0_u64
+            })),
+        "expected zero-weight support to remain only on the formal editor candidate, stdout: {}",
         stdout_text(&output)
     );
 }
@@ -211,7 +222,7 @@ fn head_render_store_backed_separates_editor_and_view_admission() {
     );
     let store_dir = build_store_from_objects(&[
         editor_patch,
-        editor_revision,
+        editor_revision.clone(),
         view_patch,
         view_revision.clone(),
         editor_view,
@@ -240,10 +251,10 @@ fn head_render_store_backed_separates_editor_and_view_admission() {
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], view_revision["revision_id"]);
+    assert_eq!(json["selected_head"], editor_revision["revision_id"]);
     assert_eq!(
         json["rendered_text"],
-        Value::String("View-only line".to_string())
+        Value::String("Editor-only line".to_string())
     );
     assert_eq!(json["rendered_block_count"], Value::from(1));
 }

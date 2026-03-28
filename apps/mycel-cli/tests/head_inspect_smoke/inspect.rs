@@ -694,7 +694,7 @@ fn head_inspect_named_profile_separates_editor_and_view_admission() {
     assert_success(&output);
     let json = parse_json_stdout(&output);
     assert_eq!(json["profile_id"], "preview");
-    assert_eq!(json["selected_head"], view_revision["revision_id"]);
+    assert_eq!(json["selected_head"], editor_revision["revision_id"]);
     assert!(
         json["editor_candidates"]
             .as_array()
@@ -738,7 +738,7 @@ fn head_inspect_named_profile_separates_editor_and_view_admission() {
                     && entry["revision_id"] == editor_revision["revision_id"]
                     && entry["effective_weight"] == 0_u64
             })),
-        "expected editor-only support to remain zero-weight, stdout: {}",
+        "expected zero-weight support to remain only on the formal editor candidate, stdout: {}",
         stdout_text(&output)
     );
     assert!(

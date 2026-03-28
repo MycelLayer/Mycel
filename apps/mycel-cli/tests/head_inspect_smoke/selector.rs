@@ -1207,7 +1207,7 @@ fn head_inspect_admitted_only_editor_policy_filters_non_admitted_candidate_heads
 }
 
 #[test]
-fn head_inspect_mixed_editor_policy_marks_formal_candidates_without_filtering_selection() {
+fn head_inspect_mixed_editor_policy_limits_selection_to_formal_candidates() {
     let doc_id = "doc:editor-mixed";
     let admitted_author = signing_key(71);
     let non_admitted_author = signing_key(72);
@@ -1252,26 +1252,28 @@ fn head_inspect_mixed_editor_policy_marks_formal_candidates_without_filtering_se
 
     assert_success(&output);
     let json = parse_json_stdout(&output);
-    assert_eq!(json["selected_head"], non_admitted_revision["revision_id"]);
+    assert_eq!(json["selected_head"], admitted_revision["revision_id"]);
     let eligible_heads = json["eligible_heads"]
         .as_array()
         .expect("eligible_heads should be array");
-    assert_eq!(eligible_heads.len(), 2);
-    assert!(
-        eligible_heads.iter().any(|entry| {
-            entry["revision_id"] == admitted_revision["revision_id"]
-                && entry["formal_candidate"] == Value::Bool(true)
-        }),
-        "expected admitted formal candidate head, stdout: {}",
-        stdout_text(&output)
+    assert_eq!(eligible_heads.len(), 1);
+    assert_eq!(
+        eligible_heads[0]["revision_id"],
+        admitted_revision["revision_id"]
     );
+    assert_eq!(eligible_heads[0]["editor_admitted"], Value::Bool(true));
+    assert_eq!(eligible_heads[0]["formal_candidate"], Value::Bool(true));
+    let editor_candidates = json["editor_candidates"]
+        .as_array()
+        .expect("editor_candidates should be array");
     assert!(
-        eligible_heads.iter().any(|entry| {
+        editor_candidates.iter().any(|entry| {
             entry["revision_id"] == non_admitted_revision["revision_id"]
+                && entry["candidate_eligible"] == Value::Bool(true)
                 && entry["editor_admitted"] == Value::Bool(false)
                 && entry["formal_candidate"] == Value::Bool(false)
         }),
-        "expected mixed-mode informal candidate head, stdout: {}",
+        "expected mixed-mode non-admitted revision to remain visible but informal, stdout: {}",
         stdout_text(&output)
     );
     assert!(

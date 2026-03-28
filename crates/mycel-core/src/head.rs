@@ -1772,7 +1772,7 @@ fn apply_editor_admission(
                 EditorCandidateMode::Open => true,
                 EditorCandidateMode::AdmittedOnly | EditorCandidateMode::Mixed => editor_admitted,
             };
-            if candidate_eligible {
+            if formal_candidate {
                 eligible.push(revision.clone());
             }
             EditorCandidateSummary {
