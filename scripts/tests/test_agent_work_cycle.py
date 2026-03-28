@@ -1469,7 +1469,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("source_push_ok: true", proc.stdout)
         self.assertIn("HEAD is reachable from origin/main", proc.stdout)
 
-    def test_end_returns_pending_when_cycle_has_uncommitted_file_changes(self) -> None:
+    def test_end_allows_uncommitted_file_changes_when_cycle_has_no_owned_commits(self) -> None:
         self.write_agents_md()
         self.init_git_repo()
         self.init_origin_main_remote()
@@ -1497,11 +1497,11 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
 
-        self.assertEqual(2, proc.returncode)
-        self.assertIn("source_push_required: true", proc.stdout)
-        self.assertIn("source_push_ok: false", proc.stdout)
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("source_push_required: false", proc.stdout)
+        self.assertIn("source_push_ok: true", proc.stdout)
         self.assertIn(
-            "cycle file changes are still uncommitted; commit and push them first",
+            "no cycle-owned tracked-file changes detected; local-only changes do not block closeout",
             proc.stdout,
         )
 
@@ -1628,7 +1628,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertEqual(0, proc.returncode)
         self.assertIn("scrutinized_not_needed_violations: 0", proc.stdout)
         self.assertIn(
-            "source_push_reason: no cycle-owned tracked-file commits detected; foreign local commits do not block closeout",
+            "source_push_reason: no cycle-owned tracked-file changes detected; local-only changes do not block closeout",
             proc.stdout,
         )
 

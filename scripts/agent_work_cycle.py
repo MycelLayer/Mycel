@@ -810,6 +810,21 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
             "reason": "no source changes detected in the cycle",
             "remote_head": None,
         }
+    owned_source_paths = cycle_owned_tracked_paths(agent_uid, batch_num)
+    if owned_source_paths is None:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "unable to determine whether cycle source changes belong to this agent",
+            "remote_head": None,
+        }
+    if not owned_source_paths:
+        return {
+            "required": False,
+            "ok": True,
+            "reason": "no cycle-owned tracked-file changes detected; local-only changes do not block closeout",
+            "remote_head": None,
+        }
     remote_name_proc = run_git(["remote", "get-url", "origin"])
     origin_available = remote_name_proc.returncode == 0
 
@@ -833,7 +848,7 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
         return {
             "required": True,
             "ok": False,
-            "reason": "cycle file changes are still uncommitted; commit and push them first",
+            "reason": "cycle-owned tracked-file changes are still uncommitted; commit and push them first",
             "remote_head": None,
         }
 
