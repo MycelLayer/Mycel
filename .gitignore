@@ -1,4 +1,3 @@
-AGENTS-LOCAL.md
 .agent-local/*
 !.agent-local/mailboxes/
 .agent-local/mailboxes/*
