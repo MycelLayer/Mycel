@@ -40,6 +40,7 @@ def build_message(
     reasoning_effort: str | None = None,
     scope: str | None,
     token_usage: str | None = None,
+    status_note: str | None = None,
     now: datetime | None = None,
 ) -> str:
     label = "Before work" if stage == "before" else "After work"
@@ -51,6 +52,8 @@ def build_message(
         message += f" | {scope}"
     if token_usage:
         message += f" | {token_usage}"
+    if status_note:
+        message += f" | {status_note}"
     return message
 
 
@@ -65,6 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reasoning-effort", help="reasoning effort to append after the model identifier")
     parser.add_argument("--scope", help="scope label to include in the message")
     parser.add_argument("--token-usage", help="token usage summary to append as the final message field")
+    parser.add_argument("--status-note", help="status note to append after the token-usage field")
     parser.add_argument(
         "--now",
         help="override the current time with an ISO 8601 timestamp; intended for tests",
@@ -95,6 +99,7 @@ def main() -> int:
             reasoning_effort=args.reasoning_effort,
             scope=args.scope,
             token_usage=args.token_usage,
+            status_note=args.status_note,
             now=parse_now(args.now),
         )
     )

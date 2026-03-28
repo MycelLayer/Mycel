@@ -976,7 +976,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn(
-            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K | pre-boot +60K | compaction detected",
             proc.stdout,
         )
         self.assertIn("compact_context_detected_before_after_work: true", proc.stdout)
@@ -1037,6 +1037,10 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
 
         self.assertEqual(0, proc.returncode)
+        self.assertIn(
+            f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K | pre-boot +60K | compaction detected",
+            proc.stdout,
+        )
         self.assertIn("compact_context_detected_before_after_work: true", proc.stdout)
         self.assertIn("compaction_timestamp: 2026-03-25T06:26:03.000Z", proc.stdout)
         self.assertIn(

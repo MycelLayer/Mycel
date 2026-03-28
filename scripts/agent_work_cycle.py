@@ -1583,6 +1583,7 @@ def main() -> int:
                     end_token_snapshot,
                     bootstrap_batch=bootstrap_batch,
                 ),
+                status_note="compaction detected" if end_compaction is not None else None,
             )
         )
         if end_compaction is not None:
