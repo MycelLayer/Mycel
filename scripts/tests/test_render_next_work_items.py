@@ -127,6 +127,25 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             proc.stdout,
         )
 
+    def test_uses_traditional_chinese_role_defaults_when_locale_is_zh_tw(self) -> None:
+        proc = self.run_cli("-", stdin_text=json.dumps({"role": "coding", "locale": "zh-TW"}))
+
+        self.assertEqual(
+            "1. (最有價值) 檢查 ROADMAP.md，找出最高價值的下一個 coding 工作 取捨: "
+            "和 roadmap 對齊最好，但在開始實作前需要先花一點時間做優先順序判斷 路線圖: ROADMAP.md / next coding slice\n"
+            "2. 檢查最新的 CQH issue，整理高價值工作項目 取捨: 通常比較快能落地，但可能沒有那麼直接貼近主要 roadmap 軌道\n",
+            proc.stdout,
+        )
+
+    def test_localizes_compaction_defaults_when_locale_is_zh_tw(self) -> None:
+        proc = self.run_cli("-", stdin_text=json.dumps({"compaction_detected": True, "locale": "zh-TW"}))
+
+        self.assertEqual(
+            "1. (最有價值) 偵測到 compact context，我們最好開一個新聊天再繼續。 取捨: "
+            "這是 compact context 後最安全的下一步，但會先暫停眼前工作，直到新聊天開好為止。\n",
+            proc.stdout,
+        )
+
     def test_accepts_compaction_only_output_without_other_items(self) -> None:
         spec = {"compaction_detected": True}
 

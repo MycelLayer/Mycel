@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,7 @@ from render_next_work_items import NextWorkItemsError, render_payload as render_
 ROOT_DIR = Path(__file__).resolve().parent.parent
 AGENT_LOCAL_DIR = (ROOT_DIR / ".agent-local").resolve()
 MAILBOX_DIR = (AGENT_LOCAL_DIR / "mailboxes").resolve()
+AGENTS_LOCAL_PATH = ROOT_DIR / "AGENTS-LOCAL.md"
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 MAILBOX_HANDOFF_SCRIPT = ROOT_DIR / "scripts" / "mailbox_handoff.py"
 CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
@@ -78,6 +80,7 @@ SCRUTINIZED_NOT_NEEDED_ITEMS: dict[str, str] = {
 PLACEHOLDER_SCOPES: frozenset[str] = frozenset({"pending scope", "", "none", "n/a"})
 NON_CYCLE_TRACKED_PATH_PREFIXES: tuple[str, ...] = (".agent-local/", ".git/")
 NON_CYCLE_TRACKED_PATH_SUFFIXES: tuple[str, ...] = (".pyc",)
+PREFERRED_LOCALE_LINE_PATTERN = re.compile(r"`([^`]+)`")
 
 
 class WorkCycleError(Exception):
@@ -615,14 +618,18 @@ def build_next_work_items_payload(
     compaction_detected: bool,
     scope: str | None = None,
     same_role_handoff: dict[str, object] | None = None,
+    locale: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "role": agent_role,
         "compaction_detected": compaction_detected,
     }
+    if locale:
+        payload["locale"] = locale
     cycle_items = build_cycle_specific_next_work_items(
         scope=scope,
         same_role_handoff=same_role_handoff,
+        locale=locale or "en",
     )
     if cycle_items:
         payload["items"] = cycle_items
@@ -630,11 +637,15 @@ def build_next_work_items_payload(
     return payload
 
 
-def summarize_handoff_tradeoff(current_state: list[str]) -> str:
+def summarize_handoff_tradeoff(current_state: list[str], *, locale: str) -> str:
     if current_state:
         summary = current_state[0].strip()
         if summary:
+            if locale == "zh-TW":
+                return f"建立在最新確認狀態之上（{summary}），但正式落地前可能還需要一小段實作整理"
             return f"builds on the latest confirmed state ({summary}), but it may still need a quick implementation pass to land cleanly"
+    if locale == "zh-TW":
+        return "這是延續最新同角色 handoff 最直接的下一步，但開始實作前可能還需要快速重新整理一次上下文"
     return "most direct continuation from the latest same-role handoff, but it may still need a quick context refresh before implementation"
 
 
@@ -642,6 +653,7 @@ def build_cycle_specific_next_work_items(
     *,
     scope: str | None,
     same_role_handoff: dict[str, object] | None,
+    locale: str,
 ) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     if same_role_handoff is not None:
@@ -655,11 +667,25 @@ def build_cycle_specific_next_work_items(
                     {
                         "text": step.strip(),
                         "tradeoff": summarize_handoff_tradeoff(
-                            [line for line in current_state_lines if isinstance(line, str)]
+                            [line for line in current_state_lines if isinstance(line, str)],
+                            locale=locale,
                         ),
                     }
                 )
     return items
+
+
+def resolve_preferred_response_locale() -> str | None:
+    if not AGENTS_LOCAL_PATH.exists():
+        return None
+    for line in AGENTS_LOCAL_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if "Respond to the user" not in stripped or "by default" not in stripped:
+            continue
+        match = PREFERRED_LOCALE_LINE_PATTERN.search(stripped)
+        if match:
+            return match.group(1).strip()
+    return None
 
 
 def extract_latest_open_same_role_handoff(mailbox_path: Path, *, agent_role: str) -> dict[str, object] | None:
@@ -730,6 +756,7 @@ def write_next_work_items_outputs(
     compaction_detected: bool,
     scope: str | None = None,
     same_role_handoff: dict[str, object] | None = None,
+    locale: str | None = None,
 ) -> tuple[Path, Path]:
     spec_path = workcycle_next_work_items_spec_path(agent_uid, batch_num)
     markdown_path = workcycle_next_work_items_markdown_path(agent_uid, batch_num)
@@ -739,6 +766,7 @@ def write_next_work_items_outputs(
         compaction_detected=compaction_detected,
         scope=scope,
         same_role_handoff=same_role_handoff,
+        locale=locale,
     )
     spec_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     try:
@@ -1731,6 +1759,7 @@ def main() -> int:
             compaction_detected=end_compaction is not None,
             scope=args.scope or resolve_agent_scope(agent_uid),
             same_role_handoff=same_role_handoff,
+            locale=resolve_preferred_response_locale(),
         )
         print(
             build_message(
