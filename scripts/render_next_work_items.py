@@ -113,6 +113,10 @@ def parse_optional_role(payload: dict[str, object]) -> str | None:
     return role
 
 
+def parse_append_role_defaults(payload: dict[str, object]) -> bool:
+    return parse_bool(payload, "append_role_defaults")
+
+
 def parse_items(payload: dict[str, object]) -> list[dict[str, str]]:
     raw_items = payload.get("items", [])
     if not isinstance(raw_items, list):
@@ -143,8 +147,12 @@ def role_default_items(role: str | None) -> list[dict[str, str]]:
 
 def build_items(payload: dict[str, object]) -> list[dict[str, str]]:
     role = parse_optional_role(payload)
-    items = role_default_items(role)
-    items.extend(parse_items(payload))
+    explicit_items = parse_items(payload)
+    role_items = role_default_items(role)
+    if parse_append_role_defaults(payload):
+        items = explicit_items + role_items
+    else:
+        items = role_items + explicit_items
     compaction_detected = parse_bool(payload, "compaction_detected")
     if compaction_detected:
         compaction_item = {

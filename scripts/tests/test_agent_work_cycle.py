@@ -922,6 +922,93 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.assertNotIn("98,000 tok", second_end.stdout)
 
+    def test_end_prefers_latest_open_same_role_handoff_next_step_in_next_work_items(self) -> None:
+        self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "coding", "--scope", "hotspot follow-up", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "hotspot follow-up",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 932020),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+        self.write_mailbox(
+            agent_uid,
+            (
+                f"# Mailbox for {agent_uid}\n\n"
+                "## Work Continuation Handoff\n\n"
+                "- Status: open\n"
+                "- Date: 2026-03-25 15:30 UTC+8\n"
+                "- Source agent: coding-1\n"
+                "- Source role: coding\n"
+                "- Scope: hotspot follow-up\n"
+                "- Current state:\n"
+                "  - The hotspot checker already accepts repo-relative file or directory paths.\n"
+                "- Next suggested step:\n"
+                "  - tighten docs/ROLE-CHECKLISTS/coding.md so hotspot scans target touched files by default.\n"
+                "- Blockers:\n"
+                "  - none\n"
+            ),
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "hotspot follow-up",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertEqual(
+            {
+                "append_role_defaults": True,
+                "compaction_detected": False,
+                "items": [
+                    {
+                        "text": "tighten docs/ROLE-CHECKLISTS/coding.md so hotspot scans target touched files by default.",
+                        "tradeoff": (
+                            "builds on the latest confirmed state (The hotspot checker already accepts "
+                            "repo-relative file or directory paths.), but it may still need a quick implementation pass to land cleanly"
+                        ),
+                    }
+                ],
+                "role": "coding",
+            },
+            self.load_next_work_items_spec(agent_uid, 1),
+        )
+        self.assertEqual(
+            "1. (最有價值) tighten docs/ROLE-CHECKLISTS/coding.md so hotspot scans target touched files by default. "
+            "Tradeoff: builds on the latest confirmed state (The hotspot checker already accepts repo-relative file or directory paths.), "
+            "but it may still need a quick implementation pass to land cleanly\n"
+            "2. review ROADMAP.md and identify the highest-value next coding work Tradeoff: best roadmap alignment, "
+            "but it spends a little time on prioritization before implementation Roadmap: ROADMAP.md / next coding slice\n"
+            "3. review the latest CQH issue and identify high-value work items Tradeoff: usually cheaper to land quickly, "
+            "but it may be less directly tied to the main roadmap lane\n",
+            self.load_next_work_items_markdown(agent_uid, 1),
+        )
+
     def test_after_work_uses_compact_k_format_for_large_cycle_estimates(self) -> None:
         self.write_agents_md()
         self.write_fake_codex_thread_metadata()

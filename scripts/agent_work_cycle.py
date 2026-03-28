@@ -613,11 +613,113 @@ def build_next_work_items_payload(
     *,
     agent_role: str,
     compaction_detected: bool,
+    scope: str | None = None,
+    same_role_handoff: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "role": agent_role,
         "compaction_detected": compaction_detected,
     }
+    cycle_items = build_cycle_specific_next_work_items(
+        scope=scope,
+        same_role_handoff=same_role_handoff,
+    )
+    if cycle_items:
+        payload["items"] = cycle_items
+        payload["append_role_defaults"] = True
+    return payload
+
+
+def summarize_handoff_tradeoff(current_state: list[str]) -> str:
+    if current_state:
+        summary = current_state[0].strip()
+        if summary:
+            return f"builds on the latest confirmed state ({summary}), but it may still need a quick implementation pass to land cleanly"
+    return "most direct continuation from the latest same-role handoff, but it may still need a quick context refresh before implementation"
+
+
+def build_cycle_specific_next_work_items(
+    *,
+    scope: str | None,
+    same_role_handoff: dict[str, object] | None,
+) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    if same_role_handoff is not None:
+        current_state = same_role_handoff.get("current_state")
+        current_state_lines = current_state if isinstance(current_state, list) else []
+        next_steps = same_role_handoff.get("next_steps")
+        next_step_lines = next_steps if isinstance(next_steps, list) else []
+        for step in next_step_lines:
+            if isinstance(step, str) and step.strip():
+                items.append(
+                    {
+                        "text": step.strip(),
+                        "tradeoff": summarize_handoff_tradeoff(
+                            [line for line in current_state_lines if isinstance(line, str)]
+                        ),
+                    }
+                )
+    return items
+
+
+def extract_latest_open_same_role_handoff(mailbox_path: Path, *, agent_role: str) -> dict[str, object] | None:
+    own_heading = ROLE_OPEN_HANDOFF_HEADINGS.get(agent_role)
+    if own_heading is None:
+        return None
+
+    latest_open: dict[str, object] | None = None
+    current_heading: str | None = None
+    in_own = False
+    section: dict[str, object] | None = None
+    list_key: str | None = None
+
+    def finish_section() -> None:
+        nonlocal latest_open, section
+        if (
+            in_own
+            and isinstance(section, dict)
+            and section.get("status") == "open"
+        ):
+            latest_open = dict(section)
+        section = None
+
+    for raw_line in mailbox_path.read_text(encoding="utf-8").splitlines():
+        if raw_line.startswith("## "):
+            finish_section()
+            current_heading = raw_line[3:].strip()
+            in_own = current_heading == own_heading
+            if in_own:
+                section = {"current_state": [], "next_steps": [], "scope": None, "status": None}
+            else:
+                section = None
+            list_key = None
+            continue
+
+        if not in_own or section is None:
+            continue
+
+        stripped = raw_line.strip()
+        if list_key is not None:
+            if stripped.startswith("- ") and raw_line.startswith("  "):
+                value = stripped[2:].strip()
+                if value:
+                    cast_list = section.setdefault(list_key, [])
+                    if isinstance(cast_list, list):
+                        cast_list.append(value)
+                continue
+            list_key = None
+
+        if stripped.startswith("- Status: "):
+            section["status"] = stripped[len("- Status: "):].strip().lower()
+        elif stripped.startswith("- Scope: "):
+            section["scope"] = stripped[len("- Scope: "):].strip()
+        elif stripped == "- Current state:":
+            list_key = "current_state"
+        elif stripped == "- Next suggested step:":
+            list_key = "next_steps"
+
+    finish_section()
+    return latest_open
 
 
 def write_next_work_items_outputs(
@@ -626,6 +728,8 @@ def write_next_work_items_outputs(
     batch_num: int,
     agent_role: str,
     compaction_detected: bool,
+    scope: str | None = None,
+    same_role_handoff: dict[str, object] | None = None,
 ) -> tuple[Path, Path]:
     spec_path = workcycle_next_work_items_spec_path(agent_uid, batch_num)
     markdown_path = workcycle_next_work_items_markdown_path(agent_uid, batch_num)
@@ -633,6 +737,8 @@ def write_next_work_items_outputs(
     payload = build_next_work_items_payload(
         agent_role=agent_role,
         compaction_detected=compaction_detected,
+        scope=scope,
+        same_role_handoff=same_role_handoff,
     )
     spec_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     try:
@@ -1613,11 +1719,18 @@ def main() -> int:
             )
         if phase_timings is not None:
             phase_timings["token_snapshot_diagnostics"] = round(perf_counter() - started_at, 6)
+        mailbox_path = resolve_agent_mailbox_path(agent_uid)
+        same_role_handoff = extract_latest_open_same_role_handoff(
+            mailbox_path,
+            agent_role=agent_role,
+        )
         next_work_items_spec, next_work_items_markdown = write_next_work_items_outputs(
             agent_uid=agent_uid,
             batch_num=latest_batch,
             agent_role=agent_role,
             compaction_detected=end_compaction is not None,
+            scope=args.scope or resolve_agent_scope(agent_uid),
+            same_role_handoff=same_role_handoff,
         )
         print(
             build_message(
@@ -1684,7 +1797,6 @@ def main() -> int:
             phase_timings["push_and_not_needed_checks"] = round(perf_counter() - started_at, 6)
 
         started_at = perf_counter()
-        mailbox_path = resolve_agent_mailbox_path(agent_uid)
         open_handoff_lines = scan_open_handoffs(mailbox_path, agent_role=agent_role)
 
         # Scope consistency: registry scope vs open handoff scope.

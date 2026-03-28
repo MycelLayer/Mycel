@@ -103,6 +103,30 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             proc.stdout,
         )
 
+    def test_can_append_role_defaults_after_explicit_items(self) -> None:
+        spec = {
+            "role": "coding",
+            "append_role_defaults": True,
+            "items": [
+                {
+                    "text": "tighten the hotspot-scan checklist wording to touched files only",
+                    "tradeoff": "matches the confirmed tool behavior, but it still leaves broader UX improvements for later",
+                }
+            ],
+        }
+
+        proc = self.run_cli("-", stdin_text=json.dumps(spec))
+
+        self.assertEqual(
+            "1. (最有價值) tighten the hotspot-scan checklist wording to touched files only Tradeoff: "
+            "matches the confirmed tool behavior, but it still leaves broader UX improvements for later\n"
+            "2. review ROADMAP.md and identify the highest-value next coding work Tradeoff: best roadmap alignment, "
+            "but it spends a little time on prioritization before implementation Roadmap: ROADMAP.md / next coding slice\n"
+            "3. review the latest CQH issue and identify high-value work items Tradeoff: usually cheaper to land quickly, "
+            "but it may be less directly tied to the main roadmap lane\n",
+            proc.stdout,
+        )
+
     def test_accepts_compaction_only_output_without_other_items(self) -> None:
         spec = {"compaction_detected": True}
 
