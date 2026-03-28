@@ -717,11 +717,10 @@ fn flush_pending_sync_objects(
     Ok(())
 }
 
-fn sync_pull_from_transcript_with_policy(
-    transcript: &SyncPullTranscript,
+fn create_sync_pull_session(
+    peer: &SyncPeer,
     store_root: &Path,
-    require_object_messages: bool,
-) -> Result<SyncPullSummary, StoreRebuildError> {
+) -> Result<WireSession, StoreRebuildError> {
     std::fs::create_dir_all(store_root).map_err(|error| {
         StoreRebuildError::new(format!(
             "failed to create sync store root {}: {error}",
@@ -731,99 +730,96 @@ fn sync_pull_from_transcript_with_policy(
 
     let mut known_peers = WirePeerDirectory::new();
     known_peers
-        .register_known_peer(&transcript.peer.node_id, &transcript.peer.public_key)
+        .register_known_peer(&peer.node_id, &peer.public_key)
         .map_err(StoreRebuildError::new)?;
 
-    let mut session = WireSession::from_store_root(known_peers, store_root)?;
-    let mut summary = SyncPullSummary::new(
-        &transcript.peer.node_id,
-        store_root,
-        transcript.messages.len(),
-    );
-    let mut pending_objects = Vec::new();
+    WireSession::from_store_root(known_peers, store_root)
+}
 
-    if transcript.messages.is_empty() {
-        summary.push_error("sync transcript must include at least one wire message");
-        return Ok(summary);
-    }
-
-    for (index, message) in transcript.messages.iter().enumerate() {
-        let envelope = match session.verify_incoming(message) {
-            Ok(envelope) => envelope,
-            Err(error) => {
-                summary.push_error(format!(
-                    "message {} failed verification: {error}",
-                    index + 1
-                ));
-                break;
-            }
-        };
-        summary.verified_message_count += 1;
-
-        if !matches!(envelope.message_type(), WireMessageType::Object) {
-            continue;
-        }
-
-        summary.object_message_count += 1;
-        let Some(body) = envelope.payload().get("body") else {
+fn verify_sync_transcript_message(
+    session: &mut WireSession,
+    summary: &mut SyncPullSummary,
+    message: &Value,
+    index: usize,
+) -> Result<Option<PendingSyncObject>, StoreRebuildError> {
+    let envelope = match session.verify_incoming(message) {
+        Ok(envelope) => envelope,
+        Err(error) => {
             summary.push_error(format!(
-                "message {} OBJECT payload is missing object field 'body'",
+                "message {} failed verification: {error}",
                 index + 1
             ));
-            break;
-        };
-        let object_id = envelope
-            .payload()
-            .get("object_id")
-            .and_then(Value::as_str)
-            .unwrap_or("<unknown>");
-        summary.verified_object_count += 1;
-        pending_objects.push(PendingSyncObject {
-            object_id: object_id.to_string(),
-            body: body.clone(),
-        });
-        flush_pending_sync_objects(store_root, &mut pending_objects, &mut summary)?;
-    }
-
-    flush_pending_sync_objects(store_root, &mut pending_objects, &mut summary)?;
-    if !pending_objects.is_empty() {
-        for pending in pending_objects {
-            let error = write_object_value_to_store(store_root, &pending.body)
-                .err()
-                .map(|error| error.to_string())
-                .unwrap_or_else(|| "unknown store failure".to_string());
-            summary.push_error(format!(
-                "verified OBJECT '{}' could not be stored after pull completion: {error}",
-                pending.object_id
-            ));
+            return Ok(None);
         }
+    };
+    summary.verified_message_count += 1;
+
+    if !matches!(envelope.message_type(), WireMessageType::Object) {
+        return Ok(None);
     }
 
-    summary.stored_objects.sort_by(|left, right| {
-        left.object_id
-            .cmp(&right.object_id)
-            .then_with(|| left.path.cmp(&right.path))
-    });
+    summary.object_message_count += 1;
+    let Some(body) = envelope.payload().get("body") else {
+        summary.push_error(format!(
+            "message {} OBJECT payload is missing object field 'body'",
+            index + 1
+        ));
+        return Ok(None);
+    };
+    let object_id = envelope
+        .payload()
+        .get("object_id")
+        .and_then(Value::as_str)
+        .unwrap_or("<unknown>");
+    summary.verified_object_count += 1;
+    Ok(Some(PendingSyncObject {
+        object_id: object_id.to_string(),
+        body: body.clone(),
+    }))
+}
 
-    let Some(peer_session) = session.peer_session(&transcript.peer.node_id) else {
+fn record_pending_sync_failures(
+    store_root: &Path,
+    pending_objects: Vec<PendingSyncObject>,
+    summary: &mut SyncPullSummary,
+) {
+    for pending in pending_objects {
+        let error = write_object_value_to_store(store_root, &pending.body)
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_else(|| "unknown store failure".to_string());
+        summary.push_error(format!(
+            "verified OBJECT '{}' could not be stored after pull completion: {error}",
+            pending.object_id
+        ));
+    }
+}
+
+fn finalize_sync_pull_summary(
+    session: &WireSession,
+    peer: &SyncPeer,
+    summary: &mut SyncPullSummary,
+    require_object_messages: bool,
+) {
+    let Some(peer_session) = session.peer_session(&peer.node_id) else {
         summary.push_error(format!(
             "sync transcript did not establish a wire session for '{}'",
-            transcript.peer.node_id
+            peer.node_id
         ));
-        return Ok(summary);
+        return;
     };
 
     if summary.is_ok() {
         if !peer_session.hello_received() {
             summary.push_error(format!(
                 "sync transcript did not include HELLO from '{}'",
-                transcript.peer.node_id
+                peer.node_id
             ));
         }
         if !peer_session.has_head_context() {
             summary.push_error(format!(
                 "sync transcript did not include MANIFEST or HEADS from '{}'",
-                transcript.peer.node_id
+                peer.node_id
             ));
         }
         if require_object_messages && summary.object_message_count == 0 {
@@ -838,10 +834,60 @@ fn sync_pull_from_transcript_with_policy(
         if !peer_session.is_closed() {
             summary.push_note(format!(
                 "sync transcript ended without BYE from '{}'",
-                transcript.peer.node_id
+                peer.node_id
             ));
         }
     }
+}
+
+fn sync_pull_from_transcript_with_policy(
+    transcript: &SyncPullTranscript,
+    store_root: &Path,
+    require_object_messages: bool,
+) -> Result<SyncPullSummary, StoreRebuildError> {
+    let mut session = create_sync_pull_session(&transcript.peer, store_root)?;
+    let mut summary = SyncPullSummary::new(
+        &transcript.peer.node_id,
+        store_root,
+        transcript.messages.len(),
+    );
+    let mut pending_objects = Vec::new();
+
+    if transcript.messages.is_empty() {
+        summary.push_error("sync transcript must include at least one wire message");
+        return Ok(summary);
+    }
+
+    for (index, message) in transcript.messages.iter().enumerate() {
+        let pending_object =
+            verify_sync_transcript_message(&mut session, &mut summary, message, index)?;
+        if !summary.is_ok() {
+            break;
+        }
+        let Some(pending_object) = pending_object else {
+            continue;
+        };
+        pending_objects.push(pending_object);
+        flush_pending_sync_objects(store_root, &mut pending_objects, &mut summary)?;
+    }
+
+    flush_pending_sync_objects(store_root, &mut pending_objects, &mut summary)?;
+    if !pending_objects.is_empty() {
+        record_pending_sync_failures(store_root, pending_objects, &mut summary);
+    }
+
+    summary.stored_objects.sort_by(|left, right| {
+        left.object_id
+            .cmp(&right.object_id)
+            .then_with(|| left.path.cmp(&right.path))
+    });
+
+    finalize_sync_pull_summary(
+        &session,
+        &transcript.peer,
+        &mut summary,
+        require_object_messages,
+    );
 
     Ok(summary)
 }
@@ -937,7 +983,7 @@ pub fn sync_pull_from_peer_store_with_doc_filter(
 mod tests {
     use std::collections::BTreeMap;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use base64::Engine;
     use ed25519_dalek::{Signer, SigningKey};
@@ -952,7 +998,8 @@ mod tests {
 
     use super::{
         generate_sync_pull_transcript_from_peer_store, head_map_from_manifest,
-        sync_pull_from_peer_store, sync_pull_from_transcript, SyncPeer, SyncPullTranscript,
+        sync_pull_from_peer_store, sync_pull_from_transcript, SyncPeer, SyncPullSummary,
+        SyncPullTranscript,
     };
 
     fn signing_key() -> SigningKey {
@@ -1398,6 +1445,74 @@ mod tests {
         }
     }
 
+    fn sync_transcript(
+        sender: &str,
+        signing_key: &SigningKey,
+        messages: Vec<Value>,
+    ) -> SyncPullTranscript {
+        SyncPullTranscript {
+            peer: sync_peer(sender, signing_key),
+            messages,
+        }
+    }
+
+    fn payload_object_id(message: &Value, object_kind: &str) -> String {
+        message["payload"]["object_id"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{object_kind} payload should include object id"))
+            .to_string()
+    }
+
+    fn transcript_message_types(transcript: &SyncPullTranscript) -> Vec<String> {
+        transcript
+            .messages
+            .iter()
+            .map(|message| {
+                message["type"]
+                    .as_str()
+                    .expect("generated transcript message should include type")
+                    .to_string()
+            })
+            .collect()
+    }
+
+    fn write_payload_bodies(store_root: &Path, payload_bodies: &[&Value]) {
+        for body in payload_bodies {
+            write_object_value_to_store(store_root, body)
+                .expect("test object should write to store");
+        }
+    }
+
+    fn generate_peer_store_transcript(
+        sender: &str,
+        signing_key: &SigningKey,
+        peer_store_root: &Path,
+        local_store_root: &Path,
+    ) -> SyncPullTranscript {
+        generate_sync_pull_transcript_from_peer_store(
+            &sync_peer(sender, signing_key),
+            signing_key,
+            peer_store_root,
+            local_store_root,
+        )
+        .expect("peer-store transcript should generate")
+    }
+
+    fn pull_from_peer_store(
+        sender: &str,
+        signing_key: &SigningKey,
+        peer_store_root: &Path,
+        local_store_root: &Path,
+    ) -> SyncPullSummary {
+        sync_pull_from_peer_store(
+            &sync_peer(sender, signing_key),
+            signing_key,
+            peer_store_root,
+            local_store_root,
+        )
+        .expect("peer-store sync should run")
+    }
+
     #[test]
     fn generate_sync_pull_transcript_from_peer_store_builds_first_time_manifest_flow() {
         let signing_key = signing_key();
@@ -1406,36 +1521,25 @@ mod tests {
         let local_store_root = temp_dir("peer-driver-local-first-time");
 
         let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-        let patch_id = patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("patch object should include object id")
-            .to_string();
+        let patch_id = payload_object_id(&patch_object, "patch");
         let revision_object =
             signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
 
-        write_object_value_to_store(&remote_store_root, &patch_object["payload"]["body"])
-            .expect("patch should write to remote store");
-        write_object_value_to_store(&remote_store_root, &revision_object["payload"]["body"])
-            .expect("revision should write to remote store");
+        write_payload_bodies(
+            &remote_store_root,
+            &[
+                &patch_object["payload"]["body"],
+                &revision_object["payload"]["body"],
+            ],
+        );
 
-        let transcript = generate_sync_pull_transcript_from_peer_store(
-            &sync_peer(sender, &signing_key),
+        let transcript = generate_peer_store_transcript(
+            sender,
             &signing_key,
             &remote_store_root,
             &local_store_root,
-        )
-        .expect("peer-store transcript should generate");
-
-        let message_types = transcript
-            .messages
-            .iter()
-            .map(|message| {
-                message["type"]
-                    .as_str()
-                    .expect("generated message should include type")
-                    .to_string()
-            })
-            .collect::<Vec<_>>();
+        );
+        let message_types = transcript_message_types(&transcript);
         assert_eq!(
             message_types,
             vec!["HELLO", "MANIFEST", "WANT", "OBJECT", "WANT", "OBJECT", "BYE"]
@@ -1450,49 +1554,29 @@ mod tests {
         let local_store_root = temp_dir("peer-driver-local-views");
 
         let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-        let patch_id = patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("patch object should include object id")
-            .to_string();
+        let patch_id = payload_object_id(&patch_object, "patch");
         let revision_object =
             signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
-        let revision_id = revision_object["payload"]["object_id"]
-            .as_str()
-            .expect("revision object should include object id")
-            .to_string();
+        let revision_id = payload_object_id(&revision_object, "revision");
         let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
-        let view_id = view_object["payload"]["object_id"]
-            .as_str()
-            .expect("view object should include object id")
-            .to_string();
+        let view_id = payload_object_id(&view_object, "view");
 
-        for body in [
-            &patch_object["payload"]["body"],
-            &revision_object["payload"]["body"],
-            &view_object["payload"]["body"],
-        ] {
-            write_object_value_to_store(&remote_store_root, body)
-                .expect("object should write to remote store");
-        }
+        write_payload_bodies(
+            &remote_store_root,
+            &[
+                &patch_object["payload"]["body"],
+                &revision_object["payload"]["body"],
+                &view_object["payload"]["body"],
+            ],
+        );
 
-        let transcript = generate_sync_pull_transcript_from_peer_store(
-            &sync_peer(sender, &signing_key),
+        let transcript = generate_peer_store_transcript(
+            sender,
             &signing_key,
             &remote_store_root,
             &local_store_root,
-        )
-        .expect("peer-store transcript should generate");
-
-        let message_types = transcript
-            .messages
-            .iter()
-            .map(|message| {
-                message["type"]
-                    .as_str()
-                    .expect("generated message should include type")
-                    .to_string()
-            })
-            .collect::<Vec<_>>();
+        );
+        let message_types = transcript_message_types(&transcript);
         assert_eq!(
             message_types,
             vec![
@@ -1522,29 +1606,21 @@ mod tests {
         let local_store_root = temp_dir("peer-driver-local-sync");
 
         let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-        let patch_id = patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("patch object should include object id")
-            .to_string();
+        let patch_id = payload_object_id(&patch_object, "patch");
         let revision_object =
             signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
-        let revision_id = revision_object["payload"]["object_id"]
-            .as_str()
-            .expect("revision object should include object id")
-            .to_string();
+        let revision_id = payload_object_id(&revision_object, "revision");
 
-        write_object_value_to_store(&remote_store_root, &patch_object["payload"]["body"])
-            .expect("patch should write to remote store");
-        write_object_value_to_store(&remote_store_root, &revision_object["payload"]["body"])
-            .expect("revision should write to remote store");
-
-        let summary = sync_pull_from_peer_store(
-            &sync_peer(sender, &signing_key),
-            &signing_key,
+        write_payload_bodies(
             &remote_store_root,
-            &local_store_root,
-        )
-        .expect("peer-store sync should run");
+            &[
+                &patch_object["payload"]["body"],
+                &revision_object["payload"]["body"],
+            ],
+        );
+
+        let summary =
+            pull_from_peer_store(sender, &signing_key, &remote_store_root, &local_store_root);
 
         assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
         assert_eq!(summary.status, "ok");
@@ -1647,38 +1723,24 @@ mod tests {
         let local_store_root = temp_dir("peer-driver-local-view-sync");
 
         let patch_object = signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-        let patch_id = patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("patch object should include object id")
-            .to_string();
+        let patch_id = payload_object_id(&patch_object, "patch");
         let revision_object =
             signed_revision_object_message(&signing_key, sender, &[], &[&patch_id]);
-        let revision_id = revision_object["payload"]["object_id"]
-            .as_str()
-            .expect("revision object should include object id")
-            .to_string();
+        let revision_id = payload_object_id(&revision_object, "revision");
         let view_object = signed_view_object_message(&signing_key, sender, &revision_id);
-        let view_id = view_object["payload"]["object_id"]
-            .as_str()
-            .expect("view object should include object id")
-            .to_string();
+        let view_id = payload_object_id(&view_object, "view");
 
-        for body in [
-            &patch_object["payload"]["body"],
-            &revision_object["payload"]["body"],
-            &view_object["payload"]["body"],
-        ] {
-            write_object_value_to_store(&remote_store_root, body)
-                .expect("object should write to remote store");
-        }
-
-        let summary = sync_pull_from_peer_store(
-            &sync_peer(sender, &signing_key),
-            &signing_key,
+        write_payload_bodies(
             &remote_store_root,
-            &local_store_root,
-        )
-        .expect("peer-store sync should run");
+            &[
+                &patch_object["payload"]["body"],
+                &revision_object["payload"]["body"],
+                &view_object["payload"]["body"],
+            ],
+        );
+
+        let summary =
+            pull_from_peer_store(sender, &signing_key, &remote_store_root, &local_store_root);
 
         assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
         assert_eq!(summary.object_message_count, 3);
@@ -1707,68 +1769,52 @@ mod tests {
 
         let base_patch_object =
             signed_patch_object_message(&signing_key, sender, "rev:genesis-null");
-        let base_patch_id = base_patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("base patch object should include object id")
-            .to_string();
+        let base_patch_id = payload_object_id(&base_patch_object, "base patch");
         let base_revision_object =
             signed_revision_object_message(&signing_key, sender, &[], &[&base_patch_id]);
-        let base_revision_id = base_revision_object["payload"]["object_id"]
-            .as_str()
-            .expect("base revision object should include object id")
-            .to_string();
+        let base_revision_id = payload_object_id(&base_revision_object, "base revision");
         let follow_patch_object =
             signed_patch_object_message(&signing_key, sender, &base_revision_id);
-        let follow_patch_id = follow_patch_object["payload"]["object_id"]
-            .as_str()
-            .expect("follow patch object should include object id")
-            .to_string();
+        let follow_patch_id = payload_object_id(&follow_patch_object, "follow patch");
         let follow_revision_object = signed_revision_object_message(
             &signing_key,
             sender,
             &[&base_revision_id],
             &[&follow_patch_id],
         );
-        let follow_revision_id = follow_revision_object["payload"]["object_id"]
-            .as_str()
-            .expect("follow revision object should include object id")
-            .to_string();
+        let follow_revision_id = payload_object_id(&follow_revision_object, "follow revision");
 
-        for body in [
-            &base_patch_object["payload"]["body"],
-            &base_revision_object["payload"]["body"],
-            &follow_patch_object["payload"]["body"],
-            &follow_revision_object["payload"]["body"],
-        ] {
-            write_object_value_to_store(&remote_store_root, body)
-                .expect("object should write to remote store");
-        }
+        write_payload_bodies(
+            &remote_store_root,
+            &[
+                &base_patch_object["payload"]["body"],
+                &base_revision_object["payload"]["body"],
+                &follow_patch_object["payload"]["body"],
+                &follow_revision_object["payload"]["body"],
+            ],
+        );
+        write_payload_bodies(
+            &local_store_root,
+            &[
+                &base_patch_object["payload"]["body"],
+                &base_revision_object["payload"]["body"],
+            ],
+        );
 
-        write_object_value_to_store(&local_store_root, &base_patch_object["payload"]["body"])
-            .expect("base patch should write to local store");
-        write_object_value_to_store(&local_store_root, &base_revision_object["payload"]["body"])
-            .expect("base revision should write to local store");
-
-        let transcript = generate_sync_pull_transcript_from_peer_store(
-            &sync_peer(sender, &signing_key),
+        let transcript = generate_peer_store_transcript(
+            sender,
             &signing_key,
             &remote_store_root,
             &local_store_root,
-        )
-        .expect("incremental peer-store transcript should generate");
+        );
         assert_eq!(
             transcript.messages[1]["type"].as_str(),
             Some("HEADS"),
             "incremental sync should advertise HEADS"
         );
 
-        let summary = sync_pull_from_peer_store(
-            &sync_peer(sender, &signing_key),
-            &signing_key,
-            &remote_store_root,
-            &local_store_root,
-        )
-        .expect("incremental peer-store sync should run");
+        let summary =
+            pull_from_peer_store(sender, &signing_key, &remote_store_root, &local_store_root);
 
         assert!(summary.is_ok(), "expected ok summary, got {summary:?}");
         assert_eq!(summary.object_message_count, 2);
@@ -1780,13 +1826,8 @@ mod tests {
             .expect("expected local revisions after sync");
         assert!(revisions.contains(&follow_revision_id));
 
-        let up_to_date_summary = sync_pull_from_peer_store(
-            &sync_peer(sender, &signing_key),
-            &signing_key,
-            &remote_store_root,
-            &local_store_root,
-        )
-        .expect("up-to-date sync should run");
+        let up_to_date_summary =
+            pull_from_peer_store(sender, &signing_key, &remote_store_root, &local_store_root);
         assert!(
             up_to_date_summary.is_ok(),
             "expected ok summary, got {up_to_date_summary:?}"
@@ -1816,12 +1857,10 @@ mod tests {
             .as_str()
             .expect("revision object should include object id")
             .to_string();
-        let transcript = SyncPullTranscript {
-            peer: SyncPeer {
-                node_id: sender.to_string(),
-                public_key: sender_public_key(&signing_key),
-            },
-            messages: vec![
+        let transcript = sync_transcript(
+            sender,
+            &signing_key,
+            vec![
                 signed_hello_message(&signing_key, sender),
                 signed_manifest_message(&signing_key, sender, &revision_id),
                 signed_want_message(&signing_key, sender, &[&revision_id]),
@@ -1830,7 +1869,7 @@ mod tests {
                 patch_object,
                 signed_bye_message(&signing_key, sender),
             ],
-        };
+        );
         let store_root = temp_dir("pull-ok");
 
         let summary =
@@ -1882,12 +1921,10 @@ mod tests {
             .as_str()
             .expect("revision object should include object id")
             .to_string();
-        let transcript = SyncPullTranscript {
-            peer: SyncPeer {
-                node_id: sender.to_string(),
-                public_key: sender_public_key(&signing_key),
-            },
-            messages: vec![
+        let transcript = sync_transcript(
+            sender,
+            &signing_key,
+            vec![
                 signed_hello_message(&signing_key, sender),
                 signed_heads_message(&signing_key, sender, &revision_id, true),
                 signed_want_message(&signing_key, sender, &[&revision_id]),
@@ -1896,7 +1933,7 @@ mod tests {
                 patch_object,
                 signed_bye_message(&signing_key, sender),
             ],
-        };
+        );
         let store_root = temp_dir("pull-heads-ok");
 
         let summary =
