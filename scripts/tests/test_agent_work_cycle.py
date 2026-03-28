@@ -371,6 +371,11 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         return agent_uid
 
+    def load_owned_paths(self, agent_uid: str, batch_num: int) -> list[str]:
+        path = self.root / f".agent-local/agents/{agent_uid}/workcycles/owned-paths-{batch_num}.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload["paths"]
+
     def test_begin_touches_agent_and_prints_before_work_line(self) -> None:
         self.write_agents_md()
         self.write_role_checklist("doc")
@@ -411,6 +416,26 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertEqual(0, proc.returncode)
         self.assertIn("Before work | doc-1", proc.stdout)
         self.assertEqual("updated-cycle-scope", status["agents"][0]["scope"])
+
+    def test_record_paths_updates_latest_active_batch_owned_paths_snapshot(self) -> None:
+        self.write_agents_md()
+        agent_uid = self.prepare_second_batch(role="doc")
+        guide_path = self.root / "docs" / "guide.md"
+        guide_path.parent.mkdir(parents=True, exist_ok=True)
+        guide_path.write_text("# Guide\n", encoding="utf-8")
+
+        proc = self.run_cli(
+            "record-paths",
+            agent_uid,
+            str(guide_path),
+            "./docs/guide.md",
+            ".agent-local/ignored.md",
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertIn("batch_num: 2", proc.stdout)
+        self.assertIn("recorded_paths: 1", proc.stdout)
+        self.assertEqual(["docs/guide.md"], self.load_owned_paths(agent_uid, 2))
 
     def test_start_alias_maps_to_begin(self) -> None:
         self.write_agents_md()
@@ -1502,6 +1527,42 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("source_push_ok: true", proc.stdout)
         self.assertIn(
             "no cycle-owned tracked-file changes detected; local-only changes do not block closeout",
+            proc.stdout,
+        )
+
+    def test_end_returns_pending_when_recorded_owned_file_changes_are_uncommitted(self) -> None:
+        self.write_agents_md()
+        self.init_git_repo()
+        self.init_origin_main_remote()
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        (self.root / "docs").mkdir(exist_ok=True)
+        guide_path = self.root / "docs" / "guide.md"
+        guide_path.write_text("# Guide\n\nowned change during this cycle\n", encoding="utf-8")
+        record_proc = self.run_cli("record-paths", agent_uid, "docs/guide.md")
+        self.assertEqual(0, record_proc.returncode)
+        self.set_checklist_state(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "workflow.files-changed-summary",
+            "X",
+            "Include a files-changed summary when source changes land",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: false", proc.stdout)
+        self.assertIn(
+            "cycle-owned tracked-file changes are still uncommitted; commit and push them first",
             proc.stdout,
         )
 

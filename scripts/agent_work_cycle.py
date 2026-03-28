@@ -170,8 +170,13 @@ def parse_args() -> argparse.Namespace:
         prog="scripts/agent_work_cycle.py",
         description="Wrap agent_registry touch/finish with human-facing timestamp lines.",
     )
-    parser.add_argument("stage", choices=["begin", "end"], help="begin or end the current work cycle")
+    parser.add_argument(
+        "stage",
+        choices=["begin", "end", "record-paths"],
+        help="begin or end the current work cycle, or record owned file paths for the latest active batch",
+    )
     parser.add_argument("agent_ref", help="agent_uid or current display_id")
+    parser.add_argument("paths", nargs="*", help="repo-relative or absolute file paths to record for record-paths")
     parser.add_argument("--scope", help="scope label to append to the timestamp line")
     parser.add_argument(
         "--phase-timings",
@@ -183,7 +188,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="allow an explicit non-normal closeout when the agent is blocked by agent_guard",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.stage == "record-paths":
+        if not args.paths:
+            raise WorkCycleError(
+                "record-paths requires at least one path. "
+                "Use `python3 scripts/agent_work_cycle.py record-paths <agent-ref> <path>...`."
+            )
+    elif args.paths:
+        raise WorkCycleError(
+            "unexpected file paths for begin/end. "
+            f"Use `python3 scripts/agent_work_cycle.py {args.stage} {args.agent_ref}`."
+        )
+    return args
 
 
 def emit_registry_summary(payload: dict[str, str]) -> None:
@@ -320,6 +337,17 @@ def workcycle_git_state_path(agent_uid: str, batch_num: int) -> Path:
         / agent_uid
         / "workcycles"
         / f"git-state-{batch_num}.json"
+    )
+
+
+def workcycle_owned_paths_path(agent_uid: str, batch_num: int) -> Path:
+    return (
+        ROOT_DIR
+        / ".agent-local"
+        / "agents"
+        / agent_uid
+        / "workcycles"
+        / f"owned-paths-{batch_num}.json"
     )
 
 
@@ -666,6 +694,70 @@ def load_git_state_snapshot(agent_uid: str, batch_num: int) -> dict[str, object]
     return payload if isinstance(payload, dict) else None
 
 
+def normalize_cycle_tracked_path(raw_path: str) -> str | None:
+    candidate = raw_path.strip()
+    if not candidate:
+        return None
+    path_obj = Path(candidate)
+    if path_obj.is_absolute():
+        try:
+            normalized = str(path_obj.resolve().relative_to(ROOT_DIR)).replace("\\", "/")
+        except ValueError as exc:
+            raise WorkCycleError(f"path is outside the repo root and cannot be recorded: {raw_path}") from exc
+    else:
+        normalized = str(path_obj).replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.strip("/")
+    return normalized if is_cycle_tracked_path(normalized) else None
+
+
+def load_owned_paths_snapshot(agent_uid: str, batch_num: int) -> set[str] | None:
+    path = workcycle_owned_paths_path(agent_uid, batch_num)
+    if not path.exists():
+        return set()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    paths_value = payload.get("paths", [])
+    if not isinstance(paths_value, list):
+        return None
+    normalized: set[str] = set()
+    for raw_path in paths_value:
+        if not isinstance(raw_path, str):
+            return None
+        normalized_path = normalize_cycle_tracked_path(raw_path)
+        if normalized_path:
+            normalized.add(normalized_path)
+    return normalized
+
+
+def store_owned_paths_snapshot(agent_uid: str, batch_num: int, paths: set[str]) -> Path:
+    path = workcycle_owned_paths_path(agent_uid, batch_num)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"paths": sorted(paths)}
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def record_owned_paths(agent_uid: str, batch_num: int, raw_paths: list[str]) -> tuple[Path, set[str]]:
+    existing = load_owned_paths_snapshot(agent_uid, batch_num)
+    if existing is None:
+        raise WorkCycleError(
+            f"owned path snapshot is invalid for {agent_uid} batch {batch_num}; repair it before recording more paths"
+        )
+    updated = set(existing)
+    for raw_path in raw_paths:
+        normalized = normalize_cycle_tracked_path(raw_path)
+        if normalized:
+            updated.add(normalized)
+    path = store_owned_paths_snapshot(agent_uid, batch_num, updated)
+    return (path, updated)
+
+
 def is_cycle_tracked_path(path: str) -> bool:
     normalized = path.strip().replace("\\", "/")
     if not normalized:
@@ -751,13 +843,17 @@ def cycle_committed_tracked_paths(agent_uid: str, batch_num: int) -> set[str] | 
 
 
 def cycle_owned_tracked_paths(agent_uid: str, batch_num: int) -> set[str] | None:
+    recorded_paths = load_owned_paths_snapshot(agent_uid, batch_num)
+    if recorded_paths is None:
+        return None
+
     owned_commits = cycle_owned_commit_refs(agent_uid, batch_num)
     if owned_commits is None:
         return None
     if not owned_commits:
-        return set()
+        return recorded_paths
 
-    owned_paths: set[str] = set()
+    owned_paths: set[str] = set(recorded_paths)
     for commit_ref in owned_commits:
         diff_proc = run_git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit_ref])
         if diff_proc.returncode != 0:
@@ -891,7 +987,15 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
         for path in current_snapshot.get("status_paths", [])
         if isinstance(path, str) and path.strip()
     }
-    if any(path in committed_source_paths for path in current_status_paths):
+    current_owned_status_paths = {path for path in current_status_paths if path in owned_source_paths}
+    if any(path not in committed_source_paths for path in current_owned_status_paths):
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "cycle-owned tracked-file changes are still uncommitted; commit and push them first",
+            "remote_head": None,
+        }
+    if current_owned_status_paths:
         return {
             "required": True,
             "ok": False,
@@ -1227,6 +1331,38 @@ def emit_checklist_gc_summary(result: dict[str, object] | None, *, error: str | 
 def main() -> int:
     args = parse_args()
     phase_timings: dict[str, float] | None = {} if args.phase_timings else None
+    if args.stage == "record-paths":
+        status_payload = timed_call(phase_timings, "resolve_agent_status", run_registry, "status", args.agent_ref)
+        agents = status_payload.get("agents")
+        if not isinstance(agents, list) or len(agents) != 1:
+            raise WorkCycleError(f"unable to resolve agent state for {args.agent_ref}")
+        agent = agents[0]
+        agent_uid = agent.get("agent_uid") or args.agent_ref
+        display_id = agent.get("current_display_id")
+        status = agent.get("status")
+        if status != "active":
+            raise WorkCycleError(
+                f"record-paths requires an active work cycle; agent {args.agent_ref} is currently {status or 'unknown'}"
+            )
+        latest_batch = latest_agents_workcycle_batch_num(agent_uid)
+        if latest_batch is None:
+            raise WorkCycleError(f"no work cycle batch exists yet for {agent_uid}; run begin first")
+        stored_path, owned_paths = timed_call(
+            phase_timings, "record_owned_paths", record_owned_paths, agent_uid, latest_batch, args.paths
+        )
+        print(f"agent_uid: {agent_uid}")
+        if isinstance(display_id, str) and display_id.strip():
+            print(f"display_id: {display_id}")
+        print(f"batch_num: {latest_batch}")
+        print(f"owned_paths_snapshot: {stored_path.relative_to(ROOT_DIR)}")
+        print(f"recorded_paths: {len(owned_paths)}")
+        if owned_paths:
+            print("owned_path_entries:")
+            for path in sorted(owned_paths):
+                print(f"  - {path}")
+        emit_phase_timings(phase_timings)
+        return 0
+
     registry_command = "touch" if args.stage == "begin" else "finish"
     registry_scope = args.scope if args.stage == "begin" else None
     payload = timed_call(
@@ -1271,6 +1407,7 @@ def main() -> int:
         if isinstance(batch_num, int):
             started_at = perf_counter()
             store_git_state_snapshot(agent_uid, batch_num)
+            store_owned_paths_snapshot(agent_uid, batch_num, set())
             begin_token_snapshot = store_token_usage_snapshot(agent_uid, batch_num)
             if phase_timings is not None:
                 phase_timings["store_begin_snapshots"] = round(perf_counter() - started_at, 6)
