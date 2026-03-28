@@ -121,10 +121,15 @@ class AgentBootstrapCliTest(unittest.TestCase):
             """# Coding Role Checklist
 
 ## New chat bootstrap
-- Coding bootstrap <!-- item-id: coding.bootstrap.one -->
+- Confirm the registry state and active peers before taking implementation scope. <!-- item-id: coding.startup.registry-state -->
+- Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->
+- Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
 
 ## Work Cycle Workflow
-- Coding workflow <!-- item-id: coding.workflow.one -->
+- Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->
+- When touching a large module or repeated-helper-heavy area, consult the current code-quality hotspot scan (`python3 scripts/check_code_quality_hotspots.py --github-warning`) so the coding slice stays aligned with the repo's warning-only CI surface. <!-- item-id: coding.cycle.consult-hotspot-scan -->
+- Hand planning-relevant implementation state to `doc` through the registry mailbox instead of running planning-refresh work directly. <!-- item-id: coding.cycle.handoff-planning-state -->
+- Include the shared `coding` next-item defaults from `AGENTS.md`, especially reviewing `ROADMAP.md` for the highest-value next coding work and reviewing the latest CQH issue for high-value work items when the user has not already assigned the next concrete task. <!-- item-id: coding.cycle.follow-shared-next-item-guidance -->
 """,
             encoding="utf-8",
         )
@@ -742,6 +747,38 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("- [X] Offer next-stage options <!-- item-id: workflow.next-stage-options -->", workcycle_text)
         self.assertIn("- [X] Highest-value option first <!-- item-id: workflow.next-stage-highest-value-first -->", workcycle_text)
         self.assertIn("- [X] Use numbered options <!-- item-id: workflow.next-stage-numbered-options -->", workcycle_text)
+
+        role_bootstrap_text = (self.root / payload["role_bootstrap_output"]).read_text(encoding="utf-8")
+        self.assertIn(
+            "- [X] Confirm the registry state and active peers before taking implementation scope. <!-- item-id: coding.startup.registry-state -->",
+            role_bootstrap_text,
+        )
+        self.assertIn(
+            "- [X] Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->",
+            role_bootstrap_text,
+        )
+        self.assertIn(
+            "- [-] Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->",
+            role_bootstrap_text,
+        )
+
+        role_workcycle_text = (self.root / payload["role_workcycle_output"]).read_text(encoding="utf-8")
+        self.assertIn(
+            "- [X] Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->",
+            role_workcycle_text,
+        )
+        self.assertIn(
+            "- [-] When touching a large module or repeated-helper-heavy area, consult the current code-quality hotspot scan (`python3 scripts/check_code_quality_hotspots.py --github-warning`) so the coding slice stays aligned with the repo's warning-only CI surface. <!-- item-id: coding.cycle.consult-hotspot-scan -->",
+            role_workcycle_text,
+        )
+        self.assertIn(
+            "- [-] Hand planning-relevant implementation state to `doc` through the registry mailbox instead of running planning-refresh work directly. <!-- item-id: coding.cycle.handoff-planning-state -->",
+            role_workcycle_text,
+        )
+        self.assertIn(
+            "- [X] Include the shared `coding` next-item defaults from `AGENTS.md`, especially reviewing `ROADMAP.md` for the highest-value next coding work and reviewing the latest CQH issue for high-value work items when the user has not already assigned the next concrete task. <!-- item-id: coding.cycle.follow-shared-next-item-guidance -->",
+            role_workcycle_text,
+        )
         end = subprocess.run(
             [str(self.root / "scripts" / "agent_work_cycle.py"), "end", payload["agent_uid"]],
             cwd=self.root,
