@@ -8,6 +8,19 @@ expression: json
       "patch:d24b3852eb287a90eef8f27cbe0c2a5ebcbf7fa3917d5f9fa6b04cf3b106b8fc"
     ]
   },
+  "current_document_governance": {
+    "doc:index": {
+      "profiles": {
+        "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+          "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+          "revision_id": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced",
+          "timestamp": 3,
+          "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
+        }
+      }
+    }
+  },
+  "current_document_governance_profile_count": 1,
   "current_governance": {
     "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
       "current_documents": {

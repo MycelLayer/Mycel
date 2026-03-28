@@ -97,6 +97,11 @@ struct StoreIndexCurrentMaintainerDocumentSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct StoreIndexCurrentDocumentGovernanceSummary {
+    profiles: std::collections::BTreeMap<String, StoreIndexCurrentGovernanceDocumentSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct StoreIndexCurrentMaintainerProfileSummary {
     current_view_id: String,
     timestamp: u64,
@@ -127,8 +132,11 @@ struct StoreIndexQuerySummary {
     profile_views: std::collections::BTreeMap<String, Vec<String>>,
     document_views: std::collections::BTreeMap<String, Vec<String>>,
     current_governance: std::collections::BTreeMap<String, StoreIndexCurrentGovernanceSummary>,
+    current_document_governance:
+        std::collections::BTreeMap<String, StoreIndexCurrentDocumentGovernanceSummary>,
     current_maintainer_governance:
         std::collections::BTreeMap<String, StoreIndexCurrentMaintainerGovernanceSummary>,
+    current_document_governance_profile_count: usize,
     current_maintainer_governance_profile_count: usize,
     current_maintainer_governance_document_count: usize,
     profile_heads:
@@ -152,6 +160,8 @@ struct StoreIndexCountsSummary {
     profile_view_index_count: usize,
     document_view_index_count: usize,
     current_governance_profile_count: usize,
+    current_document_governance_count: usize,
+    current_document_governance_profile_count: usize,
     current_maintainer_governance_count: usize,
     current_maintainer_governance_profile_count: usize,
     current_maintainer_governance_document_count: usize,
@@ -576,6 +586,47 @@ fn summarize_current_governance_document(
     }
 }
 
+fn summarize_current_document_governance(
+    current_document_governance: &std::collections::BTreeMap<
+        String,
+        mycel_core::store::CurrentDocumentGovernanceRecord,
+    >,
+    view_governance: &[ViewGovernanceRecord],
+) -> std::collections::BTreeMap<String, StoreIndexCurrentDocumentGovernanceSummary> {
+    let allowed_docs = view_governance
+        .iter()
+        .flat_map(|record| record.documents.keys().cloned())
+        .collect::<std::collections::BTreeSet<_>>();
+    let allowed_profiles = view_governance
+        .iter()
+        .map(|record| record.profile_id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    current_document_governance
+        .iter()
+        .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
+        .map(|(doc_id, current)| {
+            let profiles = current
+                .profiles
+                .iter()
+                .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
+                .map(|(profile_id, current_document)| {
+                    (
+                        profile_id.clone(),
+                        summarize_current_governance_document(current_document),
+                    )
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
+
+            (
+                doc_id.clone(),
+                StoreIndexCurrentDocumentGovernanceSummary { profiles },
+            )
+        })
+        .filter(|(_, summary)| !summary.profiles.is_empty())
+        .collect()
+}
+
 fn summarize_current_maintainer_profile(
     allowed_docs: &std::collections::BTreeSet<String>,
     profile: &CurrentGovernanceProfileRecord,
@@ -711,6 +762,18 @@ fn count_current_maintainer_governance_documents(
         .sum()
 }
 
+fn count_current_document_governance_profiles(
+    current_document_governance: &std::collections::BTreeMap<
+        String,
+        StoreIndexCurrentDocumentGovernanceSummary,
+    >,
+) -> usize {
+    current_document_governance
+        .values()
+        .map(|current| current.profiles.len())
+        .sum()
+}
+
 fn filtered_doc_revisions(
     manifest: &StoreIndexManifest,
     doc_id: &Option<String>,
@@ -740,6 +803,7 @@ fn apply_projection(
             summary.profile_views.clear();
             summary.document_views.clear();
             summary.current_governance.clear();
+            summary.current_document_governance.clear();
             summary.current_maintainer_governance.clear();
             summary.profile_heads.clear();
             summary.projection = Some("doc-only".to_string());
@@ -754,6 +818,7 @@ fn apply_projection(
             summary.profile_views.clear();
             summary.document_views.clear();
             summary.current_governance.clear();
+            summary.current_document_governance.clear();
             summary.current_maintainer_governance.clear();
             summary.projection = Some("head-only".to_string());
         }
@@ -773,6 +838,7 @@ fn apply_projection(
             summary.profile_views.clear();
             summary.document_views.clear();
             summary.current_governance.clear();
+            summary.current_document_governance.clear();
             summary.current_maintainer_governance.clear();
             summary.profile_heads.clear();
             summary.projection = Some("patches-only".to_string());
@@ -786,6 +852,7 @@ fn apply_projection(
             summary.profile_views.clear();
             summary.document_views.clear();
             summary.current_governance.clear();
+            summary.current_document_governance.clear();
             summary.current_maintainer_governance.clear();
             summary.profile_heads.clear();
             summary.projection = Some("parents-only".to_string());
@@ -814,6 +881,7 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
             && summary.profile_views.is_empty()
             && summary.document_views.is_empty()
             && summary.current_governance.is_empty()
+            && summary.current_document_governance.is_empty()
             && summary.current_maintainer_governance.is_empty()
             && summary.profile_heads.is_empty();
     }
@@ -846,6 +914,7 @@ fn is_store_index_query_empty(summary: &StoreIndexQuerySummary) -> bool {
             || !summary.profile_views.is_empty()
             || !summary.document_views.is_empty()
             || !summary.current_governance.is_empty()
+            || !summary.current_document_governance.is_empty()
             || !summary.current_maintainer_governance.is_empty()
             || !summary.profile_heads.is_empty())
     {
@@ -893,6 +962,12 @@ fn build_store_index_query_summary(
     );
     let current_governance =
         summarize_current_governance(&manifest.current_governance, &filtered_view_governance);
+    let current_document_governance = summarize_current_document_governance(
+        &manifest.current_document_governance,
+        &filtered_view_governance,
+    );
+    let current_document_governance_profile_count =
+        count_current_document_governance_profiles(&current_document_governance);
     let current_maintainer_governance = summarize_current_maintainer_governance(
         &manifest.current_maintainer_governance,
         &filtered_view_governance,
@@ -919,7 +994,9 @@ fn build_store_index_query_summary(
         profile_views,
         document_views,
         current_governance,
+        current_document_governance,
         current_maintainer_governance,
+        current_document_governance_profile_count,
         current_maintainer_governance_profile_count,
         current_maintainer_governance_document_count,
         profile_heads,
@@ -1069,12 +1146,32 @@ fn print_store_index_current_maintainer_governance_record(
     }
 }
 
+fn print_store_index_current_document_governance_record(
+    doc_id: &str,
+    current: &StoreIndexCurrentDocumentGovernanceSummary,
+) {
+    println!("current document governance: {doc_id}");
+    for (profile_id, current_document) in &current.profiles {
+        println!(
+            "  document profile: {} view={} revision={} maintainer={} timestamp={}",
+            profile_id,
+            current_document.view_id,
+            current_document.revision_id,
+            current_document.maintainer,
+            current_document.timestamp
+        );
+    }
+}
+
 fn print_store_index_governance_details(summary: &StoreIndexQuerySummary) {
     for record in &summary.view_governance {
         print_store_index_view_governance_record(record);
     }
     for (profile_id, current) in &summary.current_governance {
         print_store_index_current_governance_record(profile_id, current);
+    }
+    for (doc_id, current) in &summary.current_document_governance {
+        print_store_index_current_document_governance_record(doc_id, current);
     }
     for (maintainer, current) in &summary.current_maintainer_governance {
         print_store_index_current_maintainer_governance_record(maintainer, current);
@@ -1101,6 +1198,14 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
     println!(
         "current governance profiles: {}",
         summary.current_governance.len()
+    );
+    println!(
+        "current document governance summaries: {}",
+        summary.current_document_governance.len()
+    );
+    println!(
+        "current document governance profiles: {}",
+        summary.current_document_governance_profile_count
     );
     println!(
         "current maintainer governance summaries: {}",
@@ -1155,6 +1260,9 @@ fn build_store_index_counts_summary(summary: &StoreIndexQuerySummary) -> StoreIn
         profile_view_index_count: summary.profile_views.len(),
         document_view_index_count: summary.document_views.len(),
         current_governance_profile_count: summary.current_governance.len(),
+        current_document_governance_count: summary.current_document_governance.len(),
+        current_document_governance_profile_count: summary
+            .current_document_governance_profile_count,
         current_maintainer_governance_count: summary.current_maintainer_governance.len(),
         current_maintainer_governance_profile_count: summary
             .current_maintainer_governance_profile_count,
@@ -1222,6 +1330,14 @@ fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
     println!(
         "current governance profiles: {}",
         summary.current_governance_profile_count
+    );
+    println!(
+        "current document governance summaries: {}",
+        summary.current_document_governance_count
+    );
+    println!(
+        "current document governance profiles: {}",
+        summary.current_document_governance_profile_count
     );
     println!(
         "current maintainer governance summaries: {}",

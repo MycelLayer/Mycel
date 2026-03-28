@@ -4,6 +4,8 @@ expression: json
 ---
 {
   "author_patches": {},
+  "current_document_governance": {},
+  "current_document_governance_profile_count": 1,
   "current_governance": {},
   "current_maintainer_governance": {},
   "current_maintainer_governance_document_count": 1,

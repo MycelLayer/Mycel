@@ -4,6 +4,29 @@ expression: json
 ---
 {
   "author_patches": {},
+  "current_document_governance": {
+    "doc:alpha": {
+      "profiles": {
+        "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+          "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+          "revision_id": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "timestamp": 11,
+          "view_id": "view:ff923bb1ca57e030020038fa4060603729a6e108d8d46789fb9969a2cdd061cc"
+        }
+      }
+    },
+    "doc:beta": {
+      "profiles": {
+        "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+          "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+          "revision_id": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "timestamp": 10,
+          "view_id": "view:4f5db5e5320d53ea79c1c89e0cdfb1666bf73050342d63d7b5e048efd57c6258"
+        }
+      }
+    }
+  },
+  "current_document_governance_profile_count": 2,
   "current_governance": {
     "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
       "current_documents": {

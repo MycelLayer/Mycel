@@ -8,6 +8,8 @@ expression: json
       "patch:d24b3852eb287a90eef8f27cbe0c2a5ebcbf7fa3917d5f9fa6b04cf3b106b8fc"
     ]
   },
+  "current_document_governance": {},
+  "current_document_governance_profile_count": 1,
   "current_governance": {},
   "current_maintainer_governance": {},
   "current_maintainer_governance_document_count": 1,

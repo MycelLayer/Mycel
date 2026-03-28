@@ -698,6 +698,65 @@ fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
 }
 
 #[test]
+fn store_index_top_level_document_counts_match_view_document_output() {
+    let fixture = build_store_with_related_views();
+    let store_root = path_arg(fixture.store_dir.path());
+    let store_index = run_mycel(&["store", "index", &store_root, "--governance-only", "--json"]);
+    assert_success(&store_index);
+    let store_index_json = assert_json_status(&store_index, "ok");
+
+    let view_document = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:beta",
+        "--json",
+    ]);
+    assert_success(&view_document);
+    let view_document_json = parse_json_stdout(&view_document);
+
+    let document_summary = &store_index_json["current_document_governance"]["doc:beta"];
+    let document_profiles = document_summary["profiles"]
+        .as_object()
+        .expect("store index document profiles should be an object");
+    let view_profiles = view_document_json["profiles"]
+        .as_array()
+        .expect("view document profiles should be an array");
+
+    assert_eq!(
+        store_index_json["current_document_governance"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(2)
+    );
+    assert_eq!(
+        store_index_json["current_document_governance_profile_count"],
+        json!(3)
+    );
+    assert_eq!(document_profiles.len(), view_profiles.len());
+
+    for profile in view_profiles {
+        let profile_id = profile["profile_id"]
+            .as_str()
+            .expect("view document profile should have profile_id");
+        assert_eq!(
+            document_profiles[profile_id]["view_id"], profile["current_view_id"],
+            "current view mismatch for profile {profile_id}"
+        );
+        assert_eq!(
+            document_profiles[profile_id]["revision_id"], profile["current_revision_id"],
+            "current revision mismatch for profile {profile_id}"
+        );
+        assert_eq!(
+            document_profiles[profile_id]["maintainer"], profile["maintainer"],
+            "maintainer mismatch for profile {profile_id}"
+        );
+    }
+}
+
+#[test]
 fn store_index_governance_only_text_reports_related_view_context() {
     let fixture = build_store_with_related_views();
     let output = run_mycel(&[
@@ -749,6 +808,14 @@ fn store_index_governance_only_text_reports_related_view_context() {
         "stdout: {stdout}"
     );
     assert!(
+        stdout.contains("current document governance summaries: 2"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current document governance profiles: 2"),
+        "stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("current maintainer governance summaries: 1"),
         "stdout: {stdout}"
     );
@@ -777,6 +844,10 @@ fn store_index_governance_only_text_reports_related_view_context() {
     );
     assert!(
         stdout.contains("  current maintainer document: doc:beta"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current document governance: doc:beta"),
         "stdout: {stdout}"
     );
 }
