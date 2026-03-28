@@ -72,7 +72,7 @@ struct HeadProfileInspectCliArgs {
     #[arg(
         long,
         value_name = "PROFILE_ID",
-        help = "Select one named fixed reader profile from the input bundle"
+        help = "Select one named fixed reader profile from the input bundle; discover choices with mycel head profile list and inspect one with mycel head profile inspect"
     )]
     profile_id: Option<String>,
     #[arg(long, help = "Emit machine-readable profile inspection output")]
@@ -106,7 +106,7 @@ struct HeadInspectCliArgs {
     #[arg(
         long,
         value_name = "PROFILE_ID",
-        help = "Select one named fixed reader profile from the input bundle"
+        help = "Select one named fixed reader profile from the input bundle; discover choices with mycel head profile list and inspect one with mycel head profile inspect"
     )]
     profile_id: Option<String>,
     #[arg(long, help = "Emit machine-readable head inspection output")]
@@ -147,7 +147,7 @@ struct HeadRenderCliArgs {
     #[arg(
         long,
         value_name = "PROFILE_ID",
-        help = "Select one named fixed reader profile from the input bundle"
+        help = "Select one named fixed reader profile from the input bundle; discover choices with mycel head profile list and inspect one with mycel head profile inspect"
     )]
     profile_id: Option<String>,
     #[arg(long, help = "Emit machine-readable accepted-head render output")]
@@ -248,6 +248,20 @@ fn profile_retry_hint(available_profile_ids: &[String], errors: &[String]) -> Op
         .collect::<Vec<_>>()
         .join(" | ");
     Some(format!("retry with one of: {examples}"))
+}
+
+fn profile_inspect_hint(available_profile_ids: &[String], errors: &[String]) -> Option<String> {
+    if available_profile_ids.is_empty() {
+        return None;
+    }
+    if !errors.iter().any(|error| error.contains("--profile-id")) {
+        return None;
+    }
+
+    let example_profile_id = &available_profile_ids[0];
+    Some(format!(
+        "inspect profile details with: mycel head profile inspect --input <same-input> --profile-id {example_profile_id}"
+    ))
 }
 
 fn has_viewer_effects(
@@ -391,6 +405,9 @@ fn print_head_inspect_summary_human(summary: &HeadInspectSummary) {
             summary.available_profile_ids.join(", ")
         );
         if let Some(hint) = profile_retry_hint(&summary.available_profile_ids, &summary.errors) {
+            println!("- {hint}");
+        }
+        if let Some(hint) = profile_inspect_hint(&summary.available_profile_ids, &summary.errors) {
             println!("- {hint}");
         }
     }
@@ -686,6 +703,9 @@ fn print_head_profile_inspect_human(summary: &HeadProfileInspectSummary) -> i32 
         if let Some(hint) = profile_retry_hint(&summary.available_profile_ids, &summary.errors) {
             println!("- {hint}");
         }
+        if let Some(hint) = profile_inspect_hint(&summary.available_profile_ids, &summary.errors) {
+            println!("- {hint}");
+        }
     }
     if let Some(profile) = &summary.profile {
         println!();
@@ -793,6 +813,9 @@ fn print_head_render_human(summary: &HeadRenderSummary) -> i32 {
             summary.available_profile_ids.join(", ")
         );
         if let Some(hint) = profile_retry_hint(&summary.available_profile_ids, &summary.errors) {
+            println!("- {hint}");
+        }
+        if let Some(hint) = profile_inspect_hint(&summary.available_profile_ids, &summary.errors) {
             println!("- {hint}");
         }
     }

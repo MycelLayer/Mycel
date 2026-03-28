@@ -299,6 +299,10 @@ pub fn assert_head_inspect_help(stdout: &str) {
         "expected profile-id flag in help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("head profile list") && stdout.contains("head profile inspect"),
+        "expected profile discovery guidance in help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("PATH_OR_FIXTURE"),
         "expected input value name in help, stdout: {stdout}"
     );
@@ -328,6 +332,10 @@ pub fn assert_head_render_help(stdout: &str) {
     assert!(
         stdout.contains("--profile-id <PROFILE_ID>"),
         "expected profile-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("head profile list") && stdout.contains("head profile inspect"),
+        "expected profile discovery guidance in help, stdout: {stdout}"
     );
 }
 

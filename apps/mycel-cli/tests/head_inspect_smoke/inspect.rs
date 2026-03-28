@@ -143,6 +143,10 @@ fn head_inspect_requires_profile_id_for_multi_profile_bundle() {
         &output,
         "- retry with one of: --profile-id preview | --profile-id stable",
     );
+    assert_stdout_contains(
+        &output,
+        "- inspect profile details with: mycel head profile inspect --input <same-input> --profile-id preview",
+    );
     assert_stdout_contains(&output, "Decision");
     assert_stderr_contains(
         &output,
@@ -189,6 +193,10 @@ fn head_inspect_reports_unknown_profile_id_for_multi_profile_bundle() {
     assert_stdout_contains(
         &output,
         "- retry with one of: --profile-id preview | --profile-id stable",
+    );
+    assert_stdout_contains(
+        &output,
+        "- inspect profile details with: mycel head profile inspect --input <same-input> --profile-id preview",
     );
     assert_stderr_contains(
         &output,
