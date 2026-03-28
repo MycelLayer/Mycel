@@ -274,3 +274,165 @@ fn persisted_governance_keeps_editor_and_view_roles_independent() {
         "maintainer-only key should remain queryable in current maintainer governance",
     );
 }
+
+#[test]
+fn document_and_list_governance_keep_editor_and_view_roles_independent() {
+    let store_dir = create_temp_dir("view-dual-role-document-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let shared_dual_role = signing_key(154);
+    let maintainer_only = signing_key(155);
+    let editor_only = signing_key(156);
+    let shared_policy = json!({
+        "accept_keys": [signer_id(&shared_dual_role), signer_id(&editor_only)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let mixed_policy = json!({
+        "accept_keys": [signer_id(&editor_only)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["preview"]
+    });
+
+    let shared_view = signed_view(
+        &shared_dual_role,
+        &shared_policy,
+        json!({
+            "doc:shared-dual-role": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }),
+        10,
+    );
+    let mixed_view = signed_view(
+        &maintainer_only,
+        &mixed_policy,
+        json!({
+            "doc:shared-dual-role": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "doc:mixed-role": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }),
+        20,
+    );
+
+    let (_shared_dir, shared_path) = write_json_file(
+        "view-shared-dual-role-document",
+        "shared.json",
+        &shared_view,
+    );
+    let (_mixed_dir, mixed_path) =
+        write_json_file("view-mixed-role-document", "mixed.json", &mixed_view);
+
+    let shared_publish = publish_view(&shared_path, &store_root);
+    let mixed_publish = publish_view(&mixed_path, &store_root);
+    let editor_only_id = signer_id(&editor_only);
+
+    let document_output = run_mycel(&[
+        "view",
+        "document",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:shared-dual-role",
+        "--json",
+    ]);
+    assert_success(&document_output);
+    let document_json = parse_json_stdout(&document_output);
+    let profiles = document_json["profiles"]
+        .as_array()
+        .expect("document profiles should be an array");
+    assert_eq!(profiles.len(), 2);
+    assert!(
+        profiles
+            .iter()
+            .all(|profile| profile["maintainer"] != Value::String(editor_only_id.clone())),
+        "editor-only admitted key must not appear as a document-governance maintainer: {document_json}",
+    );
+
+    let shared_profile_id = shared_publish["profile_id"]
+        .as_str()
+        .expect("shared profile id should exist");
+    let shared_profile = profiles
+        .iter()
+        .find(|profile| profile["profile_id"] == Value::String(shared_profile_id.to_string()))
+        .expect("shared profile should be present in document governance");
+    assert_eq!(
+        shared_profile["maintainer"],
+        Value::String(signer_id(&shared_dual_role))
+    );
+    assert_eq!(shared_profile["current_view_id"], shared_publish["view_id"]);
+
+    let mixed_profile_id = mixed_publish["profile_id"]
+        .as_str()
+        .expect("mixed profile id should exist");
+    let mixed_profile = profiles
+        .iter()
+        .find(|profile| profile["profile_id"] == Value::String(mixed_profile_id.to_string()))
+        .expect("mixed profile should be present in document governance");
+    assert_eq!(
+        mixed_profile["maintainer"],
+        Value::String(signer_id(&maintainer_only))
+    );
+    assert_eq!(mixed_profile["current_view_id"], mixed_publish["view_id"]);
+
+    let list_output = run_mycel(&[
+        "view",
+        "list",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:shared-dual-role",
+        "--sort",
+        "profile-id",
+        "--json",
+    ]);
+    assert_success(&list_output);
+    let list_json = parse_json_stdout(&list_output);
+    let records = list_json["records"]
+        .as_array()
+        .expect("view list records should be an array");
+    assert_eq!(records.len(), 2);
+    assert!(
+        records
+            .iter()
+            .all(|record| record["maintainer"] != Value::String(editor_only_id.clone())),
+        "editor-only admitted key must not appear as a view-list maintainer: {list_json}",
+    );
+
+    let shared_record = records
+        .iter()
+        .find(|record| record["profile_id"] == Value::String(shared_profile_id.to_string()))
+        .expect("shared profile should be present in view list");
+    assert_eq!(
+        shared_record["maintainer"],
+        Value::String(signer_id(&shared_dual_role))
+    );
+    assert_eq!(
+        shared_record["current_profile_view_id"],
+        shared_publish["view_id"]
+    );
+    assert_eq!(
+        shared_record["current_profile_document_view_ids"]["doc:shared-dual-role"],
+        shared_publish["view_id"]
+    );
+
+    let mixed_record = records
+        .iter()
+        .find(|record| record["profile_id"] == Value::String(mixed_profile_id.to_string()))
+        .expect("mixed profile should be present in view list");
+    assert_eq!(
+        mixed_record["maintainer"],
+        Value::String(signer_id(&maintainer_only))
+    );
+    assert_eq!(
+        mixed_record["current_profile_view_id"],
+        mixed_publish["view_id"]
+    );
+    assert_eq!(
+        mixed_record["current_profile_document_view_ids"]["doc:shared-dual-role"],
+        mixed_publish["view_id"]
+    );
+    assert_eq!(
+        mixed_record["current_profile_document_view_ids"]["doc:mixed-role"],
+        mixed_publish["view_id"]
+    );
+}
