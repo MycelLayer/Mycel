@@ -136,6 +136,7 @@ struct StoreIndexQuerySummary {
         std::collections::BTreeMap<String, StoreIndexCurrentDocumentGovernanceSummary>,
     current_maintainer_governance:
         std::collections::BTreeMap<String, StoreIndexCurrentMaintainerGovernanceSummary>,
+    current_governance_document_count: usize,
     current_document_governance_profile_count: usize,
     current_maintainer_governance_profile_count: usize,
     current_maintainer_governance_document_count: usize,
@@ -160,6 +161,7 @@ struct StoreIndexCountsSummary {
     profile_view_index_count: usize,
     document_view_index_count: usize,
     current_governance_profile_count: usize,
+    current_governance_document_count: usize,
     current_document_governance_count: usize,
     current_document_governance_profile_count: usize,
     current_maintainer_governance_count: usize,
@@ -750,6 +752,15 @@ fn count_current_maintainer_governance_profiles(
         .sum()
 }
 
+fn count_current_governance_documents(
+    current_governance: &std::collections::BTreeMap<String, StoreIndexCurrentGovernanceSummary>,
+) -> usize {
+    current_governance
+        .values()
+        .map(|current| current.current_documents.len())
+        .sum()
+}
+
 fn count_current_maintainer_governance_documents(
     current_maintainer_governance: &std::collections::BTreeMap<
         String,
@@ -962,6 +973,7 @@ fn build_store_index_query_summary(
     );
     let current_governance =
         summarize_current_governance(&manifest.current_governance, &filtered_view_governance);
+    let current_governance_document_count = count_current_governance_documents(&current_governance);
     let current_document_governance = summarize_current_document_governance(
         &manifest.current_document_governance,
         &filtered_view_governance,
@@ -996,6 +1008,7 @@ fn build_store_index_query_summary(
         current_governance,
         current_document_governance,
         current_maintainer_governance,
+        current_governance_document_count,
         current_document_governance_profile_count,
         current_maintainer_governance_profile_count,
         current_maintainer_governance_document_count,
@@ -1200,6 +1213,10 @@ fn print_store_index_text(summary: &StoreIndexQuerySummary) -> i32 {
         summary.current_governance.len()
     );
     println!(
+        "current governance documents: {}",
+        summary.current_governance_document_count
+    );
+    println!(
         "current document governance summaries: {}",
         summary.current_document_governance.len()
     );
@@ -1260,6 +1277,7 @@ fn build_store_index_counts_summary(summary: &StoreIndexQuerySummary) -> StoreIn
         profile_view_index_count: summary.profile_views.len(),
         document_view_index_count: summary.document_views.len(),
         current_governance_profile_count: summary.current_governance.len(),
+        current_governance_document_count: summary.current_governance_document_count,
         current_document_governance_count: summary.current_document_governance.len(),
         current_document_governance_profile_count: summary
             .current_document_governance_profile_count,
@@ -1330,6 +1348,10 @@ fn print_store_index_counts_text(summary: &StoreIndexCountsSummary) -> i32 {
     println!(
         "current governance profiles: {}",
         summary.current_governance_profile_count
+    );
+    println!(
+        "current governance documents: {}",
+        summary.current_governance_document_count
     );
     println!(
         "current document governance summaries: {}",

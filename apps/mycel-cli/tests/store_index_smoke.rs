@@ -44,6 +44,7 @@ struct RelatedGovernanceFixtureInfo {
     store_dir: common::TempDir,
     maintainer: String,
     profile_a_id: String,
+    profile_b_id: String,
     view_a1_id: String,
     view_a2_id: String,
     view_b1_id: String,
@@ -221,6 +222,7 @@ fn build_store_with_related_views() -> RelatedGovernanceFixtureInfo {
         .expect("view b1 id should exist")
         .to_string();
     let profile_a_id = profile_id(&policy_a);
+    let profile_b_id = profile_id(&policy_b);
 
     fs::write(
         source_dir.path().join("view-a1.json"),
@@ -251,6 +253,7 @@ fn build_store_with_related_views() -> RelatedGovernanceFixtureInfo {
         store_dir,
         maintainer: signer_id(&signing_key()),
         profile_a_id,
+        profile_b_id,
         view_a1_id,
         view_a2_id,
         view_b1_id,
@@ -693,6 +696,95 @@ fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
             store_profiles.len(),
             view_profiles.len(),
             "profile coverage mismatch for document {doc_id}"
+        );
+    }
+}
+
+#[test]
+fn store_index_top_level_profile_counts_match_view_current_output() {
+    let fixture = build_store_with_related_views();
+    let store_root = path_arg(fixture.store_dir.path());
+    let store_index = run_mycel(&["store", "index", &store_root, "--governance-only", "--json"]);
+    assert_success(&store_index);
+    let store_index_json = assert_json_status(&store_index, "ok");
+
+    let view_current_a = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        &fixture.profile_a_id,
+        "--json",
+    ]);
+    assert_success(&view_current_a);
+    let view_current_a_json = parse_json_stdout(&view_current_a);
+
+    let view_current_b = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        &fixture.profile_b_id,
+        "--json",
+    ]);
+    assert_success(&view_current_b);
+    let view_current_b_json = parse_json_stdout(&view_current_b);
+
+    let profile_a_summary = &store_index_json["current_governance"][fixture.profile_a_id.as_str()];
+    let profile_b_summary = &store_index_json["current_governance"][fixture.profile_b_id.as_str()];
+    let profile_a_documents = profile_a_summary["current_documents"]
+        .as_object()
+        .expect("store index profile a current_documents should be an object");
+    let profile_b_documents = profile_b_summary["current_documents"]
+        .as_object()
+        .expect("store index profile b current_documents should be an object");
+    let view_current_a_documents = view_current_a_json["current_documents"]
+        .as_array()
+        .expect("view current profile a current_documents should be an array");
+    let view_current_b_documents = view_current_b_json["current_documents"]
+        .as_array()
+        .expect("view current profile b current_documents should be an array");
+
+    assert_eq!(
+        store_index_json["current_governance"]
+            .as_object()
+            .map(|values| values.len()),
+        Some(2)
+    );
+    assert_eq!(
+        store_index_json["current_governance_document_count"],
+        json!(view_current_a_documents.len() + view_current_b_documents.len())
+    );
+    assert_eq!(profile_a_documents.len(), view_current_a_documents.len());
+    assert_eq!(profile_b_documents.len(), view_current_b_documents.len());
+
+    for current_document in view_current_a_documents {
+        let doc_id = current_document["doc_id"]
+            .as_str()
+            .expect("view current profile a document should have doc_id");
+        assert_eq!(
+            profile_a_documents[doc_id]["view_id"], current_document["current_view_id"],
+            "profile a current view mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_a_documents[doc_id]["revision_id"], current_document["current_revision_id"],
+            "profile a current revision mismatch for document {doc_id}"
+        );
+    }
+
+    for current_document in view_current_b_documents {
+        let doc_id = current_document["doc_id"]
+            .as_str()
+            .expect("view current profile b document should have doc_id");
+        assert_eq!(
+            profile_b_documents[doc_id]["view_id"], current_document["current_view_id"],
+            "profile b current view mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_b_documents[doc_id]["revision_id"], current_document["current_revision_id"],
+            "profile b current revision mismatch for document {doc_id}"
         );
     }
 }

@@ -1,5 +1,6 @@
 ---
 source: apps/mycel-cli/tests/store_index_smoke.rs
+assertion_line: 964
 expression: json
 ---
 {
@@ -7,6 +8,7 @@ expression: json
   "current_document_governance": {},
   "current_document_governance_profile_count": 1,
   "current_governance": {},
+  "current_governance_document_count": 1,
   "current_maintainer_governance": {},
   "current_maintainer_governance_document_count": 1,
   "current_maintainer_governance_profile_count": 1,

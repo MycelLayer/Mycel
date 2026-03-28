@@ -1,11 +1,13 @@
 ---
 source: apps/mycel-cli/tests/store_index_smoke.rs
+assertion_line: 521
 expression: json
 ---
 {
   "author_patch_index_count": 1,
   "current_document_governance_count": 1,
   "current_document_governance_profile_count": 1,
+  "current_governance_document_count": 1,
   "current_governance_profile_count": 1,
   "current_maintainer_governance_count": 1,
   "current_maintainer_governance_document_count": 1,

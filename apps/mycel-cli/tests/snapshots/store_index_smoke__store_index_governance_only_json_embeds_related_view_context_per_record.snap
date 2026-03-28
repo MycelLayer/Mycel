@@ -1,5 +1,6 @@
 ---
 source: apps/mycel-cli/tests/store_index_smoke.rs
+assertion_line: 623
 expression: json
 ---
 {
@@ -51,6 +52,7 @@ expression: json
       "timestamp": 11
     }
   },
+  "current_governance_document_count": 2,
   "current_maintainer_governance": {
     "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=": {
       "current_documents": {
