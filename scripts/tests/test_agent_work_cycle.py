@@ -20,6 +20,7 @@ SOURCE_MAILBOX_HANDOFF = REPO_ROOT / "scripts" / "mailbox_handoff.py"
 SOURCE_AGENT_GUARD = REPO_ROOT / "scripts" / "agent_guard.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
+SOURCE_NEXT_WORK_ITEMS = REPO_ROOT / "scripts" / "render_next_work_items.py"
 
 
 class AgentWorkCycleCliTest(unittest.TestCase):
@@ -39,6 +40,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_AGENT_GUARD, self.root / "scripts" / "agent_guard.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
+        shutil.copy2(SOURCE_NEXT_WORK_ITEMS, self.root / "scripts" / "render_next_work_items.py")
         (self.root / "scripts" / "agent_work_cycle.py").chmod(0o755)
         (self.root / "scripts" / "agent_registry.py").chmod(0o755)
         (self.root / "scripts" / "agent_timestamp.py").chmod(0o755)
@@ -49,6 +51,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         (self.root / "scripts" / "agent_guard.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist.py").chmod(0o755)
         (self.root / "scripts" / "item_id_checklist_mark.py").chmod(0o755)
+        (self.root / "scripts" / "render_next_work_items.py").chmod(0o755)
 
     def tearDown(self) -> None:
         self.remote_temp_dir.cleanup()
@@ -213,6 +216,10 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         path = self.root / ".agent-local" / "agents.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    def load_next_work_items_spec(self, agent_uid: str, batch_num: int) -> dict[str, object]:
+        path = self.root / f".agent-local/agents/{agent_uid}/workcycles/next-work-items-{batch_num}.json"
+        return json.loads(path.read_text(encoding="utf-8"))
 
     def set_checklist_state(self, relative_path: str, item_id: str, state: str, label: str) -> None:
         path = self.root / relative_path
@@ -818,6 +825,18 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             proc.stdout,
         )
+        self.assertIn(
+            f"next_work_items_spec: .agent-local/agents/{agent_uid}/workcycles/next-work-items-1.json",
+            proc.stdout,
+        )
+        self.assertIn(
+            f"next_work_items_render_command: python3 scripts/render_next_work_items.py .agent-local/agents/{agent_uid}/workcycles/next-work-items-1.json",
+            proc.stdout,
+        )
+        self.assertEqual(
+            {"compaction_detected": False, "role": "doc"},
+            self.load_next_work_items_spec(agent_uid, 1),
+        )
 
     def test_end_reuses_frozen_end_token_snapshot_on_repeat_closeout(self) -> None:
         self.write_agents_md()
@@ -984,6 +1003,10 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn(
             "alert: compact context detected before after-work closeout; open a fresh chat before continuing.",
             proc.stdout,
+        )
+        self.assertEqual(
+            {"compaction_detected": True, "role": "doc"},
+            self.load_next_work_items_spec(agent_uid, 1),
         )
 
     def test_end_alerts_when_compaction_detected_on_begin_thread_after_thread_switch(self) -> None:

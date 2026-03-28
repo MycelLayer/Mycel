@@ -600,6 +600,27 @@ def load_end_token_usage_snapshot(agent_uid: str, batch_num: int) -> dict[str, o
     return payload if isinstance(payload, dict) else None
 
 
+def workcycle_next_work_items_spec_path(agent_uid: str, batch_num: int) -> Path:
+    return AGENT_LOCAL_DIR / "agents" / agent_uid / "workcycles" / f"next-work-items-{batch_num}.json"
+
+
+def write_next_work_items_spec(
+    *,
+    agent_uid: str,
+    batch_num: int,
+    agent_role: str,
+    compaction_detected: bool,
+) -> Path:
+    path = workcycle_next_work_items_spec_path(agent_uid, batch_num)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "role": agent_role,
+        "compaction_detected": compaction_detected,
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def format_token_count(value: int) -> str:
     return f"{value:,} tok"
 
@@ -1570,6 +1591,12 @@ def main() -> int:
             )
         if phase_timings is not None:
             phase_timings["token_snapshot_diagnostics"] = round(perf_counter() - started_at, 6)
+        next_work_items_spec = write_next_work_items_spec(
+            agent_uid=agent_uid,
+            batch_num=latest_batch,
+            agent_role=agent_role,
+            compaction_detected=end_compaction is not None,
+        )
         print(
             build_message(
                 stage,
@@ -1600,6 +1627,11 @@ def main() -> int:
             print(
                 "warning: begin/end Codex thread ids differ during after-work closeout; diagnostics may span a thread switch."
             )
+        print(f"next_work_items_spec: {next_work_items_spec.relative_to(ROOT_DIR)}")
+        print(
+            "next_work_items_render_command: "
+            f"python3 scripts/render_next_work_items.py {next_work_items_spec.relative_to(ROOT_DIR)}"
+        )
 
         started_at = perf_counter()
         for path in checklist_paths:

@@ -12,6 +12,39 @@ DEFAULT_COMPACTION_MESSAGE = "compaction detected, we better open a new chat."
 DEFAULT_COMPACTION_TRADEOFF = (
     "safest follow-up after compaction, but it pauses immediate work until a fresh chat is open."
 )
+ROLE_DEFAULT_ITEMS: dict[str, list[dict[str, str]]] = {
+    "coding": [
+        {
+            "text": "review ROADMAP.md and identify the highest-value next coding work",
+            "tradeoff": "best roadmap alignment, but it spends a little time on prioritization before implementation",
+            "roadmap": "ROADMAP.md / next coding slice",
+        },
+        {
+            "text": "review the latest CQH issue and identify high-value work items",
+            "tradeoff": "usually cheaper to land quickly, but it may be less directly tied to the main roadmap lane",
+        },
+    ],
+    "delivery": [
+        {
+            "text": "review the latest completed CI result before choosing the next delivery follow-up",
+            "tradeoff": "safest delivery baseline, but it may delay action if CI context needs re-reading",
+        },
+        {
+            "text": "review the current delivery workflow or process follow-up with the freshest CI evidence",
+            "tradeoff": "good for stabilizing delivery flow, but it is less directly product-facing than coding work",
+        },
+    ],
+    "doc": [
+        {
+            "text": "review the freshest planning or documentation follow-up before choosing the next doc item",
+            "tradeoff": "keeps doc work aligned with current repo state, but it adds a short review step first",
+        },
+        {
+            "text": "check whether planning-sync or issue-sync follow-up is due before writing the next doc update",
+            "tradeoff": "helps avoid drift in planning surfaces, but it may defer narrower writing work briefly",
+        },
+    ],
+}
 
 
 class NextWorkItemsError(Exception):
@@ -69,6 +102,17 @@ def parse_optional_string(payload: dict[str, object], key: str) -> str | None:
     return value.strip()
 
 
+def parse_optional_role(payload: dict[str, object]) -> str | None:
+    role = parse_optional_string(payload, "role")
+    if role is None:
+        return None
+    if role not in ROLE_DEFAULT_ITEMS:
+        raise NextWorkItemsError(
+            f"'role' must be one of: {', '.join(sorted(ROLE_DEFAULT_ITEMS))}"
+        )
+    return role
+
+
 def parse_items(payload: dict[str, object]) -> list[dict[str, str]]:
     raw_items = payload.get("items", [])
     if not isinstance(raw_items, list):
@@ -91,8 +135,16 @@ def parse_items(payload: dict[str, object]) -> list[dict[str, str]]:
     return items
 
 
+def role_default_items(role: str | None) -> list[dict[str, str]]:
+    if role is None:
+        return []
+    return [dict(entry) for entry in ROLE_DEFAULT_ITEMS[role]]
+
+
 def build_items(payload: dict[str, object]) -> list[dict[str, str]]:
-    items = parse_items(payload)
+    role = parse_optional_role(payload)
+    items = role_default_items(role)
+    items.extend(parse_items(payload))
     compaction_detected = parse_bool(payload, "compaction_detected")
     if compaction_detected:
         compaction_item = {

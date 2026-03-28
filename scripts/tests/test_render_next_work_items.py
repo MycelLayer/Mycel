@@ -60,6 +60,18 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             proc.stdout,
         )
 
+    def test_uses_role_defaults_when_only_role_is_provided(self) -> None:
+        proc = self.run_cli("-", stdin_text=json.dumps({"role": "coding"}))
+
+        self.assertEqual(
+            "1. (最有價值) review ROADMAP.md and identify the highest-value next coding work Tradeoff: "
+            "best roadmap alignment, but it spends a little time on prioritization before implementation "
+            "Roadmap: ROADMAP.md / next coding slice\n"
+            "2. review the latest CQH issue and identify high-value work items Tradeoff: usually cheaper "
+            "to land quickly, but it may be less directly tied to the main roadmap lane\n",
+            proc.stdout,
+        )
+
     def test_prepends_compaction_item_when_compaction_is_detected(self) -> None:
         spec = {
             "compaction_detected": True,
@@ -77,6 +89,17 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             "1. (最有價值) compaction detected, we better open a new chat. Tradeoff: safest follow-up after compaction, "
             "but it pauses immediate work until a fresh chat is open.\n"
             "2. continue with the next coding slice Tradeoff: fastest way back into implementation, but only after context is safe again\n",
+            proc.stdout,
+        )
+
+    def test_prepends_compaction_item_ahead_of_role_defaults(self) -> None:
+        spec = {"compaction_detected": True, "role": "coding"}
+
+        proc = self.run_cli("-", stdin_text=json.dumps(spec))
+
+        self.assertIn("1. (最有價值) compaction detected, we better open a new chat.", proc.stdout)
+        self.assertIn(
+            "2. review ROADMAP.md and identify the highest-value next coding work",
             proc.stdout,
         )
 
