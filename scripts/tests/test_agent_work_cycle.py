@@ -1382,6 +1382,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.run_git("add", "scripts/agent_timestamp.py")
         self.commit_as_agent(agent_uid, "committed source change")
+        record_proc = self.run_cli("record-paths", agent_uid, "scripts/agent_timestamp.py")
+        self.assertEqual(0, record_proc.returncode)
         self.set_checklist_state(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
             "workflow.files-changed-summary",
@@ -1394,6 +1396,43 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertEqual(2, proc.returncode)
         self.assertIn("scrutinized_not_needed_violations: 1", proc.stdout)
         self.assertIn("workflow.files-changed-summary", proc.stdout)
+
+    def test_end_requires_record_paths_for_cycle_owned_committed_source_changes(self) -> None:
+        self.write_agents_md()
+        self.init_git_repo()
+        self.init_origin_main_remote()
+        agent_uid = self.prepare_second_batch(role="coding")
+        self.write_mailbox(
+            agent_uid,
+            """# Mailbox for agt_coding
+
+## Work Continuation Handoff
+
+- Status: open
+""",
+        )
+        (self.root / "scripts" / "agent_timestamp.py").write_text(
+            (self.root / "scripts" / "agent_timestamp.py").read_text(encoding="utf-8")
+            + "\n# committed without record-paths\n",
+            encoding="utf-8",
+        )
+        self.run_git("add", "scripts/agent_timestamp.py")
+        self.commit_as_agent(agent_uid, "committed source change without record-paths")
+        self.run_git("push", "origin", "HEAD:main")
+        self.set_checklist_state(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            "workflow.files-changed-summary",
+            "X",
+            "Include a files-changed summary when source changes land",
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "timestamp-wrapper", check=False)
+
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("source_push_required: true", proc.stdout)
+        self.assertIn("source_push_ok: false", proc.stdout)
+        self.assertIn("missing record-paths entries", proc.stdout)
+        self.assertIn("scripts/agent_timestamp.py", proc.stdout)
 
     def test_end_allows_files_changed_summary_not_needed_for_docs_only_cycle(self) -> None:
         self.write_agents_md()
@@ -1444,6 +1483,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.run_git("add", "scripts/agent_timestamp.py")
         self.commit_as_agent(agent_uid, "local source change")
+        record_proc = self.run_cli("record-paths", agent_uid, "scripts/agent_timestamp.py")
+        self.assertEqual(0, record_proc.returncode)
         self.set_checklist_state(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
             "workflow.files-changed-summary",
@@ -1479,6 +1520,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.run_git("add", "scripts/agent_timestamp.py")
         self.commit_as_agent(agent_uid, "pushed source change")
+        record_proc = self.run_cli("record-paths", agent_uid, "scripts/agent_timestamp.py")
+        self.assertEqual(0, record_proc.returncode)
         self.run_git("push", "origin", "HEAD:main")
         self.set_checklist_state(
             f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
@@ -1587,6 +1630,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.run_git("add", "scripts/agent_timestamp.py")
         self.commit_as_agent(agent_uid, "pushed source change")
+        record_proc = self.run_cli("record-paths", agent_uid, "scripts/agent_timestamp.py")
+        self.assertEqual(0, record_proc.returncode)
         self.run_git("push", "origin", "HEAD:main")
 
         (self.root / "scripts" / "agent_registry.py").write_text(
@@ -1630,6 +1675,8 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         )
         self.run_git("add", "scripts/agent_timestamp.py")
         self.commit_as_agent(agent_uid, "pushed source change")
+        record_proc = self.run_cli("record-paths", agent_uid, "scripts/agent_timestamp.py")
+        self.assertEqual(0, record_proc.returncode)
         self.run_git("push", "origin", "HEAD:main")
 
         (self.root / "scripts" / "agent_registry.py").write_text(

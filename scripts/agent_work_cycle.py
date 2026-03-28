@@ -758,6 +758,13 @@ def record_owned_paths(agent_uid: str, batch_num: int, raw_paths: list[str]) -> 
     return (path, updated)
 
 
+def summarize_missing_recorded_paths(paths: set[str], *, limit: int = 5) -> str:
+    ordered = sorted(paths)
+    preview = ordered[:limit]
+    suffix = "" if len(ordered) <= limit else ", ..."
+    return ", ".join(preview) + suffix
+
+
 def is_cycle_tracked_path(path: str) -> bool:
     normalized = path.strip().replace("\\", "/")
     if not normalized:
@@ -919,6 +926,27 @@ def cycle_source_change_push_status(agent_uid: str, batch_num: int) -> dict[str,
             "required": False,
             "ok": True,
             "reason": "no cycle-owned tracked-file changes detected; local-only changes do not block closeout",
+            "remote_head": None,
+        }
+    recorded_owned_paths = load_owned_paths_snapshot(agent_uid, batch_num)
+    if recorded_owned_paths is None:
+        return {
+            "required": True,
+            "ok": False,
+            "reason": "unable to read recorded owned-path entries for this cycle",
+            "remote_head": None,
+        }
+    missing_recorded_paths = owned_source_paths - recorded_owned_paths
+    if missing_recorded_paths:
+        missing_summary = summarize_missing_recorded_paths(missing_recorded_paths)
+        return {
+            "required": True,
+            "ok": False,
+            "reason": (
+                "cycle-owned tracked-file changes are missing record-paths entries: "
+                f"{missing_summary}; run `python3 scripts/agent_work_cycle.py record-paths {agent_uid} <path>...` "
+                "before closeout"
+            ),
             "remote_head": None,
         }
     remote_name_proc = run_git(["remote", "get-url", "origin"])
