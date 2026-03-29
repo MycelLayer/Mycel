@@ -18,7 +18,9 @@ pub(crate) struct ViewCliArgs {
 
 #[derive(Subcommand)]
 enum ViewSubcommand {
-    #[command(about = "Inspect the current persisted governance state for one profile")]
+    #[command(
+        about = "Inspect the current persisted governance state for one profile or all profiles"
+    )]
     Current(ViewCurrentCliArgs),
     #[command(about = "Inspect the current persisted governance state for one document")]
     Document(ViewDocumentCliArgs),
@@ -43,8 +45,18 @@ struct ViewCurrentCliArgs {
         required = true
     )]
     store_root: String,
-    #[arg(long, help = "Governance profile ID to inspect", required = true)]
-    profile_id: String,
+    #[arg(
+        long,
+        help = "Governance profile ID to inspect",
+        required_unless_present = "all_profiles"
+    )]
+    profile_id: Option<String>,
+    #[arg(
+        long,
+        help = "Inspect the current persisted governance state for all profiles",
+        conflicts_with = "profile_id"
+    )]
+    all_profiles: bool,
     #[arg(
         long,
         help = "Only inspect the current governance state for one document ID"

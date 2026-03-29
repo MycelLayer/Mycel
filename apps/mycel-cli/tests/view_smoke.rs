@@ -1249,6 +1249,173 @@ fn view_current_json_reports_doc_scoped_current_governance_state() {
 }
 
 #[test]
+fn view_current_all_profiles_json_reports_current_governance_state() {
+    let store_dir = create_temp_dir("view-current-all-profiles-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(171);
+    let maintainer_b = signing_key(172);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }),
+        10,
+    );
+    let view_b = signed_view(
+        &maintainer_b,
+        &policy_b,
+        json!({
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        20,
+    );
+
+    let (_dir_a, path_a) = write_json_file("view-current-all-profiles-a", "view-a.json", &view_a);
+    let (_dir_b, path_b) = write_json_file("view-current-all-profiles-b", "view-b.json", &view_b);
+
+    let publish_a = publish_view(&path_a, &store_root);
+    let publish_b = publish_view(&path_b, &store_root);
+
+    let current = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--all-profiles",
+        "--json",
+    ]);
+    assert_success(&current);
+    let current_json = parse_json_stdout(&current);
+    let profiles = current_json["profiles"]
+        .as_array()
+        .expect("profiles should be an array");
+
+    assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["profile_count"], json!(2));
+    assert_eq!(profiles.len(), 2);
+
+    let profile_a = profiles
+        .iter()
+        .find(|profile| profile["profile_id"] == publish_a["profile_id"])
+        .expect("profile a should be present");
+    assert_eq!(profile_a["current_view_id"], publish_a["view_id"]);
+    assert_eq!(profile_a["profile_current_view_id"], publish_a["view_id"]);
+    assert_eq!(profile_a["maintainer"], view_a["maintainer"]);
+    assert_eq!(
+        profile_a["accepted_editor_keys"],
+        json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(profile_a["maintainer_is_admitted_editor"], json!(true));
+
+    let profile_b = profiles
+        .iter()
+        .find(|profile| profile["profile_id"] == publish_b["profile_id"])
+        .expect("profile b should be present");
+    assert_eq!(profile_b["current_view_id"], publish_b["view_id"]);
+    assert_eq!(profile_b["profile_current_view_id"], publish_b["view_id"]);
+    assert_eq!(profile_b["maintainer"], view_b["maintainer"]);
+    assert_eq!(
+        profile_b["accepted_editor_keys"],
+        json!([signer_id(&maintainer_b)])
+    );
+    assert_eq!(profile_b["maintainer_is_admitted_editor"], json!(true));
+
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "profiles are emitted in deterministic profile-id order so tooling can diff repeated runs"
+        })),
+        "expected deterministic-order note in current summary: {current_json}",
+    );
+}
+
+#[test]
+fn view_current_all_profiles_doc_scope_filters_profiles() {
+    let store_dir = create_temp_dir("view-current-all-profiles-doc-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(173);
+    let maintainer_b = signing_key(174);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:shared": "rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }),
+        10,
+    );
+    let view_b = signed_view(
+        &maintainer_b,
+        &policy_b,
+        json!({
+            "doc:other": "rev:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }),
+        20,
+    );
+
+    let (_dir_a, path_a) =
+        write_json_file("view-current-all-profiles-doc-a", "view-a.json", &view_a);
+    let (_dir_b, path_b) =
+        write_json_file("view-current-all-profiles-doc-b", "view-b.json", &view_b);
+
+    let publish_a = publish_view(&path_a, &store_root);
+    publish_view(&path_b, &store_root);
+
+    let current = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--all-profiles",
+        "--doc-id",
+        "doc:shared",
+        "--json",
+    ]);
+    assert_success(&current);
+    let current_json = parse_json_stdout(&current);
+    let profiles = current_json["profiles"]
+        .as_array()
+        .expect("profiles should be an array");
+
+    assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["doc_id"], json!("doc:shared"));
+    assert_eq!(current_json["profile_count"], json!(1));
+    assert_eq!(profiles.len(), 1);
+    assert_eq!(profiles[0]["profile_id"], publish_a["profile_id"]);
+    assert_eq!(
+        profiles[0]["current_document_revision_id"],
+        json!("rev:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+    );
+}
+
+#[test]
 fn view_current_reports_missing_profile_or_doc_cleanly() {
     let store_dir = create_temp_dir("view-current-missing-store");
     let store_root = path_arg(store_dir.path());
@@ -1305,6 +1472,13 @@ fn view_current_reports_missing_profile_or_doc_cleanly() {
     assert_stderr_contains(
         &missing_doc,
         "was not found in persisted current governance state for profile",
+    );
+
+    let missing_target = run_mycel(&["view", "current", "--store-root", &store_root]);
+    assert_exit_code(&missing_target, 2);
+    assert_stderr_contains(
+        &missing_target,
+        "the following required arguments were not provided",
     );
 }
 

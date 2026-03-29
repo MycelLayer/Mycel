@@ -410,7 +410,9 @@ pub fn assert_view_current_help(stdout: &str) {
         "expected view current usage, stdout: {stdout}"
     );
     assert!(
-        stdout.contains("Inspect the current persisted governance state for one profile"),
+        stdout.contains(
+            "Inspect the current persisted governance state for one profile or all profiles"
+        ),
         "expected view current description, stdout: {stdout}"
     );
     assert!(
@@ -420,6 +422,10 @@ pub fn assert_view_current_help(stdout: &str) {
     assert!(
         stdout.contains("--profile-id <PROFILE_ID>"),
         "expected profile-id flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--all-profiles"),
+        "expected all-profiles flag in help, stdout: {stdout}"
     );
     assert!(
         stdout.contains("--doc-id <DOC_ID>"),

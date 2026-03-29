@@ -1716,6 +1716,47 @@ pub fn inspect_current_governance(
     })
 }
 
+fn profile_has_current_document(
+    manifest: &StoreIndexManifest,
+    profile_id: &str,
+    doc_id: &str,
+) -> bool {
+    manifest
+        .current_document_governance
+        .get(doc_id)
+        .map(|record| record.profiles.contains_key(profile_id))
+        .unwrap_or(false)
+        || manifest
+            .latest_document_profile_views
+            .get(profile_id)
+            .map(|documents| documents.contains_key(doc_id))
+            .unwrap_or(false)
+}
+
+pub fn list_current_governance(
+    manifest: &StoreIndexManifest,
+    doc_id: Option<&str>,
+) -> Result<Vec<GovernanceCurrentSummary>, StoreRebuildError> {
+    let profile_ids = manifest
+        .current_governance
+        .keys()
+        .chain(manifest.latest_profile_views.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+
+    profile_ids
+        .into_iter()
+        .filter(|profile_id| {
+            doc_id
+                .map(|selected_doc_id| {
+                    profile_has_current_document(manifest, profile_id, selected_doc_id)
+                })
+                .unwrap_or(true)
+        })
+        .map(|profile_id| inspect_current_governance(manifest, &profile_id, doc_id))
+        .collect()
+}
+
 pub fn inspect_document_governance(
     manifest: &StoreIndexManifest,
     doc_id: &str,
@@ -2134,10 +2175,11 @@ mod tests {
     use super::{
         ingest_store_from_path, initialize_store_root, inspect_current_governance,
         inspect_current_maintainer_governance, inspect_document_governance,
-        inspect_governance_view, load_local_store_policy, load_store_index_manifest,
-        load_store_object_index, load_stored_object_value, local_store_policy_path,
-        persist_local_store_policy, rebuild_store_from_path, GovernanceDocumentSummarySource,
-        GovernanceMaintainerSummarySource, LocalStorePolicy, StoreIndexManifest,
+        inspect_governance_view, list_current_governance, load_local_store_policy,
+        load_store_index_manifest, load_store_object_index, load_stored_object_value,
+        local_store_policy_path, persist_local_store_policy, rebuild_store_from_path,
+        GovernanceDocumentSummarySource, GovernanceMaintainerSummarySource, LocalStorePolicy,
+        StoreIndexManifest,
     };
     use crate::canonical::{prefixed_canonical_hash, signed_payload_bytes};
     use crate::protocol::recompute_object_id;
@@ -2365,6 +2407,25 @@ mod tests {
         assert_eq!(
             current.current_documents[0].accepted_editor_keys,
             vec![signer_id(&signing_key())]
+        );
+
+        let current_profiles =
+            list_current_governance(&StoreIndexManifest::from_rebuild_summary(&summary), None)
+                .expect("current governance profiles should list");
+        assert_eq!(current_profiles.len(), 1);
+        assert_eq!(current_profiles[0].profile_id, profile_id);
+
+        let doc_scoped_profiles = list_current_governance(
+            &StoreIndexManifest::from_rebuild_summary(&summary),
+            Some("doc:test"),
+        )
+        .expect("doc-scoped current governance profiles should list");
+        assert_eq!(doc_scoped_profiles.len(), 1);
+        assert_eq!(
+            doc_scoped_profiles[0]
+                .current_document_revision_id
+                .as_deref(),
+            Some(revision["revision_id"].as_str().unwrap())
         );
 
         let inspection = inspect_governance_view(
