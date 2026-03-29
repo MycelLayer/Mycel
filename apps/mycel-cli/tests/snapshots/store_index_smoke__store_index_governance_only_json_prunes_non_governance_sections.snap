@@ -9,7 +9,12 @@ expression: json
     "doc:index": {
       "profiles": {
         "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+          "accepted_editor_keys": [
+            "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+          ],
+          "admitted_editor_only_keys": [],
           "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+          "maintainer_is_admitted_editor": true,
           "revision_id": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced",
           "timestamp": 3,
           "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
@@ -20,9 +25,18 @@ expression: json
   "current_document_governance_profile_count": 1,
   "current_governance": {
     "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+      "accepted_editor_keys": [
+        "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+      ],
+      "admitted_editor_only_keys": [],
       "current_documents": {
         "doc:index": {
+          "accepted_editor_keys": [
+            "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+          ],
+          "admitted_editor_only_keys": [],
           "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+          "maintainer_is_admitted_editor": true,
           "revision_id": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced",
           "timestamp": 3,
           "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
@@ -33,6 +47,7 @@ expression: json
         "doc:index": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced"
       },
       "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+      "maintainer_is_admitted_editor": true,
       "timestamp": 3
     }
   },
@@ -43,7 +58,12 @@ expression: json
         "doc:index": {
           "profiles": {
             "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+              "accepted_editor_keys": [
+                "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+              ],
+              "admitted_editor_only_keys": [],
               "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+              "maintainer_is_admitted_editor": true,
               "revision_id": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced",
               "timestamp": 3,
               "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
@@ -53,9 +73,18 @@ expression: json
       },
       "current_profiles": {
         "hash:c9af8de669008e239e9df7ff11956a2d4130bf07c6f129e58cd89c4bf37dc9ab": {
+          "accepted_editor_keys": [
+            "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+          ],
+          "admitted_editor_only_keys": [],
           "current_documents": {
             "doc:index": {
+              "accepted_editor_keys": [
+                "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+              ],
+              "admitted_editor_only_keys": [],
               "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+              "maintainer_is_admitted_editor": true,
               "revision_id": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced",
               "timestamp": 3,
               "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
@@ -65,6 +94,7 @@ expression: json
           "documents": {
             "doc:index": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced"
           },
+          "maintainer_is_admitted_editor": true,
           "timestamp": 3
         }
       }
@@ -113,6 +143,10 @@ expression: json
   "stored_object_count": 3,
   "view_governance": [
     {
+      "accepted_editor_keys": [
+        "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw="
+      ],
+      "admitted_editor_only_keys": [],
       "current_profile_document_view_ids": {
         "doc:index": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
       },
@@ -126,6 +160,7 @@ expression: json
         "doc:index": "rev:4bb946a431a7c48d3eb7a3789886dd220c235bfc033c6a9a8c55e263a9364ced"
       },
       "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+      "maintainer_is_admitted_editor": true,
       "maintainer_view_ids": [
         "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
       ],
