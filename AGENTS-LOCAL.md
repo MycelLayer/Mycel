@@ -7,7 +7,7 @@ Keep shared workflow rules in `AGENTS.md`.
 
 ## Communication
 
-- Respond to the user in Traditional Chinese (`zh-TW`) by default unless the user explicitly asks for another language.
+- Respond to the user in Traditional Chinese (`zh-TW`) regardless of the language used in the user's request, unless the user explicitly asks for another response language.
 
 ## GitHub
 
