@@ -2596,3 +2596,251 @@ fn render_block_lines(blocks: &[BlockObject], depth: usize, lines: &mut Vec<Stri
         render_block_lines(&block.children, depth + 1, lines);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{BTreeMap, HashMap};
+    use std::path::Path;
+
+    fn test_profile(
+        editor_mode: EditorCandidateMode,
+        editor_keys: &[&str],
+        view_mode: ViewMaintainerAdmissionMode,
+        view_keys: &[&str],
+    ) -> HeadInspectProfile {
+        HeadInspectProfile {
+            policy_hash: "hash:test-policy".to_string(),
+            effective_selection_time: 5,
+            epoch_seconds: 10,
+            epoch_zero_timestamp: 0,
+            admission_window_epochs: 0,
+            min_valid_views_for_admission: 0,
+            min_valid_views_per_epoch: 0,
+            weight_cap_per_key: 4,
+            editor_admission: EditorAdmissionProfile {
+                mode: editor_mode,
+                admitted_keys: editor_keys.iter().map(|key| (*key).to_string()).collect(),
+            },
+            view_admission: ViewAdmissionProfile {
+                mode: view_mode,
+                admitted_keys: view_keys.iter().map(|key| (*key).to_string()).collect(),
+            },
+            viewer_score: ViewerScoreProfile::default(),
+        }
+    }
+
+    fn verified_revision(
+        revision_id: &str,
+        doc_id: &str,
+        author: &str,
+        timestamp: u64,
+    ) -> VerifiedRevision {
+        VerifiedRevision {
+            revision_id: revision_id.to_string(),
+            doc_id: doc_id.to_string(),
+            author: author.to_string(),
+            timestamp,
+            parents: Vec::new(),
+        }
+    }
+
+    fn verified_view(
+        view_id: &str,
+        maintainer: &str,
+        timestamp: u64,
+        doc_id: &str,
+        revision_id: &str,
+    ) -> VerifiedView {
+        VerifiedView {
+            view_id: view_id.to_string(),
+            maintainer: maintainer.to_string(),
+            timestamp,
+            documents: BTreeMap::from([(doc_id.to_string(), revision_id.to_string())]),
+        }
+    }
+
+    fn summary_for_doc(
+        doc_id: &str,
+        editor_candidates: Vec<EditorCandidateSummary>,
+    ) -> HeadInspectSummary {
+        let mut summary = HeadInspectSummary::new(Path::new("dual-role-test.json"), doc_id);
+        summary.editor_candidates = editor_candidates;
+        summary
+    }
+
+    #[test]
+    fn selector_support_keeps_shared_dual_role_weight_independent_from_revision_authorship() {
+        let doc_id = "doc:shared-dual-role-core";
+        let shared_dual_role = "key:shared-dual-role";
+        let editor_only = "key:editor-only";
+        let profile = test_profile(
+            EditorCandidateMode::Mixed,
+            &[shared_dual_role, editor_only],
+            ViewMaintainerAdmissionMode::AdmittedOnly,
+            &[shared_dual_role],
+        );
+        let selector_epoch = selector_epoch(
+            profile.effective_selection_time,
+            profile.epoch_seconds,
+            profile.epoch_zero_timestamp,
+        );
+        let structural_heads = vec![
+            verified_revision("rev:editor-only", doc_id, editor_only, 10),
+            verified_revision("rev:shared-dual-role", doc_id, shared_dual_role, 20),
+        ];
+        let views = vec![
+            verified_view(
+                "view:shared-supports-editor",
+                shared_dual_role,
+                4,
+                doc_id,
+                "rev:editor-only",
+            ),
+            verified_view(
+                "view:editor-supports-shared",
+                editor_only,
+                4,
+                doc_id,
+                "rev:shared-dual-role",
+            ),
+        ];
+
+        let (eligible_heads, editor_candidates, _) =
+            apply_editor_admission(&structural_heads, &profile.editor_admission);
+        let (effective_weights, effective_weight_summaries, _) =
+            compute_effective_weights(&views, &[], selector_epoch, &profile);
+        let (support_map, support_summaries, _) = latest_support_by_maintainer(
+            &views,
+            doc_id,
+            &eligible_heads,
+            selector_epoch,
+            &profile,
+            &effective_weights,
+        );
+        let mut summary = summary_for_doc(doc_id, editor_candidates);
+        populate_eligible_head_summaries(
+            &mut summary,
+            &eligible_heads,
+            &support_map,
+            &HashMap::new(),
+        );
+        let viewer_gating = summarize_viewer_gating(&mut summary);
+        let selected = select_head_from_eligible_summaries(&summary, &viewer_gating)
+            .expect("shared dual-role scenario should select a head");
+
+        assert_eq!(selected.revision_id, "rev:editor-only");
+        assert!(summary.eligible_heads.iter().any(|head| {
+            head.revision_id == "rev:shared-dual-role"
+                && head.formal_candidate
+                && head.selector_score == 0
+        }));
+        assert!(effective_weight_summaries.iter().any(|entry| {
+            entry.maintainer == shared_dual_role
+                && entry.view_admitted
+                && entry.admitted
+                && entry.effective_weight == 1
+        }));
+        assert!(effective_weight_summaries.iter().any(|entry| {
+            entry.maintainer == editor_only
+                && !entry.view_admitted
+                && !entry.admitted
+                && entry.effective_weight == 0
+        }));
+        assert!(support_summaries.iter().any(|entry| {
+            entry.maintainer == shared_dual_role
+                && entry.revision_id == "rev:editor-only"
+                && entry.effective_weight == 1
+        }));
+        assert!(support_summaries.iter().any(|entry| {
+            entry.maintainer == editor_only
+                && entry.revision_id == "rev:shared-dual-role"
+                && entry.effective_weight == 0
+        }));
+    }
+
+    #[test]
+    fn selector_support_separates_editor_only_and_view_only_keys() {
+        let doc_id = "doc:mixed-dual-role-core";
+        let editor_only = "key:editor-only";
+        let view_only = "key:view-only";
+        let profile = test_profile(
+            EditorCandidateMode::Mixed,
+            &[editor_only],
+            ViewMaintainerAdmissionMode::AdmittedOnly,
+            &[view_only],
+        );
+        let selector_epoch = selector_epoch(
+            profile.effective_selection_time,
+            profile.epoch_seconds,
+            profile.epoch_zero_timestamp,
+        );
+        let structural_heads = vec![
+            verified_revision("rev:editor-only", doc_id, editor_only, 10),
+            verified_revision("rev:view-only", doc_id, view_only, 20),
+        ];
+        let views = vec![
+            verified_view(
+                "view:view-only-supports-editor",
+                view_only,
+                4,
+                doc_id,
+                "rev:editor-only",
+            ),
+            verified_view(
+                "view:editor-only-supports-self",
+                editor_only,
+                4,
+                doc_id,
+                "rev:editor-only",
+            ),
+        ];
+
+        let (eligible_heads, editor_candidates, _) =
+            apply_editor_admission(&structural_heads, &profile.editor_admission);
+        let (effective_weights, effective_weight_summaries, _) =
+            compute_effective_weights(&views, &[], selector_epoch, &profile);
+        let (support_map, support_summaries, _) = latest_support_by_maintainer(
+            &views,
+            doc_id,
+            &eligible_heads,
+            selector_epoch,
+            &profile,
+            &effective_weights,
+        );
+        let mut summary = summary_for_doc(doc_id, editor_candidates);
+        populate_eligible_head_summaries(
+            &mut summary,
+            &eligible_heads,
+            &support_map,
+            &HashMap::new(),
+        );
+        let viewer_gating = summarize_viewer_gating(&mut summary);
+        let selected = select_head_from_eligible_summaries(&summary, &viewer_gating)
+            .expect("mixed-role scenario should select a head");
+
+        assert_eq!(selected.revision_id, "rev:editor-only");
+        assert!(summary.eligible_heads.iter().any(|head| {
+            head.revision_id == "rev:editor-only"
+                && head.formal_candidate
+                && head.maintainer_score == 1
+        }));
+        assert!(effective_weight_summaries.iter().any(|entry| {
+            entry.maintainer == editor_only
+                && !entry.view_admitted
+                && !entry.admitted
+                && entry.effective_weight == 0
+        }));
+        assert!(effective_weight_summaries.iter().any(|entry| {
+            entry.maintainer == view_only
+                && entry.view_admitted
+                && entry.admitted
+                && entry.effective_weight == 1
+        }));
+        assert!(support_summaries.iter().any(|entry| {
+            entry.maintainer == view_only
+                && entry.revision_id == "rev:editor-only"
+                && entry.effective_weight == 1
+        }));
+    }
+}
