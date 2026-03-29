@@ -125,6 +125,22 @@ fn view_publish_json_writes_verified_view_into_store() {
     let (_source_dir, source_path) = write_json_file("view-publish-source", "view.json", &view);
 
     let json = publish_view(&source_path, &store_root);
+    assert_eq!(json["current_profile_view_id"], view["view_id"]);
+    assert_eq!(
+        json["current_profile_document_view_ids"]["doc:view-publish"],
+        view["view_id"]
+    );
+    let profile_id = json["profile_id"]
+        .as_str()
+        .expect("profile id should exist in publish summary");
+    assert_eq!(
+        json["current_document_profile_view_ids"]["doc:view-publish"][profile_id],
+        view["view_id"]
+    );
+    assert_eq!(
+        json["current_maintainer_profile_view_ids"][profile_id],
+        view["view_id"]
+    );
     assert_json_snapshot!(
         "view_publish_json_writes_verified_view_into_store__publish",
         json,
@@ -200,6 +216,22 @@ fn view_publish_reports_existing_view_on_repeat_publish() {
     ]);
     assert_success(&second);
     let json = parse_json_stdout(&second);
+    assert_eq!(json["current_profile_view_id"], view["view_id"]);
+    assert_eq!(
+        json["current_profile_document_view_ids"]["doc:view-repeat"],
+        view["view_id"]
+    );
+    let profile_id = json["profile_id"]
+        .as_str()
+        .expect("profile id should exist in publish summary");
+    assert_eq!(
+        json["current_document_profile_view_ids"]["doc:view-repeat"][profile_id],
+        view["view_id"]
+    );
+    assert_eq!(
+        json["current_maintainer_profile_view_ids"][profile_id],
+        view["view_id"]
+    );
     assert_json_snapshot!(
         "view_publish_reports_existing_view_on_repeat_publish__second_publish",
         json,

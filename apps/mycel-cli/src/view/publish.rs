@@ -23,6 +23,10 @@ struct ViewPublishSummary {
     maintainer_view_ids: Vec<String>,
     profile_view_ids: Vec<String>,
     document_view_ids: BTreeMap<String, Vec<String>>,
+    current_profile_view_id: Option<String>,
+    current_profile_document_view_ids: BTreeMap<String, String>,
+    current_document_profile_view_ids: BTreeMap<String, BTreeMap<String, String>>,
+    current_maintainer_profile_view_ids: BTreeMap<String, String>,
     created: bool,
     stored_path: Option<PathBuf>,
     index_manifest_path: Option<PathBuf>,
@@ -43,6 +47,10 @@ impl ViewPublishSummary {
             maintainer_view_ids: Vec::new(),
             profile_view_ids: Vec::new(),
             document_view_ids: BTreeMap::new(),
+            current_profile_view_id: None,
+            current_profile_document_view_ids: BTreeMap::new(),
+            current_document_profile_view_ids: BTreeMap::new(),
+            current_maintainer_profile_view_ids: BTreeMap::new(),
             created: false,
             stored_path: None,
             index_manifest_path: None,
@@ -97,6 +105,16 @@ fn print_view_publish_text(summary: &ViewPublishSummary) -> i32 {
             summary.profile_view_ids.join(", ")
         );
     }
+    if let Some(current_profile_view_id) = &summary.current_profile_view_id {
+        println!("current profile view id: {current_profile_view_id}");
+    }
+    println!(
+        "current profile document view count: {}",
+        summary.current_profile_document_view_ids.len()
+    );
+    for (doc_id, current_view_id) in &summary.current_profile_document_view_ids {
+        println!("current profile document view: {doc_id} -> {current_view_id}");
+    }
     println!(
         "document related view doc count: {}",
         summary.document_view_ids.len()
@@ -106,6 +124,28 @@ fn print_view_publish_text(summary: &ViewPublishSummary) -> i32 {
             "document related views: {doc_id} -> {}",
             view_ids.join(", ")
         );
+    }
+    println!(
+        "current document governance doc count: {}",
+        summary.current_document_profile_view_ids.len()
+    );
+    for (doc_id, profile_views) in &summary.current_document_profile_view_ids {
+        println!(
+            "current document governance profile count: {doc_id} -> {}",
+            profile_views.len()
+        );
+        for (profile_id, current_view_id) in profile_views {
+            println!(
+                "current document governance profile: {doc_id} -> {profile_id} -> {current_view_id}"
+            );
+        }
+    }
+    println!(
+        "current maintainer profile count: {}",
+        summary.current_maintainer_profile_view_ids.len()
+    );
+    for (profile_id, current_view_id) in &summary.current_maintainer_profile_view_ids {
+        println!("current maintainer profile: {profile_id} -> {current_view_id}");
     }
     println!("created: {}", if summary.created { "yes" } else { "no" });
     if let Some(stored_path) = &summary.stored_path {
@@ -242,6 +282,52 @@ pub(super) fn handle(args: ViewPublishCliArgs) -> Result<i32, CliError> {
         .cloned()
         .unwrap_or_default();
     summary.document_view_ids = related_document_view_ids(&manifest, &record.documents);
+    summary.current_profile_view_id = manifest
+        .current_governance
+        .get(&record.profile_id)
+        .map(|current| current.current_view_id.clone());
+    summary.current_profile_document_view_ids = manifest
+        .current_governance
+        .get(&record.profile_id)
+        .map(|current| {
+            current
+                .current_documents
+                .iter()
+                .map(|(doc_id, current_document)| {
+                    (doc_id.clone(), current_document.view_id.clone())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    summary.current_document_profile_view_ids = record
+        .documents
+        .keys()
+        .map(|doc_id| {
+            let current_profile_view_ids = manifest
+                .current_document_governance
+                .get(doc_id)
+                .map(|current_document| {
+                    current_document
+                        .profiles
+                        .iter()
+                        .map(|(profile_id, current)| (profile_id.clone(), current.view_id.clone()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            (doc_id.clone(), current_profile_view_ids)
+        })
+        .collect();
+    summary.current_maintainer_profile_view_ids = manifest
+        .current_maintainer_governance
+        .get(&record.maintainer)
+        .map(|current_maintainer| {
+            current_maintainer
+                .current_profiles
+                .iter()
+                .map(|(profile_id, current)| (profile_id.clone(), current.current_view_id.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
     summary.created = write.created;
     summary.stored_path = Some(write.record.path);
     summary.index_manifest_path = write.index_manifest_path;
@@ -250,6 +336,10 @@ pub(super) fn handle(args: ViewPublishCliArgs) -> Result<i32, CliError> {
     );
     summary.notes.push(
         "related maintainer/profile/document view IDs come from persisted governance indexes"
+            .to_string(),
+    );
+    summary.notes.push(
+        "current profile/document/maintainer governance summaries are reloaded from persisted indexes after publish"
             .to_string(),
     );
 

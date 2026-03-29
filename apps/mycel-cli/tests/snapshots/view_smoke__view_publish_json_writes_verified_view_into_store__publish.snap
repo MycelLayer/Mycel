@@ -1,10 +1,21 @@
 ---
 source: apps/mycel-cli/tests/view_smoke.rs
-assertion_line: 128
 expression: json
 ---
 {
   "created": true,
+  "current_document_profile_view_ids": {
+    "doc:view-publish": {
+      "hash:be1f3be17c5e9567121ec8df22d021525efb9e7e732fd8f76e5760dd3e85a957": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+    }
+  },
+  "current_maintainer_profile_view_ids": {
+    "hash:be1f3be17c5e9567121ec8df22d021525efb9e7e732fd8f76e5760dd3e85a957": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  },
+  "current_profile_document_view_ids": {
+    "doc:view-publish": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
+  },
+  "current_profile_view_id": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c",
   "document_view_ids": {
     "doc:view-publish": [
       "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
@@ -21,7 +32,8 @@ expression: json
   ],
   "notes": [
     "published governance state is separate from revision publication and accepted-head inspection",
-    "related maintainer/profile/document view IDs come from persisted governance indexes"
+    "related maintainer/profile/document view IDs come from persisted governance indexes",
+    "current profile/document/maintainer governance summaries are reloaded from persisted indexes after publish"
   ],
   "profile_id": "hash:be1f3be17c5e9567121ec8df22d021525efb9e7e732fd8f76e5760dd3e85a957",
   "profile_view_ids": [
