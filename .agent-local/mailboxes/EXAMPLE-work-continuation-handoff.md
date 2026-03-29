@@ -25,12 +25,12 @@ Do not treat it as a live agent mailbox.
   - no-fault simulator coverage is landed and pushed
   - fault-injection cases still use placeholder-mode event fabrication
 - Current state (zh-TW):
-  - 無故障 simulator coverage 已經落地並推上 `origin/main`
-  - fault-injection case 仍然使用 placeholder-mode 事件模擬
+  - Traditional Chinese current-state text can go here when zh-TW closeout output needs a localized summary.
+  - Keep the content semantically aligned with the base Current state bullets above.
 - Next suggested step:
   - wire the same peer-store sync path into the next fault-injection-compatible simulator case without widening into production transport scheduling
 - Next suggested step (zh-TW):
-  - 把同一條 peer-store sync 路徑接進下一個可相容 fault injection 的 simulator case，但先不要擴大到 production transport scheduling
+  - Traditional Chinese next-step text can go here when zh-TW closeout output needs a localized follow-up.
 - Blockers:
   - none
 - Notes:

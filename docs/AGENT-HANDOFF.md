@@ -258,11 +258,11 @@ Copyable continuation template:
 - Current state:
   - <what is landed or locally understood now>
 - Current state (zh-TW):
-  - <可選：提供給 zh-TW closeout 的目前狀態>
+  - <optional Traditional Chinese current-state text for zh-TW closeout output>
 - Next suggested step:
   - <best next narrow slice if another coding agent resumes>
 - Next suggested step (zh-TW):
-  - <可選：提供給 zh-TW closeout 的下一步>
+  - <optional Traditional Chinese next-step text for zh-TW closeout output>
 - Blockers:
   - `none` or <one short blocker sentence>
 - Notes:
