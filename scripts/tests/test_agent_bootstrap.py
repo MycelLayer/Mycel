@@ -182,12 +182,22 @@ class AgentBootstrapCliTest(unittest.TestCase):
         )
         path.chmod(0o755)
 
-    def write_agents_local(self, locale: str = "zh-TW") -> None:
+    def write_agents_local(self, locale: str = "zh-TW", *, fixed_response_language: bool = False) -> None:
+        if fixed_response_language:
+            communication_line = (
+                f"- Respond to the user in Traditional Chinese (`{locale}`) regardless of the language used "
+                "in the user's request, unless the user explicitly asks for another response language.\n"
+            )
+        else:
+            communication_line = (
+                f"- Respond to the user in Traditional Chinese (`{locale}`) by default unless the user explicitly "
+                "asks for another language.\n"
+            )
         (self.root / "AGENTS-LOCAL.md").write_text(
             (
                 "# AGENTS-LOCAL.md\n\n"
                 "## Communication\n\n"
-                f"- Respond to the user in Traditional Chinese (`{locale}`) by default unless the user explicitly asks for another language.\n"
+                f"{communication_line}"
             ),
             encoding="utf-8",
         )
@@ -587,7 +597,77 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("latest_same_role_handoff:", proc.stdout)
         self.assertNotIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
         self.assertIn(
-            "review the latest same-role handoff from coding-7 (role=coding) for scope restore-sync-gap before choosing the first work item",
+            "先檢查來自 coding-7（role=coding）且 scope 為 restore-sync-gap 的最新同角色 handoff，再決定第一個工作項目",
+            proc.stdout,
+        )
+
+    def test_bootstrap_uses_fixed_response_language_overlay_for_next_actions(self) -> None:
+        self.write_agents_local("zh-TW", fixed_response_language=True)
+        mailbox_dir = self.root / ".agent-local" / "mailboxes"
+        mailbox_dir.mkdir(parents=True, exist_ok=True)
+        (mailbox_dir / "agt_prev.md").write_text(
+            """# Mailbox for agt_prev
+
+## Work Continuation Handoff
+
+- Status: open
+- Date: 2026-03-27 12:10 UTC+8
+- Source agent: coding-7
+- Source role: coding
+- Scope: restore-sync-gap
+- Next suggested step:
+  - re-run the sync proof after wiring the stored root fixture
+""",
+            encoding="utf-8",
+        )
+        (self.root / ".agent-local" / "agents.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "updated_at": "2026-03-27T12:12:00+0800",
+                    "agent_count": 1,
+                    "agents": [
+                        {
+                            "agent_uid": "agt_prev",
+                            "role": "coding",
+                            "current_display_id": None,
+                            "display_history": [
+                                {
+                                    "display_id": "coding-7",
+                                    "assigned_at": "2026-03-27T11:00:00+0800",
+                                    "released_at": "2026-03-27T12:12:00+0800",
+                                    "released_reason": "finished",
+                                }
+                            ],
+                            "assigned_by": "user",
+                            "assigned_at": "2026-03-27T11:00:00+0800",
+                            "confirmed_by_agent": True,
+                            "confirmed_at": "2026-03-27T11:00:10+0800",
+                            "last_touched_at": "2026-03-27T12:12:00+0800",
+                            "inactive_at": "2026-03-27T12:12:00+0800",
+                            "paused_at": None,
+                            "status": "inactive",
+                            "scope": "restore-sync-gap",
+                            "files": [],
+                            "mailbox": ".agent-local/mailboxes/agt_prev.md",
+                            "recovery_of": None,
+                            "superseded_by": None,
+                        }
+                    ],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
+
+        self.assertIn("next_actions:", proc.stdout)
+        self.assertIn("以上一個已完成的 CI 結果作為基線，再決定下一個 implementation slice", proc.stdout)
+        self.assertIn("除非 scope 和既有 coding 工作、recover 或 takeover 重疊，否則先延後 mailbox 掃描", proc.stdout)
+        self.assertIn(
+            "先檢查來自 coding-7（role=coding）且 scope 為 restore-sync-gap 的最新同角色 handoff，再決定第一個工作項目",
             proc.stdout,
         )
 

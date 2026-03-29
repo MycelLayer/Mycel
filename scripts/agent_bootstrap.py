@@ -410,7 +410,7 @@ def resolve_preferred_response_locale() -> str | None:
         return None
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
-        if "Respond to the user" not in stripped or "by default" not in stripped:
+        if "Respond to the user" not in stripped:
             continue
         match = re.search(r"`([^`]+)`", stripped)
         if match:
@@ -619,9 +619,24 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
     }
 
 
-def next_actions_for_role(role: str, latest_ci: dict[str, Any] | None) -> list[str]:
+def next_actions_for_role(
+    role: str,
+    latest_ci: dict[str, Any] | None,
+    *,
+    locale: str | None = None,
+) -> list[str]:
     latest_ci_status = latest_ci.get("status") if isinstance(latest_ci, dict) else None
     if role == "coding":
+        if locale == "zh-TW":
+            ci_action = (
+                "因為 bootstrap 還沒有成功確認最新 completed CI，先重新查一次，再決定下一個 implementation slice"
+                if latest_ci_status in {"unavailable", "missing"}
+                else "以上一個已完成的 CI 結果作為基線，再決定下一個 implementation slice"
+            )
+            return [
+                ci_action,
+                "除非 scope 和既有 coding 工作、recover 或 takeover 重疊，否則先延後 mailbox 掃描",
+            ]
         ci_action = (
             "re-run the latest completed CI lookup before choosing the next implementation slice because bootstrap could not confirm it"
             if latest_ci_status in {"unavailable", "missing"}
@@ -632,6 +647,16 @@ def next_actions_for_role(role: str, latest_ci: dict[str, Any] | None) -> list[s
             "defer mailbox scans unless the scope overlaps existing coding work, recovery, or takeover",
         ]
     if role == "delivery":
+        if locale == "zh-TW":
+            ci_action = (
+                "因為 bootstrap 還沒有成功確認最新 completed CI，先重新查一次，再決定下一個 delivery 後續工作"
+                if latest_ci_status in {"unavailable", "missing"}
+                else "以上一個已完成的 CI 結果作為基線，再決定下一個 delivery 後續工作"
+            )
+            return [
+                ci_action,
+                "除非目前的 delivery scope 需要 doc 後續，否則先延後較廣泛的 roadmap/checklist 閱讀",
+            ]
         ci_action = (
             "re-run the latest completed CI lookup before delivery follow-up because bootstrap could not confirm it"
             if latest_ci_status in {"unavailable", "missing"}
@@ -642,6 +667,12 @@ def next_actions_for_role(role: str, latest_ci: dict[str, Any] | None) -> list[s
             "defer broad roadmap/checklist reading unless the active delivery scope needs doc follow-up",
         ]
     if role == "doc":
+        if locale == "zh-TW":
+            return [
+                "等到具體的 doc 任務出現，再執行 planning-sync mailbox 掃描或 scripts/check-plan-refresh.py",
+                "先檢查開啟中的 Dependabot pull requests，評估 dependency update 對文件或 checklist 的影響",
+                "在選第一個 doc 後續項目前，先檢查開啟中的人工撰寫 product pull requests",
+            ]
         return [
             "wait for the concrete doc task before running planning-sync mailbox scans or scripts/check-plan-refresh.py",
             "review open Dependabot pull requests first to assess dependency-update doc or checklist impact",
@@ -666,6 +697,16 @@ def handoff_review_action(
     scope = handoff.get("scope") or "the latest same-role scope"
     next_steps = handoff_locale_lines(handoff, key="next_suggested_step", locale=locale)
     next_step = next_steps[0] if next_steps else None
+    if locale == "zh-TW":
+        if isinstance(next_step, str) and next_step.strip():
+            return (
+                f"先檢查來自 {display_id}（role={source_role}）且 scope 為 {scope} 的最新同角色 handoff，"
+                f"優先考慮這個後續步驟：{next_step.strip()}"
+            )
+        return (
+            f"先檢查來自 {display_id}（role={source_role}）且 scope 為 {scope} 的最新同角色 handoff，"
+            "再決定第一個工作項目"
+        )
     if isinstance(next_step, str) and next_step.strip():
         return (
             f"review the latest same-role handoff from {display_id} "
@@ -994,7 +1035,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
             role=role,
             current_agent_uid=agent_uid,
         )
-        next_actions = next_actions_for_role(role, latest_completed_ci)
+        next_actions = next_actions_for_role(role, latest_completed_ci, locale=preferred_locale)
         handoff_action = handoff_review_action(role, same_role_handoff, locale=preferred_locale)
         if handoff_action is not None:
             next_actions.append(handoff_action)

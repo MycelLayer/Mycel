@@ -179,11 +179,21 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def write_agents_local(self, locale: str = "zh-TW") -> None:
+    def write_agents_local(self, locale: str = "zh-TW", *, fixed_response_language: bool = False) -> None:
+        if fixed_response_language:
+            communication_line = (
+                f"- Respond to the user in Traditional Chinese (`{locale}`) regardless of the language used "
+                "in the user's request, unless the user explicitly asks for another response language.\n"
+            )
+        else:
+            communication_line = (
+                f"- Respond to the user in Traditional Chinese (`{locale}`) by default unless the user explicitly "
+                "asks for another language.\n"
+            )
         (self.root / "AGENTS-LOCAL.md").write_text(
             "# AGENTS-LOCAL.md\n\n"
             "## Communication\n\n"
-            f"- Respond to the user in Traditional Chinese (`{locale}`) by default unless the user explicitly asks for another language.\n",
+            f"{communication_line}",
             encoding="utf-8",
         )
 
@@ -1020,6 +1030,60 @@ class AgentWorkCycleCliTest(unittest.TestCase):
     def test_end_uses_repo_local_locale_for_next_work_items(self) -> None:
         self.write_agents_md()
         self.write_agents_local("zh-TW")
+        self.write_fake_codex_thread_metadata()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 932020),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertEqual(
+            {"compaction_detected": False, "locale": "zh-TW", "role": "doc"},
+            self.load_next_work_items_spec(agent_uid, 1),
+        )
+        self.assertEqual(
+            "1. (最有價值) 檢查最新的規劃或文件後續項，再決定下一個 doc 工作 取捨: "
+            "能讓文件工作保持和目前 repo 狀態同步，但會先多一個短暫的檢查步驟\n"
+            "2. 先確認 planning-sync 或 issue-sync 的後續是否到期，再撰寫下一份文件更新 取捨: "
+            "有助於避免規劃面漂移，但可能會先稍微延後較窄範圍的寫作工作\n",
+            self.load_next_work_items_markdown(agent_uid, 1),
+        )
+
+    def test_end_uses_fixed_response_language_overlay_for_next_work_items(self) -> None:
+        self.write_agents_md()
+        self.write_agents_local("zh-TW", fixed_response_language=True)
         self.write_fake_codex_thread_metadata()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",

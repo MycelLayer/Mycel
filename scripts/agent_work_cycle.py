@@ -779,7 +779,7 @@ def resolve_preferred_response_locale() -> str | None:
         return None
     for line in AGENTS_LOCAL_PATH.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
-        if "Respond to the user" not in stripped or "by default" not in stripped:
+        if "Respond to the user" not in stripped:
             continue
         match = PREFERRED_LOCALE_LINE_PATTERN.search(stripped)
         if match:
