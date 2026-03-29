@@ -6,7 +6,6 @@ use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
 
-use super::shared::load_view_editor_role_summary;
 use super::ViewInspectCliArgs;
 
 #[derive(Debug, Clone, Serialize)]
@@ -205,21 +204,9 @@ pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
     };
     match inspect_governance_view(&manifest, &view_id) {
         Ok(inspection) => {
-            match load_view_editor_role_summary(
-                &store_root,
-                &inspection.view_id,
-                &inspection.maintainer,
-            ) {
-                Ok(editor_roles) => {
-                    summary.accepted_editor_keys = editor_roles.accepted_editor_keys;
-                    summary.maintainer_is_admitted_editor =
-                        editor_roles.maintainer_is_admitted_editor;
-                    summary.admitted_editor_only_keys = editor_roles.admitted_editor_only_keys;
-                }
-                Err(error) => {
-                    summary.push_error(error);
-                }
-            }
+            summary.accepted_editor_keys = inspection.accepted_editor_keys;
+            summary.maintainer_is_admitted_editor = inspection.maintainer_is_admitted_editor;
+            summary.admitted_editor_only_keys = inspection.admitted_editor_only_keys;
             summary.maintainer = Some(inspection.maintainer);
             summary.profile_id = Some(inspection.profile_id);
             summary.timestamp = Some(inspection.timestamp);
@@ -248,7 +235,7 @@ pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
             .to_string(),
     );
     summary.notes.push(
-        "accepted editor keys come from the selected persisted view policy so mixed-role and shared-key assignments stay inspectable"
+        "accepted editor keys come from persisted governance view summaries so mixed-role and shared-key assignments stay inspectable without re-reading the stored view body"
             .to_string(),
     );
 

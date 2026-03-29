@@ -16,6 +16,9 @@ struct ViewDocumentProfileSummary {
     current_revision_id: String,
     maintainer: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -64,12 +67,16 @@ fn print_view_document_text(summary: &ViewDocumentSummary) -> i32 {
     println!("profile count: {}", summary.profiles.len());
     for profile in &summary.profiles {
         println!(
-            "profile current document: {} view={} revision={} maintainer={} timestamp={}",
+            "profile current document: {} view={} revision={} maintainer={} timestamp={} admitted_editors={} maintainer_is_admitted_editor={} editor_only_keys={}",
             profile.profile_id,
             profile.current_view_id,
             profile.current_revision_id,
             profile.maintainer,
             profile.timestamp
+            ,
+            profile.accepted_editor_keys.join(", "),
+            profile.maintainer_is_admitted_editor,
+            profile.admitted_editor_only_keys.join(", ")
         );
     }
     for note in &summary.notes {
@@ -146,6 +153,9 @@ pub(super) fn handle(args: ViewDocumentCliArgs) -> Result<i32, CliError> {
                     current_revision_id: profile.current_revision_id,
                     maintainer: profile.maintainer,
                     timestamp: profile.timestamp,
+                    accepted_editor_keys: profile.accepted_editor_keys,
+                    maintainer_is_admitted_editor: profile.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: profile.admitted_editor_only_keys,
                 })
                 .collect();
         }
@@ -156,6 +166,10 @@ pub(super) fn handle(args: ViewDocumentCliArgs) -> Result<i32, CliError> {
 
     summary.notes.push(
         "document-centric governance inspection complements profile-centric view current output"
+            .to_string(),
+    );
+    summary.notes.push(
+        "accepted editor keys come from persisted current document-governance summaries so profile/document role visibility does not depend on re-reading stored views"
             .to_string(),
     );
 

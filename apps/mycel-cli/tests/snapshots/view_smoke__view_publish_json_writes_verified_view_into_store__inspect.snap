@@ -31,7 +31,7 @@ expression: inspect_json
     "governance inspection is separate from reader-facing accepted-head workflows",
     "related maintainer/profile/document view IDs come from persisted governance indexes",
     "current profile governance state comes from persisted governance summaries and latest-view indexes",
-    "accepted editor keys come from the selected persisted view policy so mixed-role and shared-key assignments stay inspectable"
+    "accepted editor keys come from persisted governance view summaries so mixed-role and shared-key assignments stay inspectable without re-reading the stored view body"
   ],
   "profile_heads": {
     "doc:view-publish": [

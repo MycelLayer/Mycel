@@ -27,6 +27,12 @@ pub struct ViewGovernanceRecord {
     #[serde(default)]
     pub timestamp: u64,
     pub documents: BTreeMap<String, String>,
+    #[serde(default)]
+    pub accepted_editor_keys: Vec<String>,
+    #[serde(default)]
+    pub maintainer_is_admitted_editor: bool,
+    #[serde(default)]
+    pub admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -36,6 +42,12 @@ pub struct CurrentGovernanceDocumentRecord {
     pub maintainer: String,
     #[serde(default)]
     pub timestamp: u64,
+    #[serde(default)]
+    pub accepted_editor_keys: Vec<String>,
+    #[serde(default)]
+    pub maintainer_is_admitted_editor: bool,
+    #[serde(default)]
+    pub admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -47,6 +59,12 @@ pub struct CurrentGovernanceProfileRecord {
     pub documents: BTreeMap<String, String>,
     #[serde(default)]
     pub current_documents: BTreeMap<String, CurrentGovernanceDocumentRecord>,
+    #[serde(default)]
+    pub accepted_editor_keys: Vec<String>,
+    #[serde(default)]
+    pub maintainer_is_admitted_editor: bool,
+    #[serde(default)]
+    pub admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -69,6 +87,9 @@ pub struct GovernanceCurrentDocumentSummary {
     pub current_revision_id: String,
     pub maintainer: String,
     pub timestamp: u64,
+    pub accepted_editor_keys: Vec<String>,
+    pub maintainer_is_admitted_editor: bool,
+    pub admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -79,6 +100,9 @@ pub struct GovernanceCurrentSummary {
     pub maintainer: String,
     pub timestamp: u64,
     pub current_document_revision_id: Option<String>,
+    pub accepted_editor_keys: Vec<String>,
+    pub maintainer_is_admitted_editor: bool,
+    pub admitted_editor_only_keys: Vec<String>,
     pub documents: BTreeMap<String, String>,
     pub current_profile_document_view_ids: BTreeMap<String, String>,
     pub current_documents: Vec<GovernanceCurrentDocumentSummary>,
@@ -92,6 +116,9 @@ pub struct GovernanceDocumentProfileSummary {
     pub current_revision_id: String,
     pub maintainer: String,
     pub timestamp: u64,
+    pub accepted_editor_keys: Vec<String>,
+    pub maintainer_is_admitted_editor: bool,
+    pub admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -120,6 +147,9 @@ pub struct GovernanceMaintainerProfileSummary {
     pub profile_id: String,
     pub current_view_id: String,
     pub timestamp: u64,
+    pub accepted_editor_keys: Vec<String>,
+    pub maintainer_is_admitted_editor: bool,
+    pub admitted_editor_only_keys: Vec<String>,
     pub documents: BTreeMap<String, String>,
     pub current_documents: Vec<GovernanceCurrentDocumentSummary>,
 }
@@ -144,6 +174,9 @@ pub struct GovernanceInspectSummary {
     pub maintainer: String,
     pub profile_id: String,
     pub timestamp: u64,
+    pub accepted_editor_keys: Vec<String>,
+    pub maintainer_is_admitted_editor: bool,
+    pub admitted_editor_only_keys: Vec<String>,
     pub current_profile_view_id: Option<String>,
     pub current_profile_document_view_ids: BTreeMap<String, String>,
     pub documents: BTreeMap<String, String>,
@@ -1189,6 +1222,8 @@ fn index_loaded_object(
                 .iter()
                 .map(|(doc_id, revision_id)| (doc_id.clone(), revision_id.clone()))
                 .collect::<BTreeMap<_, _>>();
+            let (accepted_editor_keys, maintainer_is_admitted_editor, admitted_editor_only_keys) =
+                summarize_view_editor_roles(&view.policy, &view.maintainer);
             summary
                 .maintainer_views
                 .entry(view.maintainer.clone())
@@ -1219,6 +1254,9 @@ fn index_loaded_object(
                 profile_id,
                 timestamp: view.timestamp,
                 documents,
+                accepted_editor_keys,
+                maintainer_is_admitted_editor,
+                admitted_editor_only_keys,
             });
         }
         _ => {}
@@ -1230,6 +1268,37 @@ fn index_loaded_object(
 fn hash_value(value: &Value) -> Result<String, StoreRebuildError> {
     prefixed_canonical_hash(value, "hash")
         .map_err(|error| StoreRebuildError::new(format!("failed to canonicalize value: {error}")))
+}
+
+fn summarize_view_editor_roles(
+    policy: &Value,
+    maintainer: &str,
+) -> (Vec<String>, bool, Vec<String>) {
+    let accepted_editor_keys = policy
+        .get("accept_keys")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let maintainer_is_admitted_editor = accepted_editor_keys
+        .iter()
+        .any(|admitted_key| admitted_key == maintainer);
+    let admitted_editor_only_keys = accepted_editor_keys
+        .iter()
+        .filter(|admitted_key| admitted_key.as_str() != maintainer)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    (
+        accepted_editor_keys,
+        maintainer_is_admitted_editor,
+        admitted_editor_only_keys,
+    )
 }
 
 fn sort_string_map_values(index: &mut BTreeMap<String, Vec<String>>) {
@@ -1373,6 +1442,9 @@ fn build_current_governance_profiles(
                     revision_id: revision_id.clone(),
                     maintainer: document_record.maintainer.clone(),
                     timestamp: document_record.timestamp,
+                    accepted_editor_keys: document_record.accepted_editor_keys.clone(),
+                    maintainer_is_admitted_editor: document_record.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: document_record.admitted_editor_only_keys.clone(),
                 },
             );
         }
@@ -1385,6 +1457,9 @@ fn build_current_governance_profiles(
                 timestamp: current_record.timestamp,
                 documents: current_record.documents.clone(),
                 current_documents,
+                accepted_editor_keys: current_record.accepted_editor_keys.clone(),
+                maintainer_is_admitted_editor: current_record.maintainer_is_admitted_editor,
+                admitted_editor_only_keys: current_record.admitted_editor_only_keys.clone(),
             },
         );
     }
@@ -1527,6 +1602,9 @@ pub fn inspect_governance_view(
         maintainer: record.maintainer.clone(),
         profile_id: record.profile_id.clone(),
         timestamp: record.timestamp,
+        accepted_editor_keys: record.accepted_editor_keys.clone(),
+        maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
+        admitted_editor_only_keys: record.admitted_editor_only_keys.clone(),
         current_profile_view_id: manifest
             .latest_profile_views
             .get(&record.profile_id)
@@ -1610,6 +1688,9 @@ pub fn inspect_current_governance(
             current_revision_id: current.revision_id.clone(),
             maintainer: current.maintainer.clone(),
             timestamp: current.timestamp,
+            accepted_editor_keys: current.accepted_editor_keys.clone(),
+            maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+            admitted_editor_only_keys: current.admitted_editor_only_keys.clone(),
         })
         .collect::<Vec<_>>();
     current_documents.sort_by(|left, right| left.doc_id.cmp(&right.doc_id));
@@ -1621,6 +1702,9 @@ pub fn inspect_current_governance(
         maintainer: selected_record.maintainer.clone(),
         timestamp: selected_record.timestamp,
         current_document_revision_id,
+        accepted_editor_keys: selected_record.accepted_editor_keys.clone(),
+        maintainer_is_admitted_editor: selected_record.maintainer_is_admitted_editor,
+        admitted_editor_only_keys: selected_record.admitted_editor_only_keys.clone(),
         documents: selected_record.documents.clone(),
         current_profile_document_view_ids,
         current_documents,
@@ -1667,6 +1751,9 @@ pub fn inspect_document_governance(
             current_revision_id: current.revision_id,
             maintainer: current.maintainer,
             timestamp: current.timestamp,
+            accepted_editor_keys: current.accepted_editor_keys,
+            maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+            admitted_editor_only_keys: current.admitted_editor_only_keys,
         })
         .collect::<Vec<_>>();
     profiles.sort_by(|left, right| left.profile_id.cmp(&right.profile_id));
@@ -1745,6 +1832,9 @@ pub fn inspect_current_maintainer_governance(
                     current_revision_id: current.revision_id,
                     maintainer: current.maintainer,
                     timestamp: current.timestamp,
+                    accepted_editor_keys: current.accepted_editor_keys,
+                    maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: current.admitted_editor_only_keys,
                 })
                 .collect::<Vec<_>>();
             current_documents.sort_by(|left, right| left.doc_id.cmp(&right.doc_id));
@@ -1753,6 +1843,9 @@ pub fn inspect_current_maintainer_governance(
                 profile_id,
                 current_view_id: current_profile.current_view_id,
                 timestamp: current_profile.timestamp,
+                accepted_editor_keys: current_profile.accepted_editor_keys,
+                maintainer_is_admitted_editor: current_profile.maintainer_is_admitted_editor,
+                admitted_editor_only_keys: current_profile.admitted_editor_only_keys,
                 documents,
                 current_documents,
             }
@@ -1786,6 +1879,9 @@ pub fn inspect_current_maintainer_governance(
                     current_revision_id: current.revision_id,
                     maintainer: current.maintainer,
                     timestamp: current.timestamp,
+                    accepted_editor_keys: current.accepted_editor_keys,
+                    maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: current.admitted_editor_only_keys,
                 })
                 .collect::<Vec<_>>();
             profiles.sort_by(|left, right| left.profile_id.cmp(&right.profile_id));
@@ -1845,6 +1941,9 @@ fn synthesize_current_governance_profile(
                     revision_id,
                     maintainer: record.maintainer.clone(),
                     timestamp: record.timestamp,
+                    accepted_editor_keys: record.accepted_editor_keys.clone(),
+                    maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: record.admitted_editor_only_keys.clone(),
                 },
             ))
         })
@@ -1856,6 +1955,9 @@ fn synthesize_current_governance_profile(
         timestamp: current_record.timestamp,
         documents: current_record.documents.clone(),
         current_documents,
+        accepted_editor_keys: current_record.accepted_editor_keys.clone(),
+        maintainer_is_admitted_editor: current_record.maintainer_is_admitted_editor,
+        admitted_editor_only_keys: current_record.admitted_editor_only_keys.clone(),
     })
 }
 
@@ -1878,6 +1980,9 @@ fn synthesize_current_document_governance(
                 revision_id,
                 maintainer: record.maintainer.clone(),
                 timestamp: record.timestamp,
+                accepted_editor_keys: record.accepted_editor_keys.clone(),
+                maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
+                admitted_editor_only_keys: record.admitted_editor_only_keys.clone(),
             },
         );
     }
@@ -2223,6 +2328,14 @@ mod tests {
         );
         assert_eq!(summary.view_governance.len(), 1);
         assert_eq!(summary.view_governance[0].timestamp, 3);
+        assert_eq!(
+            summary.view_governance[0].accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(summary.view_governance[0].maintainer_is_admitted_editor);
+        assert!(summary.view_governance[0]
+            .admitted_editor_only_keys
+            .is_empty());
         assert_eq!(summary.maintainer_views.len(), 1);
         assert_eq!(summary.profile_views.len(), 1);
         assert_eq!(summary.document_views.len(), 1);
@@ -2244,6 +2357,15 @@ mod tests {
             current.current_document_revision_id.as_deref(),
             Some(revision["revision_id"].as_str().unwrap())
         );
+        assert_eq!(
+            current.accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(current.maintainer_is_admitted_editor);
+        assert_eq!(
+            current.current_documents[0].accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
 
         let inspection = inspect_governance_view(
             &StoreIndexManifest::from_rebuild_summary(&summary),
@@ -2251,6 +2373,11 @@ mod tests {
         )
         .expect("view governance should inspect");
         assert_eq!(inspection.documents.get("doc:test"), Some(&revision_id));
+        assert_eq!(
+            inspection.accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(inspection.maintainer_is_admitted_editor);
 
         let document = inspect_document_governance(
             &StoreIndexManifest::from_rebuild_summary(&summary),
@@ -2261,6 +2388,11 @@ mod tests {
         assert_eq!(document.source, GovernanceDocumentSummarySource::Persisted);
         assert_eq!(document.profiles.len(), 1);
         assert_eq!(document.profiles[0].current_revision_id, revision_id);
+        assert_eq!(
+            document.profiles[0].accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(document.profiles[0].maintainer_is_admitted_editor);
 
         let maintainer = inspect_current_maintainer_governance(
             &StoreIndexManifest::from_rebuild_summary(&summary),
@@ -2278,12 +2410,22 @@ mod tests {
             maintainer.current_profiles[0].current_view_id,
             view["view_id"]
         );
+        assert_eq!(
+            maintainer.current_profiles[0].accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(maintainer.current_profiles[0].maintainer_is_admitted_editor);
         assert_eq!(maintainer.current_documents.len(), 1);
         assert_eq!(maintainer.current_documents[0].doc_id, "doc:test");
         assert_eq!(
             maintainer.current_documents[0].profiles[0].current_revision_id,
             revision_id
         );
+        assert_eq!(
+            maintainer.current_documents[0].profiles[0].accepted_editor_keys,
+            vec![signer_id(&signing_key())]
+        );
+        assert!(maintainer.current_documents[0].profiles[0].maintainer_is_admitted_editor);
 
         let _ = fs::remove_dir_all(dir);
     }

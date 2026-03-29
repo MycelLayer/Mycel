@@ -65,6 +65,9 @@ struct StoreIndexGovernanceRecordSummary {
     maintainer: String,
     profile_id: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
     current_profile_view_id: Option<String>,
     current_profile_document_view_ids: std::collections::BTreeMap<String, String>,
     documents: std::collections::BTreeMap<String, String>,
@@ -79,6 +82,9 @@ struct StoreIndexCurrentGovernanceDocumentSummary {
     revision_id: String,
     maintainer: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -86,6 +92,9 @@ struct StoreIndexCurrentGovernanceSummary {
     current_view_id: String,
     maintainer: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
     documents: std::collections::BTreeMap<String, String>,
     current_documents:
         std::collections::BTreeMap<String, StoreIndexCurrentGovernanceDocumentSummary>,
@@ -105,6 +114,9 @@ struct StoreIndexCurrentDocumentGovernanceSummary {
 struct StoreIndexCurrentMaintainerProfileSummary {
     current_view_id: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
     documents: std::collections::BTreeMap<String, String>,
     current_documents:
         std::collections::BTreeMap<String, StoreIndexCurrentGovernanceDocumentSummary>,
@@ -524,6 +536,9 @@ fn summarize_view_governance(
                 maintainer: record.maintainer,
                 profile_id: profile_id.clone(),
                 timestamp: record.timestamp,
+                accepted_editor_keys: record.accepted_editor_keys,
+                maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
+                admitted_editor_only_keys: record.admitted_editor_only_keys,
                 current_profile_view_id: manifest.latest_profile_views.get(&profile_id).cloned(),
                 current_profile_document_view_ids: manifest
                     .latest_document_profile_views
@@ -555,6 +570,9 @@ fn summarize_current_governance(
                     current_view_id: current.current_view_id.clone(),
                     maintainer: current.maintainer.clone(),
                     timestamp: current.timestamp,
+                    accepted_editor_keys: current.accepted_editor_keys.clone(),
+                    maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: current.admitted_editor_only_keys.clone(),
                     documents: current.documents.clone(),
                     current_documents: current
                         .current_documents
@@ -567,6 +585,14 @@ fn summarize_current_governance(
                                     revision_id: current_document.revision_id.clone(),
                                     maintainer: current_document.maintainer.clone(),
                                     timestamp: current_document.timestamp,
+                                    accepted_editor_keys: current_document
+                                        .accepted_editor_keys
+                                        .clone(),
+                                    maintainer_is_admitted_editor: current_document
+                                        .maintainer_is_admitted_editor,
+                                    admitted_editor_only_keys: current_document
+                                        .admitted_editor_only_keys
+                                        .clone(),
                                 },
                             )
                         })
@@ -585,6 +611,9 @@ fn summarize_current_governance_document(
         revision_id: current_document.revision_id.clone(),
         maintainer: current_document.maintainer.clone(),
         timestamp: current_document.timestamp,
+        accepted_editor_keys: current_document.accepted_editor_keys.clone(),
+        maintainer_is_admitted_editor: current_document.maintainer_is_admitted_editor,
+        admitted_editor_only_keys: current_document.admitted_editor_only_keys.clone(),
     }
 }
 
@@ -636,6 +665,9 @@ fn summarize_current_maintainer_profile(
     StoreIndexCurrentMaintainerProfileSummary {
         current_view_id: profile.current_view_id.clone(),
         timestamp: profile.timestamp,
+        accepted_editor_keys: profile.accepted_editor_keys.clone(),
+        maintainer_is_admitted_editor: profile.maintainer_is_admitted_editor,
+        admitted_editor_only_keys: profile.admitted_editor_only_keys.clone(),
         documents: profile
             .documents
             .iter()

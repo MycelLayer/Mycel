@@ -6,7 +6,6 @@ use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
 
-use super::shared::load_view_editor_role_summary;
 use super::ViewCurrentCliArgs;
 
 #[derive(Debug, Clone, Serialize)]
@@ -212,21 +211,9 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
 
     match inspect_current_governance(&manifest, &profile_id, doc_id.as_deref()) {
         Ok(current) => {
-            match load_view_editor_role_summary(
-                &store_root,
-                &current.current_view_id,
-                &current.maintainer,
-            ) {
-                Ok(editor_roles) => {
-                    summary.accepted_editor_keys = editor_roles.accepted_editor_keys;
-                    summary.maintainer_is_admitted_editor =
-                        editor_roles.maintainer_is_admitted_editor;
-                    summary.admitted_editor_only_keys = editor_roles.admitted_editor_only_keys;
-                }
-                Err(error) => {
-                    summary.push_error(error);
-                }
-            }
+            summary.accepted_editor_keys = current.accepted_editor_keys;
+            summary.maintainer_is_admitted_editor = current.maintainer_is_admitted_editor;
+            summary.admitted_editor_only_keys = current.admitted_editor_only_keys;
             summary.current_view_id = Some(current.current_view_id);
             summary.profile_current_view_id = Some(current.profile_current_view_id);
             summary.maintainer = Some(current.maintainer);
@@ -234,29 +221,20 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
             summary.current_document_revision_id = current.current_document_revision_id;
             summary.documents = current.documents;
             summary.current_profile_document_view_ids = current.current_profile_document_view_ids;
-            let mut current_documents = Vec::with_capacity(current.current_documents.len());
-            for current_document in current.current_documents {
-                match load_view_editor_role_summary(
-                    &store_root,
-                    &current_document.current_view_id,
-                    &current_document.maintainer,
-                ) {
-                    Ok(editor_roles) => current_documents.push(ViewCurrentDocumentSummary {
-                        doc_id: current_document.doc_id,
-                        current_view_id: current_document.current_view_id,
-                        current_revision_id: current_document.current_revision_id,
-                        maintainer: current_document.maintainer,
-                        timestamp: current_document.timestamp,
-                        accepted_editor_keys: editor_roles.accepted_editor_keys,
-                        maintainer_is_admitted_editor: editor_roles.maintainer_is_admitted_editor,
-                        admitted_editor_only_keys: editor_roles.admitted_editor_only_keys,
-                    }),
-                    Err(error) => {
-                        summary.push_error(error);
-                    }
-                }
-            }
-            summary.current_documents = current_documents;
+            summary.current_documents = current
+                .current_documents
+                .into_iter()
+                .map(|current_document| ViewCurrentDocumentSummary {
+                    doc_id: current_document.doc_id,
+                    current_view_id: current_document.current_view_id,
+                    current_revision_id: current_document.current_revision_id,
+                    maintainer: current_document.maintainer,
+                    timestamp: current_document.timestamp,
+                    accepted_editor_keys: current_document.accepted_editor_keys,
+                    maintainer_is_admitted_editor: current_document.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: current_document.admitted_editor_only_keys,
+                })
+                .collect();
             summary.profile_heads = current.profile_heads;
         }
         Err(error) => {
@@ -278,7 +256,7 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
         );
     }
     summary.notes.push(
-        "accepted editor keys come from the persisted current view policy so editor-maintainer and view-maintainer assignments stay visible together"
+        "accepted editor keys come from persisted governance summaries so editor-maintainer and view-maintainer assignments stay visible without re-reading stored views"
             .to_string(),
     );
 

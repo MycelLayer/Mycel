@@ -1375,6 +1375,14 @@ fn view_maintainer_json_reports_current_governance_state() {
         json["current_documents"][0]["profiles"][0]["current_view_id"],
         publish_a1["view_id"]
     );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["accepted_editor_keys"],
+        json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["maintainer_is_admitted_editor"],
+        json!(true)
+    );
     assert!(
         json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
             note == "current maintainer governance is read from persisted maintainer-governance summaries instead of rebuilding maintainer coverage at query time"
@@ -1503,8 +1511,24 @@ fn view_maintainer_reports_synthesized_and_missing_cases_cleanly() {
         publish_a2["view_id"]
     );
     assert_eq!(
+        json["current_profiles"][0]["accepted_editor_keys"],
+        json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(
+        json["current_profiles"][0]["maintainer_is_admitted_editor"],
+        json!(false)
+    );
+    assert_eq!(
         json["current_documents"][0]["profiles"][0]["current_view_id"],
         publish_a2["view_id"]
+    );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["accepted_editor_keys"],
+        json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(
+        json["current_documents"][0]["profiles"][0]["maintainer_is_admitted_editor"],
+        json!(false)
     );
     assert!(
         json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
@@ -1615,6 +1639,22 @@ fn view_document_json_reports_current_governance_state_across_profiles() {
     assert_eq!(json["profiles"].as_array().map(Vec::len), Some(2));
     assert_eq!(json["profiles"][0]["current_view_id"], publish_a["view_id"]);
     assert_eq!(json["profiles"][1]["current_view_id"], publish_b["view_id"]);
+    assert_eq!(
+        json["profiles"][0]["accepted_editor_keys"],
+        json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(
+        json["profiles"][0]["maintainer_is_admitted_editor"],
+        json!(true)
+    );
+    assert_eq!(
+        json["profiles"][1]["accepted_editor_keys"],
+        json!([signer_id(&maintainer_b)])
+    );
+    assert_eq!(
+        json["profiles"][1]["maintainer_is_admitted_editor"],
+        json!(true)
+    );
     assert!(
         json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
             note == "current document governance is read from persisted document-governance summaries instead of scanning every profile at query time"

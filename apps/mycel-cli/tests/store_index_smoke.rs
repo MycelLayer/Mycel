@@ -697,6 +697,20 @@ fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
             view_profiles.len(),
             "profile coverage mismatch for document {doc_id}"
         );
+        for profile in view_profiles {
+            let profile_id = profile["profile_id"]
+                .as_str()
+                .expect("view maintainer current document profile should have profile_id");
+            assert_eq!(
+                store_profiles[profile_id]["accepted_editor_keys"], profile["accepted_editor_keys"],
+                "accepted editors mismatch for maintainer document {doc_id} profile {profile_id}"
+            );
+            assert_eq!(
+                store_profiles[profile_id]["maintainer_is_admitted_editor"],
+                profile["maintainer_is_admitted_editor"],
+                "maintainer admission mismatch for maintainer document {doc_id} profile {profile_id}"
+            );
+        }
     }
 }
 
@@ -759,6 +773,30 @@ fn store_index_top_level_profile_counts_match_view_current_output() {
     );
     assert_eq!(profile_a_documents.len(), view_current_a_documents.len());
     assert_eq!(profile_b_documents.len(), view_current_b_documents.len());
+    assert_eq!(
+        profile_a_summary["accepted_editor_keys"],
+        view_current_a_json["accepted_editor_keys"]
+    );
+    assert_eq!(
+        profile_a_summary["maintainer_is_admitted_editor"],
+        view_current_a_json["maintainer_is_admitted_editor"]
+    );
+    assert_eq!(
+        profile_a_summary["admitted_editor_only_keys"],
+        view_current_a_json["admitted_editor_only_keys"]
+    );
+    assert_eq!(
+        profile_b_summary["accepted_editor_keys"],
+        view_current_b_json["accepted_editor_keys"]
+    );
+    assert_eq!(
+        profile_b_summary["maintainer_is_admitted_editor"],
+        view_current_b_json["maintainer_is_admitted_editor"]
+    );
+    assert_eq!(
+        profile_b_summary["admitted_editor_only_keys"],
+        view_current_b_json["admitted_editor_only_keys"]
+    );
 
     for current_document in view_current_a_documents {
         let doc_id = current_document["doc_id"]
@@ -771,6 +809,16 @@ fn store_index_top_level_profile_counts_match_view_current_output() {
         assert_eq!(
             profile_a_documents[doc_id]["revision_id"], current_document["current_revision_id"],
             "profile a current revision mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_a_documents[doc_id]["accepted_editor_keys"],
+            current_document["accepted_editor_keys"],
+            "profile a accepted editors mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_a_documents[doc_id]["maintainer_is_admitted_editor"],
+            current_document["maintainer_is_admitted_editor"],
+            "profile a maintainer admission mismatch for document {doc_id}"
         );
     }
 
@@ -785,6 +833,16 @@ fn store_index_top_level_profile_counts_match_view_current_output() {
         assert_eq!(
             profile_b_documents[doc_id]["revision_id"], current_document["current_revision_id"],
             "profile b current revision mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_b_documents[doc_id]["accepted_editor_keys"],
+            current_document["accepted_editor_keys"],
+            "profile b accepted editors mismatch for document {doc_id}"
+        );
+        assert_eq!(
+            profile_b_documents[doc_id]["maintainer_is_admitted_editor"],
+            current_document["maintainer_is_admitted_editor"],
+            "profile b maintainer admission mismatch for document {doc_id}"
         );
     }
 }
@@ -844,6 +902,15 @@ fn store_index_top_level_document_counts_match_view_document_output() {
         assert_eq!(
             document_profiles[profile_id]["maintainer"], profile["maintainer"],
             "maintainer mismatch for profile {profile_id}"
+        );
+        assert_eq!(
+            document_profiles[profile_id]["accepted_editor_keys"], profile["accepted_editor_keys"],
+            "accepted editors mismatch for profile {profile_id}"
+        );
+        assert_eq!(
+            document_profiles[profile_id]["maintainer_is_admitted_editor"],
+            profile["maintainer_is_admitted_editor"],
+            "maintainer admission mismatch for profile {profile_id}"
         );
     }
 }

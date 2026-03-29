@@ -18,6 +18,9 @@ struct ViewMaintainerCurrentDocumentSummary {
     current_revision_id: String,
     maintainer: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -25,6 +28,9 @@ struct ViewMaintainerProfileSummary {
     profile_id: String,
     current_view_id: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
     documents: BTreeMap<String, String>,
     current_documents: Vec<ViewMaintainerCurrentDocumentSummary>,
 }
@@ -36,6 +42,9 @@ struct ViewMaintainerDocumentProfileSummary {
     current_revision_id: String,
     maintainer: String,
     timestamp: u64,
+    accepted_editor_keys: Vec<String>,
+    maintainer_is_admitted_editor: bool,
+    admitted_editor_only_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -113,20 +122,28 @@ fn print_view_maintainer_text(summary: &ViewMaintainerSummary) -> i32 {
     println!("current profile count: {}", summary.current_profiles.len());
     for profile in &summary.current_profiles {
         println!(
-            "current profile: {} view={} timestamp={}",
-            profile.profile_id, profile.current_view_id, profile.timestamp
+            "current profile: {} view={} timestamp={} admitted_editors={} maintainer_is_admitted_editor={} editor_only_keys={}",
+            profile.profile_id,
+            profile.current_view_id,
+            profile.timestamp,
+            profile.accepted_editor_keys.join(", "),
+            profile.maintainer_is_admitted_editor,
+            profile.admitted_editor_only_keys.join(", ")
         );
         for (doc_id, revision_id) in &profile.documents {
             println!("profile document: {} -> {}", doc_id, revision_id);
         }
         for current in &profile.current_documents {
             println!(
-                "profile current document: {} view={} revision={} maintainer={} timestamp={}",
+                "profile current document: {} view={} revision={} maintainer={} timestamp={} admitted_editors={} maintainer_is_admitted_editor={} editor_only_keys={}",
                 current.doc_id,
                 current.current_view_id,
                 current.current_revision_id,
                 current.maintainer,
-                current.timestamp
+                current.timestamp,
+                current.accepted_editor_keys.join(", "),
+                current.maintainer_is_admitted_editor,
+                current.admitted_editor_only_keys.join(", ")
             );
         }
     }
@@ -138,12 +155,15 @@ fn print_view_maintainer_text(summary: &ViewMaintainerSummary) -> i32 {
         println!("current document: {}", document.doc_id);
         for profile in &document.profiles {
             println!(
-                "document profile: {} view={} revision={} maintainer={} timestamp={}",
+                "document profile: {} view={} revision={} maintainer={} timestamp={} admitted_editors={} maintainer_is_admitted_editor={} editor_only_keys={}",
                 profile.profile_id,
                 profile.current_view_id,
                 profile.current_revision_id,
                 profile.maintainer,
-                profile.timestamp
+                profile.timestamp,
+                profile.accepted_editor_keys.join(", "),
+                profile.maintainer_is_admitted_editor,
+                profile.admitted_editor_only_keys.join(", ")
             );
         }
     }
@@ -227,6 +247,9 @@ pub(super) fn handle(args: ViewMaintainerCliArgs) -> Result<i32, CliError> {
                     profile_id: profile.profile_id,
                     current_view_id: profile.current_view_id,
                     timestamp: profile.timestamp,
+                    accepted_editor_keys: profile.accepted_editor_keys,
+                    maintainer_is_admitted_editor: profile.maintainer_is_admitted_editor,
+                    admitted_editor_only_keys: profile.admitted_editor_only_keys,
                     documents: profile.documents,
                     current_documents: profile
                         .current_documents
@@ -237,6 +260,9 @@ pub(super) fn handle(args: ViewMaintainerCliArgs) -> Result<i32, CliError> {
                             current_revision_id: current.current_revision_id,
                             maintainer: current.maintainer,
                             timestamp: current.timestamp,
+                            accepted_editor_keys: current.accepted_editor_keys,
+                            maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+                            admitted_editor_only_keys: current.admitted_editor_only_keys,
                         })
                         .collect(),
                 })
@@ -255,6 +281,9 @@ pub(super) fn handle(args: ViewMaintainerCliArgs) -> Result<i32, CliError> {
                             current_revision_id: profile.current_revision_id,
                             maintainer: profile.maintainer,
                             timestamp: profile.timestamp,
+                            accepted_editor_keys: profile.accepted_editor_keys,
+                            maintainer_is_admitted_editor: profile.maintainer_is_admitted_editor,
+                            admitted_editor_only_keys: profile.admitted_editor_only_keys,
                         })
                         .collect(),
                 })
@@ -267,6 +296,10 @@ pub(super) fn handle(args: ViewMaintainerCliArgs) -> Result<i32, CliError> {
 
     summary.notes.push(
         "maintainer-centric governance inspection complements profile-centric view current and document-centric view document output"
+            .to_string(),
+    );
+    summary.notes.push(
+        "accepted editor keys come from persisted maintainer-governance summaries so maintainer coverage can be inspected without re-reading stored views"
             .to_string(),
     );
 
