@@ -24,8 +24,13 @@ Do not treat it as a live agent mailbox.
 - Current state:
   - no-fault simulator coverage is landed and pushed
   - fault-injection cases still use placeholder-mode event fabrication
+- Current state (zh-TW):
+  - 無故障 simulator coverage 已經落地並推上 `origin/main`
+  - fault-injection case 仍然使用 placeholder-mode 事件模擬
 - Next suggested step:
   - wire the same peer-store sync path into the next fault-injection-compatible simulator case without widening into production transport scheduling
+- Next suggested step (zh-TW):
+  - 把同一條 peer-store sync 路徑接進下一個可相容 fault injection 的 simulator case，但先不要擴大到 production transport scheduling
 - Blockers:
   - none
 - Notes:

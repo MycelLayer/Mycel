@@ -19,6 +19,7 @@ SOURCE_MAILBOX_GC = REPO_ROOT / "scripts" / "mailbox_gc.py"
 SOURCE_AGENT_GUARD = REPO_ROOT / "scripts" / "agent_guard.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
+SOURCE_NEXT_WORK_ITEMS = REPO_ROOT / "scripts" / "render_next_work_items.py"
 
 
 class AgentBootstrapCliTest(unittest.TestCase):
@@ -39,6 +40,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_AGENT_GUARD, self.root / "scripts" / "agent_guard.py")
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
+        shutil.copy2(SOURCE_NEXT_WORK_ITEMS, self.root / "scripts" / "render_next_work_items.py")
         for script_name in [
             "agent_bootstrap.py",
             "agent_work_cycle.py",
@@ -51,6 +53,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "agent_guard.py",
             "item_id_checklist.py",
             "item_id_checklist_mark.py",
+            "render_next_work_items.py",
         ]:
             (self.root / "scripts" / script_name).chmod(0o755)
 
@@ -178,6 +181,16 @@ class AgentBootstrapCliTest(unittest.TestCase):
             encoding="utf-8",
         )
         path.chmod(0o755)
+
+    def write_agents_local(self, locale: str = "zh-TW") -> None:
+        (self.root / "AGENTS-LOCAL.md").write_text(
+            (
+                "# AGENTS-LOCAL.md\n\n"
+                "## Communication\n\n"
+                f"- Respond to the user in Traditional Chinese (`{locale}`) by default unless the user explicitly asks for another language.\n"
+            ),
+            encoding="utf-8",
+        )
 
     def run_cli(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         env = dict(os.environ)
@@ -508,6 +521,75 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("Handoff source role: `coding`", checklist_text)
         self.assertIn("Handoff scope: `restore-sync-gap`", checklist_text)
         self.assertIn("re-run the sync proof after wiring the stored root fixture", checklist_text)
+
+    def test_bootstrap_uses_generic_handoff_review_action_when_locale_hides_english_step(self) -> None:
+        self.write_agents_local("zh-TW")
+        mailbox_dir = self.root / ".agent-local" / "mailboxes"
+        mailbox_dir.mkdir(parents=True, exist_ok=True)
+        (mailbox_dir / "agt_prev.md").write_text(
+            """# Mailbox for agt_prev
+
+## Work Continuation Handoff
+
+- Status: open
+- Date: 2026-03-27 12:10 UTC+8
+- Source agent: coding-7
+- Source role: coding
+- Scope: restore-sync-gap
+- Next suggested step:
+  - re-run the sync proof after wiring the stored root fixture
+""",
+            encoding="utf-8",
+        )
+        (self.root / ".agent-local" / "agents.json").write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "updated_at": "2026-03-27T12:12:00+0800",
+                    "agent_count": 1,
+                    "agents": [
+                        {
+                            "agent_uid": "agt_prev",
+                            "role": "coding",
+                            "current_display_id": None,
+                            "display_history": [
+                                {
+                                    "display_id": "coding-7",
+                                    "assigned_at": "2026-03-27T11:00:00+0800",
+                                    "released_at": "2026-03-27T12:12:00+0800",
+                                    "released_reason": "finished",
+                                }
+                            ],
+                            "assigned_by": "user",
+                            "assigned_at": "2026-03-27T11:00:00+0800",
+                            "confirmed_by_agent": True,
+                            "confirmed_at": "2026-03-27T11:00:10+0800",
+                            "last_touched_at": "2026-03-27T12:12:00+0800",
+                            "inactive_at": "2026-03-27T12:12:00+0800",
+                            "paused_at": None,
+                            "status": "inactive",
+                            "scope": "restore-sync-gap",
+                            "files": [],
+                            "mailbox": ".agent-local/mailboxes/agt_prev.md",
+                            "recovery_of": None,
+                            "superseded_by": None,
+                        }
+                    ],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
+
+        self.assertIn("latest_same_role_handoff:", proc.stdout)
+        self.assertNotIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
+        self.assertIn(
+            "review the latest same-role handoff from coding-7 (role=coding) for scope restore-sync-gap before choosing the first work item",
+            proc.stdout,
+        )
 
     def test_bootstrap_ignores_active_same_role_handoff_from_other_agent(self) -> None:
         mailbox_dir = self.root / ".agent-local" / "mailboxes"

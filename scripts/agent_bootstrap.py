@@ -56,6 +56,7 @@ SCOPE_PATTERN = re.compile(r"^- Scope:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 SOURCE_AGENT_PATTERN = re.compile(r"^- Source agent:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 SOURCE_ROLE_PATTERN = re.compile(r"^- Source role:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 NEXT_STEP_PATTERN = re.compile(r"^- Next suggested step:\s*(.*?)(?=^-\s|\Z)", re.MULTILINE | re.DOTALL)
+LOCALIZED_LIST_LABEL_PATTERN = re.compile(r"^- (Current state|Next suggested step) \(([^)]+)\):$", re.MULTILINE)
 COMPACTION_ABORT_MARKERS = (
     "Compact context detected in the current chat thread before work started",
     "Compaction event detected at ",
@@ -375,6 +376,93 @@ def normalize_multiline_field(value: str | None) -> list[str]:
     return lines
 
 
+def extract_localized_list_fields(text: str, *, label: str) -> dict[str, list[str]]:
+    lines = text.splitlines()
+    results: dict[str, list[str]] = {}
+    target_prefix = f"- {label} ("
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if stripped.startswith(target_prefix) and stripped.endswith("):"):
+            locale = stripped[len(target_prefix):-2].strip()
+            values: list[str] = []
+            index += 1
+            while index < len(lines):
+                candidate = lines[index]
+                candidate_stripped = candidate.strip()
+                if candidate.startswith("  ") and candidate_stripped.startswith("- "):
+                    value = candidate_stripped[2:].strip()
+                    if value:
+                        values.append(value)
+                    index += 1
+                    continue
+                break
+            if values:
+                results[locale] = values
+            continue
+        index += 1
+    return results
+
+
+def resolve_preferred_response_locale() -> str | None:
+    path = ROOT_DIR / "AGENTS-LOCAL.md"
+    if not path.exists():
+        return None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if "Respond to the user" not in stripped or "by default" not in stripped:
+            continue
+        match = re.search(r"`([^`]+)`", stripped)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def text_matches_locale(text: str, *, locale: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if locale == "zh-TW":
+        return bool(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", stripped)) or not bool(
+            re.search(r"[A-Za-z]", stripped)
+        )
+    return True
+
+
+def handoff_locale_lines(handoff: dict[str, Any], *, key: str, locale: str | None) -> list[str]:
+    if locale:
+        localized_value = handoff.get(f"{key}_localized")
+        if isinstance(localized_value, dict):
+            locale_value = localized_value.get(locale)
+            if isinstance(locale_value, list):
+                lines = [line.strip() for line in locale_value if isinstance(line, str) and line.strip()]
+                if lines:
+                    return lines
+
+    value = handoff.get(key)
+    if not isinstance(value, list):
+        return []
+    if not locale:
+        return [line.strip() for line in value if isinstance(line, str) and line.strip()]
+    return [
+        line.strip()
+        for line in value
+        if isinstance(line, str) and line.strip() and text_matches_locale(line, locale=locale)
+    ]
+
+
+def persist_bootstrap_reviewed_handoff(agent_uid: str, same_role_handoff: dict[str, Any] | None) -> bool:
+    if same_role_handoff is None:
+        return False
+    handoff = same_role_handoff.get("handoff")
+    if not isinstance(handoff, dict):
+        return False
+    path = ROOT_DIR / ".agent-local" / "agents" / agent_uid / "workcycles" / "bootstrap-reviewed-same-role-handoff.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(handoff, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return True
+
+
 def extract_latest_open_handoff(mailbox_path: Path, *, role: str) -> dict[str, Any] | None:
     heading = ROLE_HANDOFF_HEADINGS.get(role)
     if heading is None or not mailbox_path.exists():
@@ -399,6 +487,8 @@ def extract_latest_open_handoff(mailbox_path: Path, *, role: str) -> dict[str, A
             "source_agent": match_group(SOURCE_AGENT_PATTERN, section.body),
             "source_role": match_group(SOURCE_ROLE_PATTERN, section.body),
             "next_suggested_step": next_steps,
+            "current_state_localized": extract_localized_list_fields(section.body, label="Current state"),
+            "next_suggested_step_localized": extract_localized_list_fields(section.body, label="Next suggested step"),
             "body": section.body,
         }
         sort_key = (
@@ -560,7 +650,12 @@ def next_actions_for_role(role: str, latest_ci: dict[str, Any] | None) -> list[s
     return []
 
 
-def handoff_review_action(role: str, same_role_handoff: dict[str, Any] | None) -> str | None:
+def handoff_review_action(
+    role: str,
+    same_role_handoff: dict[str, Any] | None,
+    *,
+    locale: str | None = None,
+) -> str | None:
     if same_role_handoff is None:
         return None
     display_id = same_role_handoff.get("display_id") or same_role_handoff.get("agent_uid") or "same-role agent"
@@ -569,8 +664,8 @@ def handoff_review_action(role: str, same_role_handoff: dict[str, Any] | None) -
     if not isinstance(handoff, dict):
         return None
     scope = handoff.get("scope") or "the latest same-role scope"
-    next_steps = handoff.get("next_suggested_step")
-    next_step = next_steps[0] if isinstance(next_steps, list) and next_steps else None
+    next_steps = handoff_locale_lines(handoff, key="next_suggested_step", locale=locale)
+    next_step = next_steps[0] if next_steps else None
     if isinstance(next_step, str) and next_step.strip():
         return (
             f"review the latest same-role handoff from {display_id} "
@@ -579,7 +674,7 @@ def handoff_review_action(role: str, same_role_handoff: dict[str, Any] | None) -
     return f"review the latest same-role handoff from {display_id} (role={source_role}) for scope {scope} before choosing the first work item"
 
 
-def emit_same_role_handoff_summary(same_role_handoff: dict[str, Any] | None) -> None:
+def emit_same_role_handoff_summary(same_role_handoff: dict[str, Any] | None, *, locale: str | None = None) -> None:
     if not isinstance(same_role_handoff, dict):
         return
     handoff = same_role_handoff.get("handoff")
@@ -589,7 +684,7 @@ def emit_same_role_handoff_summary(same_role_handoff: dict[str, Any] | None) -> 
     display_id = same_role_handoff.get("display_id") or same_role_handoff.get("agent_uid")
     source_role = handoff.get("source_role") or same_role_handoff.get("role")
     scope = handoff.get("scope")
-    next_steps = handoff.get("next_suggested_step")
+    next_steps = handoff_locale_lines(handoff, key="next_suggested_step", locale=locale)
 
     print("latest_same_role_handoff:")
     if isinstance(display_id, str) and display_id.strip():
@@ -616,8 +711,11 @@ def persist_same_role_handoff_review(bootstrap_checklist_path: Path, same_role_h
     date_text = handoff.get("date") or "unknown"
     source_agent = handoff.get("source_agent") or "unknown"
     source_role = handoff.get("source_role") or same_role_handoff.get("role") or "unknown"
-    next_steps = handoff.get("next_suggested_step")
-    next_steps_list = [step for step in next_steps if isinstance(step, str) and step.strip()] if isinstance(next_steps, list) else []
+    next_steps_list = handoff_locale_lines(
+        handoff,
+        key="next_suggested_step",
+        locale=resolve_preferred_response_locale(),
+    )
 
     marker = "## Latest Same-Role Handoff Review"
     original = bootstrap_checklist_path.read_text(encoding="utf-8")
@@ -887,6 +985,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         latest_completed_ci = timed_call(
             phase_timings, "latest_completed_ci", lookup_latest_completed_ci, role
         )
+        preferred_locale = resolve_preferred_response_locale()
         same_role_handoff = timed_call(
             phase_timings,
             "latest_same_role_handoff",
@@ -896,7 +995,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
             current_agent_uid=agent_uid,
         )
         next_actions = next_actions_for_role(role, latest_completed_ci)
-        handoff_action = handoff_review_action(role, same_role_handoff)
+        handoff_action = handoff_review_action(role, same_role_handoff, locale=preferred_locale)
         if handoff_action is not None:
             next_actions.append(handoff_action)
         bootstrap_output = start_payload.get("bootstrap_output")
@@ -911,6 +1010,13 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
                 "persist_same_role_handoff_review",
                 persist_same_role_handoff_review,
                 bootstrap_checklist_path,
+                same_role_handoff,
+            )
+            timed_call(
+                phase_timings,
+                "persist_bootstrap_reviewed_handoff",
+                persist_bootstrap_reviewed_handoff,
+                agent_uid,
                 same_role_handoff,
             )
             timed_call(
@@ -1037,7 +1143,10 @@ def print_concise_text_result(result: dict[str, Any]) -> None:
             if message is not None:
                 print(f"  message: {message}")
 
-    emit_same_role_handoff_summary(result.get("latest_same_role_handoff"))
+    emit_same_role_handoff_summary(
+        result.get("latest_same_role_handoff"),
+        locale=resolve_preferred_response_locale(),
+    )
 
     emit_phase_timings(result.get("phase_timings_seconds"))
 
@@ -1106,7 +1215,10 @@ def print_text_result(result: dict[str, Any], *, concise: bool = False) -> None:
                 continue
             print(f"  {key}: {value}")
 
-    emit_same_role_handoff_summary(result.get("latest_same_role_handoff"))
+    emit_same_role_handoff_summary(
+        result.get("latest_same_role_handoff"),
+        locale=resolve_preferred_response_locale(),
+    )
 
     emit_phase_timings(result.get("phase_timings_seconds"))
 

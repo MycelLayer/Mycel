@@ -180,6 +180,8 @@ def parse_args() -> argparse.Namespace:
     create.add_argument("--last-landed-commit", action="append", default=[], help="last landed commit bullet")
     create.add_argument("--current-state", action="append", default=[], help="current state bullet")
     create.add_argument("--next-step", action="append", default=[], help="next suggested step bullet")
+    create.add_argument("--current-state-zh-tw", action="append", default=[], help="Traditional Chinese current state bullet")
+    create.add_argument("--next-step-zh-tw", action="append", default=[], help="Traditional Chinese next suggested step bullet")
     create.add_argument("--blockers", action="append", default=[], help="blocker bullet")
     create.add_argument("--notes", action="append", default=[], help="notes bullet")
     create.add_argument("--evidence", action="append", default=[], help="evidence bullet")
@@ -213,6 +215,8 @@ def render_work_continuation(*, date_text: str, source_agent: str, source_role: 
     behavior = normalize_items(args.behavior_change, default="none")
     current_state = normalize_items(args.current_state)
     next_step = normalize_items(args.next_step)
+    current_state_zh_tw = normalize_items(args.current_state_zh_tw, default=None)
+    next_step_zh_tw = normalize_items(args.next_step_zh_tw, default=None)
     if not current_state:
         raise MailboxHandoffError("work-continuation requires at least one --current-state")
     if not next_step:
@@ -231,7 +235,9 @@ def render_work_continuation(*, date_text: str, source_agent: str, source_role: 
         *list_block("Verification", args.verification),
         *list_block("Last landed commit", args.last_landed_commit),
         *list_block("Current state", current_state, default=None),
+        *([] if not current_state_zh_tw else list_block("Current state (zh-TW)", current_state_zh_tw, default=None)),
         *list_block("Next suggested step", next_step, default=None),
+        *([] if not next_step_zh_tw else list_block("Next suggested step (zh-TW)", next_step_zh_tw, default=None)),
         *list_block("Blockers", args.blockers),
     ]
     notes = normalize_items(args.notes, default=None)

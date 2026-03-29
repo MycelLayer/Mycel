@@ -110,6 +110,13 @@ Every `Work Continuation Handoff` should also include:
 - blockers
 - last landed commit when one exists
 
+Optional localized continuation fields:
+
+- `Current state (zh-TW)`
+- `Next suggested step (zh-TW)`
+
+When those localized fields are present, locale-aware closeout helpers should prefer the matching localized bullets over the base field instead of mixing languages in the rendered next-work-item output.
+
 Allowed `status` values:
 
 - `open`
@@ -250,8 +257,12 @@ Copyable continuation template:
   - <short-sha subject> or `none`
 - Current state:
   - <what is landed or locally understood now>
+- Current state (zh-TW):
+  - <可選：提供給 zh-TW closeout 的目前狀態>
 - Next suggested step:
   - <best next narrow slice if another coding agent resumes>
+- Next suggested step (zh-TW):
+  - <可選：提供給 zh-TW closeout 的下一步>
 - Blockers:
   - `none` or <one short blocker sentence>
 - Notes:

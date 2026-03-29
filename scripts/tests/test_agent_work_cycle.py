@@ -1132,14 +1132,182 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertEqual(
-            {"compaction_detected": False, "locale": "zh-TW", "role": "coding"},
+            {
+                "append_role_defaults": True,
+                "compaction_detected": False,
+                "items": [
+                    {
+                        "text": "檢查最新的同角色 handoff（範圍：locale-fallback），決定是否接手這個後續工作",
+                        "tradeoff": "這是延續 coding-1 留下的最新上下文最直接的入口，但開始實作前可能還需要快速重整一次脈絡",
+                    }
+                ],
+                "locale": "zh-TW",
+                "role": "coding",
+            },
             self.load_next_work_items_spec(agent_uid, 1),
         )
         self.assertEqual(
-            "1. (最有價值) 檢查 ROADMAP.md，找出最高價值的下一個 coding 工作 取捨: "
+            "1. (最有價值) 檢查最新的同角色 handoff（範圍：locale-fallback），決定是否接手這個後續工作 取捨: "
+            "這是延續 coding-1 留下的最新上下文最直接的入口，但開始實作前可能還需要快速重整一次脈絡\n"
+            "2. 檢查 ROADMAP.md，找出最高價值的下一個 coding 工作 取捨: "
             "和 roadmap 對齊最好，但在開始實作前需要先花一點時間做優先順序判斷 路線圖: ROADMAP.md / next coding slice\n"
-            "2. 檢查最新的 CQH issue，整理高價值工作項目 取捨: 通常比較快能落地，但可能沒有那麼直接貼近主要 roadmap 軌道\n",
+            "3. 檢查最新的 CQH issue，整理高價值工作項目 取捨: 通常比較快能落地，但可能沒有那麼直接貼近主要 roadmap 軌道\n",
             self.load_next_work_items_markdown(agent_uid, 1),
+        )
+
+    def test_end_prefers_zh_tw_localized_handoff_items_when_present(self) -> None:
+        self.write_agents_md()
+        self.write_agents_local("zh-TW")
+        self.write_fake_codex_thread_metadata()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "coding", "--scope", "localized-handoff", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "localized-handoff",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 932020),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+        self.write_mailbox(
+            agent_uid,
+            (
+                f"# Mailbox for {agent_uid}\n\n"
+                "## Work Continuation Handoff\n\n"
+                "- Status: open\n"
+                "- Date: 2026-03-25 15:30 UTC+8\n"
+                "- Source agent: coding-1\n"
+                "- Source role: coding\n"
+                "- Scope: localized-handoff\n"
+                "- Current state:\n"
+                "  - english current state\n"
+                "- Current state (zh-TW):\n"
+                "  - 已確認 zh-TW closeout 會優先吃本地化 handoff 欄位。\n"
+                "- Next suggested step:\n"
+                "  - english next step\n"
+                "- Next suggested step (zh-TW):\n"
+                "  - 補上 handoff 本地化欄位的 closeout 驗證。\n"
+                "- Blockers:\n"
+                "  - none\n"
+            ),
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "localized-handoff",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertEqual(
+            {
+                "append_role_defaults": True,
+                "compaction_detected": False,
+                "items": [
+                    {
+                        "text": "補上 handoff 本地化欄位的 closeout 驗證。",
+                        "tradeoff": "建立在最新確認狀態之上（已確認 zh-TW closeout 會優先吃本地化 handoff 欄位。），但正式落地前可能還需要一小段實作整理",
+                    }
+                ],
+                "locale": "zh-TW",
+                "role": "coding",
+            },
+            self.load_next_work_items_spec(agent_uid, 1),
+        )
+
+    def test_end_uses_bootstrap_reviewed_same_role_handoff_in_bootstrap_batch_next_items(self) -> None:
+        self.write_agents_md()
+        self.write_agents_local("zh-TW")
+        self.write_fake_codex_thread_metadata()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:20:03.000Z", 60135, 887020)],
+        )
+        claim = self.run_registry("claim", "coding", "--scope", "bootstrap-follow-up", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "bootstrap-follow-up",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertEqual(0, begin.returncode)
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[
+                ("2026-03-25T06:20:03.000Z", 60135, 887020),
+                ("2026-03-25T06:25:03.000Z", 45000, 932020),
+            ],
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+        artifact = self.root / ".agent-local" / "agents" / agent_uid / "workcycles" / "bootstrap-reviewed-same-role-handoff.json"
+        artifact.parent.mkdir(parents=True, exist_ok=True)
+        artifact.write_text(
+            json.dumps(
+                {
+                    "scope": "localize handoff-derived next work items",
+                    "source_agent": "coding-3",
+                    "source_role": "coding",
+                    "next_steps": [
+                        "If we want both specificity and localization at once, the next follow-up is to add explicit localized handoff fields."
+                    ],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "bootstrap-follow-up",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        self.assertEqual(0, proc.returncode)
+        self.assertEqual(
+            {
+                "append_role_defaults": True,
+                "compaction_detected": False,
+                "items": [
+                    {
+                        "text": "檢查最新的同角色 handoff（範圍：localize handoff-derived next work items），決定是否接手這個後續工作",
+                        "tradeoff": "這是延續 coding-3 留下的最新上下文最直接的入口，但開始實作前可能還需要快速重整一次脈絡",
+                    }
+                ],
+                "locale": "zh-TW",
+                "role": "coding",
+            },
+            self.load_next_work_items_spec(agent_uid, 1),
         )
 
     def test_after_work_uses_compact_k_format_for_large_cycle_estimates(self) -> None:

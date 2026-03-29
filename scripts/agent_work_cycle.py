@@ -83,6 +83,7 @@ NON_CYCLE_TRACKED_PATH_SUFFIXES: tuple[str, ...] = (".pyc",)
 PREFERRED_LOCALE_LINE_PATTERN = re.compile(r"`([^`]+)`")
 ASCII_LETTER_PATTERN = re.compile(r"[A-Za-z]")
 CJK_CHARACTER_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
+LOCALIZED_LIST_LABEL_PATTERN = re.compile(r"^- (Current state|Next suggested step) \(([^)]+)\):$")
 
 
 class WorkCycleError(Exception):
@@ -614,6 +615,21 @@ def workcycle_next_work_items_markdown_path(agent_uid: str, batch_num: int) -> P
     return AGENT_LOCAL_DIR / "agents" / agent_uid / "workcycles" / f"next-work-items-{batch_num}.md"
 
 
+def bootstrap_reviewed_handoff_path(agent_uid: str) -> Path:
+    return AGENT_LOCAL_DIR / "agents" / agent_uid / "workcycles" / "bootstrap-reviewed-same-role-handoff.json"
+
+
+def load_bootstrap_reviewed_handoff(agent_uid: str) -> dict[str, object] | None:
+    path = bootstrap_reviewed_handoff_path(agent_uid)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def build_next_work_items_payload(
     *,
     agent_role: str,
@@ -662,6 +678,58 @@ def text_matches_locale(text: str, *, locale: str) -> bool:
     return True
 
 
+def handoff_locale_lines(
+    handoff: dict[str, object],
+    *,
+    key: str,
+    locale: str,
+) -> list[str]:
+    localized_value = handoff.get(f"{key}_localized")
+    if isinstance(localized_value, dict):
+        locale_value = localized_value.get(locale)
+        if isinstance(locale_value, list):
+            lines = [line.strip() for line in locale_value if isinstance(line, str) and line.strip()]
+            if lines:
+                return lines
+
+    value = handoff.get(key)
+    if not isinstance(value, list):
+        return []
+    return [
+        line.strip()
+        for line in value
+        if isinstance(line, str) and line.strip() and text_matches_locale(line, locale=locale)
+    ]
+
+
+def summarize_review_handoff_tradeoff(*, source_agent: str | None, locale: str) -> str:
+    if locale == "zh-TW":
+        if source_agent:
+            return f"這是延續 {source_agent} 留下的最新上下文最直接的入口，但開始實作前可能還需要快速重整一次脈絡"
+        return "這是延續最新同角色 handoff 最直接的入口，但開始實作前可能還需要快速重整一次脈絡"
+    if source_agent:
+        return f"most direct way to continue from {source_agent}'s latest handoff, but it may still need a quick context refresh before implementation"
+    return "most direct continuation from the latest same-role handoff, but it may still need a quick context refresh before implementation"
+
+
+def build_generic_handoff_review_item(
+    *,
+    scope: str | None,
+    source_agent: str | None,
+    locale: str,
+) -> dict[str, str]:
+    if locale == "zh-TW":
+        scope_suffix = f"（範圍：{scope}）" if scope else ""
+        text = f"檢查最新的同角色 handoff{scope_suffix}，決定是否接手這個後續工作"
+    else:
+        scope_suffix = f" for scope {scope}" if scope else ""
+        text = f"review the latest same-role handoff{scope_suffix} before choosing the next work item"
+    return {
+        "text": text,
+        "tradeoff": summarize_review_handoff_tradeoff(source_agent=source_agent, locale=locale),
+    }
+
+
 def build_cycle_specific_next_work_items(
     *,
     scope: str | None,
@@ -670,27 +738,39 @@ def build_cycle_specific_next_work_items(
 ) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     if same_role_handoff is not None:
-        current_state = same_role_handoff.get("current_state")
-        current_state_lines = current_state if isinstance(current_state, list) else []
-        next_steps = same_role_handoff.get("next_steps")
-        next_step_lines = next_steps if isinstance(next_steps, list) else []
+        current_state_lines = handoff_locale_lines(
+            same_role_handoff,
+            key="current_state",
+            locale=locale,
+        )
+        next_step_lines = handoff_locale_lines(
+            same_role_handoff,
+            key="next_steps",
+            locale=locale,
+        )
         for step in next_step_lines:
-            if isinstance(step, str) and step.strip():
-                if not text_matches_locale(step, locale=locale):
-                    continue
-                items.append(
-                    {
-                        "text": step.strip(),
-                        "tradeoff": summarize_handoff_tradeoff(
-                            [
-                                line
-                                for line in current_state_lines
-                                if isinstance(line, str) and text_matches_locale(line, locale=locale)
-                            ],
-                            locale=locale,
-                        ),
-                    }
+            items.append(
+                {
+                    "text": step,
+                    "tradeoff": summarize_handoff_tradeoff(current_state_lines, locale=locale),
+                }
+            )
+        if not items:
+            items.append(
+                build_generic_handoff_review_item(
+                    scope=(
+                        same_role_handoff.get("scope")
+                        if isinstance(same_role_handoff.get("scope"), str)
+                        else scope
+                    ),
+                    source_agent=(
+                        same_role_handoff.get("source_agent")
+                        if isinstance(same_role_handoff.get("source_agent"), str)
+                        else None
+                    ),
+                    locale=locale,
                 )
+            )
     return items
 
 
@@ -734,7 +814,14 @@ def extract_latest_open_same_role_handoff(mailbox_path: Path, *, agent_role: str
             current_heading = raw_line[3:].strip()
             in_own = current_heading == own_heading
             if in_own:
-                section = {"current_state": [], "next_steps": [], "scope": None, "status": None}
+                section = {
+                    "current_state": [],
+                    "next_steps": [],
+                    "current_state_localized": {},
+                    "next_steps_localized": {},
+                    "scope": None,
+                    "status": None,
+                }
             else:
                 section = None
             list_key = None
@@ -748,20 +835,40 @@ def extract_latest_open_same_role_handoff(mailbox_path: Path, *, agent_role: str
             if stripped.startswith("- ") and raw_line.startswith("  "):
                 value = stripped[2:].strip()
                 if value:
-                    cast_list = section.setdefault(list_key, [])
-                    if isinstance(cast_list, list):
-                        cast_list.append(value)
+                    if isinstance(list_key, tuple) and len(list_key) == 2:
+                        localized_key, locale = list_key
+                        localized_map = section.setdefault(localized_key, {})
+                        if isinstance(localized_map, dict):
+                            localized_lines = localized_map.setdefault(locale, [])
+                            if isinstance(localized_lines, list):
+                                localized_lines.append(value)
+                    else:
+                        cast_list = section.setdefault(list_key, [])
+                        if isinstance(cast_list, list):
+                            cast_list.append(value)
                 continue
             list_key = None
 
         if stripped.startswith("- Status: "):
             section["status"] = stripped[len("- Status: "):].strip().lower()
+        elif stripped.startswith("- Source agent: "):
+            section["source_agent"] = stripped[len("- Source agent: "):].strip()
+        elif stripped.startswith("- Source role: "):
+            section["source_role"] = stripped[len("- Source role: "):].strip()
         elif stripped.startswith("- Scope: "):
             section["scope"] = stripped[len("- Scope: "):].strip()
         elif stripped == "- Current state:":
             list_key = "current_state"
         elif stripped == "- Next suggested step:":
             list_key = "next_steps"
+        else:
+            localized_match = LOCALIZED_LIST_LABEL_PATTERN.match(stripped)
+            if localized_match is not None:
+                label, locale = localized_match.groups()
+                if label == "Current state":
+                    list_key = ("current_state_localized", locale)
+                elif label == "Next suggested step":
+                    list_key = ("next_steps_localized", locale)
 
     finish_section()
     return latest_open
@@ -1771,6 +1878,8 @@ def main() -> int:
             mailbox_path,
             agent_role=agent_role,
         )
+        if same_role_handoff is None and bootstrap_batch:
+            same_role_handoff = load_bootstrap_reviewed_handoff(agent_uid)
         next_work_items_spec, next_work_items_markdown = write_next_work_items_outputs(
             agent_uid=agent_uid,
             batch_num=latest_batch,

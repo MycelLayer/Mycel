@@ -155,6 +155,42 @@ class MailboxHandoffCliTest(unittest.TestCase):
         self.assertEqual(1, mailbox.count("- Status: superseded"))
         self.assertLess(mailbox.index("- Scope: older-scope"), mailbox.index("- Scope: new-scope"))
 
+    def test_create_work_continuation_renders_zh_tw_localized_fields(self) -> None:
+        self.write_fake_codex_thread_metadata()
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 1,
+                "agents": [self.registry_entry(agent_uid="agt_coding", role="coding", display_id="coding-7")],
+            }
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                "create",
+                "coding-7",
+                "work-continuation",
+                "--scope",
+                "localized-scope",
+                "--current-state",
+                "english current state",
+                "--current-state-zh-tw",
+                "繁中目前狀態",
+                "--next-step",
+                "english next step",
+                "--next-step-zh-tw",
+                "繁中下一步",
+                "--json",
+            ).stdout
+        )
+
+        mailbox = (self.root / payload["mailbox"]).read_text(encoding="utf-8")
+        self.assertIn("- Current state (zh-TW):", mailbox)
+        self.assertIn("  - 繁中目前狀態", mailbox)
+        self.assertIn("- Next suggested step (zh-TW):", mailbox)
+        self.assertIn("  - 繁中下一步", mailbox)
+
     def test_create_accepts_type_alias_for_template(self) -> None:
         self.write_registry(
             {
