@@ -12,8 +12,8 @@ Do not treat it as a live agent mailbox.
 - Source role: coding
 - Scope: accepted-head render editor admission
 - Files changed:
-  - apps/mycel-cli/src/head.rs
-  - apps/mycel-cli/tests/head_inspect_smoke.rs
+  - apps/<cli-app>/src/head.rs
+  - apps/<cli-app>/tests/head_inspect_smoke.rs
 - Planning impact:
   - roadmap wording update needed
   - progress summary update needed
@@ -23,6 +23,6 @@ Do not treat it as a live agent mailbox.
 - Issue impact:
   - no issue change
 - Verification:
-  - cargo test -p mycel-cli head_inspect
+  - cargo test -p <cli-package> head_inspect
 - Notes:
   - named-profile and store-backed render paths now apply editor admission consistently

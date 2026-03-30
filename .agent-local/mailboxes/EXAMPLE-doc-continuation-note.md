@@ -12,12 +12,12 @@ Do not treat it as a live agent mailbox.
 - Source role: doc
 - Scope: repo-rg-scan
 - Current state:
-  - Completed a repo-wide `rg --files` scan and shallow directory scan for `/workspaces/Mycel`.
+  - Completed a repo-wide `rg --files` scan and shallow directory scan for `<workspace-root>`.
   - Confirmed main documentation/planning surfaces live in `docs/`, root `*.md`, `pages/`, `fixtures/`, `sim/`, `scripts/`, `apps/`, and `crates/`.
-  - `scripts/check-plan-refresh.sh` reports refresh is due for `doc`, `issue`, and `web`.
+  - `scripts/check-plan-refresh.py` reports refresh is due for `doc`, `issue`, and `web`.
 - Evidence:
   - `rg --files`
   - `find . -maxdepth 2 -type d | sort`
-  - `scripts/check-plan-refresh.sh`
+  - `scripts/check-plan-refresh.py`
 - Next suggested step:
   - Start from `docs/PLANNING-SYNC-PLAN.md` and scan active/paused/recently inactive mailboxes before the next planning-sync batch.

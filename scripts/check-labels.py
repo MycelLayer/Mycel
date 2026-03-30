@@ -17,7 +17,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Check whether GitHub host labels match .github/labels.yml."
     )
-    parser.add_argument("--repo", "-R", default="MycelLayer/Mycel")
+    parser.add_argument(
+        "--repo",
+        "-R",
+        help="target repository in [HOST/]OWNER/REPO format; defaults to the current repo",
+    )
     parser.add_argument("--strict", action="store_true")
     return parser.parse_args()
 

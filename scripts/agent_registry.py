@@ -239,7 +239,8 @@ def require_status(entry: dict[str, Any], agent_ref: str) -> str:
 
 
 def make_legacy_agent_uid(display_id: str) -> str:
-    suffix = uuid.uuid5(uuid.NAMESPACE_URL, f"mycel-agent:{display_id}").hex[:8]
+    # Keep legacy migration deterministic without baking the project name into the seed.
+    suffix = uuid.uuid5(uuid.NAMESPACE_URL, f"agent-display:{display_id}").hex[:8]
     return f"agt_{suffix}"
 
 

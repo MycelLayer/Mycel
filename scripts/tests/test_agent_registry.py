@@ -1,4 +1,5 @@
 import fcntl
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -54,6 +55,20 @@ class AgentRegistryCliTest(unittest.TestCase):
 
     def timestamp(self, dt: datetime) -> str:
         return dt.astimezone(TAIPEI_TZ).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+    def load_registry_module(self):
+        sys.path.insert(0, str(self.root / "scripts"))
+        spec = importlib.util.spec_from_file_location(
+            "agent_registry_under_test",
+            self.root / "scripts" / "agent_registry.py",
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+            return module
+        finally:
+            sys.path.pop(0)
 
     def write_agents_md(self) -> None:
         (self.root / "AGENTS.md").write_text(
@@ -165,6 +180,15 @@ class AgentRegistryCliTest(unittest.TestCase):
         self.assertEqual("coding-1", status["agents"][0]["display_id"])
         self.assertTrue(status["agents"][0]["mailbox"].startswith(".agent-local/mailboxes/"))
         self.assertTrue((self.root / status["agents"][0]["mailbox"]).exists())
+
+    def test_legacy_agent_uid_seed_is_project_agnostic(self) -> None:
+        module = self.load_registry_module()
+
+        first = module.make_legacy_agent_uid("coding-1")
+        second = module.make_legacy_agent_uid("coding-1")
+
+        self.assertEqual(first, second)
+        self.assertTrue(first.startswith("agt_"))
 
     def test_status_text_without_agent_ref_is_summary_only(self) -> None:
         self.write_registry(

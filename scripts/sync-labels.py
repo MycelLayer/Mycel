@@ -18,7 +18,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Sync repo-tracked GitHub labels from .github/labels.yml."
     )
-    parser.add_argument("--repo", "-R", default="MycelLayer/Mycel")
+    parser.add_argument(
+        "--repo",
+        "-R",
+        help="target repository in [HOST/]OWNER/REPO format; defaults to the current repo",
+    )
     return parser.parse_args()
 
 

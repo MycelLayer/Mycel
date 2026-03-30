@@ -99,6 +99,29 @@ class LabelsCliTest(unittest.TestCase):
         proc = self.run_check()
         self.assertEqual("tracked labels are in sync for 2 labels", proc.stdout.strip())
 
+    def test_check_labels_passes_explicit_repo_when_requested(self) -> None:
+        calls_path = self.root / "gh_calls.txt"
+        self.write_gh(
+            textwrap.dedent(
+                f"""\
+                #!/usr/bin/env python3
+                import json
+                import pathlib
+                import sys
+                path = pathlib.Path({str(calls_path)!r})
+                existing = path.read_text(encoding="utf-8") if path.exists() else ""
+                path.write_text(existing + " ".join(sys.argv[1:]) + "\\n", encoding="utf-8")
+                print(json.dumps([]))
+                raise SystemExit(0)
+                """
+            ),
+        )
+
+        proc = self.run_check("--repo", "example-org/example-repo", check=False)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("--repo example-org/example-repo", calls_path.read_text(encoding="utf-8"))
+
     def test_sync_labels_creates_each_tracked_label(self) -> None:
         calls_path = self.root / "gh_calls.txt"
         self.write_gh(
@@ -122,6 +145,28 @@ class LabelsCliTest(unittest.TestCase):
         self.assertIn("synced label: tests-needed", proc.stdout)
         self.assertEqual(2, len(calls))
         self.assertIn("label create ai-ready --color 0e8a16", calls[0])
+
+    def test_sync_labels_passes_explicit_repo_when_requested(self) -> None:
+        calls_path = self.root / "gh_calls.txt"
+        self.write_gh(
+            textwrap.dedent(
+                f"""\
+                #!/usr/bin/env python3
+                import pathlib
+                import sys
+                path = pathlib.Path({str(calls_path)!r})
+                existing = path.read_text(encoding="utf-8") if path.exists() else ""
+                path.write_text(existing + " ".join(sys.argv[1:]) + "\\n", encoding="utf-8")
+                raise SystemExit(0)
+                """
+            ),
+        )
+
+        self.run_sync("--repo", "example-org/example-repo")
+
+        calls = calls_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(2, len(calls))
+        self.assertIn("--repo example-org/example-repo", calls[0])
 
 
 if __name__ == "__main__":

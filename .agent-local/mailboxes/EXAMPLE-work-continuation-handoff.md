@@ -12,13 +12,13 @@ Do not treat it as a live agent mailbox.
 - Source role: coding
 - Scope: peer-store sync simulator follow-up
 - Files changed:
-  - crates/mycel-sim/src/run.rs
-  - apps/mycel-cli/tests/sim_run_smoke.rs
+  - crates/<sim-crate>/src/run.rs
+  - apps/<cli-app>/tests/sim_run_smoke.rs
 - Behavior change:
   - simulator positive-path runs now execute the shared peer-store sync path instead of fabricating success events
 - Verification:
-  - cargo test -p mycel-sim
-  - cargo test -p mycel-cli --test sim_run_smoke
+  - cargo test -p <sim-package>
+  - cargo test -p <cli-package> --test sim_run_smoke
 - Last landed commit:
   - 6787919 Integrate simulator with peer-store sync
 - Current state:

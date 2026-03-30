@@ -3,7 +3,7 @@
 - Status: ready
 - Checked at: 2026-03-12 15:00 UTC+8
 - Checked by: doc-<n>
-- Workspace: /workspaces/Mycel
+- Workspace: <workspace-root>
 - Evidence source:
   - `scripts/update-dev-setup-status.py --actor <role-id>`
 - Notes:
@@ -35,8 +35,8 @@
 | Check | Status | Command |
 |---|---|---|
 | format | passed | `cargo fmt --all --check` |
-| core tests | passed | `cargo test -p mycel-core` |
-| CLI tests | passed | `cargo test -p mycel-cli` |
-| CLI info | passed | `cargo run -p mycel-cli -- info` |
-| fixture validate | passed | `cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json` |
-| sim smoke | passed | `./sim/negative-validation/smoke.sh --summary-only` |
+| core tests | passed | `cargo test -p <core-package>` |
+| CLI tests | passed | `cargo test -p <cli-package>` |
+| CLI info | passed | `cargo run -p <cli-package> -- info` |
+| fixture validate | passed | `cargo run -p <cli-package> -- validate fixtures/object-sets/minimal-valid/fixture.json --json` |
+| sim smoke | passed | `./sim/negative-validation/smoke.py --summary-only` |
