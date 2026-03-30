@@ -12,8 +12,10 @@ from pathlib import Path
 
 try:
     from scripts.gh_cli_env import preferred_gh_env
+    from scripts.github_repo_context import RepoContextError, resolve_repo_slug
 except ImportError:  # pragma: no cover - direct script execution path
     from gh_cli_env import preferred_gh_env
+    from github_repo_context import RepoContextError, resolve_repo_slug
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -389,6 +391,10 @@ def close_matching_open_issues(args: argparse.Namespace, issues: list[IssueRecor
 
 def main() -> int:
     args = parse_args()
+    try:
+        args.repo = resolve_repo_slug(args.repo, cwd=ROOT_DIR, env=preferred_gh_env())
+    except RepoContextError as exc:
+        raise SystemExit(str(exc)) from exc
     head_rev = current_head()
     matches = list_matching_issues(args)
     issue = latest_issue(matches)

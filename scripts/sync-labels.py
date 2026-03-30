@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from github_labels_lib import LabelToolError, load_tracked_labels, require_cmd, run_gh
+from github_repo_context import RepoContextError, resolve_repo_slug
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -30,10 +31,11 @@ def main() -> int:
     args = parse_args()
     try:
         require_cmd("gh")
+        repo = resolve_repo_slug(args.repo, cwd=ROOT_DIR)
         labels = load_tracked_labels(LABELS_FILE)
         for label in labels:
             run_gh(
-                args.repo,
+                repo,
                 "label",
                 "create",
                 label["name"],
@@ -44,7 +46,7 @@ def main() -> int:
                 "--force",
             )
             print(f"synced label: {label['name']}")
-    except LabelToolError as exc:
+    except (LabelToolError, RepoContextError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

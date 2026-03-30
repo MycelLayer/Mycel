@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECK_SCRIPT = REPO_ROOT / "scripts" / "check-labels.py"
 SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-labels.py"
 LIB_SCRIPT = REPO_ROOT / "scripts" / "github_labels_lib.py"
+CONTEXT_SCRIPT = REPO_ROOT / "scripts" / "github_repo_context.py"
 
 
 class LabelsCliTest(unittest.TestCase):
@@ -21,11 +22,20 @@ class LabelsCliTest(unittest.TestCase):
         shutil.copy2(CHECK_SCRIPT, self.root / "scripts" / "check-labels.py")
         shutil.copy2(SYNC_SCRIPT, self.root / "scripts" / "sync-labels.py")
         shutil.copy2(LIB_SCRIPT, self.root / "scripts" / "github_labels_lib.py")
+        shutil.copy2(CONTEXT_SCRIPT, self.root / "scripts" / "github_repo_context.py")
         (self.root / "scripts" / "check-labels.py").chmod(0o755)
         (self.root / "scripts" / "sync-labels.py").chmod(0o755)
         self.write_labels_file()
         self.bin_dir = self.root / "bin"
         self.bin_dir.mkdir()
+        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "remote", "add", "origin", "https://github.com/example-org/example-repo.git"],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -144,6 +154,7 @@ class LabelsCliTest(unittest.TestCase):
         self.assertIn("synced label: ai-ready", proc.stdout)
         self.assertIn("synced label: tests-needed", proc.stdout)
         self.assertEqual(2, len(calls))
+        self.assertIn("--repo example-org/example-repo", calls[0])
         self.assertIn("label create ai-ready --color 0e8a16", calls[0])
 
     def test_sync_labels_passes_explicit_repo_when_requested(self) -> None:

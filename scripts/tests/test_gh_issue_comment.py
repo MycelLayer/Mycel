@@ -71,27 +71,61 @@ class GhIssueCommentTest(unittest.TestCase):
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
 
         with mock.patch.object(subprocess, "run", side_effect=fake_run):
-            with mock.patch.object(
-                gh_issue_comment,
-                "parse_args",
-                return_value=Namespace(
-                    command="close",
-                    issue="12",
-                    repo=None,
-                    body="safe markdown",
-                    body_file="-",
-                    no_comment=False,
-                    require_body=False,
-                    reason="completed",
-                ),
-            ):
-                self.assertEqual(gh_issue_comment.main(), 0)
+            with mock.patch.object(gh_issue_comment, "resolve_repo_slug", return_value="example-org/example-repo"):
+                with mock.patch.object(
+                    gh_issue_comment,
+                    "parse_args",
+                    return_value=Namespace(
+                        command="close",
+                        issue="12",
+                        repo=None,
+                        body="safe markdown",
+                        body_file="-",
+                        no_comment=False,
+                        require_body=False,
+                        reason="completed",
+                    ),
+                ):
+                    self.assertEqual(gh_issue_comment.main(), 0)
 
         self.assertEqual(
             calls,
             [
-                ["gh", "issue", "comment", "12", "--body-file", "-"],
-                ["gh", "issue", "close", "12", "--reason", "completed"],
+                ["gh", "issue", "comment", "12", "--repo", "example-org/example-repo", "--body-file", "-"],
+                ["gh", "issue", "close", "12", "--repo", "example-org/example-repo", "--reason", "completed"],
+            ],
+        )
+
+    def test_main_auto_detects_repo_slug_when_repo_is_not_provided(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+        with mock.patch.object(subprocess, "run", side_effect=fake_run):
+            with mock.patch.object(gh_issue_comment, "resolve_repo_slug", return_value="example-org/example-repo"):
+                with mock.patch.object(
+                    gh_issue_comment,
+                    "parse_args",
+                    return_value=Namespace(
+                        command="close",
+                        issue="12",
+                        repo=None,
+                        body="safe markdown",
+                        body_file="-",
+                        no_comment=False,
+                        require_body=False,
+                        reason="completed",
+                    ),
+                ):
+                    self.assertEqual(gh_issue_comment.main(), 0)
+
+        self.assertEqual(
+            calls,
+            [
+                ["gh", "issue", "comment", "12", "--repo", "example-org/example-repo", "--body-file", "-"],
+                ["gh", "issue", "close", "12", "--repo", "example-org/example-repo", "--reason", "completed"],
             ],
         )
 

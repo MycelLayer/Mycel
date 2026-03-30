@@ -7,6 +7,7 @@ import argparse
 from pathlib import Path
 
 from github_labels_lib import LabelToolError, gh_json, load_tracked_labels, require_cmd
+from github_repo_context import RepoContextError, resolve_repo_slug
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -30,9 +31,10 @@ def main() -> int:
     args = parse_args()
     try:
         require_cmd("gh")
+        repo = resolve_repo_slug(args.repo, cwd=ROOT_DIR)
         expected_labels = load_tracked_labels(LABELS_FILE)
-        actual_payload = gh_json(args.repo, "label", "list", "--limit", "200", "--json", "name,color,description")
-    except LabelToolError as exc:
+        actual_payload = gh_json(repo, "label", "list", "--limit", "200", "--json", "name,color,description")
+    except (LabelToolError, RepoContextError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
