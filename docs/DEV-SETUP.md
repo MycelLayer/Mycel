@@ -186,6 +186,7 @@ cargo run -p mycel-cli -- sim run sim/tests/three-peer-consistency.example.json 
 Useful repo-local tools:
 
 - `scripts/check-dev-env.py` for environment validation
+- `scripts/agent_workflow_bundle.py` for exporting or importing the repo's agent workflow docs, templates, and scripts as a portable bundle
 - `scripts/check-labels.py` for tracked-label verification
 - `scripts/check-plan-refresh.py` for planning-refresh cadence checks
 - `scripts/codespaces_storage_gc.py` for safe dry-run or apply-based Codespaces storage cleanup; see [`CODESPACES-STORAGE-GC.md`](./CODESPACES-STORAGE-GC.md)
