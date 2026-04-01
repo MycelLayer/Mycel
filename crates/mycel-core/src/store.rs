@@ -95,6 +95,7 @@ pub struct GovernanceCurrentDocumentSummary {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GovernanceCurrentSummary {
     pub profile_id: String,
+    pub source: GovernanceCurrentSummarySource,
     pub current_view_id: String,
     pub profile_current_view_id: String,
     pub maintainer: String,
@@ -124,6 +125,13 @@ pub struct GovernanceDocumentProfileSummary {
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum GovernanceDocumentSummarySource {
+    Persisted,
+    Synthesized,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernanceCurrentSummarySource {
     Persisted,
     Synthesized,
 }
@@ -1639,14 +1647,20 @@ pub fn inspect_current_governance(
     profile_id: &str,
     doc_id: Option<&str>,
 ) -> Result<GovernanceCurrentSummary, StoreRebuildError> {
-    let current_profile = match manifest.current_governance.get(profile_id) {
-        Some(current_profile) => current_profile.clone(),
-        None => synthesize_current_governance_profile(manifest, profile_id).ok_or_else(|| {
-            StoreRebuildError::new(format!(
-                "profile '{}' was not found in persisted current governance state",
-                profile_id
-            ))
-        })?,
+    let (source, current_profile) = match manifest.current_governance.get(profile_id) {
+        Some(current_profile) => (
+            GovernanceCurrentSummarySource::Persisted,
+            current_profile.clone(),
+        ),
+        None => (
+            GovernanceCurrentSummarySource::Synthesized,
+            synthesize_current_governance_profile(manifest, profile_id).ok_or_else(|| {
+                StoreRebuildError::new(format!(
+                    "profile '{}' was not found in persisted current governance state",
+                    profile_id
+                ))
+            })?,
+        ),
     };
 
     let current_profile_document_view_ids = current_profile
@@ -1697,6 +1711,7 @@ pub fn inspect_current_governance(
 
     Ok(GovernanceCurrentSummary {
         profile_id: profile_id.to_string(),
+        source,
         current_view_id,
         profile_current_view_id: current_profile.current_view_id.clone(),
         maintainer: selected_record.maintainer.clone(),
@@ -2178,8 +2193,8 @@ mod tests {
         inspect_governance_view, list_current_governance, load_local_store_policy,
         load_store_index_manifest, load_store_object_index, load_stored_object_value,
         local_store_policy_path, persist_local_store_policy, rebuild_store_from_path,
-        GovernanceDocumentSummarySource, GovernanceMaintainerSummarySource, LocalStorePolicy,
-        StoreIndexManifest,
+        GovernanceCurrentSummarySource, GovernanceDocumentSummarySource,
+        GovernanceMaintainerSummarySource, LocalStorePolicy, StoreIndexManifest,
     };
     use crate::canonical::{prefixed_canonical_hash, signed_payload_bytes};
     use crate::protocol::recompute_object_id;
@@ -2395,6 +2410,7 @@ mod tests {
             Some("doc:test"),
         )
         .expect("current governance should inspect");
+        assert_eq!(current.source, GovernanceCurrentSummarySource::Persisted);
         assert_eq!(
             current.current_document_revision_id.as_deref(),
             Some(revision["revision_id"].as_str().unwrap())
@@ -2414,6 +2430,10 @@ mod tests {
                 .expect("current governance profiles should list");
         assert_eq!(current_profiles.len(), 1);
         assert_eq!(current_profiles[0].profile_id, profile_id);
+        assert_eq!(
+            current_profiles[0].source,
+            GovernanceCurrentSummarySource::Persisted
+        );
 
         let doc_scoped_profiles = list_current_governance(
             &StoreIndexManifest::from_rebuild_summary(&summary),
@@ -2426,6 +2446,10 @@ mod tests {
                 .current_document_revision_id
                 .as_deref(),
             Some(revision["revision_id"].as_str().unwrap())
+        );
+        assert_eq!(
+            doc_scoped_profiles[0].source,
+            GovernanceCurrentSummarySource::Persisted
         );
 
         let inspection = inspect_governance_view(

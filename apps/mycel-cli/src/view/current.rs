@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use mycel_core::store::{
     inspect_current_governance, list_current_governance, load_store_index_manifest,
+    GovernanceCurrentSummarySource,
 };
 use serde::Serialize;
 
@@ -25,6 +26,7 @@ pub(super) struct ViewCurrentDocumentSummary {
 #[derive(Debug, Clone, Serialize)]
 struct ViewCurrentProfileSummary {
     profile_id: String,
+    source: Option<GovernanceCurrentSummarySource>,
     current_view_id: Option<String>,
     profile_current_view_id: Option<String>,
     maintainer: Option<String>,
@@ -43,6 +45,7 @@ impl ViewCurrentProfileSummary {
     fn new(profile_id: &str) -> Self {
         Self {
             profile_id: profile_id.to_string(),
+            source: None,
             current_view_id: None,
             profile_current_view_id: None,
             maintainer: None,
@@ -61,6 +64,7 @@ impl ViewCurrentProfileSummary {
     fn from_core(current: mycel_core::store::GovernanceCurrentSummary) -> Self {
         Self {
             profile_id: current.profile_id,
+            source: Some(current.source),
             current_view_id: Some(current.current_view_id),
             profile_current_view_id: Some(current.profile_current_view_id),
             maintainer: Some(current.maintainer),
@@ -172,6 +176,15 @@ impl ViewCurrentListSummary {
 
 fn print_profile_text(summary: &ViewCurrentProfileSummary) {
     println!("profile id: {}", summary.profile_id);
+    if let Some(source) = summary.source {
+        println!(
+            "source: {}",
+            match source {
+                GovernanceCurrentSummarySource::Persisted => "persisted",
+                GovernanceCurrentSummarySource::Synthesized => "synthesized",
+            }
+        );
+    }
     if let Some(current_view_id) = &summary.current_view_id {
         println!("current view id: {current_view_id}");
     }
@@ -325,6 +338,46 @@ fn print_view_current_list_json(summary: &ViewCurrentListSummary) -> Result<i32,
     }
 }
 
+fn push_current_source_note(notes: &mut Vec<String>, source: GovernanceCurrentSummarySource) {
+    match source {
+        GovernanceCurrentSummarySource::Persisted => notes.push(
+            "current governance state is read from persisted governance summaries instead of replaying all stored views"
+                .to_string(),
+        ),
+        GovernanceCurrentSummarySource::Synthesized => notes.push(
+            "current governance state was synthesized from persisted latest profile/document indexes because the persisted current-governance summary was unavailable"
+                .to_string(),
+        ),
+    }
+}
+
+fn push_current_list_source_note(notes: &mut Vec<String>, profiles: &[ViewCurrentProfileSummary]) {
+    let has_persisted = profiles.iter().any(|profile| {
+        matches!(
+            profile.source,
+            Some(GovernanceCurrentSummarySource::Persisted)
+        )
+    });
+    let has_synthesized = profiles.iter().any(|profile| {
+        matches!(
+            profile.source,
+            Some(GovernanceCurrentSummarySource::Synthesized)
+        )
+    });
+
+    match (has_persisted, has_synthesized) {
+        (true, false) => push_current_source_note(notes, GovernanceCurrentSummarySource::Persisted),
+        (false, true) => {
+            push_current_source_note(notes, GovernanceCurrentSummarySource::Synthesized)
+        }
+        (true, true) => notes.push(
+            "current governance profiles mix persisted summaries with synthesized fallback when persisted current-governance entries are unavailable"
+                .to_string(),
+        ),
+        (false, false) => {}
+    }
+}
+
 pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
     let ViewCurrentCliArgs {
         store_root,
@@ -379,10 +432,7 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
                 summary.push_error(error.to_string());
             }
         }
-        summary.notes.push(
-            "current governance state is read from persisted governance summaries instead of replaying all stored views"
-                .to_string(),
-        );
+        push_current_list_source_note(&mut summary.notes, &summary.profiles);
         summary.notes.push(
             "profiles are emitted in deterministic profile-id order so tooling can diff repeated runs"
                 .to_string(),
@@ -416,10 +466,9 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
             summary.push_error(error.to_string());
         }
     }
-    summary.notes.push(
-        "current governance state is read from persisted governance summaries instead of replaying all stored views"
-            .to_string(),
-    );
+    if let Some(source) = summary.profile.source {
+        push_current_source_note(&mut summary.notes, source);
+    }
     summary.notes.push(
         "profile head IDs come from persisted governance head indexes for the selected profile"
             .to_string(),

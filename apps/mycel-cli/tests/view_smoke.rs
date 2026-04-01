@@ -957,6 +957,7 @@ fn view_current_json_reports_profile_current_governance_state() {
     let current_json = parse_json_stdout(&current);
 
     assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["source"], json!("persisted"));
     assert_eq!(current_json["current_view_id"], publish_a2["view_id"]);
     assert_eq!(
         current_json["profile_current_view_id"],
@@ -1034,6 +1035,12 @@ fn view_current_json_reports_profile_current_governance_state() {
     );
     assert!(
         current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current governance state is read from persisted governance summaries instead of replaying all stored views"
+        })),
+        "expected persisted current-governance note in current summary: {current_json}",
+    );
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
             note == "profile head IDs come from persisted governance head indexes for the selected profile"
         })),
         "expected persisted profile-head note in current summary: {current_json}",
@@ -1100,6 +1107,7 @@ fn view_current_profile_falls_back_to_latest_indexes_when_current_governance_is_
     let current_json = parse_json_stdout(&current);
 
     assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["source"], json!("synthesized"));
     assert_eq!(current_json["current_view_id"], publish_a2["view_id"]);
     assert_eq!(
         current_json["profile_current_view_id"],
@@ -1114,6 +1122,18 @@ fn view_current_profile_falls_back_to_latest_indexes_when_current_governance_is_
     assert_eq!(
         current_json["current_profile_document_view_ids"]["doc:beta"],
         view_a1["view_id"]
+    );
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current governance state was synthesized from persisted latest profile/document indexes because the persisted current-governance summary was unavailable"
+        })),
+        "expected synthesized current-governance note in fallback summary: {current_json}",
+    );
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().all(|note| {
+            note != "current governance state is read from persisted governance summaries instead of replaying all stored views"
+        })),
+        "did not expect persisted current-governance note in fallback summary: {current_json}",
     );
 }
 
@@ -1178,6 +1198,7 @@ fn view_current_doc_scope_falls_back_to_latest_indexes_when_current_governance_i
     let current_json = parse_json_stdout(&current);
 
     assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["source"], json!("synthesized"));
     assert_eq!(current_json["current_view_id"], publish_a1["view_id"]);
     assert_eq!(
         current_json["profile_current_view_id"],
@@ -1189,6 +1210,12 @@ fn view_current_doc_scope_falls_back_to_latest_indexes_when_current_governance_i
     );
     assert_eq!(current_json["maintainer"], view_a1["maintainer"]);
     assert_eq!(current_json["timestamp"], json!(10));
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current governance state was synthesized from persisted latest profile/document indexes because the persisted current-governance summary was unavailable"
+        })),
+        "expected synthesized current-governance note in doc-scoped fallback summary: {current_json}",
+    );
 }
 
 #[test]
@@ -1345,6 +1372,7 @@ fn view_current_all_profiles_json_reports_current_governance_state() {
         .iter()
         .find(|profile| profile["profile_id"] == publish_a["profile_id"])
         .expect("profile a should be present");
+    assert_eq!(profile_a["source"], json!("persisted"));
     assert_eq!(profile_a["current_view_id"], publish_a["view_id"]);
     assert_eq!(profile_a["profile_current_view_id"], publish_a["view_id"]);
     assert_eq!(profile_a["maintainer"], view_a["maintainer"]);
@@ -1358,6 +1386,7 @@ fn view_current_all_profiles_json_reports_current_governance_state() {
         .iter()
         .find(|profile| profile["profile_id"] == publish_b["profile_id"])
         .expect("profile b should be present");
+    assert_eq!(profile_b["source"], json!("persisted"));
     assert_eq!(profile_b["current_view_id"], publish_b["view_id"]);
     assert_eq!(profile_b["profile_current_view_id"], publish_b["view_id"]);
     assert_eq!(profile_b["maintainer"], view_b["maintainer"]);
@@ -1369,9 +1398,102 @@ fn view_current_all_profiles_json_reports_current_governance_state() {
 
     assert!(
         current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current governance state is read from persisted governance summaries instead of replaying all stored views"
+        })),
+        "expected persisted current-governance note in all-profiles summary: {current_json}",
+    );
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
             note == "profiles are emitted in deterministic profile-id order so tooling can diff repeated runs"
         })),
         "expected deterministic-order note in current summary: {current_json}",
+    );
+}
+
+#[test]
+fn view_current_all_profiles_reports_synthesized_source_when_current_governance_is_missing() {
+    let store_dir = create_temp_dir("view-current-all-profiles-fallback-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer_a = signing_key(175);
+    let maintainer_b = signing_key(176);
+    let policy_a = json!({
+        "accept_keys": [signer_id(&maintainer_a)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let policy_b = json!({
+        "accept_keys": [signer_id(&maintainer_b)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+
+    let view_a = signed_view(
+        &maintainer_a,
+        &policy_a,
+        json!({
+            "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }),
+        10,
+    );
+    let view_b = signed_view(
+        &maintainer_b,
+        &policy_b,
+        json!({
+            "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }),
+        20,
+    );
+
+    let (_dir_a, path_a) = write_json_file(
+        "view-current-all-profiles-fallback-a",
+        "view-a.json",
+        &view_a,
+    );
+    let (_dir_b, path_b) = write_json_file(
+        "view-current-all-profiles-fallback-b",
+        "view-b.json",
+        &view_b,
+    );
+
+    publish_view(&path_a, &store_root);
+    publish_view(&path_b, &store_root);
+
+    rewrite_store_manifest(&store_root, |manifest| {
+        manifest["current_governance"] = json!({});
+    });
+
+    let current = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--all-profiles",
+        "--json",
+    ]);
+    assert_success(&current);
+    let current_json = parse_json_stdout(&current);
+    let profiles = current_json["profiles"]
+        .as_array()
+        .expect("profiles should be an array");
+
+    assert_eq!(profiles.len(), 2);
+    assert!(profiles
+        .iter()
+        .all(|profile| profile["source"] == json!("synthesized")));
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().any(|note| {
+            note == "current governance state was synthesized from persisted latest profile/document indexes because the persisted current-governance summary was unavailable"
+        })),
+        "expected synthesized current-governance note in all-profiles fallback summary: {current_json}",
+    );
+    assert!(
+        current_json["notes"].as_array().is_some_and(|notes| notes.iter().all(|note| {
+            note != "current governance state is read from persisted governance summaries instead of replaying all stored views"
+        })),
+        "did not expect persisted current-governance note in all-profiles fallback summary: {current_json}",
     );
 }
 
