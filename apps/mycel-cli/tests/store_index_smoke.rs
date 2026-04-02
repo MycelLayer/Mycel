@@ -620,6 +620,30 @@ fn store_index_governance_only_json_embeds_related_view_context_per_record() {
 
     assert_success(&output);
     let json = assert_json_status(&output, "ok");
+    assert_eq!(
+        json["view_governance"][0]["current_profile_source"],
+        json!("persisted")
+    );
+    assert_eq!(
+        json["view_governance"][0]["current_profile_maintainer"],
+        json!(fixture.maintainer)
+    );
+    assert_eq!(
+        json["view_governance"][0]["current_profile_timestamp"],
+        json!(11)
+    );
+    assert_eq!(
+        json["view_governance"][0]["is_current_profile_view"],
+        json!(false)
+    );
+    assert_eq!(
+        json["view_governance"][0]["is_current_document_view_ids"]["doc:alpha"],
+        json!(false)
+    );
+    assert_eq!(
+        json["view_governance"][0]["is_current_document_view_ids"]["doc:beta"],
+        json!(true)
+    );
     assert_json_snapshot!(
         "store_index_governance_only_json_embeds_related_view_context_per_record",
         json,
@@ -956,10 +980,30 @@ fn store_index_governance_only_text_reports_related_view_context() {
         "stdout: {stdout}"
     );
     assert!(
+        stdout.contains("  current profile source: persisted"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("  current profile timestamp: 11"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("  is current profile view: false"),
+        "stdout: {stdout}"
+    );
+    assert!(
         stdout.contains(&format!(
             "  current profile document view: doc:alpha -> {}",
             fixture.view_a2_id
         )),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("  is current document view: doc:alpha -> false"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("  is current document view: doc:beta -> true"),
         "stdout: {stdout}"
     );
     assert!(

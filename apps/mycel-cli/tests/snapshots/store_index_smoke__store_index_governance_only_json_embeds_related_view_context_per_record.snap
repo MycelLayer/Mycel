@@ -1,6 +1,5 @@
 ---
 source: apps/mycel-cli/tests/store_index_smoke.rs
-assertion_line: 623
 expression: json
 ---
 {
@@ -209,6 +208,9 @@ expression: json
         "doc:alpha": "view:ff923bb1ca57e030020038fa4060603729a6e108d8d46789fb9969a2cdd061cc",
         "doc:beta": "view:4f5db5e5320d53ea79c1c89e0cdfb1666bf73050342d63d7b5e048efd57c6258"
       },
+      "current_profile_maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+      "current_profile_source": "persisted",
+      "current_profile_timestamp": 11,
       "current_profile_view_id": "view:ff923bb1ca57e030020038fa4060603729a6e108d8d46789fb9969a2cdd061cc",
       "document_view_ids": {
         "doc:alpha": [
@@ -224,6 +226,11 @@ expression: json
         "doc:alpha": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "doc:beta": "rev:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
       },
+      "is_current_document_view_ids": {
+        "doc:alpha": false,
+        "doc:beta": true
+      },
+      "is_current_profile_view": false,
       "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
       "maintainer_is_admitted_editor": true,
       "maintainer_view_ids": [

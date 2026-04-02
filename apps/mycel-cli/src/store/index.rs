@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use clap::Args;
 use mycel_core::store::{
-    ingest_store_from_path, load_store_index_manifest, rebuild_store_from_path,
-    CurrentGovernanceProfileRecord, CurrentMaintainerGovernanceRecord, StoreIndexManifest,
-    StoreIngestSummary, StoreRebuildSummary, ViewGovernanceRecord,
+    ingest_store_from_path, inspect_current_governance, load_store_index_manifest,
+    rebuild_store_from_path, CurrentGovernanceProfileRecord, CurrentMaintainerGovernanceRecord,
+    GovernanceCurrentSummarySource, StoreIndexManifest, StoreIngestSummary, StoreRebuildSummary,
+    ViewGovernanceRecord,
 };
 use serde::Serialize;
 
@@ -70,6 +71,11 @@ struct StoreIndexGovernanceRecordSummary {
     admitted_editor_only_keys: Vec<String>,
     current_profile_view_id: Option<String>,
     current_profile_document_view_ids: std::collections::BTreeMap<String, String>,
+    current_profile_source: Option<String>,
+    current_profile_maintainer: Option<String>,
+    current_profile_timestamp: Option<u64>,
+    is_current_profile_view: Option<bool>,
+    is_current_document_view_ids: std::collections::BTreeMap<String, bool>,
     documents: std::collections::BTreeMap<String, String>,
     maintainer_view_ids: Vec<String>,
     profile_view_ids: Vec<String>,
@@ -512,6 +518,13 @@ fn related_document_view_ids(
         .collect()
 }
 
+fn current_source_label(source: GovernanceCurrentSummarySource) -> &'static str {
+    match source {
+        GovernanceCurrentSummarySource::Persisted => "persisted",
+        GovernanceCurrentSummarySource::Synthesized => "synthesized",
+    }
+}
+
 fn summarize_view_governance(
     manifest: &StoreIndexManifest,
     view_governance: Vec<ViewGovernanceRecord>,
@@ -520,6 +533,37 @@ fn summarize_view_governance(
         .into_iter()
         .map(|record| {
             let profile_id = record.profile_id.clone();
+            let view_id = record.view_id.clone();
+            let documents = record.documents.clone();
+            let mut current_profile_view_id =
+                manifest.latest_profile_views.get(&profile_id).cloned();
+            let mut current_profile_document_view_ids = manifest
+                .latest_document_profile_views
+                .get(&profile_id)
+                .cloned()
+                .unwrap_or_default();
+            let mut current_profile_source = None;
+            let mut current_profile_maintainer = None;
+            let mut current_profile_timestamp = None;
+            if let Ok(current) = inspect_current_governance(manifest, &profile_id, None) {
+                current_profile_view_id = Some(current.profile_current_view_id);
+                current_profile_document_view_ids = current.current_profile_document_view_ids;
+                current_profile_source = Some(current_source_label(current.source).to_string());
+                current_profile_maintainer = Some(current.maintainer);
+                current_profile_timestamp = Some(current.timestamp);
+            }
+            let is_current_profile_view = current_profile_view_id
+                .as_ref()
+                .map(|current_view_id| current_view_id == &view_id);
+            let is_current_document_view_ids = documents
+                .keys()
+                .map(|doc_id| {
+                    let is_current = current_profile_document_view_ids
+                        .get(doc_id)
+                        .is_some_and(|current_view_id| current_view_id == &view_id);
+                    (doc_id.clone(), is_current)
+                })
+                .collect();
             StoreIndexGovernanceRecordSummary {
                 maintainer_view_ids: manifest
                     .maintainer_views
@@ -531,21 +575,22 @@ fn summarize_view_governance(
                     .get(&profile_id)
                     .cloned()
                     .unwrap_or_default(),
-                document_view_ids: related_document_view_ids(manifest, &record.documents),
-                view_id: record.view_id,
+                document_view_ids: related_document_view_ids(manifest, &documents),
+                view_id,
                 maintainer: record.maintainer,
                 profile_id: profile_id.clone(),
                 timestamp: record.timestamp,
                 accepted_editor_keys: record.accepted_editor_keys,
                 maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
                 admitted_editor_only_keys: record.admitted_editor_only_keys,
-                current_profile_view_id: manifest.latest_profile_views.get(&profile_id).cloned(),
-                current_profile_document_view_ids: manifest
-                    .latest_document_profile_views
-                    .get(&profile_id)
-                    .cloned()
-                    .unwrap_or_default(),
-                documents: record.documents,
+                current_profile_view_id,
+                current_profile_document_view_ids,
+                current_profile_source,
+                current_profile_maintainer,
+                current_profile_timestamp,
+                is_current_profile_view,
+                is_current_document_view_ids,
+                documents,
             }
         })
         .collect()
@@ -1106,6 +1151,18 @@ fn print_store_index_view_governance_record(record: &StoreIndexGovernanceRecordS
     if let Some(current_profile_view_id) = &record.current_profile_view_id {
         println!("  current profile view id: {current_profile_view_id}");
     }
+    if let Some(current_profile_source) = &record.current_profile_source {
+        println!("  current profile source: {current_profile_source}");
+    }
+    if let Some(current_profile_maintainer) = &record.current_profile_maintainer {
+        println!("  current profile maintainer: {current_profile_maintainer}");
+    }
+    if let Some(current_profile_timestamp) = record.current_profile_timestamp {
+        println!("  current profile timestamp: {current_profile_timestamp}");
+    }
+    if let Some(is_current_profile_view) = record.is_current_profile_view {
+        println!("  is current profile view: {is_current_profile_view}");
+    }
     println!(
         "  maintainer related views: {}",
         record.maintainer_view_ids.join(", ")
@@ -1127,6 +1184,9 @@ fn print_store_index_view_governance_record(record: &StoreIndexGovernanceRecordS
         );
         if let Some(current_view_id) = record.current_profile_document_view_ids.get(doc_id) {
             println!("  current profile document view: {doc_id} -> {current_view_id}");
+        }
+        if let Some(is_current) = record.is_current_document_view_ids.get(doc_id) {
+            println!("  is current document view: {doc_id} -> {is_current}");
         }
     }
 }
