@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use clap::Args;
 use mycel_core::store::{
-    ingest_store_from_path, inspect_current_governance, inspect_document_governance,
-    load_store_index_manifest, rebuild_store_from_path, CurrentGovernanceProfileRecord,
-    CurrentMaintainerGovernanceRecord, GovernanceCurrentSummarySource,
-    GovernanceDocumentSummarySource, StoreIndexManifest, StoreIngestSummary, StoreRebuildSummary,
+    ingest_store_from_path, inspect_current_governance, inspect_current_maintainer_governance,
+    inspect_document_governance, load_store_index_manifest, rebuild_store_from_path,
+    GovernanceCurrentSummarySource, GovernanceDocumentSummarySource,
+    GovernanceMaintainerSummarySource, StoreIndexManifest, StoreIngestSummary, StoreRebuildSummary,
     ViewGovernanceRecord,
 };
 use serde::Serialize;
@@ -133,6 +133,7 @@ struct StoreIndexCurrentMaintainerProfileSummary {
 
 #[derive(Debug, Clone, Serialize)]
 struct StoreIndexCurrentMaintainerGovernanceSummary {
+    source: String,
     current_profiles: std::collections::BTreeMap<String, StoreIndexCurrentMaintainerProfileSummary>,
     current_documents:
         std::collections::BTreeMap<String, StoreIndexCurrentMaintainerDocumentSummary>,
@@ -535,6 +536,13 @@ fn current_document_source_label(source: GovernanceDocumentSummarySource) -> &'s
     }
 }
 
+fn current_maintainer_source_label(source: GovernanceMaintainerSummarySource) -> &'static str {
+    match source {
+        GovernanceMaintainerSummarySource::Persisted => "persisted",
+        GovernanceMaintainerSummarySource::Synthesized => "synthesized",
+    }
+}
+
 fn summarize_view_governance(
     manifest: &StoreIndexManifest,
     view_governance: Vec<ViewGovernanceRecord>,
@@ -664,20 +672,6 @@ fn summarize_current_governance(
         .collect()
 }
 
-fn summarize_current_governance_document(
-    current_document: &mycel_core::store::CurrentGovernanceDocumentRecord,
-) -> StoreIndexCurrentGovernanceDocumentSummary {
-    StoreIndexCurrentGovernanceDocumentSummary {
-        view_id: current_document.view_id.clone(),
-        revision_id: current_document.revision_id.clone(),
-        maintainer: current_document.maintainer.clone(),
-        timestamp: current_document.timestamp,
-        accepted_editor_keys: current_document.accepted_editor_keys.clone(),
-        maintainer_is_admitted_editor: current_document.maintainer_is_admitted_editor,
-        admitted_editor_only_keys: current_document.admitted_editor_only_keys.clone(),
-    }
-}
-
 fn summarize_current_document_governance(
     manifest: &StoreIndexManifest,
     view_governance: &[ViewGovernanceRecord],
@@ -735,7 +729,7 @@ fn summarize_current_document_governance(
 
 fn summarize_current_maintainer_profile(
     allowed_docs: &std::collections::BTreeSet<String>,
-    profile: &CurrentGovernanceProfileRecord,
+    profile: &mycel_core::store::GovernanceMaintainerProfileSummary,
 ) -> StoreIndexCurrentMaintainerProfileSummary {
     StoreIndexCurrentMaintainerProfileSummary {
         current_view_id: profile.current_view_id.clone(),
@@ -752,11 +746,22 @@ fn summarize_current_maintainer_profile(
         current_documents: profile
             .current_documents
             .iter()
-            .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
-            .map(|(doc_id, current_document)| {
+            .filter(|current_document| allowed_docs.contains(&current_document.doc_id))
+            .map(|current_document| {
                 (
-                    doc_id.clone(),
-                    summarize_current_governance_document(current_document),
+                    current_document.doc_id.clone(),
+                    StoreIndexCurrentGovernanceDocumentSummary {
+                        view_id: current_document.current_view_id.clone(),
+                        revision_id: current_document.current_revision_id.clone(),
+                        maintainer: current_document.maintainer.clone(),
+                        timestamp: current_document.timestamp,
+                        accepted_editor_keys: current_document.accepted_editor_keys.clone(),
+                        maintainer_is_admitted_editor: current_document
+                            .maintainer_is_admitted_editor,
+                        admitted_editor_only_keys: current_document
+                            .admitted_editor_only_keys
+                            .clone(),
+                    },
                 )
             })
             .collect(),
@@ -765,19 +770,25 @@ fn summarize_current_maintainer_profile(
 
 fn summarize_current_maintainer_document(
     allowed_profiles: &std::collections::BTreeSet<String>,
-    profiles: &std::collections::BTreeMap<
-        String,
-        mycel_core::store::CurrentGovernanceDocumentRecord,
-    >,
+    document: &mycel_core::store::GovernanceMaintainerDocumentSummary,
 ) -> StoreIndexCurrentMaintainerDocumentSummary {
     StoreIndexCurrentMaintainerDocumentSummary {
-        profiles: profiles
+        profiles: document
+            .profiles
             .iter()
-            .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
-            .map(|(profile_id, current_document)| {
+            .filter(|profile| allowed_profiles.contains(&profile.profile_id))
+            .map(|profile| {
                 (
-                    profile_id.clone(),
-                    summarize_current_governance_document(current_document),
+                    profile.profile_id.clone(),
+                    StoreIndexCurrentGovernanceDocumentSummary {
+                        view_id: profile.current_view_id.clone(),
+                        revision_id: profile.current_revision_id.clone(),
+                        maintainer: profile.maintainer.clone(),
+                        timestamp: profile.timestamp,
+                        accepted_editor_keys: profile.accepted_editor_keys.clone(),
+                        maintainer_is_admitted_editor: profile.maintainer_is_admitted_editor,
+                        admitted_editor_only_keys: profile.admitted_editor_only_keys.clone(),
+                    },
                 )
             })
             .collect(),
@@ -785,10 +796,7 @@ fn summarize_current_maintainer_document(
 }
 
 fn summarize_current_maintainer_governance(
-    current_maintainer_governance: &std::collections::BTreeMap<
-        String,
-        CurrentMaintainerGovernanceRecord,
-    >,
+    manifest: &StoreIndexManifest,
     view_governance: &[ViewGovernanceRecord],
 ) -> std::collections::BTreeMap<String, StoreIndexCurrentMaintainerGovernanceSummary> {
     let allowed_maintainers = view_governance
@@ -804,42 +812,46 @@ fn summarize_current_maintainer_governance(
         .flat_map(|record| record.documents.keys().cloned())
         .collect::<std::collections::BTreeSet<_>>();
 
-    current_maintainer_governance
-        .iter()
-        .filter(|(maintainer, _)| allowed_maintainers.contains(*maintainer))
-        .map(|(maintainer, current)| {
-            let current_profiles = current
-                .current_profiles
-                .iter()
-                .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
-                .map(|(profile_id, profile)| {
+    allowed_maintainers
+        .into_iter()
+        .filter_map(|maintainer| {
+            inspect_current_maintainer_governance(manifest, &maintainer, None, None)
+                .ok()
+                .map(|current| {
+                    let current_profiles = current
+                        .current_profiles
+                        .iter()
+                        .filter(|profile| allowed_profiles.contains(&profile.profile_id))
+                        .map(|profile| {
+                            (
+                                profile.profile_id.clone(),
+                                summarize_current_maintainer_profile(&allowed_docs, profile),
+                            )
+                        })
+                        .collect();
+
+                    let current_documents = current
+                        .current_documents
+                        .iter()
+                        .filter(|document| allowed_docs.contains(&document.doc_id))
+                        .map(|document| {
+                            (
+                                document.doc_id.clone(),
+                                summarize_current_maintainer_document(&allowed_profiles, document),
+                            )
+                        })
+                        .filter(|(_, summary)| !summary.profiles.is_empty())
+                        .collect();
+
                     (
-                        profile_id.clone(),
-                        summarize_current_maintainer_profile(&allowed_docs, profile),
+                        maintainer,
+                        StoreIndexCurrentMaintainerGovernanceSummary {
+                            source: current_maintainer_source_label(current.source).to_string(),
+                            current_profiles,
+                            current_documents,
+                        },
                     )
                 })
-                .collect();
-
-            let current_documents = current
-                .current_documents
-                .iter()
-                .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
-                .map(|(doc_id, profiles)| {
-                    (
-                        doc_id.clone(),
-                        summarize_current_maintainer_document(&allowed_profiles, profiles),
-                    )
-                })
-                .filter(|(_, summary)| !summary.profiles.is_empty())
-                .collect();
-
-            (
-                maintainer.clone(),
-                StoreIndexCurrentMaintainerGovernanceSummary {
-                    current_profiles,
-                    current_documents,
-                },
-            )
         })
         .filter(|(_, summary)| {
             !summary.current_profiles.is_empty() || !summary.current_documents.is_empty()
@@ -1084,10 +1096,8 @@ fn build_store_index_query_summary(
         summarize_current_document_governance(&manifest, &filtered_view_governance);
     let current_document_governance_profile_count =
         count_current_document_governance_profiles(&current_document_governance);
-    let current_maintainer_governance = summarize_current_maintainer_governance(
-        &manifest.current_maintainer_governance,
-        &filtered_view_governance,
-    );
+    let current_maintainer_governance =
+        summarize_current_maintainer_governance(&manifest, &filtered_view_governance);
     let current_maintainer_governance_profile_count =
         count_current_maintainer_governance_profiles(&current_maintainer_governance);
     let current_maintainer_governance_document_count =
@@ -1246,6 +1256,7 @@ fn print_store_index_current_maintainer_governance_record(
     current: &StoreIndexCurrentMaintainerGovernanceSummary,
 ) {
     println!("current maintainer governance: {maintainer}");
+    println!("  source: {}", current.source);
     for (profile_id, profile) in &current.current_profiles {
         println!(
             "  current profile: {} view={} timestamp={}",

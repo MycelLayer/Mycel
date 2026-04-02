@@ -688,6 +688,7 @@ fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
     let current_documents = view_maintainer_json["current_documents"]
         .as_array()
         .expect("view maintainer current_documents should be an array");
+    assert_eq!(maintainer_summary["source"], view_maintainer_json["source"]);
 
     assert_eq!(
         store_index_json["current_maintainer_governance"]
@@ -736,6 +737,73 @@ fn store_index_top_level_maintainer_counts_match_view_maintainer_output() {
             );
         }
     }
+}
+
+#[test]
+fn store_index_top_level_maintainer_summary_synthesizes_source_when_persisted_missing() {
+    let fixture = build_store_with_related_views();
+    let store_root = path_arg(fixture.store_dir.path());
+    let manifest_path = fixture
+        .store_dir
+        .path()
+        .join("indexes")
+        .join("manifest.json");
+    let mut manifest: Value = serde_json::from_str(
+        &fs::read_to_string(&manifest_path).expect("manifest should be readable"),
+    )
+    .expect("manifest JSON should parse");
+    manifest["current_maintainer_governance"]
+        .as_object_mut()
+        .expect("current_maintainer_governance should be an object")
+        .remove(&fixture.maintainer);
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).expect("manifest should serialize"),
+    )
+    .expect("manifest should write");
+
+    let store_index = run_mycel(&[
+        "store",
+        "index",
+        &store_root,
+        "--governance-only",
+        "--maintainer",
+        &fixture.maintainer,
+        "--json",
+    ]);
+    assert_success(&store_index);
+    let store_index_json = assert_json_status(&store_index, "ok");
+
+    let view_maintainer = run_mycel(&[
+        "view",
+        "maintainer",
+        "--store-root",
+        &store_root,
+        "--maintainer",
+        &fixture.maintainer,
+        "--json",
+    ]);
+    assert_success(&view_maintainer);
+    let view_maintainer_json = parse_json_stdout(&view_maintainer);
+
+    let maintainer_summary =
+        &store_index_json["current_maintainer_governance"][fixture.maintainer.as_str()];
+    assert_eq!(maintainer_summary["source"], json!("synthesized"));
+    assert_eq!(maintainer_summary["source"], view_maintainer_json["source"]);
+    assert_eq!(
+        store_index_json["current_maintainer_governance_profile_count"],
+        json!(view_maintainer_json["current_profiles"]
+            .as_array()
+            .expect("view maintainer current_profiles should be an array")
+            .len())
+    );
+    assert_eq!(
+        store_index_json["current_maintainer_governance_document_count"],
+        json!(view_maintainer_json["current_documents"]
+            .as_array()
+            .expect("view maintainer current_documents should be an array")
+            .len())
+    );
 }
 
 #[test]
@@ -1039,6 +1107,13 @@ fn store_index_governance_only_text_reports_related_view_context() {
     );
     assert!(
         stdout.contains("current maintainer governance:"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "current maintainer governance: {}\n  source: persisted",
+            fixture.maintainer
+        )),
         "stdout: {stdout}"
     );
     assert!(
