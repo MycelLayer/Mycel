@@ -1656,7 +1656,7 @@ pub fn inspect_current_governance(
             GovernanceCurrentSummarySource::Synthesized,
             synthesize_current_governance_profile(manifest, profile_id).ok_or_else(|| {
                 StoreRebuildError::new(format!(
-                    "profile '{}' was not found in persisted current governance state",
+                    "profile '{}' was not found in current governance state",
                     profile_id
                 ))
             })?,
@@ -1675,7 +1675,7 @@ pub fn inspect_current_governance(
             .cloned()
             .ok_or_else(|| {
                 StoreRebuildError::new(format!(
-                    "document '{}' was not found in persisted current governance state for profile '{}'",
+                    "document '{}' was not found in current governance state for profile '{}'",
                     doc_id, profile_id
                 ))
             })?,
@@ -1788,7 +1788,7 @@ pub fn inspect_document_governance(
         })
         .ok_or_else(|| {
             StoreRebuildError::new(format!(
-                "document '{}' was not found in persisted current document governance state",
+                "document '{}' was not found in current document governance state",
                 doc_id
             ))
         })?;
@@ -1817,7 +1817,7 @@ pub fn inspect_document_governance(
     if profiles.is_empty() {
         if let Some(profile_id) = profile_id {
             return Err(StoreRebuildError::new(format!(
-                "document '{}' was not found in persisted current document governance state for profile '{}'",
+                "document '{}' was not found in current document governance state for profile '{}'",
                 doc_id, profile_id
             )));
         }
@@ -1847,7 +1847,7 @@ pub fn inspect_current_maintainer_governance(
         })
         .ok_or_else(|| {
             StoreRebuildError::new(format!(
-                "maintainer '{}' was not found in persisted current maintainer governance state",
+                "maintainer '{}' was not found in current maintainer governance state",
                 maintainer
             ))
         })?;
@@ -1949,19 +1949,19 @@ pub fn inspect_current_maintainer_governance(
     if current_profiles.is_empty() && current_documents.is_empty() {
         if let (Some(profile_id), Some(doc_id)) = (profile_id, doc_id) {
             return Err(StoreRebuildError::new(format!(
-                "document '{}' was not found in persisted current maintainer governance state for maintainer '{}' and profile '{}'",
+                "document '{}' was not found in current maintainer governance state for maintainer '{}' and profile '{}'",
                 doc_id, maintainer, profile_id
             )));
         }
         if let Some(profile_id) = profile_id {
             return Err(StoreRebuildError::new(format!(
-                "profile '{}' was not found in persisted current maintainer governance state for maintainer '{}'",
+                "profile '{}' was not found in current maintainer governance state for maintainer '{}'",
                 profile_id, maintainer
             )));
         }
         if let Some(doc_id) = doc_id {
             return Err(StoreRebuildError::new(format!(
-                "document '{}' was not found in persisted current maintainer governance state for maintainer '{}'",
+                "document '{}' was not found in current maintainer governance state for maintainer '{}'",
                 doc_id, maintainer
             )));
         }

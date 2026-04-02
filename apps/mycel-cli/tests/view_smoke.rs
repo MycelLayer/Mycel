@@ -1631,7 +1631,7 @@ fn view_current_reports_missing_profile_or_doc_cleanly() {
     assert_stdout_contains(&missing_profile, "view current: failed");
     assert_stderr_contains(
         &missing_profile,
-        "was not found in persisted current governance state",
+        "was not found in current governance state",
     );
 
     let maintainer = signing_key(74);
@@ -1668,7 +1668,7 @@ fn view_current_reports_missing_profile_or_doc_cleanly() {
     assert_stdout_contains(&missing_doc, "view current: failed");
     assert_stderr_contains(
         &missing_doc,
-        "was not found in persisted current governance state for profile",
+        "was not found in current governance state for profile",
     );
 
     let missing_target = run_mycel(&["view", "current", "--store-root", &store_root]);
@@ -1924,7 +1924,7 @@ fn view_maintainer_reports_synthesized_and_missing_cases_cleanly() {
     assert_stdout_contains(&missing_doc, "view maintainer: failed");
     assert_stderr_contains(
         &missing_doc,
-        "was not found in persisted current maintainer governance state for maintainer",
+        "was not found in current maintainer governance state for maintainer",
     );
 
     let missing_profile = run_mycel(&[
@@ -1944,7 +1944,7 @@ fn view_maintainer_reports_synthesized_and_missing_cases_cleanly() {
     assert_stderr_contains(&missing_profile, "profile '");
     assert_stderr_contains(
         &missing_profile,
-        "was not found in persisted current maintainer governance state for maintainer",
+        "was not found in current maintainer governance state for maintainer",
     );
 }
 
@@ -2092,7 +2092,7 @@ fn view_document_profile_filter_and_missing_cases_report_cleanly() {
     assert_stdout_contains(&missing_doc, "view document: failed");
     assert_stderr_contains(
         &missing_doc,
-        "was not found in persisted current document governance state",
+        "was not found in current document governance state",
     );
 
     let missing_profile = run_mycel(&[
@@ -2109,7 +2109,7 @@ fn view_document_profile_filter_and_missing_cases_report_cleanly() {
     assert_stdout_contains(&missing_profile, "view document: failed");
     assert_stderr_contains(
         &missing_profile,
-        "was not found in persisted current document governance state for profile",
+        "was not found in current document governance state for profile",
     );
 }
 

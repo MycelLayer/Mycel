@@ -319,11 +319,10 @@ fn persisted_governance_keeps_editor_and_view_roles_independent() {
             .as_array()
             .is_some_and(|errors| errors.iter().any(|error| {
                 error.as_str().is_some_and(|message| {
-                    message
-                        .contains("was not found in persisted current maintainer governance state")
+                    message.contains("was not found in current maintainer governance state")
                 })
             })),
-        "expected persisted maintainer-governance miss in JSON error list: {editor_only_json}",
+        "expected maintainer-governance miss in JSON error list: {editor_only_json}",
     );
 
     let store_index = run_mycel(&["store", "index", &store_root, "--governance-only", "--json"]);
