@@ -115,6 +115,7 @@ families below.
 | `session-unadvertised-revision-want-after-manifest` | `sync_pull_json_rejects_unadvertised_revision_want_after_manifest` | both layers |
 | `session-unadvertised-object-want-after-manifest` | `sync_pull_json_rejects_unadvertised_object_want_after_manifest` | both layers |
 | `session-unrequested-root-object-after-manifest` | `sync_pull_json_rejects_unrequested_root_object_after_manifest` | both layers |
+| `session-unadvertised-root-object-after-root-want` | `sync_pull_json_rejects_unadvertised_root_object_after_root_want` | both layers |
 | `session-unrequested-dependency-object-after-root-object` | `sync_pull_json_rejects_unrequested_dependency_object_after_root_object` | both layers |
 | `session-snapshot-want-before-manifest` | `sync_pull_json_snapshot_offer_before_manifest_does_not_unlock_want` | both layers |
 | `session-view-announce-want-before-manifest` | `sync_pull_json_view_announce_before_manifest_does_not_unlock_want` | both layers |
