@@ -70,6 +70,7 @@ LATEST_CI_GH_FIELDS = [
     "headSha",
     "updatedAt",
 ]
+LATEST_CI_WORKFLOW_NAME = "CI"
 
 
 class Section:
@@ -574,9 +575,27 @@ def deferred_reads_for_role(role: str) -> list[str]:
     return DEFERRED_READS_COMMON + DEFERRED_READS_BY_ROLE.get(role, [])
 
 
+def resolve_previous_push_head() -> str | None:
+    for ref in ("origin/main", "HEAD"):
+        proc = subprocess.run(
+            ["git", "rev-parse", "--verify", ref],
+            cwd=ROOT_DIR,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            continue
+        sha = proc.stdout.strip()
+        if re.fullmatch(r"[0-9a-f]{40}", sha):
+            return sha
+    return None
+
+
 def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
     if role not in {"coding", "delivery"}:
         return None
+    previous_push_head = resolve_previous_push_head()
     fields = ",".join(LATEST_CI_GH_FIELDS)
     command = [
         "gh",
@@ -598,9 +617,53 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
             "message": str(exc),
         }
 
-    for run in runs:
-        if run.get("status") != "completed":
-            continue
+    completed_ci_runs = [
+        run
+        for run in runs
+        if run.get("status") == "completed" and run.get("workflowName") == LATEST_CI_WORKFLOW_NAME
+    ]
+    if previous_push_head is not None:
+        for run in completed_ci_runs:
+            if run.get("headSha") != previous_push_head:
+                continue
+            return {
+                "checked": True,
+                "status": "completed",
+                "databaseId": run.get("databaseId"),
+                "workflowName": run.get("workflowName"),
+                "displayTitle": run.get("displayTitle"),
+                "conclusion": run.get("conclusion"),
+                "headSha": run.get("headSha"),
+                "updatedAt": run.get("updatedAt"),
+            }
+
+        if completed_ci_runs:
+            latest_ci = completed_ci_runs[0]
+            latest_head = latest_ci.get("headSha")
+            suffix = (
+                f"; latest completed {LATEST_CI_WORKFLOW_NAME} run was for {latest_head}"
+                if isinstance(latest_head, str) and latest_head.strip()
+                else ""
+            )
+            return {
+                "checked": False,
+                "status": "missing",
+                "message": (
+                    f"no completed {LATEST_CI_WORKFLOW_NAME} workflow run found for previous push "
+                    f"{previous_push_head}{suffix}"
+                ),
+            }
+
+        return {
+            "checked": False,
+            "status": "missing",
+            "message": (
+                f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main "
+                f"for previous push {previous_push_head}"
+            ),
+        }
+
+    for run in completed_ci_runs:
         return {
             "checked": True,
             "status": "completed",
@@ -615,7 +678,7 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
     return {
         "checked": False,
         "status": "missing",
-        "message": "no completed GitHub Actions runs found on main",
+        "message": f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main",
     }
 
 

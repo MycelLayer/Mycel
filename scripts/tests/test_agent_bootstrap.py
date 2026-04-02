@@ -256,6 +256,46 @@ class AgentBootstrapCliTest(unittest.TestCase):
         )
         git_path.chmod(0o755)
 
+    def create_git_commit(self, message: str = "bootstrap test commit") -> str:
+        subprocess.run(
+            ["git", "config", "user.name", "Bootstrap Test"],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "bootstrap@example.com"],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        marker = self.root / "tracked.txt"
+        marker.write_text(f"{message}\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "tracked.txt"],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return head.stdout.strip()
+
     def set_checklist_state(self, relative_path: str, item_id: str, state: str, label: str) -> None:
         path = self.root / relative_path
         content = path.read_text(encoding="utf-8")
@@ -406,6 +446,70 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "re-run the latest completed CI lookup before delivery follow-up because bootstrap could not confirm it",
             payload["next_actions"][0],
         )
+
+    def test_bootstrap_prefers_completed_ci_workflow_over_other_completed_workflows(self) -> None:
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 1,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "Hotspot Report",
+                    "displayTitle": "noise",
+                    "headSha": "aaaabbbbccccddddeeeeffff0000111122223333",
+                    "updatedAt": "2026-03-25T11:46:24Z",
+                },
+                {
+                    "databaseId": 2,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "real baseline",
+                    "headSha": "1111222233334444555566667777888899990000",
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                },
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "ci-filter", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("completed", payload["latest_completed_ci"]["status"])
+        self.assertEqual("CI", payload["latest_completed_ci"]["workflowName"])
+        self.assertEqual("real baseline", payload["latest_completed_ci"]["displayTitle"])
+
+    def test_bootstrap_prefers_completed_ci_for_current_head_when_available(self) -> None:
+        current_head = self.create_git_commit("seed current head")
+        old_head = "1111222233334444555566667777888899990000"
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 10,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "old baseline",
+                    "headSha": old_head,
+                    "updatedAt": "2026-03-25T11:46:24Z",
+                },
+                {
+                    "databaseId": 11,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "current baseline",
+                    "headSha": current_head,
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                },
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "ci-head-match", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("completed", payload["latest_completed_ci"]["status"])
+        self.assertEqual(current_head, payload["latest_completed_ci"]["headSha"])
+        self.assertEqual("current baseline", payload["latest_completed_ci"]["displayTitle"])
 
     def test_bootstrap_rolls_back_agent_to_inactive_when_post_claim_step_fails(self) -> None:
         self.write_fake_git(exit_code=1, stderr="git unavailable\n")
