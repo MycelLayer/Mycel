@@ -50,8 +50,8 @@
           因为 richer mixed content/metadata competing-branch classification、多文档 index-loss 后
           rebuild proof，以及 richer metadata multi-variant rebuild/reporting proof 都已落地；因此现在的
           active lane 已明确转为 <code>M3</code> / <code>M4</code>。`M3` 也已经越过已落地的最终独立
-          dual-role 收尾，接下来直接面对建立在当前 inspect/list/publish 加上 per-document current-governance
-          summaries 基线之上的更广 governance persistence、更完整的 governance tooling，以及
+          dual-role 收尾，接下来直接面对建立在当前 inspect/list/publish、per-document current-governance
+          summaries 与 store index governance source/context 摘要基线之上的更广 governance persistence、更完整的 governance tooling，以及
           reader-facing profile ergonomics；再加上剩余的
           <code>M4</code> session/capability/error-path interop proof，而更广的
           pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、
@@ -65,7 +65,7 @@
         </p>
         <ol class="lane-list">
           <li>维持 <code>M2</code> 在当前窄版 replay/storage/rebuild 范围内的已关闭状态，并以 richer mixed content/metadata competing-branch rebuild/reporting proof 作为基线。</li>
-          <li>在 accepted-head inspect/render、更清楚的 available-profile 和 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish/current surfaces、persisted governance relationship summaries，以及 per-document current-governance summaries 之上，谨慎扩展 <code>M3</code> 的 reader-plus-governance workflows；既然最终独立 dual-role 收尾已经落地，接下来就把更广的 governance persistence、更完整的 governance tooling，以及超出当前初步打磨的 profile ergonomics 明确保留下来。</li>
+          <li>在 accepted-head inspect/render、更清楚的 available-profile 和 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish/current surfaces、persisted governance relationship summaries、per-document current-governance summaries，以及 store index governance source/context 摘要之上，谨慎扩展 <code>M3</code> 的 reader-plus-governance workflows；既然最终独立 dual-role 收尾已经落地，接下来就把更广的 governance persistence、更完整的 governance tooling，以及超出当前初步打磨的 profile ergonomics 明确保留下来。</li>
           <li>让 <code>M4</code> 保持窄范围；现在更广的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先于 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested <code>OBJECT</code>、unknown-sender 与 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only、unreachable <code>WANT</code>，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage 都已有 proof，接下来把 peer-store sync proof 往剩余的 session/capability/error-path interop closure 收敛。</li>
         </ol>
       </header>
@@ -113,6 +113,7 @@
               <li>Persisted governance reverse indexes</li>
               <li>在 <code>view inspect</code> / <code>view list</code> 里可见的 persisted governance relationship summaries</li>
               <li>在 <code>view current</code> 里提供的 per-document current-governance summaries</li>
+              <li>在 <code>store index</code> 输出里可见的 governance source labels 与 current-view context 摘要</li>
               <li>剩余工作：更广的 governance persistence、更完整的 governance tooling，以及超出当前初步打磨的 profile ergonomics</li>
             </ul>
           </article>
@@ -215,7 +216,7 @@
               <td data-label="Area">9. Views and Head Selection</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M3</td>
-              <td data-label="Current read">Deterministic selector core、命名 fixed-profile selection、更清楚的 available-profile summaries 与 profile-error feedback、分开的 editor/view admission-aware inspect/render flows、bounded viewer score channels、在 <code>view inspect</code> / <code>view list</code> 里可见的 persisted governance relationship summaries、在 <code>view current</code> 里提供的 per-document current-governance summaries，以及直接锁定 shared-key / mixed-role dual-role admission、weight 与 support 关系的 core-level selector regressions 都已经存在；现在剩下的 <code>M3</code> 缺口是更广的 governance persistence、更完整的 governance tooling，以及超出当前初步打磨的 profile ergonomics。</td>
+              <td data-label="Current read">Deterministic selector core、命名 fixed-profile selection、更清楚的 available-profile summaries 与 profile-error feedback、分开的 editor/view admission-aware inspect/render flows、bounded viewer score channels、在 <code>view inspect</code> / <code>view list</code> 里可见的 persisted governance relationship summaries、在 <code>view current</code> 里提供的 per-document current-governance summaries、store index governance source/context 摘要，以及直接锁定 shared-key / mixed-role dual-role admission、weight 与 support 关系的 core-level selector regressions 都已经存在；现在剩下的 <code>M3</code> 缺口是更广的 governance persistence、更完整的 governance tooling，以及超出当前初步打磨的 profile ergonomics。</td>
             </tr>
             <tr>
               <td data-label="Area">10. Merge Generation</td>
@@ -227,7 +228,7 @@
               <td data-label="Area">11. CLI or API Surface</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2 / M3 / M4</td>
-              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish/current、persisted governance index query surfaces、在 <code>view inspect</code> / <code>view list</code> 里可见的 persisted governance relationship summaries、transcript-backed <code>sync pull</code>，以及内部 <code>sync peer-store</code> 都已存在，并包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup、partial-doc selective sync、更广的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先于 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code> 与 unrequested <code>OBJECT</code> rejection、unknown-sender 与 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 与 unreachable <code>WANT</code> rejection，以及 messages-after-<code>BYE</code> 与 missing-<code>BYE</code> warning handling；剩余的 <code>M4</code> gap 是更广的 session/capability/error-path interop proof。</td>
+              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish/current、persisted governance index query surfaces、在 <code>view inspect</code> / <code>view list</code> 里可见的 persisted governance relationship summaries、store index governance source/context 摘要、transcript-backed <code>sync pull</code>，以及内部 <code>sync peer-store</code> 都已存在，并包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup、partial-doc selective sync、更广的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先于 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 后的 stale root/dependency、stale snapshot 与 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code> 与 unrequested <code>OBJECT</code> rejection、unknown-sender 与 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 与 unreachable <code>WANT</code> rejection，以及 messages-after-<code>BYE</code> 与 missing-<code>BYE</code> warning handling；剩余的 <code>M4</code> gap 是更广的 session/capability/error-path interop proof。</td>
             </tr>
             <tr>
               <td data-label="Area">12. Interop Test Minimum</td>

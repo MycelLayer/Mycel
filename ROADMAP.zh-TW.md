@@ -1,6 +1,6 @@
 # Mycel Roadmap
 
-狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，因此現在的主線更明確地轉到 `M3` / `M4`；`M3` 也已越過最終獨立 dual-role 收尾，接下來會直接聚焦在更完整的治理狀態持久化、更完整的治理工具面、reader-facing profile ergonomics，以及仍處於 design draft 的 viewer / editor-maintainer / view-maintainer 三角色 checks-and-balances 方向，而 `M4` 尚未補齊的 peer interop session/capability/error-path proof 也仍保持開放；原先規劃的 production replication 子項則都已補上，常設的 messages-after-BYE rejection 與 missing-BYE warning proof 也已補上，更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating 基線也已落地，`HEADS replace=true` 後 stale root/dependency、stale snapshot 與 stale object `WANT` rejection 已補齊，unadvertised `WANT` 與 unrequested `OBJECT` rejection 已補齊，unknown-sender 與 HELLO sender-identity mismatch rejection 已補齊，`ERROR`-before-`HELLO` acceptance 與 explicit `ERROR`-only、unreachable `WANT` fault proofs 也已落地，同時也把 per-document current-governance summaries 納入目前的 `M3` 基線；目前 open issue queue 也仍和這些剩餘的 `M3` / `M4` 缺口對齊
+狀態：整體進度已有明顯推進；implementation checklist 已拆成已關閉的 `M1` minimal-client gate 與持續追蹤中的 post-`M1` 後續清單。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，因此現在的主線更明確地轉到 `M3` / `M4`；`M3` 也已越過最終獨立 dual-role 收尾，接下來會直接聚焦在更完整的治理狀態持久化、更完整的治理工具面、reader-facing profile ergonomics，以及仍處於 design draft 的 viewer / editor-maintainer / view-maintainer 三角色 checks-and-balances 方向，而 `M4` 尚未補齊的 peer interop session/capability/error-path proof 也仍保持開放；原先規劃的 production replication 子項則都已補上，常設的 messages-after-BYE rejection 與 missing-BYE warning proof 也已補上，更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating 基線也已落地，`HEADS replace=true` 後 stale root/dependency、stale snapshot 與 stale object `WANT` rejection 已補齊，unadvertised `WANT` 與 unrequested `OBJECT` rejection 已補齊，unknown-sender 與 HELLO sender-identity mismatch rejection 已補齊，`ERROR`-before-`HELLO` acceptance 與 explicit `ERROR`-only、unreachable `WANT` fault proofs 也已落地，同時也把 per-document current-governance summaries 與 store index governance source/context 摘要納入目前的 `M3` 基線；目前 open issue queue 也仍和這些剩餘的 `M3` / `M4` 缺口對齊
 
 這份 roadmap 將目前 README 的優先順序、implementation checklist，以及 design-note 的 planning 指引，整理成 repo 層級的實作推進順序。
 
@@ -46,7 +46,7 @@
 
 等窄版 core 穩定後，下一條主線會是：
 
-1. 在目前 `view inspect` / `view list` / `view publish`、persisted relationship summaries，以及 per-document current-governance summaries 的 baseline 之上，補上更廣的 `M3` governance persistence、更完整的 governance tooling、reader-facing profile ergonomics，以及仍屬 design draft 的三角色 checks-and-balances 後續規劃
+1. 在目前 `view inspect` / `view list` / `view publish`、persisted relationship summaries、per-document current-governance summaries，以及 store index governance source/context 摘要的 baseline 之上，補上更廣的 `M3` governance persistence、更完整的 governance tooling、reader-facing profile ergonomics，以及仍屬 design draft 的三角色 checks-and-balances 後續規劃
 2. 補上超出目前 positive-path 與 optional-message proof set 的剩餘 `M4` session、capability 與 error-path interop proof
 3. 等目前的 governance 與 interop baseline 更穩定後，再補 reader-facing 的 text reconstruction 與 presentation 打磨
 
