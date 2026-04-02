@@ -18,7 +18,8 @@ expression: json
           "timestamp": 3,
           "view_id": "view:935d17893ae86023597aa4b2aa4c26d8d1d570ee79c2087e2ad54de2fcfa2545"
         }
-      }
+      },
+      "source": "persisted"
     }
   },
   "current_document_governance_profile_count": 1,
@@ -47,6 +48,7 @@ expression: json
       },
       "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
       "maintainer_is_admitted_editor": true,
+      "source": "persisted",
       "timestamp": 3
     }
   },

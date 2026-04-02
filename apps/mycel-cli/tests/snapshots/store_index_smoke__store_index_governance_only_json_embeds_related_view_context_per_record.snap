@@ -18,7 +18,8 @@ expression: json
           "timestamp": 11,
           "view_id": "view:ff923bb1ca57e030020038fa4060603729a6e108d8d46789fb9969a2cdd061cc"
         }
-      }
+      },
+      "source": "persisted"
     },
     "doc:beta": {
       "profiles": {
@@ -33,7 +34,8 @@ expression: json
           "timestamp": 10,
           "view_id": "view:4f5db5e5320d53ea79c1c89e0cdfb1666bf73050342d63d7b5e048efd57c6258"
         }
-      }
+      },
+      "source": "persisted"
     }
   },
   "current_document_governance_profile_count": 2,
@@ -73,6 +75,7 @@ expression: json
       },
       "maintainer": "pk:ed25519:6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
       "maintainer_is_admitted_editor": true,
+      "source": "persisted",
       "timestamp": 11
     }
   },

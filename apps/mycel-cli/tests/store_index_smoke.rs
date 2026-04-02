@@ -797,6 +797,8 @@ fn store_index_top_level_profile_counts_match_view_current_output() {
     );
     assert_eq!(profile_a_documents.len(), view_current_a_documents.len());
     assert_eq!(profile_b_documents.len(), view_current_b_documents.len());
+    assert_eq!(profile_a_summary["source"], view_current_a_json["source"]);
+    assert_eq!(profile_b_summary["source"], view_current_b_json["source"]);
     assert_eq!(
         profile_a_summary["accepted_editor_keys"],
         view_current_a_json["accepted_editor_keys"]
@@ -910,6 +912,7 @@ fn store_index_top_level_document_counts_match_view_document_output() {
         json!(3)
     );
     assert_eq!(document_profiles.len(), view_profiles.len());
+    assert_eq!(document_summary["source"], json!("persisted"));
 
     for profile in view_profiles {
         let profile_id = profile["profile_id"]
@@ -1051,6 +1054,17 @@ fn store_index_governance_only_text_reports_related_view_context() {
     );
     assert!(
         stdout.contains("current document governance: doc:beta"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "current governance profile: {}\n  source: persisted",
+            fixture.profile_a_id
+        )),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("current document governance: doc:beta\n  source: persisted"),
         "stdout: {stdout}"
     );
 }

@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use clap::Args;
 use mycel_core::store::{
-    ingest_store_from_path, inspect_current_governance, load_store_index_manifest,
-    rebuild_store_from_path, CurrentGovernanceProfileRecord, CurrentMaintainerGovernanceRecord,
-    GovernanceCurrentSummarySource, StoreIndexManifest, StoreIngestSummary, StoreRebuildSummary,
+    ingest_store_from_path, inspect_current_governance, inspect_document_governance,
+    load_store_index_manifest, rebuild_store_from_path, CurrentGovernanceProfileRecord,
+    CurrentMaintainerGovernanceRecord, GovernanceCurrentSummarySource,
+    GovernanceDocumentSummarySource, StoreIndexManifest, StoreIngestSummary, StoreRebuildSummary,
     ViewGovernanceRecord,
 };
 use serde::Serialize;
@@ -95,6 +96,7 @@ struct StoreIndexCurrentGovernanceDocumentSummary {
 
 #[derive(Debug, Clone, Serialize)]
 struct StoreIndexCurrentGovernanceSummary {
+    source: String,
     current_view_id: String,
     maintainer: String,
     timestamp: u64,
@@ -113,6 +115,7 @@ struct StoreIndexCurrentMaintainerDocumentSummary {
 
 #[derive(Debug, Clone, Serialize)]
 struct StoreIndexCurrentDocumentGovernanceSummary {
+    source: String,
     profiles: std::collections::BTreeMap<String, StoreIndexCurrentGovernanceDocumentSummary>,
 }
 
@@ -525,6 +528,13 @@ fn current_source_label(source: GovernanceCurrentSummarySource) -> &'static str 
     }
 }
 
+fn current_document_source_label(source: GovernanceDocumentSummarySource) -> &'static str {
+    match source {
+        GovernanceDocumentSummarySource::Persisted => "persisted",
+        GovernanceDocumentSummarySource::Synthesized => "synthesized",
+    }
+}
+
 fn summarize_view_governance(
     manifest: &StoreIndexManifest,
     view_governance: Vec<ViewGovernanceRecord>,
@@ -597,7 +607,7 @@ fn summarize_view_governance(
 }
 
 fn summarize_current_governance(
-    current_governance: &std::collections::BTreeMap<String, CurrentGovernanceProfileRecord>,
+    manifest: &StoreIndexManifest,
     view_governance: &[ViewGovernanceRecord],
 ) -> std::collections::BTreeMap<String, StoreIndexCurrentGovernanceSummary> {
     let allowed_profiles = view_governance
@@ -605,29 +615,21 @@ fn summarize_current_governance(
         .map(|record| record.profile_id.clone())
         .collect::<std::collections::BTreeSet<_>>();
 
-    current_governance
-        .iter()
-        .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
-        .map(|(profile_id, current)| {
-            (
-                profile_id.clone(),
-                StoreIndexCurrentGovernanceSummary {
-                    current_view_id: current.current_view_id.clone(),
-                    maintainer: current.maintainer.clone(),
-                    timestamp: current.timestamp,
-                    accepted_editor_keys: current.accepted_editor_keys.clone(),
-                    maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
-                    admitted_editor_only_keys: current.admitted_editor_only_keys.clone(),
-                    documents: current.documents.clone(),
-                    current_documents: current
+    allowed_profiles
+        .into_iter()
+        .filter_map(|profile_id| {
+            inspect_current_governance(manifest, &profile_id, None)
+                .ok()
+                .map(|current| {
+                    let current_documents = current
                         .current_documents
                         .iter()
-                        .map(|(doc_id, current_document)| {
+                        .map(|current_document| {
                             (
-                                doc_id.clone(),
+                                current_document.doc_id.clone(),
                                 StoreIndexCurrentGovernanceDocumentSummary {
-                                    view_id: current_document.view_id.clone(),
-                                    revision_id: current_document.revision_id.clone(),
+                                    view_id: current_document.current_view_id.clone(),
+                                    revision_id: current_document.current_revision_id.clone(),
                                     maintainer: current_document.maintainer.clone(),
                                     timestamp: current_document.timestamp,
                                     accepted_editor_keys: current_document
@@ -641,9 +643,23 @@ fn summarize_current_governance(
                                 },
                             )
                         })
-                        .collect(),
-                },
-            )
+                        .collect();
+
+                    (
+                        profile_id,
+                        StoreIndexCurrentGovernanceSummary {
+                            source: current_source_label(current.source).to_string(),
+                            current_view_id: current.current_view_id,
+                            maintainer: current.maintainer,
+                            timestamp: current.timestamp,
+                            accepted_editor_keys: current.accepted_editor_keys,
+                            maintainer_is_admitted_editor: current.maintainer_is_admitted_editor,
+                            admitted_editor_only_keys: current.admitted_editor_only_keys,
+                            documents: current.documents,
+                            current_documents,
+                        },
+                    )
+                })
         })
         .collect()
 }
@@ -663,10 +679,7 @@ fn summarize_current_governance_document(
 }
 
 fn summarize_current_document_governance(
-    current_document_governance: &std::collections::BTreeMap<
-        String,
-        mycel_core::store::CurrentDocumentGovernanceRecord,
-    >,
+    manifest: &StoreIndexManifest,
     view_governance: &[ViewGovernanceRecord],
 ) -> std::collections::BTreeMap<String, StoreIndexCurrentDocumentGovernanceSummary> {
     let allowed_docs = view_governance
@@ -678,26 +691,43 @@ fn summarize_current_document_governance(
         .map(|record| record.profile_id.clone())
         .collect::<std::collections::BTreeSet<_>>();
 
-    current_document_governance
-        .iter()
-        .filter(|(doc_id, _)| allowed_docs.contains(*doc_id))
-        .map(|(doc_id, current)| {
-            let profiles = current
-                .profiles
-                .iter()
-                .filter(|(profile_id, _)| allowed_profiles.contains(*profile_id))
-                .map(|(profile_id, current_document)| {
+    allowed_docs
+        .into_iter()
+        .filter_map(|doc_id| {
+            inspect_document_governance(manifest, &doc_id, None)
+                .ok()
+                .map(|current| {
+                    let profiles = current
+                        .profiles
+                        .iter()
+                        .filter(|profile| allowed_profiles.contains(&profile.profile_id))
+                        .map(|profile| {
+                            (
+                                profile.profile_id.clone(),
+                                StoreIndexCurrentGovernanceDocumentSummary {
+                                    view_id: profile.current_view_id.clone(),
+                                    revision_id: profile.current_revision_id.clone(),
+                                    maintainer: profile.maintainer.clone(),
+                                    timestamp: profile.timestamp,
+                                    accepted_editor_keys: profile.accepted_editor_keys.clone(),
+                                    maintainer_is_admitted_editor: profile
+                                        .maintainer_is_admitted_editor,
+                                    admitted_editor_only_keys: profile
+                                        .admitted_editor_only_keys
+                                        .clone(),
+                                },
+                            )
+                        })
+                        .collect::<std::collections::BTreeMap<_, _>>();
+
                     (
-                        profile_id.clone(),
-                        summarize_current_governance_document(current_document),
+                        doc_id,
+                        StoreIndexCurrentDocumentGovernanceSummary {
+                            source: current_document_source_label(current.source).to_string(),
+                            profiles,
+                        },
                     )
                 })
-                .collect::<std::collections::BTreeMap<_, _>>();
-
-            (
-                doc_id.clone(),
-                StoreIndexCurrentDocumentGovernanceSummary { profiles },
-            )
         })
         .filter(|(_, summary)| !summary.profiles.is_empty())
         .collect()
@@ -1048,13 +1078,10 @@ fn build_store_index_query_summary(
         &filters.doc_id,
         &filters.revision_id,
     );
-    let current_governance =
-        summarize_current_governance(&manifest.current_governance, &filtered_view_governance);
+    let current_governance = summarize_current_governance(&manifest, &filtered_view_governance);
     let current_governance_document_count = count_current_governance_documents(&current_governance);
-    let current_document_governance = summarize_current_document_governance(
-        &manifest.current_document_governance,
-        &filtered_view_governance,
-    );
+    let current_document_governance =
+        summarize_current_document_governance(&manifest, &filtered_view_governance);
     let current_document_governance_profile_count =
         count_current_document_governance_profiles(&current_document_governance);
     let current_maintainer_governance = summarize_current_maintainer_governance(
@@ -1196,6 +1223,7 @@ fn print_store_index_current_governance_record(
     current: &StoreIndexCurrentGovernanceSummary,
 ) {
     println!("current governance profile: {profile_id}");
+    println!("  source: {}", current.source);
     println!("  current view id: {}", current.current_view_id);
     println!("  maintainer: {}", current.maintainer);
     println!("  timestamp: {}", current.timestamp);
@@ -1256,6 +1284,7 @@ fn print_store_index_current_document_governance_record(
     current: &StoreIndexCurrentDocumentGovernanceSummary,
 ) {
     println!("current document governance: {doc_id}");
+    println!("  source: {}", current.source);
     for (profile_id, current_document) in &current.profiles {
         println!(
             "  document profile: {} view={} revision={} maintainer={} timestamp={}",
