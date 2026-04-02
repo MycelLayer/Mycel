@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use mycel_core::store::load_store_index_manifest;
+use mycel_core::store::{
+    inspect_current_governance, load_store_index_manifest, GovernanceCurrentSummarySource,
+};
 use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
@@ -42,6 +44,11 @@ pub(super) struct ViewListRecord {
     document_view_ids: BTreeMap<String, Vec<String>>,
     current_profile_view_id: Option<String>,
     current_profile_document_view_ids: BTreeMap<String, String>,
+    current_profile_source: Option<String>,
+    current_profile_maintainer: Option<String>,
+    current_profile_timestamp: Option<u64>,
+    is_current_profile_view: Option<bool>,
+    is_current_document_view_ids: BTreeMap<String, bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -166,6 +173,18 @@ fn print_view_list_text(summary: &ViewListSummary) -> i32 {
         if let Some(current_profile_view_id) = &record.current_profile_view_id {
             println!("  current profile view id: {current_profile_view_id}");
         }
+        if let Some(current_profile_source) = &record.current_profile_source {
+            println!("  current profile source: {current_profile_source}");
+        }
+        if let Some(current_profile_maintainer) = &record.current_profile_maintainer {
+            println!("  current profile maintainer: {current_profile_maintainer}");
+        }
+        if let Some(current_profile_timestamp) = record.current_profile_timestamp {
+            println!("  current profile timestamp: {current_profile_timestamp}");
+        }
+        if let Some(is_current_profile_view) = record.is_current_profile_view {
+            println!("  is current profile view: {is_current_profile_view}");
+        }
         if !record.current_profile_document_view_ids.is_empty() {
             println!(
                 "  current profile document view count: {}",
@@ -173,6 +192,15 @@ fn print_view_list_text(summary: &ViewListSummary) -> i32 {
             );
             for (doc_id, current_view_id) in &record.current_profile_document_view_ids {
                 println!("  current profile document view: {doc_id} -> {current_view_id}");
+            }
+        }
+        if !record.is_current_document_view_ids.is_empty() {
+            println!(
+                "  is current document view count: {}",
+                record.is_current_document_view_ids.len()
+            );
+            for (doc_id, is_current) in &record.is_current_document_view_ids {
+                println!("  is current document view: {doc_id} -> {is_current}");
             }
         }
     }
@@ -215,6 +243,13 @@ fn print_view_list_json(summary: &ViewListSummary) -> Result<i32, CliError> {
             }
         }
         Err(source) => Err(CliError::serialization("view list summary", source)),
+    }
+}
+
+fn current_source_label(source: GovernanceCurrentSummarySource) -> &'static str {
+    match source {
+        GovernanceCurrentSummarySource::Persisted => "persisted",
+        GovernanceCurrentSummarySource::Synthesized => "synthesized",
     }
 }
 
@@ -291,6 +326,9 @@ pub(super) fn handle(args: ViewListCliArgs) -> Result<i32, CliError> {
         if !matches_timestamp_filters(record.timestamp, &summary.filters) {
             continue;
         }
+        let profile_id = record.profile_id.clone();
+        let view_id = record.view_id.clone();
+        let documents = record.documents.clone();
         let maintainer_view_ids = manifest
             .maintainer_views
             .get(&record.maintainer)
@@ -298,30 +336,54 @@ pub(super) fn handle(args: ViewListCliArgs) -> Result<i32, CliError> {
             .unwrap_or_default();
         let profile_view_ids = manifest
             .profile_views
-            .get(&record.profile_id)
+            .get(&profile_id)
             .cloned()
             .unwrap_or_default();
-        let document_view_ids = related_document_view_ids(&manifest, &record.documents);
-        let current_profile_view_id = manifest
-            .latest_profile_views
-            .get(&record.profile_id)
-            .cloned();
-        let current_profile_document_view_ids = manifest
+        let document_view_ids = related_document_view_ids(&manifest, &documents);
+        let mut current_profile_view_id = manifest.latest_profile_views.get(&profile_id).cloned();
+        let mut current_profile_document_view_ids = manifest
             .latest_document_profile_views
-            .get(&record.profile_id)
+            .get(&profile_id)
             .cloned()
             .unwrap_or_default();
+        let mut current_profile_source = None;
+        let mut current_profile_maintainer = None;
+        let mut current_profile_timestamp = None;
+        if let Ok(current) = inspect_current_governance(&manifest, &profile_id, None) {
+            current_profile_view_id = Some(current.profile_current_view_id);
+            current_profile_document_view_ids = current.current_profile_document_view_ids;
+            current_profile_source = Some(current_source_label(current.source).to_string());
+            current_profile_maintainer = Some(current.maintainer);
+            current_profile_timestamp = Some(current.timestamp);
+        }
+        let is_current_profile_view = current_profile_view_id
+            .as_ref()
+            .map(|current_view_id| current_view_id == &view_id);
+        let is_current_document_view_ids = documents
+            .keys()
+            .map(|doc_id| {
+                let is_current = current_profile_document_view_ids
+                    .get(doc_id)
+                    .is_some_and(|current_view_id| current_view_id == &view_id);
+                (doc_id.clone(), is_current)
+            })
+            .collect();
         summary.records.push(ViewListRecord {
-            view_id: record.view_id,
+            view_id,
             maintainer: record.maintainer,
-            profile_id: record.profile_id,
+            profile_id,
             timestamp: record.timestamp,
-            documents: record.documents,
+            documents,
             maintainer_view_ids,
             profile_view_ids,
             document_view_ids,
             current_profile_view_id,
             current_profile_document_view_ids,
+            current_profile_source,
+            current_profile_maintainer,
+            current_profile_timestamp,
+            is_current_profile_view,
+            is_current_document_view_ids,
         });
     }
 

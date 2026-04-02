@@ -304,6 +304,18 @@ fn view_list_json_filters_governance_records() {
     assert_success(&all);
     let all_json = parse_json_stdout(&all);
     assert_eq!(all_json["record_count"], 3);
+    assert!(
+        all_json["records"][0]["current_profile_source"].is_string(),
+        "expected current_profile_source on view list record: {all_json}"
+    );
+    assert!(
+        all_json["records"][0]["is_current_profile_view"].is_boolean(),
+        "expected is_current_profile_view on view list record: {all_json}"
+    );
+    assert!(
+        all_json["records"][0]["is_current_document_view_ids"].is_object(),
+        "expected is_current_document_view_ids on view list record: {all_json}"
+    );
     assert!(all_json["records"][0]["maintainer_view_ids"]
         .as_array()
         .is_some_and(|values| !values.is_empty()));
@@ -503,6 +515,24 @@ fn view_list_json_supports_sorting_time_windows_and_grouped_summaries() {
     assert_eq!(
         json["records"][1]["current_profile_document_view_ids"]["doc:beta"],
         view_a1["view_id"]
+    );
+    assert_eq!(
+        json["records"][0]["current_profile_source"],
+        json!("persisted")
+    );
+    assert_eq!(json["records"][0]["is_current_profile_view"], json!(true));
+    assert_eq!(
+        json["records"][0]["is_current_document_view_ids"]["doc:gamma"],
+        json!(true)
+    );
+    assert_eq!(
+        json["records"][1]["current_profile_source"],
+        json!("persisted")
+    );
+    assert_eq!(json["records"][1]["is_current_profile_view"], json!(true));
+    assert_eq!(
+        json["records"][1]["is_current_document_view_ids"]["doc:alpha"],
+        json!(true)
     );
 
     let groups = json["groups"]
@@ -831,6 +861,19 @@ fn view_list_current_profile_fields_fall_back_to_latest_indexes_when_current_gov
     assert_eq!(
         json["records"][0]["current_profile_document_view_ids"]["doc:beta"],
         publish_a2["view_id"]
+    );
+    assert_eq!(
+        json["records"][0]["current_profile_source"],
+        json!("synthesized")
+    );
+    assert_eq!(json["records"][0]["is_current_profile_view"], json!(true));
+    assert_eq!(
+        json["records"][0]["is_current_document_view_ids"]["doc:alpha"],
+        json!(true)
+    );
+    assert_eq!(
+        json["records"][0]["is_current_document_view_ids"]["doc:beta"],
+        json!(true)
     );
 }
 
@@ -2257,6 +2300,16 @@ fn view_inspect_json_reports_related_governance_indexes() {
     assert_eq!(
         inspect_json["accepted_editor_keys"],
         json!([signer_id(&maintainer_a)])
+    );
+    assert_eq!(inspect_json["current_profile_source"], json!("persisted"));
+    assert_eq!(inspect_json["is_current_profile_view"], json!(false));
+    assert_eq!(
+        inspect_json["is_current_document_view_ids"]["doc:alpha"],
+        json!(false)
+    );
+    assert_eq!(
+        inspect_json["is_current_document_view_ids"]["doc:beta"],
+        json!(true)
     );
     assert_eq!(inspect_json["maintainer_is_admitted_editor"], json!(true));
     assert_eq!(inspect_json["admitted_editor_only_keys"], json!([]));

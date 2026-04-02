@@ -1,6 +1,5 @@
 ---
 source: apps/mycel-cli/tests/view_smoke.rs
-assertion_line: 149
 expression: inspect_json
 ---
 {
@@ -11,6 +10,9 @@ expression: inspect_json
   "current_profile_document_view_ids": {
     "doc:view-publish": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c"
   },
+  "current_profile_maintainer": "pk:ed25519:+kg0FH9uaQw2k+/2EzYEZAPNiuKhTzGzxAc1hWkjlWU=",
+  "current_profile_source": "persisted",
+  "current_profile_timestamp": 10,
   "current_profile_view_id": "view:d8290d3b418f2d492059ce193377801b00bc830b93c26569673729d27e5f106c",
   "document_view_ids": {
     "doc:view-publish": [
@@ -21,6 +23,10 @@ expression: inspect_json
     "doc:view-publish": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "errors": [],
+  "is_current_document_view_ids": {
+    "doc:view-publish": true
+  },
+  "is_current_profile_view": true,
   "maintainer": "pk:ed25519:+kg0FH9uaQw2k+/2EzYEZAPNiuKhTzGzxAc1hWkjlWU=",
   "maintainer_is_admitted_editor": true,
   "maintainer_view_ids": [

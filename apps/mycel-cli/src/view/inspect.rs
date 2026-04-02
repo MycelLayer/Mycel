@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use mycel_core::store::{inspect_governance_view, load_store_index_manifest};
+use mycel_core::store::{
+    inspect_current_governance, inspect_governance_view, load_store_index_manifest,
+    GovernanceCurrentSummarySource,
+};
 use serde::Serialize;
 
 use crate::{emit_error_line, CliError};
@@ -22,6 +25,11 @@ struct ViewInspectSummary {
     admitted_editor_only_keys: Vec<String>,
     current_profile_view_id: Option<String>,
     current_profile_document_view_ids: BTreeMap<String, String>,
+    current_profile_source: Option<String>,
+    current_profile_maintainer: Option<String>,
+    current_profile_timestamp: Option<u64>,
+    is_current_profile_view: Option<bool>,
+    is_current_document_view_ids: BTreeMap<String, bool>,
     documents: BTreeMap<String, String>,
     profile_heads: BTreeMap<String, Vec<String>>,
     maintainer_view_ids: Vec<String>,
@@ -46,6 +54,11 @@ impl ViewInspectSummary {
             admitted_editor_only_keys: Vec::new(),
             current_profile_view_id: None,
             current_profile_document_view_ids: BTreeMap::new(),
+            current_profile_source: None,
+            current_profile_maintainer: None,
+            current_profile_timestamp: None,
+            is_current_profile_view: None,
+            is_current_document_view_ids: BTreeMap::new(),
             documents: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             maintainer_view_ids: Vec::new(),
@@ -106,6 +119,18 @@ fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
     if let Some(current_profile_view_id) = &summary.current_profile_view_id {
         println!("current profile view id: {current_profile_view_id}");
     }
+    if let Some(current_profile_source) = &summary.current_profile_source {
+        println!("current profile source: {current_profile_source}");
+    }
+    if let Some(current_profile_maintainer) = &summary.current_profile_maintainer {
+        println!("current profile maintainer: {current_profile_maintainer}");
+    }
+    if let Some(current_profile_timestamp) = summary.current_profile_timestamp {
+        println!("current profile timestamp: {current_profile_timestamp}");
+    }
+    if let Some(is_current_profile_view) = summary.is_current_profile_view {
+        println!("is current profile view: {is_current_profile_view}");
+    }
     println!("document count: {}", summary.documents.len());
     for (doc_id, revision_id) in &summary.documents {
         println!("document: {doc_id} -> {revision_id}");
@@ -116,6 +141,15 @@ fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
     );
     for (doc_id, current_view_id) in &summary.current_profile_document_view_ids {
         println!("current profile document view: {doc_id} -> {current_view_id}");
+    }
+    if !summary.is_current_document_view_ids.is_empty() {
+        println!(
+            "is current document view count: {}",
+            summary.is_current_document_view_ids.len()
+        );
+        for (doc_id, is_current) in &summary.is_current_document_view_ids {
+            println!("is current document view: {doc_id} -> {is_current}");
+        }
     }
     println!("profile head doc count: {}", summary.profile_heads.len());
     for (doc_id, revision_ids) in &summary.profile_heads {
@@ -181,6 +215,13 @@ fn print_view_inspect_json(summary: &ViewInspectSummary) -> Result<i32, CliError
     }
 }
 
+fn current_source_label(source: GovernanceCurrentSummarySource) -> &'static str {
+    match source {
+        GovernanceCurrentSummarySource::Persisted => "persisted",
+        GovernanceCurrentSummarySource::Synthesized => "synthesized",
+    }
+}
+
 pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
     let ViewInspectCliArgs {
         view_id,
@@ -213,11 +254,44 @@ pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
             summary.current_profile_view_id = inspection.current_profile_view_id;
             summary.current_profile_document_view_ids =
                 inspection.current_profile_document_view_ids;
+            summary.is_current_profile_view = summary
+                .current_profile_view_id
+                .as_ref()
+                .map(|current_view_id| current_view_id == &summary.view_id);
+            summary.is_current_document_view_ids = inspection
+                .documents
+                .keys()
+                .map(|doc_id| {
+                    let is_current = summary
+                        .current_profile_document_view_ids
+                        .get(doc_id)
+                        .is_some_and(|current_view_id| current_view_id == &summary.view_id);
+                    (doc_id.clone(), is_current)
+                })
+                .collect();
             summary.documents = inspection.documents;
             summary.profile_heads = inspection.profile_heads;
             summary.maintainer_view_ids = inspection.maintainer_view_ids;
             summary.profile_view_ids = inspection.profile_view_ids;
             summary.document_view_ids = inspection.document_view_ids;
+            match inspect_current_governance(
+                &manifest,
+                summary
+                    .profile_id
+                    .as_deref()
+                    .expect("profile id should exist after successful view inspection"),
+                None,
+            ) {
+                Ok(current) => {
+                    summary.current_profile_source =
+                        Some(current_source_label(current.source).to_string());
+                    summary.current_profile_maintainer = Some(current.maintainer);
+                    summary.current_profile_timestamp = Some(current.timestamp);
+                }
+                Err(error) => summary.notes.push(format!(
+                    "current profile governance summary was unavailable while inspecting this view: {error}"
+                )),
+            }
         }
         Err(error) => {
             summary.push_error(error.to_string());
