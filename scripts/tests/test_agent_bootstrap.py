@@ -126,7 +126,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## New chat bootstrap
 - Confirm the registry state and active peers before taking implementation scope. <!-- item-id: coding.startup.registry-state -->
 - Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->
-- Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
+- Review the latest open same-role handoff only when the chat is explicitly resuming, taking over, or starting overlapping work, then include it in the task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
 
 ## Work Cycle Workflow
 - Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->
@@ -558,7 +558,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertIn("  - Problem: dev-setup-status.md is not marked ready, so bootstrap left dev setup refresh work unresolved", bootstrap_text)
         self.assertIn("- [!] Use the dev setup template when refreshing local status <!-- item-id: bootstrap.dev-setup-template -->", bootstrap_text)
 
-    def test_bootstrap_appends_latest_same_role_handoff_review_to_next_actions(self) -> None:
+    def test_bootstrap_ignores_inactive_same_role_handoff_during_fresh_bootstrap(self) -> None:
         mailbox_dir = self.root / ".agent-local" / "mailboxes"
         mailbox_dir.mkdir(parents=True, exist_ok=True)
         (mailbox_dir / "agt_prev.md").write_text(
@@ -617,26 +617,17 @@ class AgentBootstrapCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
+        proc = self.run_cli("coding", "--scope", "restore-sync-gap", "--model-id", "test-model", "--concise")
 
-        self.assertIn("latest_same_role_handoff:", proc.stdout)
-        self.assertIn("display_id: coding-7", proc.stdout)
-        self.assertIn("scope: restore-sync-gap", proc.stdout)
-        self.assertIn("next_step: re-run the sync proof after wiring the stored root fixture", proc.stdout)
+        self.assertNotIn("latest_same_role_handoff:", proc.stdout)
         self.assertIn("next_actions:", proc.stdout)
-        self.assertIn("review the latest same-role handoff from coding-7 (role=coding)", proc.stdout)
-        self.assertIn("restore-sync-gap", proc.stdout)
-        self.assertIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
+        self.assertNotIn("review the latest same-role handoff from coding-7", proc.stdout)
         bootstrap_checklists = list(self.root.glob(".agent-local/agents/*/checklists/AGENTS-bootstrap-checklist.md"))
         self.assertEqual(1, len(bootstrap_checklists))
         checklist_text = bootstrap_checklists[0].read_text(encoding="utf-8")
-        self.assertIn("## Latest Same-Role Handoff Review", checklist_text)
-        self.assertIn("Reviewed agent: `coding-7`", checklist_text)
-        self.assertIn("Handoff source role: `coding`", checklist_text)
-        self.assertIn("Handoff scope: `restore-sync-gap`", checklist_text)
-        self.assertIn("re-run the sync proof after wiring the stored root fixture", checklist_text)
+        self.assertNotIn("## Latest Same-Role Handoff Review", checklist_text)
 
-    def test_bootstrap_uses_generic_handoff_review_action_when_locale_hides_english_step(self) -> None:
+    def test_bootstrap_does_not_emit_same_role_handoff_summary_for_locale_overlay_during_fresh_bootstrap(self) -> None:
         self.write_agents_local("zh-TW")
         mailbox_dir = self.root / ".agent-local" / "mailboxes"
         mailbox_dir.mkdir(parents=True, exist_ok=True)
@@ -696,16 +687,12 @@ class AgentBootstrapCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
+        proc = self.run_cli("coding", "--scope", "restore-sync-gap", "--model-id", "test-model", "--concise")
 
-        self.assertIn("latest_same_role_handoff:", proc.stdout)
+        self.assertNotIn("latest_same_role_handoff:", proc.stdout)
         self.assertNotIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
-        self.assertIn(
-            "先檢查來自 coding-7（role=coding）且 scope 為 restore-sync-gap 的最新同角色 handoff，再決定第一個工作項目",
-            proc.stdout,
-        )
 
-    def test_bootstrap_uses_fixed_response_language_overlay_for_next_actions(self) -> None:
+    def test_bootstrap_does_not_emit_same_role_handoff_next_action_for_fixed_response_language_overlay(self) -> None:
         self.write_agents_local("zh-TW", fixed_response_language=True)
         mailbox_dir = self.root / ".agent-local" / "mailboxes"
         mailbox_dir.mkdir(parents=True, exist_ok=True)
@@ -765,15 +752,12 @@ class AgentBootstrapCliTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        proc = self.run_cli("coding", "--scope", "resume-scan", "--model-id", "test-model", "--concise")
+        proc = self.run_cli("coding", "--scope", "restore-sync-gap", "--model-id", "test-model", "--concise")
 
         self.assertIn("next_actions:", proc.stdout)
         self.assertIn("以上一個已完成的 CI 結果作為基線，再決定下一個 implementation slice", proc.stdout)
         self.assertIn("除非 scope 和既有 coding 工作、recover 或 takeover 重疊，否則先延後 mailbox 掃描", proc.stdout)
-        self.assertIn(
-            "先檢查來自 coding-7（role=coding）且 scope 為 restore-sync-gap 的最新同角色 handoff，再決定第一個工作項目",
-            proc.stdout,
-        )
+        self.assertNotIn("review the latest same-role handoff from coding-7", proc.stdout)
 
     def test_bootstrap_ignores_active_same_role_handoff_from_other_agent(self) -> None:
         mailbox_dir = self.root / ".agent-local" / "mailboxes"
@@ -1024,7 +1008,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             role_bootstrap_text,
         )
         self.assertIn(
-            "- [-] Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->",
+            "- [-] Review the latest open same-role handoff only when the chat is explicitly resuming, taking over, or starting overlapping work, then include it in the task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->",
             role_bootstrap_text,
         )
 

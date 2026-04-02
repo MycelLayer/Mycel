@@ -562,6 +562,28 @@ def latest_same_role_handoff(registry: dict[str, Any], *, role: str, current_age
     return candidates[0][1]
 
 
+def normalize_scope_for_overlap(scope: str | None) -> str | None:
+    if not isinstance(scope, str):
+        return None
+    normalized = " ".join(scope.strip().lower().split())
+    if not normalized or normalized == "pending scope":
+        return None
+    return normalized
+
+
+def should_surface_bootstrap_same_role_handoff(
+    role: str,
+    *,
+    bootstrap_scope: str | None,
+    same_role_handoff: dict[str, Any] | None,
+) -> bool:
+    if same_role_handoff is None:
+        return False
+    if role != "coding":
+        return True
+    return False
+
+
 def fast_path_steps_for_role(role: str) -> list[str]:
     steps = list(FAST_PATH_STEPS)
     if role in {"coding", "delivery"}:
@@ -1098,8 +1120,19 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
             role=role,
             current_agent_uid=agent_uid,
         )
+        surfaced_same_role_handoff = same_role_handoff
+        if not should_surface_bootstrap_same_role_handoff(
+            role,
+            bootstrap_scope=args.scope,
+            same_role_handoff=same_role_handoff,
+        ):
+            surfaced_same_role_handoff = None
         next_actions = next_actions_for_role(role, latest_completed_ci, locale=preferred_locale)
-        handoff_action = handoff_review_action(role, same_role_handoff, locale=preferred_locale)
+        handoff_action = handoff_review_action(
+            role,
+            surfaced_same_role_handoff,
+            locale=preferred_locale,
+        )
         if handoff_action is not None:
             next_actions.append(handoff_action)
         bootstrap_output = start_payload.get("bootstrap_output")
@@ -1114,14 +1147,14 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
                 "persist_same_role_handoff_review",
                 persist_same_role_handoff_review,
                 bootstrap_checklist_path,
-                same_role_handoff,
+                surfaced_same_role_handoff,
             )
             timed_call(
                 phase_timings,
                 "persist_bootstrap_reviewed_handoff",
                 persist_bootstrap_reviewed_handoff,
                 agent_uid,
-                same_role_handoff,
+                surfaced_same_role_handoff,
             )
             timed_call(
                 phase_timings,
@@ -1129,7 +1162,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
                 record_bootstrap_checklist_progress,
                 bootstrap_checklist_path,
                 role_arg=args.role,
-                same_role_handoff=same_role_handoff,
+                same_role_handoff=surfaced_same_role_handoff,
                 runtime_preflight_ok=runtime_preflight_ok,
             )
         if isinstance(role_bootstrap_output, str) and role_bootstrap_output.strip():
@@ -1140,7 +1173,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
                 resolve_repo_path(role_bootstrap_output),
                 role=role,
                 latest_completed_ci=latest_completed_ci,
-                same_role_handoff=same_role_handoff,
+                same_role_handoff=surfaced_same_role_handoff,
             )
         if isinstance(workcycle_output, str) and workcycle_output.strip():
             timed_call(
@@ -1203,7 +1236,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         "deferred_reads": deferred_reads_for_role(role),
         "latest_completed_ci": latest_completed_ci,
         "next_actions": next_actions,
-        "latest_same_role_handoff": same_role_handoff,
+        "latest_same_role_handoff": surfaced_same_role_handoff,
         "latest_same_role_handoff_persisted": persisted_handoff_review,
         "phase_timings_seconds": phase_timings,
         "claimed_agent_label": (

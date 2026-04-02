@@ -10,7 +10,7 @@ see [`README.md`](./README.md).
 
 - Confirm the registry state and active peers before taking implementation scope. <!-- item-id: coding.startup.registry-state -->
 - Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->
-- Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
+- Review the latest open same-role handoff only when the chat is explicitly resuming, taking over, or starting overlapping work, then include it in the task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
 
 ## Work Cycle Workflow
 
