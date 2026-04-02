@@ -126,7 +126,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## New chat bootstrap
 - Confirm the registry state and active peers before taking implementation scope. <!-- item-id: coding.startup.registry-state -->
 - Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->
-- Review the latest open same-role handoff only when the chat is explicitly resuming, taking over, or starting overlapping work, then include it in the task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
+- Review the latest open same-role handoff when one exists, then include that review in the bootstrap or task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->
 
 ## Work Cycle Workflow
 - Run `git status -sb` and avoid unrelated user changes already in the worktree. <!-- item-id: coding.cycle.git-status -->
@@ -567,7 +567,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## Work Continuation Handoff
 
 - Status: open
-- Date: 2026-03-27 12:10 UTC+8
+- Date: 2099-03-27 12:10 UTC+8
 - Source agent: coding-7
 - Source role: coding
 - Scope: restore-sync-gap
@@ -580,7 +580,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             json.dumps(
                 {
                     "version": 2,
-                    "updated_at": "2026-03-27T12:12:00+0800",
+                    "updated_at": "2099-03-27T12:12:00+0800",
                     "agent_count": 1,
                     "agents": [
                         {
@@ -590,17 +590,17 @@ class AgentBootstrapCliTest(unittest.TestCase):
                             "display_history": [
                                 {
                                     "display_id": "coding-7",
-                                    "assigned_at": "2026-03-27T11:00:00+0800",
-                                    "released_at": "2026-03-27T12:12:00+0800",
+                                    "assigned_at": "2099-03-27T11:00:00+0800",
+                                    "released_at": "2099-03-27T12:12:00+0800",
                                     "released_reason": "finished",
                                 }
                             ],
                             "assigned_by": "user",
-                            "assigned_at": "2026-03-27T11:00:00+0800",
+                            "assigned_at": "2099-03-27T11:00:00+0800",
                             "confirmed_by_agent": True,
-                            "confirmed_at": "2026-03-27T11:00:10+0800",
-                            "last_touched_at": "2026-03-27T12:12:00+0800",
-                            "inactive_at": "2026-03-27T12:12:00+0800",
+                            "confirmed_at": "2099-03-27T11:00:10+0800",
+                            "last_touched_at": "2099-03-27T12:12:00+0800",
+                            "inactive_at": "2099-03-27T12:12:00+0800",
                             "paused_at": None,
                             "status": "inactive",
                             "scope": "restore-sync-gap",
@@ -619,13 +619,13 @@ class AgentBootstrapCliTest(unittest.TestCase):
 
         proc = self.run_cli("coding", "--scope", "restore-sync-gap", "--model-id", "test-model", "--concise")
 
-        self.assertNotIn("latest_same_role_handoff:", proc.stdout)
+        self.assertIn("latest_same_role_handoff:", proc.stdout)
         self.assertIn("next_actions:", proc.stdout)
-        self.assertNotIn("review the latest same-role handoff from coding-7", proc.stdout)
+        self.assertIn("review the latest same-role handoff from coding-7", proc.stdout)
         bootstrap_checklists = list(self.root.glob(".agent-local/agents/*/checklists/AGENTS-bootstrap-checklist.md"))
         self.assertEqual(1, len(bootstrap_checklists))
         checklist_text = bootstrap_checklists[0].read_text(encoding="utf-8")
-        self.assertNotIn("## Latest Same-Role Handoff Review", checklist_text)
+        self.assertIn("## Latest Same-Role Handoff Review", checklist_text)
 
     def test_bootstrap_does_not_emit_same_role_handoff_summary_for_locale_overlay_during_fresh_bootstrap(self) -> None:
         self.write_agents_local("zh-TW")
@@ -637,7 +637,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## Work Continuation Handoff
 
 - Status: open
-- Date: 2026-03-27 12:10 UTC+8
+- Date: 2099-03-27 12:10 UTC+8
 - Source agent: coding-7
 - Source role: coding
 - Scope: restore-sync-gap
@@ -650,7 +650,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             json.dumps(
                 {
                     "version": 2,
-                    "updated_at": "2026-03-27T12:12:00+0800",
+                    "updated_at": "2099-03-27T12:12:00+0800",
                     "agent_count": 1,
                     "agents": [
                         {
@@ -660,17 +660,17 @@ class AgentBootstrapCliTest(unittest.TestCase):
                             "display_history": [
                                 {
                                     "display_id": "coding-7",
-                                    "assigned_at": "2026-03-27T11:00:00+0800",
-                                    "released_at": "2026-03-27T12:12:00+0800",
+                                    "assigned_at": "2099-03-27T11:00:00+0800",
+                                    "released_at": "2099-03-27T12:12:00+0800",
                                     "released_reason": "finished",
                                 }
                             ],
                             "assigned_by": "user",
-                            "assigned_at": "2026-03-27T11:00:00+0800",
+                            "assigned_at": "2099-03-27T11:00:00+0800",
                             "confirmed_by_agent": True,
-                            "confirmed_at": "2026-03-27T11:00:10+0800",
-                            "last_touched_at": "2026-03-27T12:12:00+0800",
-                            "inactive_at": "2026-03-27T12:12:00+0800",
+                            "confirmed_at": "2099-03-27T11:00:10+0800",
+                            "last_touched_at": "2099-03-27T12:12:00+0800",
+                            "inactive_at": "2099-03-27T12:12:00+0800",
                             "paused_at": None,
                             "status": "inactive",
                             "scope": "restore-sync-gap",
@@ -689,8 +689,9 @@ class AgentBootstrapCliTest(unittest.TestCase):
 
         proc = self.run_cli("coding", "--scope", "restore-sync-gap", "--model-id", "test-model", "--concise")
 
-        self.assertNotIn("latest_same_role_handoff:", proc.stdout)
+        self.assertIn("latest_same_role_handoff:", proc.stdout)
         self.assertNotIn("re-run the sync proof after wiring the stored root fixture", proc.stdout)
+        self.assertIn("先檢查來自 coding-7", proc.stdout)
 
     def test_bootstrap_does_not_emit_same_role_handoff_next_action_for_fixed_response_language_overlay(self) -> None:
         self.write_agents_local("zh-TW", fixed_response_language=True)
@@ -702,7 +703,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
 ## Work Continuation Handoff
 
 - Status: open
-- Date: 2026-03-27 12:10 UTC+8
+- Date: 2099-03-27 12:10 UTC+8
 - Source agent: coding-7
 - Source role: coding
 - Scope: restore-sync-gap
@@ -715,7 +716,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             json.dumps(
                 {
                     "version": 2,
-                    "updated_at": "2026-03-27T12:12:00+0800",
+                    "updated_at": "2099-03-27T12:12:00+0800",
                     "agent_count": 1,
                     "agents": [
                         {
@@ -725,17 +726,17 @@ class AgentBootstrapCliTest(unittest.TestCase):
                             "display_history": [
                                 {
                                     "display_id": "coding-7",
-                                    "assigned_at": "2026-03-27T11:00:00+0800",
-                                    "released_at": "2026-03-27T12:12:00+0800",
+                                    "assigned_at": "2099-03-27T11:00:00+0800",
+                                    "released_at": "2099-03-27T12:12:00+0800",
                                     "released_reason": "finished",
                                 }
                             ],
                             "assigned_by": "user",
-                            "assigned_at": "2026-03-27T11:00:00+0800",
+                            "assigned_at": "2099-03-27T11:00:00+0800",
                             "confirmed_by_agent": True,
-                            "confirmed_at": "2026-03-27T11:00:10+0800",
-                            "last_touched_at": "2026-03-27T12:12:00+0800",
-                            "inactive_at": "2026-03-27T12:12:00+0800",
+                            "confirmed_at": "2099-03-27T11:00:10+0800",
+                            "last_touched_at": "2099-03-27T12:12:00+0800",
+                            "inactive_at": "2099-03-27T12:12:00+0800",
                             "paused_at": None,
                             "status": "inactive",
                             "scope": "restore-sync-gap",
@@ -756,8 +757,8 @@ class AgentBootstrapCliTest(unittest.TestCase):
 
         self.assertIn("next_actions:", proc.stdout)
         self.assertIn("以上一個已完成的 CI 結果作為基線，再決定下一個 implementation slice", proc.stdout)
-        self.assertIn("除非 scope 和既有 coding 工作、recover 或 takeover 重疊，否則先延後 mailbox 掃描", proc.stdout)
-        self.assertNotIn("review the latest same-role handoff from coding-7", proc.stdout)
+        self.assertIn("除最新同角色 handoff 外，先延後較廣泛的 mailbox 掃描，等第一個具體工作項目確定後再展開", proc.stdout)
+        self.assertIn("先檢查來自 coding-7", proc.stdout)
 
     def test_bootstrap_ignores_active_same_role_handoff_from_other_agent(self) -> None:
         mailbox_dir = self.root / ".agent-local" / "mailboxes"
@@ -968,6 +969,10 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "re-run the latest completed CI lookup before choosing the next implementation slice because bootstrap could not confirm it",
             payload["next_actions"][0],
         )
+        self.assertEqual(
+            "defer broader mailbox scans beyond the latest same-role handoff until the first concrete work item is chosen",
+            payload["next_actions"][1],
+        )
 
     def test_bootstrap_marks_completed_bootstrap_items_for_clean_first_closeout(self) -> None:
         proc = self.run_cli("--json", "coding", "--scope", "clean-closeout", "--model-id", "test-model")
@@ -1008,7 +1013,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
             role_bootstrap_text,
         )
         self.assertIn(
-            "- [-] Review the latest open same-role handoff only when the chat is explicitly resuming, taking over, or starting overlapping work, then include it in the task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->",
+            "- [-] Review the latest open same-role handoff when one exists, then include that review in the bootstrap or task-start next-work items. <!-- item-id: coding.startup.review-same-role-handoff -->",
             role_bootstrap_text,
         )
 

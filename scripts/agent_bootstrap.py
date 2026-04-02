@@ -562,26 +562,13 @@ def latest_same_role_handoff(registry: dict[str, Any], *, role: str, current_age
     return candidates[0][1]
 
 
-def normalize_scope_for_overlap(scope: str | None) -> str | None:
-    if not isinstance(scope, str):
-        return None
-    normalized = " ".join(scope.strip().lower().split())
-    if not normalized or normalized == "pending scope":
-        return None
-    return normalized
-
-
 def should_surface_bootstrap_same_role_handoff(
     role: str,
     *,
     bootstrap_scope: str | None,
     same_role_handoff: dict[str, Any] | None,
 ) -> bool:
-    if same_role_handoff is None:
-        return False
-    if role != "coding":
-        return True
-    return False
+    return same_role_handoff is not None
 
 
 def fast_path_steps_for_role(role: str) -> list[str]:
@@ -720,7 +707,7 @@ def next_actions_for_role(
             )
             return [
                 ci_action,
-                "除非 scope 和既有 coding 工作、recover 或 takeover 重疊，否則先延後 mailbox 掃描",
+                "除最新同角色 handoff 外，先延後較廣泛的 mailbox 掃描，等第一個具體工作項目確定後再展開",
             ]
         ci_action = (
             "re-run the latest completed CI lookup before choosing the next implementation slice because bootstrap could not confirm it"
@@ -729,7 +716,7 @@ def next_actions_for_role(
         )
         return [
             ci_action,
-            "defer mailbox scans unless the scope overlaps existing coding work, recovery, or takeover",
+            "defer broader mailbox scans beyond the latest same-role handoff until the first concrete work item is chosen",
         ]
     if role == "delivery":
         if locale == "zh-TW":
