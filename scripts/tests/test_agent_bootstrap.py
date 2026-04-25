@@ -227,9 +227,11 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "#!/usr/bin/env python3\n"
             "import json\n"
             "import sys\n"
+            "from pathlib import Path\n"
             f"EXIT_CODE = {exit_code}\n"
             f"STDERR = {stderr!r}\n"
             f"BODY = {body!r}\n"
+            "Path('.agent-local/gh-args.json').write_text(json.dumps(sys.argv[1:]) + '\\n', encoding='utf-8')\n"
             "if EXIT_CODE != 0:\n"
             "    if STDERR:\n"
             "        sys.stderr.write(STDERR)\n"
@@ -445,6 +447,31 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertEqual(
             "re-run the latest completed CI lookup before delivery follow-up because bootstrap could not confirm it",
             payload["next_actions"][0],
+        )
+
+    def test_bootstrap_scopes_ci_lookup_to_ci_workflow(self) -> None:
+        proc = self.run_cli("--json", "coding", "--scope", "ci-scope", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        gh_args = json.loads((self.root / ".agent-local" / "gh-args.json").read_text(encoding="utf-8"))
+        self.assertEqual("completed", payload["latest_completed_ci"]["status"])
+        self.assertIn("--workflow", gh_args)
+        self.assertEqual("CI", gh_args[gh_args.index("--workflow") + 1])
+        self.assertIn("--limit", gh_args)
+        self.assertEqual("20", gh_args[gh_args.index("--limit") + 1])
+
+    def test_bootstrap_marks_missing_ci_lookup_as_checked(self) -> None:
+        self.write_fake_gh([])
+
+        proc = self.run_cli("--json", "coding", "--scope", "missing-ci", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("missing", payload["latest_completed_ci"]["status"])
+        self.assertTrue(payload["latest_completed_ci"]["checked"])
+        role_bootstrap_text = (self.root / payload["role_bootstrap_output"]).read_text(encoding="utf-8")
+        self.assertIn(
+            "- [X] Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->",
+            role_bootstrap_text,
         )
 
     def test_bootstrap_prefers_completed_ci_workflow_over_other_completed_workflows(self) -> None:
@@ -823,6 +850,9 @@ class AgentBootstrapCliTest(unittest.TestCase):
 
         self.assertIn("next_actions:", proc.stdout)
         self.assertNotIn("review the latest same-role handoff from coding-7", proc.stdout)
+        self.assertIn("skipped_active_same_role_handoffs:", proc.stdout)
+        self.assertIn("display_id: coding-7", proc.stdout)
+        self.assertIn("skipped_reason: owner agent is still active", proc.stdout)
 
     def test_bootstrap_ignores_same_role_handoff_mailbox_outside_mailbox_directory(self) -> None:
         (self.root / "escaped-mailbox.md").write_text(
@@ -973,6 +1003,12 @@ class AgentBootstrapCliTest(unittest.TestCase):
             "defer broader mailbox scans beyond the latest same-role handoff until the first concrete work item is chosen",
             payload["next_actions"][1],
         )
+        role_bootstrap_text = (self.root / payload["role_bootstrap_output"]).read_text(encoding="utf-8")
+        self.assertIn(
+            "- [!] Check the latest completed CI result for the previous push before starting the next coding slice. <!-- item-id: coding.startup.check-latest-ci -->",
+            role_bootstrap_text,
+        )
+        self.assertIn("Problem: latest completed CI lookup was unavailable: gh unavailable", role_bootstrap_text)
 
     def test_bootstrap_marks_completed_bootstrap_items_for_clean_first_closeout(self) -> None:
         proc = self.run_cli("--json", "coding", "--scope", "clean-closeout", "--model-id", "test-model")

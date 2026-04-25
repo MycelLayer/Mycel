@@ -562,6 +562,54 @@ def latest_same_role_handoff(registry: dict[str, Any], *, role: str, current_age
     return candidates[0][1]
 
 
+def skipped_active_same_role_handoffs(
+    registry: dict[str, Any], *, role: str, current_agent_uid: str
+) -> list[dict[str, Any]]:
+    agents = registry.get("agents")
+    if not isinstance(agents, list):
+        return []
+    skipped: list[tuple[tuple[int, str, str], dict[str, Any]]] = []
+    for entry in agents:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("role") != role or entry.get("status") != "active":
+            continue
+        agent_uid = entry.get("agent_uid")
+        if not isinstance(agent_uid, str) or not agent_uid.strip() or agent_uid == current_agent_uid:
+            continue
+        mailbox_value = entry.get("mailbox")
+        if not isinstance(mailbox_value, str) or not mailbox_value.strip():
+            continue
+        try:
+            mailbox_path = resolve_handoff_mailbox_path(mailbox_value)
+        except BootstrapError:
+            continue
+        handoff = extract_latest_open_handoff(mailbox_path, role=role)
+        if handoff is None or is_compaction_abort_handoff(handoff):
+            continue
+        date_text = handoff.get("date")
+        parsed_date = parse_taipei_date(date_text if isinstance(date_text, str) else None)
+        display_id = current_or_last_display_id(entry) or agent_uid
+        skipped.append(
+            (
+                (
+                    int(parsed_date.timestamp()) if parsed_date is not None else -1,
+                    str(entry.get("last_touched_at") or ""),
+                    agent_uid,
+                ),
+                {
+                    "agent_uid": agent_uid,
+                    "display_id": display_id,
+                    "mailbox": mailbox_value,
+                    "handoff": handoff,
+                    "reason": "owner agent is still active",
+                },
+            )
+        )
+    skipped.sort(key=lambda item: item[0], reverse=True)
+    return [item[1] for item in skipped]
+
+
 def should_surface_bootstrap_same_role_handoff(
     role: str,
     *,
@@ -612,8 +660,10 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
         "list",
         "--branch",
         "main",
+        "--workflow",
+        LATEST_CI_WORKFLOW_NAME,
         "--limit",
-        "5",
+        "20",
         "--json",
         fields,
     ]
@@ -655,7 +705,7 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
                 else ""
             )
             return {
-                "checked": False,
+                "checked": True,
                 "status": "missing",
                 "message": (
                     f"no completed {LATEST_CI_WORKFLOW_NAME} workflow run found for previous push "
@@ -664,7 +714,7 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
             }
 
         return {
-            "checked": False,
+            "checked": True,
             "status": "missing",
             "message": (
                 f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main "
@@ -685,7 +735,7 @@ def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
         }
 
     return {
-        "checked": False,
+        "checked": True,
         "status": "missing",
         "message": f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main",
     }
@@ -811,6 +861,28 @@ def emit_same_role_handoff_summary(same_role_handoff: dict[str, Any] | None, *, 
             if isinstance(step, str) and step.strip():
                 print(f"  next_step: {step.strip()}")
                 break
+
+
+def emit_skipped_active_same_role_handoff_summary(
+    skipped_handoffs: list[dict[str, Any]] | None,
+    *,
+    limit: int = 3,
+) -> None:
+    if not skipped_handoffs:
+        return
+    print("skipped_active_same_role_handoffs:")
+    for item in skipped_handoffs[:limit]:
+        if not isinstance(item, dict):
+            continue
+        handoff = item.get("handoff")
+        if not isinstance(handoff, dict):
+            continue
+        display_id = item.get("display_id") or item.get("agent_uid") or "same-role agent"
+        scope = handoff.get("scope") or "unknown"
+        reason = item.get("reason") or "owner agent is still active"
+        print(f"  - display_id: {display_id}")
+        print(f"    scope: {scope}")
+        print(f"    skipped_reason: {reason}")
 
 
 def persist_same_role_handoff_review(bootstrap_checklist_path: Path, same_role_handoff: dict[str, Any] | None) -> bool:
@@ -969,19 +1041,35 @@ def record_role_bootstrap_checklist_progress(
     same_role_handoff: dict[str, Any] | None,
 ) -> None:
     updates: list[tuple[str, str]] = []
+    problem_overrides: dict[str, str] = {}
     if role == "coding":
         updates.append(("coding.startup.registry-state", "checked"))
-        if isinstance(latest_completed_ci, dict) and latest_completed_ci.get("status") == "completed":
-            updates.append(("coding.startup.check-latest-ci", "checked"))
+        if isinstance(latest_completed_ci, dict):
+            if latest_completed_ci.get("checked") is True:
+                updates.append(("coding.startup.check-latest-ci", "checked"))
+            elif latest_completed_ci.get("status") == "unavailable":
+                updates.append(("coding.startup.check-latest-ci", "problem"))
+                message = latest_completed_ci.get("message")
+                problem = "latest completed CI lookup was unavailable"
+                if isinstance(message, str) and message.strip():
+                    problem = f"{problem}: {message.strip()}"
+                problem_overrides["coding.startup.check-latest-ci"] = problem
         updates.append(
             (
                 "coding.startup.review-same-role-handoff",
                 "checked" if same_role_handoff is not None else "not-needed",
             )
         )
+    filtered_updates = filter_existing_checklist_updates(role_bootstrap_checklist_path, updates)
+    filtered_item_ids = {item_id for item_id, _state in filtered_updates}
     set_checklist_item_states(
         role_bootstrap_checklist_path,
-        filter_existing_checklist_updates(role_bootstrap_checklist_path, updates),
+        filtered_updates,
+        problem_overrides={
+            item_id: problem
+            for item_id, problem in problem_overrides.items()
+            if item_id in filtered_item_ids
+        },
     )
 
 
@@ -1107,6 +1195,14 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
             role=role,
             current_agent_uid=agent_uid,
         )
+        skipped_active_handoffs = timed_call(
+            phase_timings,
+            "skipped_active_same_role_handoffs",
+            skipped_active_same_role_handoffs,
+            registry,
+            role=role,
+            current_agent_uid=agent_uid,
+        )
         surfaced_same_role_handoff = same_role_handoff
         if not should_surface_bootstrap_same_role_handoff(
             role,
@@ -1224,6 +1320,7 @@ def build_result(args: argparse.Namespace) -> dict[str, Any]:
         "latest_completed_ci": latest_completed_ci,
         "next_actions": next_actions,
         "latest_same_role_handoff": surfaced_same_role_handoff,
+        "skipped_active_same_role_handoffs": skipped_active_handoffs,
         "latest_same_role_handoff_persisted": persisted_handoff_review,
         "phase_timings_seconds": phase_timings,
         "claimed_agent_label": (
@@ -1270,6 +1367,9 @@ def print_concise_text_result(result: dict[str, Any]) -> None:
     emit_same_role_handoff_summary(
         result.get("latest_same_role_handoff"),
         locale=resolve_preferred_response_locale(),
+    )
+    emit_skipped_active_same_role_handoff_summary(
+        result.get("skipped_active_same_role_handoffs")
     )
 
     emit_phase_timings(result.get("phase_timings_seconds"))
@@ -1342,6 +1442,9 @@ def print_text_result(result: dict[str, Any], *, concise: bool = False) -> None:
     emit_same_role_handoff_summary(
         result.get("latest_same_role_handoff"),
         locale=resolve_preferred_response_locale(),
+    )
+    emit_skipped_active_same_role_handoff_summary(
+        result.get("skipped_active_same_role_handoffs")
     )
 
     emit_phase_timings(result.get("phase_timings_seconds"))
