@@ -63,6 +63,38 @@ fn head_profile_list_json_reports_named_profiles() {
 }
 
 #[test]
+fn head_profile_list_human_reports_reuse_hint_for_first_named_profile() {
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let input = write_input_file(
+        "head-profile-list-human",
+        "input.json",
+        json!({
+            "profiles": named_profiles(&[
+                ("stable", head_profile(hash_json(&policy), 18)),
+                ("preview", head_profile(hash_json(&policy), 30))
+            ]),
+            "revisions": [],
+            "views": [],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&["head", "profile", "list", "--input", &path_arg(&input.path)]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "Head profiles: ok");
+    assert_stdout_contains(&output, "- available profiles: preview, stable");
+    assert_stdout_contains(&output, "- reuse this profile with: --profile-id preview");
+    assert_stdout_contains(
+        &output,
+        "- inspect profile details with: mycel head profile inspect --input <same-input> --profile-id preview",
+    );
+}
+
+#[test]
 fn head_profile_inspect_json_reports_requested_named_profile() {
     let policy = json!({
         "merge_rule": "manual-reviewed",
@@ -125,6 +157,42 @@ fn head_profile_inspect_json_reports_requested_named_profile() {
         json["profile"]["viewer_score"]["enabled"],
         Value::Bool(true)
     );
+}
+
+#[test]
+fn head_profile_inspect_human_reports_reuse_hint_for_named_profile() {
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let input = write_input_file(
+        "head-profile-inspect-human",
+        "input.json",
+        json!({
+            "profiles": named_profiles(&[
+                ("stable", head_profile(hash_json(&policy), 18)),
+                ("preview", head_profile(hash_json(&policy), 30))
+            ]),
+            "revisions": [],
+            "views": [],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "profile",
+        "inspect",
+        "--input",
+        &path_arg(&input.path),
+        "--profile-id",
+        "stable",
+    ]);
+
+    assert_success(&output);
+    assert_stdout_contains(&output, "Head profile: ok");
+    assert_stdout_contains(&output, "- requested profile: stable");
+    assert_stdout_contains(&output, "- reuse this profile with: --profile-id stable");
 }
 
 #[test]

@@ -264,6 +264,10 @@ fn profile_inspect_hint(available_profile_ids: &[String], errors: &[String]) -> 
     ))
 }
 
+fn profile_reuse_hint(profile_id: &str) -> String {
+    format!("reuse this profile with: --profile-id {profile_id}")
+}
+
 fn has_viewer_effects(
     viewer_bonus: u64,
     viewer_penalty: u64,
@@ -644,6 +648,11 @@ fn print_head_profile_list_human(summary: &HeadProfileListSummary) -> i32 {
             "- available profiles: {}",
             summary.available_profile_ids.join(", ")
         );
+        let example_profile_id = &summary.available_profile_ids[0];
+        println!("- {}", profile_reuse_hint(example_profile_id));
+        println!(
+            "- inspect profile details with: mycel head profile inspect --input <same-input> --profile-id {example_profile_id}"
+        );
     }
     if !summary.profiles.is_empty() {
         println!();
@@ -708,6 +717,9 @@ fn print_head_profile_inspect_human(summary: &HeadProfileInspectSummary) -> i32 
         }
     }
     if let Some(profile) = &summary.profile {
+        if let Some(profile_id) = &profile.profile_id {
+            println!("- {}", profile_reuse_hint(profile_id));
+        }
         println!();
         println!("Profile");
         print_head_profile_entry_human(profile);
