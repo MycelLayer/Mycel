@@ -38,7 +38,6 @@ AGENT_LOCAL_DIR = (ROOT_DIR / ".agent-local").resolve()
 MAILBOX_DIR = (AGENT_LOCAL_DIR / "mailboxes").resolve()
 AGENTS_LOCAL_PATH = ROOT_DIR / "AGENTS-LOCAL.md"
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
-MAILBOX_HANDOFF_SCRIPT = ROOT_DIR / "scripts" / "mailbox_handoff.py"
 CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
 SHARED_FALLBACK_MAILBOX_LIMIT_BYTES = 1024
@@ -51,13 +50,6 @@ ROLE_OPEN_HANDOFF_HEADINGS = {
     "delivery": "Delivery Continuation Note",
     "doc": "Doc Continuation Note",
 }
-ROLE_CONTINUATION_TEMPLATES = {
-    "coding": "work-continuation",
-    "delivery": "delivery-continuation",
-    "doc": "doc-continuation",
-}
-COMPACTION_ABORT_EXIT_CODE = 3
-
 # Items that must almost always be `checked`, not `not-needed`, in a real work
 # cycle batch.  If any of these are `[-]` at `end` time the tool reports them
 # and returns exit code 2.
@@ -517,69 +509,6 @@ def detect_compaction_event_in_rollout_path(
             "rollout_path": str(rollout_path),
         }
     return latest
-
-
-def create_compaction_handoff(
-    agent_ref: str,
-    *,
-    agent_role: str,
-    scope: str,
-    detection: dict[str, str],
-) -> dict[str, object]:
-    template = ROLE_CONTINUATION_TEMPLATES.get(agent_role)
-    if template is None:
-        raise WorkCycleError(f"unsupported role for compaction handoff: {agent_role}")
-
-    cmd = [
-        sys.executable,
-        str(MAILBOX_HANDOFF_SCRIPT),
-        "create",
-        agent_ref,
-        template,
-        "--scope",
-        scope,
-        "--current-state",
-        "Compact context detected in the current chat thread before work started, so this workcycle was aborted.",
-        "--next-step",
-        "Open a fresh chat for better performance and continue from this handoff.",
-        "--notes",
-        (
-            "Compaction event detected at "
-            f"{detection['timestamp']} in {detection['rollout_path']}."
-        ),
-        "--json",
-    ]
-    proc = subprocess.run(
-        cmd,
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        message = proc.stderr.strip() or proc.stdout.strip() or "mailbox_handoff.py create failed"
-        raise WorkCycleError(f"could not create compaction handoff: {message}")
-    return json.loads(proc.stdout)
-
-
-def record_compaction_block(
-    agent_ref: str,
-    *,
-    scope: str,
-    detection: dict[str, str],
-    handoff_mailbox: str,
-) -> None:
-    from agent_guard import block_agent
-
-    block_agent(
-        agent_ref,
-        reason="compact_context_detected",
-        detected_at=detection["timestamp"],
-        source="agent_work_cycle.begin",
-        scope=scope,
-        handoff_path=handoff_mailbox,
-        rollout_path=detection["rollout_path"],
-    )
 
 
 def store_end_token_usage_snapshot_once(agent_uid: str, batch_num: int) -> dict[str, object] | None:
@@ -1767,37 +1696,12 @@ def main() -> int:
         if "batch_num" in checklist_result:
             print(f"batch_num: {checklist_result['batch_num']}")
         if compaction is not None:
-            handoff = timed_call(
-                phase_timings,
-                "create_compaction_handoff",
-                create_compaction_handoff,
-                agent_uid,
-                agent_role=agent_role,
-                scope=args.scope or "compact-context-abort",
-                detection=compaction,
-            )
-            timed_call(
-                phase_timings,
-                "record_compaction_block",
-                record_compaction_block,
-                agent_uid,
-                scope=args.scope or "compact-context-abort",
-                detection=compaction,
-                handoff_mailbox=handoff["mailbox"],
-            )
-            finish_payload = timed_call(
-                phase_timings, "compaction_finish_transition", run_registry, "finish", agent_uid
-            )
-            emit_registry_summary(finish_payload)
             print("compact_context_detected: true")
             print(f"compaction_timestamp: {compaction['timestamp']}")
             print(f"compaction_rollout_path: {compaction['rollout_path']}")
-            print(f"handoff_created: {handoff['mailbox']}")
             print(
-                "alert: compact context detected, we better open a new chat for better performance, and handoff is ready."
+                "warning: compact context detected; continuing the current work cycle."
             )
-            emit_phase_timings(phase_timings)
-            return COMPACTION_ABORT_EXIT_CODE
         closeout_command = f"python3 scripts/agent_work_cycle.py end {agent_uid}"
         if args.phase_timings:
             closeout_command += " --phase-timings"
@@ -1910,7 +1814,7 @@ def main() -> int:
             print(f"compaction_timestamp: {end_compaction['timestamp']}")
             print(f"compaction_rollout_path: {end_compaction['rollout_path']}")
             print(
-                "alert: compact context detected before after-work closeout; open a fresh chat before continuing."
+                "warning: compact context detected before after-work closeout; continuing with normal next-work guidance."
             )
         if thread_switch is not None:
             print("thread_switch_detected_before_after_work: true")

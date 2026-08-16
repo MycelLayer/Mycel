@@ -72,7 +72,7 @@ class AgentGuardCliTest(unittest.TestCase):
             "block",
             agent_uid,
             "--reason",
-            "compact_context_detected",
+            "manual_policy_block",
             "--detected-at",
             "2026-03-25T15:28:43.925Z",
             "--source",
@@ -89,12 +89,36 @@ class AgentGuardCliTest(unittest.TestCase):
         self.assertEqual(10, block.returncode)
         payload = json.loads(block.stdout)
         self.assertTrue(payload["blocked"])
-        self.assertEqual("compact_context_detected", payload["block"]["reason"])
+        self.assertEqual("manual_policy_block", payload["block"]["reason"])
 
         check = self.run_cli("check", agent_uid, check=False)
         self.assertEqual(10, check.returncode)
         self.assertIn("agent execution blocked", check.stdout)
         self.assertIn(".agent-local/mailboxes/test.md", check.stdout)
+
+    def test_compaction_reason_is_warning_only_for_legacy_state(self) -> None:
+        claim = self.run_registry("claim", "coding", "--scope", "guard-test", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+
+        warning = self.run_cli(
+            "block",
+            agent_uid,
+            "--reason",
+            "compact_context_detected",
+            "--detected-at",
+            "2026-03-25T15:28:43.925Z",
+            "--source",
+            "agent_work_cycle.begin",
+            "--json",
+        )
+        payload = json.loads(warning.stdout)
+        self.assertFalse(payload["blocked"])
+        self.assertEqual("compact_context_detected", payload["warning"]["reason"])
+
+        check = self.run_cli("check", agent_uid)
+        self.assertEqual(0, check.returncode)
+        self.assertIn("agent warning", check.stdout)
+        self.assertIn("continuation: allowed", check.stdout)
 
     def test_status_lists_blocked_agents(self) -> None:
         claim = self.run_registry("claim", "coding", "--scope", "guard-test", "--model-id", "gpt-5.4")
@@ -103,7 +127,7 @@ class AgentGuardCliTest(unittest.TestCase):
             "block",
             claim["agent_uid"],
             "--reason",
-            "compact_context_detected",
+            "manual_policy_block",
             "--detected-at",
             "2026-03-25T15:28:43.925Z",
             "--source",
@@ -115,6 +139,7 @@ class AgentGuardCliTest(unittest.TestCase):
         proc = self.run_cli("status", "--json")
         payload = json.loads(proc.stdout)
         self.assertIn(claim["agent_uid"], payload["blocked_agents"])
+        self.assertEqual({}, payload["warning_agents"])
 
     def test_corrupt_state_fails_closed(self) -> None:
         runtime_dir = self.root / ".agent-local" / "runtime"

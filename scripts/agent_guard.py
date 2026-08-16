@@ -31,6 +31,7 @@ STATE_VERSION = 1
 EXIT_ALLOWED = 0
 EXIT_BLOCKED = 10
 EXIT_STATE_ERROR = 12
+WARNING_ONLY_REASONS = frozenset({"compact_context_detected"})
 
 
 class AgentGuardError(Exception):
@@ -113,11 +114,22 @@ def check_agent(agent_ref: str) -> dict[str, Any]:
     agent = resolve_agent(agent_ref)
     state = load_block_state()
     block_entry = state["blocks"].get(agent["agent_uid"])
-    blocked = isinstance(block_entry, dict) and block_entry.get("blocked") is True
+    warning = (
+        block_entry
+        if isinstance(block_entry, dict)
+        and block_entry.get("reason") in WARNING_ONLY_REASONS
+        else None
+    )
+    blocked = (
+        isinstance(block_entry, dict)
+        and block_entry.get("blocked") is True
+        and warning is None
+    )
     return {
         **agent,
         "blocked": blocked,
         "block": block_entry if blocked else None,
+        "warning": warning,
     }
 
 
@@ -141,8 +153,9 @@ def block_agent(
 
     agent = resolve_agent(agent_ref)
     state = load_block_state()
+    warning_only = reason.strip() in WARNING_ONLY_REASONS
     entry: dict[str, Any] = {
-        "blocked": True,
+        "blocked": not warning_only,
         "reason": reason.strip(),
         "detected_at": detected_at.strip(),
         "source": source.strip(),
@@ -156,18 +169,27 @@ def block_agent(
         entry["rollout_path"] = rollout_path.strip()
     state["blocks"][agent["agent_uid"]] = entry
     save_block_state(state)
-    return {
-        **agent,
-        "blocked": True,
-        "block": entry,
-    }
+    return check_agent(agent["agent_uid"])
 
 
 def status_payload() -> dict[str, Any]:
     state = load_block_state()
+    warning_agents = {
+        agent_uid: entry
+        for agent_uid, entry in state["blocks"].items()
+        if isinstance(entry, dict) and entry.get("reason") in WARNING_ONLY_REASONS
+    }
+    blocked_agents = {
+        agent_uid: entry
+        for agent_uid, entry in state["blocks"].items()
+        if isinstance(entry, dict)
+        and entry.get("blocked") is True
+        and agent_uid not in warning_agents
+    }
     return {
         "version": state["version"],
-        "blocked_agents": state["blocks"],
+        "blocked_agents": blocked_agents,
+        "warning_agents": warning_agents,
     }
 
 
@@ -182,8 +204,20 @@ def format_block_message(result: dict[str, Any]) -> str:
     handoff_path = block.get("handoff_path")
     if isinstance(handoff_path, str) and handoff_path.strip():
         lines.append(f"handoff: {handoff_path}")
-    lines.append("next_step: open a new chat and continue from the handoff")
+    lines.append("next_step: resolve the recorded guard condition before continuing")
     return "\n".join(lines)
+
+
+def format_warning_message(result: dict[str, Any]) -> str:
+    warning = result.get("warning") or {}
+    return "\n".join(
+        [
+            "agent warning",
+            f"agent: {result['display_id']} ({result['agent_uid']})",
+            f"reason: {warning.get('reason', 'unknown')}",
+            "continuation: allowed",
+        ]
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -228,6 +262,8 @@ def main() -> int:
                 print(json.dumps(result, indent=2))
             elif result["blocked"]:
                 print(format_block_message(result))
+            elif result["warning"] is not None:
+                print(format_warning_message(result))
             else:
                 print(f"agent allowed: {result['display_id']} ({result['agent_uid']})")
             return EXIT_BLOCKED if result["blocked"] else EXIT_ALLOWED
@@ -245,9 +281,11 @@ def main() -> int:
             )
             if args.json:
                 print(json.dumps(result, indent=2))
-            else:
+            elif result["blocked"]:
                 print(format_block_message(result))
-            return EXIT_BLOCKED
+            else:
+                print(format_warning_message(result))
+            return EXIT_BLOCKED if result["blocked"] else EXIT_ALLOWED
 
         if args.command == "status":
             result = status_payload()
@@ -260,6 +298,14 @@ def main() -> int:
                 else:
                     print(f"blocked agents: {len(blocked_agents)}")
                     for agent_uid, entry in sorted(blocked_agents.items()):
+                        reason = entry.get("reason", "unknown")
+                        print(f"- {agent_uid}: {reason}")
+                warning_agents = result["warning_agents"]
+                if not warning_agents:
+                    print("warning agents: none")
+                else:
+                    print(f"warning agents: {len(warning_agents)}")
+                    for agent_uid, entry in sorted(warning_agents.items()):
                         reason = entry.get("reason", "unknown")
                         print(f"- {agent_uid}: {reason}")
             return EXIT_ALLOWED

@@ -22,14 +22,6 @@ LOCALE_LABELS: dict[str, dict[str, str]] = {
         "roadmap_label": "路線圖",
     },
 }
-DEFAULT_COMPACTION_MESSAGES: dict[str, str] = {
-    "en": "compaction detected, we better open a new chat.",
-    "zh-TW": "偵測到 compact context，我們最好開一個新聊天再繼續。",
-}
-DEFAULT_COMPACTION_TRADEOFFS: dict[str, str] = {
-    "en": "safest follow-up after compaction, but it pauses immediate work until a fresh chat is open.",
-    "zh-TW": "這是 compact context 後最安全的下一步，但會先暫停眼前工作，直到新聊天開好為止。",
-}
 ROLE_DEFAULT_ITEMS: dict[str, dict[str, list[dict[str, str]]]] = {
     "en": {
         "coding": [
@@ -218,17 +210,11 @@ def build_items(payload: dict[str, object]) -> list[dict[str, str]]:
         items = explicit_items + role_items
     else:
         items = role_items + explicit_items
-    compaction_detected = parse_bool(payload, "compaction_detected")
-    if compaction_detected:
-        compaction_item = {
-            "text": parse_optional_string(payload, "compaction_message")
-            or DEFAULT_COMPACTION_MESSAGES[locale],
-            "tradeoff": parse_optional_string(payload, "compaction_tradeoff")
-            or DEFAULT_COMPACTION_TRADEOFFS[locale],
-        }
-        items.insert(0, compaction_item)
+    # Compaction is diagnostic metadata. Validate the field when present, but
+    # never let it replace or reorder actual next-work recommendations.
+    parse_bool(payload, "compaction_detected")
     if not items:
-        raise NextWorkItemsError("spec must provide at least one item or set compaction_detected=true")
+        raise NextWorkItemsError("spec must provide at least one item or a supported role")
     return items
 
 

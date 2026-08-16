@@ -72,7 +72,7 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             proc.stdout,
         )
 
-    def test_prepends_compaction_item_when_compaction_is_detected(self) -> None:
+    def test_compaction_metadata_does_not_replace_explicit_work(self) -> None:
         spec = {
             "compaction_detected": True,
             "items": [
@@ -86,20 +86,17 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
         proc = self.run_cli("-", stdin_text=json.dumps(spec))
 
         self.assertEqual(
-            "1. (最有價值) compaction detected, we better open a new chat. Tradeoff: safest follow-up after compaction, "
-            "but it pauses immediate work until a fresh chat is open.\n"
-            "2. continue with the next coding slice Tradeoff: fastest way back into implementation, but only after context is safe again\n",
+            "1. (最有價值) continue with the next coding slice Tradeoff: fastest way back into implementation, but only after context is safe again\n",
             proc.stdout,
         )
 
-    def test_prepends_compaction_item_ahead_of_role_defaults(self) -> None:
+    def test_compaction_metadata_keeps_role_defaults_in_normal_order(self) -> None:
         spec = {"compaction_detected": True, "role": "coding"}
 
         proc = self.run_cli("-", stdin_text=json.dumps(spec))
 
-        self.assertIn("1. (最有價值) compaction detected, we better open a new chat.", proc.stdout)
         self.assertIn(
-            "2. review ROADMAP.md and identify the highest-value next coding work",
+            "1. (最有價值) review ROADMAP.md and identify the highest-value next coding work",
             proc.stdout,
         )
 
@@ -137,27 +134,32 @@ class RenderNextWorkItemsCliTest(unittest.TestCase):
             proc.stdout,
         )
 
-    def test_localizes_compaction_defaults_when_locale_is_zh_tw(self) -> None:
-        proc = self.run_cli("-", stdin_text=json.dumps({"compaction_detected": True, "locale": "zh-TW"}))
+    def test_compaction_metadata_keeps_localized_role_defaults(self) -> None:
+        proc = self.run_cli(
+            "-",
+            stdin_text=json.dumps(
+                {"compaction_detected": True, "locale": "zh-TW", "role": "coding"}
+            ),
+        )
 
-        self.assertEqual(
-            "1. (最有價值) 偵測到 compact context，我們最好開一個新聊天再繼續。 取捨: "
-            "這是 compact context 後最安全的下一步，但會先暫停眼前工作，直到新聊天開好為止。\n",
+        self.assertIn(
+            "1. (最有價值) 檢查 ROADMAP.md，找出最高價值的下一個 coding 工作",
             proc.stdout,
         )
 
-    def test_accepts_compaction_only_output_without_other_items(self) -> None:
+    def test_rejects_compaction_only_output_without_work_items(self) -> None:
         spec = {"compaction_detected": True}
 
-        proc = self.run_cli("-", stdin_text=json.dumps(spec))
+        proc = self.run_cli("-", stdin_text=json.dumps(spec), check=False)
 
-        self.assertIn("1. (最有價值) compaction detected, we better open a new chat.", proc.stdout)
+        self.assertEqual(1, proc.returncode)
+        self.assertIn("at least one item or a supported role", proc.stderr)
 
     def test_rejects_empty_spec_without_items_or_compaction(self) -> None:
         proc = self.run_cli("-", stdin_text=json.dumps({}), check=False)
 
         self.assertEqual(1, proc.returncode)
-        self.assertIn("at least one item or set compaction_detected=true", proc.stderr)
+        self.assertIn("at least one item or a supported role", proc.stderr)
 
 
 if __name__ == "__main__":

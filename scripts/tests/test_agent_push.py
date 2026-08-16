@@ -126,7 +126,7 @@ class AgentPushCliTest(unittest.TestCase):
                 '  "blocks": {\n'
                 '    "agt_test1234": {\n'
                 '      "blocked": true,\n'
-                '      "reason": "compact_context_detected",\n'
+                '      "reason": "manual_policy_block",\n'
                 '      "detected_at": "2026-03-25T15:28:43.925Z",\n'
                 '      "source": "agent_work_cycle.begin",\n'
                 '      "handoff_path": ".agent-local/mailboxes/agt_test1234.md",\n'

@@ -601,7 +601,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertNotIn("last thread turn:", proc.stdout)
         self.assertNotIn("500,000 tok", proc.stdout)
 
-    def test_begin_aborts_and_writes_handoff_when_compaction_detected(self) -> None:
+    def test_begin_warns_and_continues_when_compaction_detected(self) -> None:
         self.write_agents_md()
         self.write_codex_rollout(
             "019d23a1-c85f-7d53-a4bb-075ea6504302",
@@ -621,25 +621,24 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(3, proc.returncode)
+        self.assertEqual(0, proc.returncode)
         self.assertIn("compact_context_detected: true", proc.stdout)
-        self.assertIn("alert: compact context detected, we better open a new chat for better performance, and handoff is ready.", proc.stdout)
-        self.assertNotIn("Before work |", proc.stdout)
+        self.assertIn(
+            "warning: compact context detected; continuing the current work cycle.",
+            proc.stdout,
+        )
+        self.assertIn("Before work |", proc.stdout)
+        self.assertNotIn("handoff_created:", proc.stdout)
 
         status = self.run_registry("status", agent_uid)
-        self.assertEqual("inactive", status["agents"][0]["status"])
+        self.assertEqual("active", status["agents"][0]["status"])
 
-        mailbox = (self.root / ".agent-local" / "mailboxes" / f"{agent_uid}.md").read_text(encoding="utf-8")
-        self.assertIn("## Doc Continuation Note", mailbox)
-        self.assertIn("Compact context detected in the current chat thread before work started", mailbox)
-        self.assertIn("Open a fresh chat for better performance and continue from this handoff.", mailbox)
-        block_state = json.loads(
-            (self.root / ".agent-local" / "runtime" / "agent-blocks.json").read_text(encoding="utf-8")
-        )
-        self.assertTrue(block_state["blocks"][agent_uid]["blocked"])
-        self.assertEqual("compact_context_detected", block_state["blocks"][agent_uid]["reason"])
+        block_path = self.root / ".agent-local" / "runtime" / "agent-blocks.json"
+        if block_path.exists():
+            block_state = json.loads(block_path.read_text(encoding="utf-8"))
+            self.assertNotIn(agent_uid, block_state.get("blocks", {}))
 
-    def test_begin_aborts_when_compacted_event_is_detected_on_metadata_thread(self) -> None:
+    def test_begin_warns_when_compacted_event_is_detected_on_metadata_thread(self) -> None:
         self.write_agents_md()
         self.write_fake_codex_thread_metadata(thread_id="019d23a1-c85f-7d53-a4bb-075ea6504302")
         self.write_codex_rollout(
@@ -664,8 +663,13 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(3, proc.returncode)
+        self.assertEqual(0, proc.returncode)
         self.assertIn("compact_context_detected: true", proc.stdout)
+        self.assertIn(
+            "warning: compact context detected; continuing the current work cycle.",
+            proc.stdout,
+        )
+        self.assertIn("Before work |", proc.stdout)
         self.assertIn(
             "compaction_rollout_path: "
             f"{self.root / '.codex' / 'sessions' / '2026' / '03' / '25' / 'rollout-2026-03-25T06-14-58-019d23a1-c85f-7d53-a4bb-075ea6504302.jsonl'}",
@@ -700,7 +704,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
                     "blocks": {
                         agent_uid: {
                             "blocked": True,
-                            "reason": "compact_context_detected",
+                            "reason": "manual_policy_block",
                             "detected_at": "2026-03-25T15:28:43.925Z",
                             "source": "agent_work_cycle.begin",
                             "handoff_path": f".agent-local/mailboxes/{agent_uid}.md",
@@ -765,7 +769,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
                     "blocks": {
                         agent_uid: {
                             "blocked": True,
-                            "reason": "compact_context_detected",
+                            "reason": "manual_policy_block",
                             "detected_at": "2026-03-25T15:28:43.925Z",
                             "source": "agent_work_cycle.begin",
                             "handoff_path": f".agent-local/mailboxes/{agent_uid}.md",
@@ -799,7 +803,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
 
         self.assertEqual(0, proc.returncode)
         self.assertIn("blocked_closeout: true", proc.stdout)
-        self.assertIn("blocked_closeout_reason: compact_context_detected", proc.stdout)
+        self.assertIn("blocked_closeout_reason: manual_policy_block", proc.stdout)
         self.assertIn("unchecked_items: 12", proc.stdout)
 
     def test_end_appends_estimated_cycle_token_usage_when_available(self) -> None:
@@ -1469,7 +1473,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         self.assertIn("compact_context_detected_before_after_work: true", proc.stdout)
         self.assertIn("compaction_timestamp: 2026-03-25T06:26:03.000Z", proc.stdout)
         self.assertIn(
-            "alert: compact context detected before after-work closeout; open a fresh chat before continuing.",
+            "warning: compact context detected before after-work closeout; continuing with normal next-work guidance.",
             proc.stdout,
         )
         self.assertEqual(
@@ -1477,11 +1481,9 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             self.load_next_work_items_spec(agent_uid, 1),
         )
         self.assertEqual(
-            "1. (最有價值) compaction detected, we better open a new chat. Tradeoff: safest follow-up after compaction, "
-            "but it pauses immediate work until a fresh chat is open.\n"
-            "2. review the freshest planning or documentation follow-up before choosing the next doc item "
+            "1. (最有價值) review the freshest planning or documentation follow-up before choosing the next doc item "
             "Tradeoff: keeps doc work aligned with current repo state, but it adds a short review step first\n"
-            "3. check whether planning-sync or issue-sync follow-up is due before writing the next doc update "
+            "2. check whether planning-sync or issue-sync follow-up is due before writing the next doc update "
             "Tradeoff: helps avoid drift in planning surfaces, but it may defer narrower writing work briefly\n",
             self.load_next_work_items_markdown(agent_uid, 1),
         )
