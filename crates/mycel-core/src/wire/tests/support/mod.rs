@@ -24,11 +24,12 @@ pub(super) use messages::{
     hello_envelope_with, signed_bye_message, signed_error_message, signed_heads_message,
     signed_hello_message, signed_hello_message_with_capabilities, signed_manifest_message,
     signed_manifest_message_with_capabilities, signed_manifest_message_with_heads,
-    signed_snapshot_offer_message, signed_view_announce_message, signed_want_message,
+    signed_snapshot_offer_message, signed_view_announce_message,
+    signed_view_announce_message_with_metadata, signed_want_message,
 };
 pub(super) use objects::{
     signed_object_message, signed_patch_object_message, signed_revision_object_message,
-    valid_object_payload_for_proptests,
+    signed_snapshot_object_message, signed_view_object_message, valid_object_payload_for_proptests,
 };
 pub(super) use session::{patch_revision_graph, registered_session};
 pub(super) use strategies::{

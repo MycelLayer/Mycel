@@ -210,11 +210,19 @@ impl WirePeerDirectory {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ViewAnnounceMetadata {
+    maintainer: String,
+    documents: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WirePeerSessionState {
     hello_received: bool,
     advertised_capabilities: BTreeSet<String>,
     advertised_document_heads: BTreeMap<String, BTreeSet<String>>,
+    snapshot_offers: BTreeMap<String, String>,
+    view_announcements: BTreeMap<String, ViewAnnounceMetadata>,
     accepted_sync_roots: BTreeSet<String>,
     reachable_object_ids: BTreeSet<String>,
     pending_object_ids: BTreeSet<String>,
@@ -223,6 +231,8 @@ pub struct WirePeerSessionState {
 
 impl WirePeerSessionState {
     fn reset_sync_root_state(&mut self) {
+        self.snapshot_offers.clear();
+        self.view_announcements.clear();
         self.accepted_sync_roots.clear();
         self.reachable_object_ids.clear();
         self.pending_object_ids.clear();
@@ -448,6 +458,7 @@ fn validate_wire_inbound_sequence(
                 envelope.from()
             ));
         }
+        validate_advertised_object_metadata(envelope, peer_session)?;
     }
 
     match envelope.message_type() {
@@ -522,15 +533,34 @@ fn advance_wire_inbound_sequence(
             let object_id =
                 required_wire_string(envelope.payload(), "object_id", "OBJECT payload")?;
             peer_session.pending_object_ids.remove(&object_id);
+            peer_session.snapshot_offers.remove(&object_id);
+            peer_session.view_announcements.remove(&object_id);
             extend_reachable_object_ids_from_object(envelope.payload(), peer_session)?;
         }
         WireMessageType::SnapshotOffer => {
             let snapshot_id =
                 required_wire_string(envelope.payload(), "snapshot_id", "wire payload")?;
+            let root_hash = required_wire_string(envelope.payload(), "root_hash", "wire payload")?;
+            peer_session
+                .snapshot_offers
+                .insert(snapshot_id.clone(), root_hash);
             peer_session.reachable_object_ids.insert(snapshot_id);
         }
         WireMessageType::ViewAnnounce => {
             let view_id = required_wire_string(envelope.payload(), "view_id", "wire payload")?;
+            let metadata = ViewAnnounceMetadata {
+                maintainer: required_wire_string(envelope.payload(), "maintainer", "wire payload")?,
+                documents: required_prefixed_string_map(
+                    envelope.payload(),
+                    "documents",
+                    "doc:",
+                    "rev:",
+                )
+                .map_err(|error| error.to_string())?,
+            };
+            peer_session
+                .view_announcements
+                .insert(view_id.clone(), metadata);
             peer_session.reachable_object_ids.insert(view_id);
         }
         WireMessageType::Bye => {
@@ -904,6 +934,58 @@ fn optional_wire_u64(
         )),
         None => Ok(None),
     }
+}
+
+fn validate_advertised_object_metadata(
+    envelope: &ParsedWireEnvelope<'_>,
+    peer_session: &WirePeerSessionState,
+) -> Result<(), String> {
+    let payload = envelope.payload();
+    let object_id = required_wire_string(payload, "object_id", "OBJECT payload")?;
+    let object_type = required_wire_string(payload, "object_type", "OBJECT payload")?;
+    let body = payload
+        .get("body")
+        .ok_or_else(|| "missing object field 'body'".to_string())?;
+
+    match object_type.as_str() {
+        "snapshot" => {
+            let Some(offer) = peer_session.snapshot_offers.get(&object_id) else {
+                return Ok(());
+            };
+            let snapshot = parse_snapshot_object(body).map_err(|error| {
+                format!("failed to parse advertised snapshot OBJECT '{object_id}': {error}")
+            })?;
+            if snapshot.root_hash != *offer {
+                return Err(format!(
+                    "wire snapshot OBJECT '{object_id}' root_hash does not match prior SNAPSHOT_OFFER from '{}'",
+                    envelope.from()
+                ));
+            }
+        }
+        "view" => {
+            let Some(announcement) = peer_session.view_announcements.get(&object_id) else {
+                return Ok(());
+            };
+            let view = parse_view_object(body).map_err(|error| {
+                format!("failed to parse announced view OBJECT '{object_id}': {error}")
+            })?;
+            if view.maintainer != announcement.maintainer {
+                return Err(format!(
+                    "wire view OBJECT '{object_id}' maintainer does not match prior VIEW_ANNOUNCE from '{}'",
+                    envelope.from()
+                ));
+            }
+            if view.documents != announcement.documents {
+                return Err(format!(
+                    "wire view OBJECT '{object_id}' documents do not match prior VIEW_ANNOUNCE from '{}'",
+                    envelope.from()
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
 }
 
 fn require_advertised_wire_capability(

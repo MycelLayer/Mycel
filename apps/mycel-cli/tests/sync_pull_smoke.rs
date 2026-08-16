@@ -877,6 +877,9 @@ fn sync_pull_json_accepts_view_announce_when_capability_is_advertised() {
         .as_str()
         .expect("view object id should exist")
         .to_string();
+    let mut view_announce = signed_view_announce_message(&signing_key, sender, &view_id);
+    view_announce["payload"]["documents"]["doc:test"] = Value::String(revision_id.clone());
+    view_announce["sig"] = Value::String(sign_wire_value(&signing_key, &view_announce));
     let transcript_dir = create_temp_dir("sync-pull-view-announce-source");
     let transcript_path = transcript_dir
         .path()
@@ -901,7 +904,7 @@ fn sync_pull_json_accepts_view_announce_when_capability_is_advertised() {
                     &revision_id,
                     json!(["patch-sync", "view-sync"])
                 ),
-                signed_view_announce_message(&signing_key, sender, &view_id),
+                view_announce,
                 signed_want_message(&signing_key, sender, &[&view_id]),
                 view_object,
                 signed_bye_message(&signing_key, sender)

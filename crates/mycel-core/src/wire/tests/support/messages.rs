@@ -117,6 +117,22 @@ pub(crate) fn signed_view_announce_message(
     sender: &str,
     view_id: &str,
 ) -> Value {
+    signed_view_announce_message_with_metadata(
+        signing_key,
+        sender,
+        view_id,
+        &sender_public_key(signing_key),
+        json!({"doc:test": "rev:test"}),
+    )
+}
+
+pub(crate) fn signed_view_announce_message_with_metadata(
+    signing_key: &SigningKey,
+    sender: &str,
+    view_id: &str,
+    maintainer: &str,
+    documents: Value,
+) -> Value {
     let mut value = json!({
         "type": "VIEW_ANNOUNCE",
         "version": "mycel-wire/0.1",
@@ -125,10 +141,8 @@ pub(crate) fn signed_view_announce_message(
         "from": sender,
         "payload": {
             "view_id": view_id,
-            "maintainer": sender_public_key(signing_key),
-            "documents": {
-                "doc:test": "rev:test"
-            }
+            "maintainer": maintainer,
+            "documents": documents
         },
         "sig": "sig:placeholder"
     });

@@ -1,5 +1,40 @@
 use super::*;
 
+fn session_ready_for_advertised_object(
+    signing_key: &ed25519_dalek::SigningKey,
+    capability: &str,
+    advertisement: &serde_json::Value,
+    object_id: &str,
+) -> WireSession {
+    let sender_key = sender_public_key(signing_key);
+    let mut session = WireSession::default();
+    session
+        .register_known_peer("node:alpha", &sender_key)
+        .expect("known peer should register");
+    let capabilities = json!(["patch-sync", capability]);
+    let hello = signed_hello_message_with_capabilities(
+        signing_key,
+        "node:alpha",
+        "node:alpha",
+        capabilities.clone(),
+    );
+    let manifest = signed_manifest_message_with_capabilities(
+        signing_key,
+        "node:alpha",
+        "node:alpha",
+        capabilities,
+    );
+    let want = signed_want_message(signing_key, "node:alpha", &[object_id]);
+
+    for message in [&hello, &manifest, advertisement, &want] {
+        session
+            .verify_incoming(message)
+            .expect("session setup message should verify");
+    }
+
+    session
+}
+
 #[test]
 fn wire_session_verifies_incoming_hello_from_registered_peer() {
     let signing_key = signing_key();
@@ -88,7 +123,7 @@ fn wire_session_rejects_snapshot_offer_without_snapshot_capability() {
 }
 
 #[test]
-fn wire_session_accepts_snapshot_offer_with_snapshot_capability_and_unlocks_want() {
+fn wire_session_accepts_snapshot_offer_with_matching_snapshot_object() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);
     let mut session = WireSession::default();
@@ -107,9 +142,18 @@ fn wire_session_accepts_snapshot_offer_with_snapshot_capability_and_unlocks_want
         "node:alpha",
         json!(["patch-sync", "snapshot-sync"]),
     );
-    let snapshot_offer =
-        signed_snapshot_offer_message(&signing_key, "node:alpha", "snap:test-offer");
-    let want = signed_want_message(&signing_key, "node:alpha", &["snap:test-offer"]);
+    let snapshot_object = signed_snapshot_object_message(
+        &signing_key,
+        "node:alpha",
+        "rev:test",
+        "hash:snapshot-root",
+    );
+    let snapshot_id = snapshot_object["payload"]["object_id"]
+        .as_str()
+        .expect("snapshot OBJECT should include object_id")
+        .to_string();
+    let snapshot_offer = signed_snapshot_offer_message(&signing_key, "node:alpha", &snapshot_id);
+    let want = signed_want_message(&signing_key, "node:alpha", &[&snapshot_id]);
 
     session
         .verify_incoming(&hello)
@@ -123,12 +167,98 @@ fn wire_session_accepts_snapshot_offer_with_snapshot_capability_and_unlocks_want
     session
         .verify_incoming(&want)
         .expect("snapshot WANT should verify after offer");
+    session
+        .verify_incoming(&snapshot_object)
+        .expect("matching snapshot OBJECT should verify after offer");
 
     let state = session
         .peer_session("node:alpha")
         .expect("peer session should exist");
-    assert!(state.reachable_object_ids.contains("snap:test-offer"));
-    assert!(state.pending_object_ids.contains("snap:test-offer"));
+    assert!(state.reachable_object_ids.contains(&snapshot_id));
+    assert!(state.pending_object_ids.is_empty());
+    assert!(state.snapshot_offers.is_empty());
+}
+
+#[rstest::rstest]
+#[case::snapshot_root_hash("snapshot", "root_hash")]
+#[case::view_maintainer("view", "maintainer")]
+#[case::view_documents("view", "documents")]
+fn wire_session_rejects_object_with_mismatched_advertisement(
+    #[case] object_type: &str,
+    #[case] mismatched_field: &str,
+) {
+    let signing_key = signing_key();
+    let (capability, object, advertisement, advertisement_type) =
+        match (object_type, mismatched_field) {
+            ("snapshot", "root_hash") => {
+                let object = signed_snapshot_object_message(
+                    &signing_key,
+                    "node:alpha",
+                    "rev:test",
+                    "hash:unexpected-root",
+                );
+                let object_id = object["payload"]["object_id"]
+                    .as_str()
+                    .expect("snapshot OBJECT should include object_id");
+                let advertisement =
+                    signed_snapshot_offer_message(&signing_key, "node:alpha", object_id);
+                ("snapshot-sync", object, advertisement, "SNAPSHOT_OFFER")
+            }
+            ("view", "maintainer") => {
+                let object = signed_view_object_message(&signing_key, "node:alpha", "rev:test");
+                let object_id = object["payload"]["object_id"]
+                    .as_str()
+                    .expect("view OBJECT should include object_id");
+                let advertisement = signed_view_announce_message_with_metadata(
+                    &signing_key,
+                    "node:alpha",
+                    object_id,
+                    "pk:announced-other",
+                    json!({"doc:test": "rev:test"}),
+                );
+                ("view-sync", object, advertisement, "VIEW_ANNOUNCE")
+            }
+            ("view", "documents") => {
+                let object =
+                    signed_view_object_message(&signing_key, "node:alpha", "rev:unexpected");
+                let object_id = object["payload"]["object_id"]
+                    .as_str()
+                    .expect("view OBJECT should include object_id");
+                let advertisement =
+                    signed_view_announce_message(&signing_key, "node:alpha", object_id);
+                ("view-sync", object, advertisement, "VIEW_ANNOUNCE")
+            }
+            _ => unreachable!("unsupported advertisement mismatch test case"),
+        };
+    let object_id = object["payload"]["object_id"]
+        .as_str()
+        .expect("OBJECT should include object_id")
+        .to_string();
+    let mut session =
+        session_ready_for_advertised_object(&signing_key, capability, &advertisement, &object_id);
+
+    let error = session.verify_incoming(&object).unwrap_err();
+    let mismatch_verb = if mismatched_field == "documents" {
+        "do not match"
+    } else {
+        "does not match"
+    };
+
+    assert_eq!(
+        error,
+        format!(
+            "wire {object_type} OBJECT '{object_id}' {mismatched_field} {mismatch_verb} prior {advertisement_type} from 'node:alpha'"
+        )
+    );
+    let state = session
+        .peer_session("node:alpha")
+        .expect("peer session should exist");
+    assert!(state.pending_object_ids.contains(&object_id));
+    if object_type == "snapshot" {
+        assert!(state.snapshot_offers.contains_key(&object_id));
+    } else {
+        assert!(state.view_announcements.contains_key(&object_id));
+    }
 }
 
 #[test]
@@ -155,7 +285,7 @@ fn wire_session_rejects_view_announce_without_view_capability() {
 }
 
 #[test]
-fn wire_session_accepts_view_announce_with_view_capability_and_unlocks_want() {
+fn wire_session_accepts_view_announce_with_matching_view_object() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);
     let mut session = WireSession::default();
@@ -174,9 +304,13 @@ fn wire_session_accepts_view_announce_with_view_capability_and_unlocks_want() {
         "node:alpha",
         json!(["patch-sync", "view-sync"]),
     );
-    let view_announce =
-        signed_view_announce_message(&signing_key, "node:alpha", "view:test-announce");
-    let want = signed_want_message(&signing_key, "node:alpha", &["view:test-announce"]);
+    let view_object = signed_view_object_message(&signing_key, "node:alpha", "rev:test");
+    let view_id = view_object["payload"]["object_id"]
+        .as_str()
+        .expect("view OBJECT should include object_id")
+        .to_string();
+    let view_announce = signed_view_announce_message(&signing_key, "node:alpha", &view_id);
+    let want = signed_want_message(&signing_key, "node:alpha", &[&view_id]);
 
     session
         .verify_incoming(&hello)
@@ -190,12 +324,16 @@ fn wire_session_accepts_view_announce_with_view_capability_and_unlocks_want() {
     session
         .verify_incoming(&want)
         .expect("view WANT should verify after announcement");
+    session
+        .verify_incoming(&view_object)
+        .expect("matching view OBJECT should verify after announcement");
 
     let state = session
         .peer_session("node:alpha")
         .expect("peer session should exist");
-    assert!(state.reachable_object_ids.contains("view:test-announce"));
-    assert!(state.pending_object_ids.contains("view:test-announce"));
+    assert!(state.reachable_object_ids.contains(&view_id));
+    assert!(state.pending_object_ids.is_empty());
+    assert!(state.view_announcements.is_empty());
 }
 
 #[test]

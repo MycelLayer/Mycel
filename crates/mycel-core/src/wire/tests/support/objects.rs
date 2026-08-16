@@ -141,3 +141,89 @@ pub(crate) fn signed_revision_object_message(
     value["sig"] = Value::String(sign_wire_value(signing_key, &value));
     value
 }
+
+pub(crate) fn signed_snapshot_object_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    revision_id: &str,
+    root_hash: &str,
+) -> Value {
+    let body = sign_object_value(
+        signing_key,
+        json!({
+            "type": "snapshot",
+            "version": "mycel/0.1",
+            "snapshot_id": "snap:placeholder",
+            "documents": {
+                "doc:test": revision_id
+            },
+            "included_objects": [revision_id],
+            "root_hash": root_hash,
+            "created_by": "pk:ed25519:placeholder",
+            "timestamp": 3u64,
+            "signature": "sig:placeholder"
+        }),
+        "created_by",
+        "snapshot_id",
+        "snap",
+    );
+    signed_object_message_for_body(signing_key, sender, "snapshot", body)
+}
+
+pub(crate) fn signed_view_object_message(
+    signing_key: &SigningKey,
+    sender: &str,
+    revision_id: &str,
+) -> Value {
+    let body = sign_object_value(
+        signing_key,
+        json!({
+            "type": "view",
+            "version": "mycel/0.1",
+            "view_id": "view:placeholder",
+            "maintainer": "pk:ed25519:placeholder",
+            "documents": {
+                "doc:test": revision_id
+            },
+            "policy": {
+                "accept_keys": [sender_public_key(signing_key)],
+                "merge_rule": "manual-reviewed",
+                "preferred_branches": ["main"]
+            },
+            "timestamp": 4u64,
+            "signature": "sig:placeholder"
+        }),
+        "maintainer",
+        "view_id",
+        "view",
+    );
+    signed_object_message_for_body(signing_key, sender, "view", body)
+}
+
+fn signed_object_message_for_body(
+    signing_key: &SigningKey,
+    sender: &str,
+    object_type: &str,
+    body: Value,
+) -> Value {
+    let identity = recompute_declared_object_identity(&body)
+        .expect("wire test object body identity should recompute");
+    let mut value = json!({
+        "type": "OBJECT",
+        "version": "mycel-wire/0.1",
+        "msg_id": format!("msg:{object_type}-object-signed-001"),
+        "timestamp": "2026-03-08T20:01:15+08:00",
+        "from": sender,
+        "payload": {
+            "object_id": identity.object_id,
+            "object_type": object_type,
+            "encoding": "json",
+            "hash_alg": "sha256",
+            "hash": identity.hash,
+            "body": body
+        },
+        "sig": "sig:placeholder"
+    });
+    value["sig"] = Value::String(sign_wire_value(signing_key, &value));
+    value
+}

@@ -2191,6 +2191,9 @@ mod tests {
             .as_str()
             .expect("view object should include object id")
             .to_string();
+        let mut view_announce = signed_view_announce_message(&signing_key, sender, &view_id);
+        view_announce["payload"]["documents"]["doc:test"] = Value::String(revision_id.clone());
+        view_announce["sig"] = Value::String(sign_wire_value(&signing_key, &view_announce));
         let transcript = SyncPullTranscript {
             peer: SyncPeer {
                 node_id: sender.to_string(),
@@ -2208,7 +2211,7 @@ mod tests {
                     &revision_id,
                     json!(["patch-sync", "view-sync"]),
                 ),
-                signed_view_announce_message(&signing_key, sender, &view_id),
+                view_announce,
                 signed_want_message(&signing_key, sender, &[&view_id]),
                 view_object,
                 signed_want_message(&signing_key, sender, &[&revision_id]),
