@@ -46,7 +46,7 @@ class UpdateDevSetupStatusCliTest(unittest.TestCase):
                 set -euo pipefail
                 if [[ "${1:-}" == "--full" ]]; then
                   cat <<'EOF'
-                {"status":"passed","mode":"full","repo_root":"TEMP_ROOT","checks":[{"kind":"command","name":"cargo","status":"found","detail":"cargo 1.94.0"},{"kind":"component","name":"rustfmt","status":"found","detail":"stable"},{"kind":"validation","name":"fmt","status":"passed","detail":"cargo fmt --all --check"}]}
+                {"status":"passed","mode":"full","repo_root":"TEMP_ROOT","checks":[{"kind":"command","name":"cargo","status":"found","detail":"cargo 1.94.0"},{"kind":"command","name":"cargo-nextest","status":"found","detail":"cargo-nextest 0.9.143"},{"kind":"command","name":"ast-grep","status":"found","detail":"ast-grep 0.45.1"},{"kind":"component","name":"rustfmt","status":"found","detail":"stable"},{"kind":"validation","name":"fmt","status":"passed","detail":"cargo fmt --all --check"}]}
                 EOF
                   exit 0
                 fi
@@ -67,6 +67,8 @@ class UpdateDevSetupStatusCliTest(unittest.TestCase):
         self.assertIn("- Status: ready", content)
         self.assertIn("- Checked by: doc-6", content)
         self.assertIn("`scripts/check-dev-env.py --full --json` (passed)", content)
+        self.assertIn("| `cargo-nextest` | found | `cargo-nextest 0.9.143` |", content)
+        self.assertIn("| `ast-grep` | found | `ast-grep 0.45.1` |", content)
         self.assertIn("| fmt | passed | `cargo fmt --all --check` |", content)
 
     def test_writes_not_ready_file_when_full_validation_fails(self) -> None:

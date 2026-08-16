@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Also run the first-pass validation commands from docs/DEV-SETUP.md.",
+        help="Require the CI toolchain and run the CI-parity validation commands from docs/DEV-SETUP.md.",
     )
     parser.add_argument(
         "--json",
@@ -34,13 +34,6 @@ def parse_args() -> argparse.Namespace:
 
 class CheckFailure(Exception):
     pass
-
-
-def run_command(*args: str) -> str:
-    try:
-        return subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL).splitlines()[0]
-    except subprocess.CalledProcessError:
-        return ""
 
 
 def emit_text(enabled: bool, line: str) -> None:
@@ -78,7 +71,21 @@ def require_cmd(
         results.append({"kind": "command", "name": cmd, "status": "missing", "detail": ""})
         raise CheckFailure(f"missing required command: {cmd}")
 
-    version = run_command(cmd, version_arg)
+    proc = subprocess.run(
+        [resolved, version_arg],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    output_lines = [
+        line.strip() for line in (proc.stdout + proc.stderr).splitlines() if line.strip()
+    ]
+    version = output_lines[0] if output_lines else ""
+    if proc.returncode != 0:
+        results.append({"kind": "command", "name": cmd, "status": "invalid", "detail": version})
+        raise CheckFailure(f"required command failed its version check: {cmd}")
+
     results.append({"kind": "command", "name": cmd, "status": "found", "detail": version})
     emit_text(text_mode, f"found {cmd:<8} {version}".rstrip())
 
@@ -193,29 +200,56 @@ def main() -> int:
             require_component(toolchain_channel, "clippy", results, text_mode=not args.json)
 
         if args.full:
-            emit_text(not args.json, "running full validation pass")
+            require_cmd("cargo-nextest", results, text_mode=not args.json)
+            require_cmd("ast-grep", results, text_mode=not args.json)
+
+            emit_text(not args.json, "running CI-parity validation pass")
             run_check("fmt", ["cargo", "fmt", "--all", "--check"], results, text_mode=not args.json)
-            run_check("core-tests", ["cargo", "test", "-p", "mycel-core"], results, text_mode=not args.json)
-            run_check("cli-tests", ["cargo", "test", "-p", "mycel-cli"], results, text_mode=not args.json)
-            run_check("cli-info", ["cargo", "run", "-p", "mycel-cli", "--", "info"], results, text_mode=not args.json)
             run_check(
-                "fixture-validate",
+                "clippy",
                 [
                     "cargo",
-                    "run",
-                    "-p",
-                    "mycel-cli",
+                    "clippy",
+                    "--workspace",
+                    "--all-targets",
                     "--",
-                    "validate",
-                    "fixtures/object-sets/minimal-valid/fixture.json",
-                    "--json",
+                    "-D",
+                    "warnings",
                 ],
+                results,
+                text_mode=not args.json,
+            )
+            run_check("check", ["cargo", "check"], results, text_mode=not args.json)
+            run_check(
+                "workspace-tests",
+                ["cargo", "nextest", "run", "--workspace"],
+                results,
+                text_mode=not args.json,
+            )
+            run_check(
+                "doctests",
+                ["cargo", "test", "--workspace", "--doc"],
                 results,
                 text_mode=not args.json,
             )
             run_check(
                 "sim-smoke",
-                ["./sim/negative-validation/smoke.py", "--summary-only"],
+                ["./sim/negative-validation/smoke.sh", "--summary-only"],
+                results,
+                text_mode=not args.json,
+            )
+            run_check(
+                "ast-grep-quality",
+                [
+                    "ast-grep",
+                    "scan",
+                    "--config",
+                    "sgconfig.yml",
+                    "--report-style",
+                    "short",
+                    "--format",
+                    "github",
+                ],
                 results,
                 text_mode=not args.json,
             )

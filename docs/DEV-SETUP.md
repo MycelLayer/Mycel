@@ -19,6 +19,11 @@ Required tools:
 - GitHub CLI: `gh`
 - ripgrep: `rg`
 
+Additional tools required for `Status: ready` and the `--full` CI-parity pass:
+
+- `cargo-nextest`
+- `ast-grep`
+
 The current workspace metadata declares:
 
 - minimum Rust version: `1.79`
@@ -51,13 +56,14 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
-Install `cargo-nextest` only when you need to reproduce the GitHub Actions test runner locally. Local development defaults to `cargo test`, and GitHub Actions is the default place that runs `cargo-nextest`:
+Install the CI-parity tools:
 
 ```bash
 cargo install cargo-nextest --locked
+cargo install ast-grep --locked
 ```
 
-Use `scripts/check-dev-env.py` as the repo-local environment checker when you want the workspace's standard setup validation in one tool.
+Use `scripts/check-dev-env.py` for a quick base-tool check. Use `scripts/check-dev-env.py --full` to require the CI toolchain and run the CI-parity validation gates. The generated local readiness file uses the full pass, so `Status: ready` means this workspace can reproduce the current CI gates locally.
 
 ## 1.1 Local Ready File For New Chats
 
@@ -77,7 +83,7 @@ The local status file should at minimum record:
 - overall status
 - checked-at timestamp
 - checked-by actor
-- tool checks for `cargo`, `rustup`, `rustc`, `gh`, and `rg`
+- tool checks for `cargo`, `rustup`, `rustc`, `gh`, `rg`, `cargo-nextest`, and `ast-grep`
 - Rust component checks for `rustfmt` and `clippy`
 - whether the full repo validation pass was run
 - the exact validation commands and whether they passed
@@ -88,7 +94,7 @@ Recommended tools for populating the file:
 - `scripts/update-dev-setup-status.py` to refresh the local readiness record
 - `scripts/check-runtime-preflight.py` to verify the current shell session before a specific test or validation command
 
-Treat `Status: ready` as valid only when the recorded checks cover the tools and validation surface you rely on for the current workspace.
+Treat `Status: ready` as valid only when the recorded checks cover the CI-parity tools and validation surface for the current workspace.
 
 `Status: ready` does not guarantee that the current shell session has the right `PATH` or helper utilities for the exact verification command you are about to run. Before commands such as `cargo test ... | grep ...` or repo scripts that rely on extra shell tools, run a lightweight runtime preflight:
 
@@ -133,39 +139,37 @@ From the repository root:
 
 ```bash
 cargo fmt --all --check
-cargo test -p mycel-core
-cargo test -p mycel-cli
+cargo clippy --workspace --all-targets -- -D warnings
+cargo check
+cargo nextest run --workspace
 cargo test --workspace --doc
-cargo run -p mycel-cli -- info
-cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json
-./sim/negative-validation/smoke.py --summary-only
+./sim/negative-validation/smoke.sh --summary-only
+ast-grep scan --config sgconfig.yml --report-style short --format github
 ```
 
 These commands confirm:
 
 - formatting is available
-- core tests run through the default local `cargo test` flow
-- CLI tests run through the default local `cargo test` flow
-- doctests still run through `cargo test --doc`
-- repo-local CLI wiring works
-- fixture validation works
+- Clippy passes across all workspace targets with warnings denied
+- the workspace compiles
+- all workspace tests pass through the same `cargo-nextest` runner used by CI
+- doctests pass
 - simulator negative-validation smoke coverage works
-
-When you specifically need CI parity, run `cargo nextest run --workspace` manually and treat that as an exception path rather than the local default.
+- the CI-backed ast-grep structural quality rules pass
 
 ## 5. What “Setup Complete” Looks Like
 
 Treat setup as complete if all of the following are true:
 
 - `cargo fmt --all --check` succeeds
-- `cargo test -p mycel-core` succeeds
-- `cargo test -p mycel-cli` succeeds
+- `cargo clippy --workspace --all-targets -- -D warnings` succeeds
+- `cargo check` succeeds
+- `cargo nextest run --workspace` succeeds
 - `cargo test --workspace --doc` succeeds
-- `mycel-cli -- info` runs from the repo root
-- fixture validation succeeds on `fixtures/object-sets/minimal-valid/fixture.json`
-- `./sim/negative-validation/smoke.py --summary-only` succeeds
+- `./sim/negative-validation/smoke.sh --summary-only` succeeds
+- `ast-grep scan --config sgconfig.yml --report-style short --format github` succeeds
 
-The repo-local shortcut for the full pass is `scripts/check-dev-env.py`.
+The repo-local shortcut for the full pass is `scripts/check-dev-env.py --full`.
 
 ## 6. Common Working Rules
 

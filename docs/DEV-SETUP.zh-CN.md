@@ -19,6 +19,11 @@
 - GitHub CLI：`gh`
 - ripgrep：`rg`
 
+`Status: ready` 和 `--full` CI-parity pass 还需要：
+
+- `cargo-nextest`
+- `ast-grep`
+
 当前 workspace metadata 声明：
 
 - 最低 Rust 版本：`1.79`
@@ -51,7 +56,14 @@ rustup component add rustfmt --toolchain stable
 rustup component add clippy --toolchain stable
 ```
 
-如果想用仓库内建的单一工具检查，也可以直接用 `scripts/check-dev-env.py`。
+安装 CI-parity 工具：
+
+```bash
+cargo install cargo-nextest --locked
+cargo install ast-grep --locked
+```
+
+`scripts/check-dev-env.py` 会快速检查基础工具；`scripts/check-dev-env.py --full` 会要求完整 CI 工具链并执行 CI-parity gates。本地 readiness 文件由 full pass 生成，因此 `Status: ready` 表示这个 workspace 可以在本地重现当前 CI gates。
 
 ## 1.1 给新 chat 的本地 Ready 文件
 
@@ -71,7 +83,7 @@ rustup component add clippy --toolchain stable
 - 整体状态
 - 检查时间
 - 检查者
-- `cargo`、`rustup`、`rustc`、`gh`、`rg` 的工具检查
+- `cargo`、`rustup`、`rustc`、`gh`、`rg`、`cargo-nextest`、`ast-grep` 的工具检查
 - `rustfmt`、`clippy` 的 Rust component 检查
 - 是否跑过完整 repo 验证
 - 各个验证命令与其是否成功
@@ -82,7 +94,7 @@ rustup component add clippy --toolchain stable
 - `scripts/update-dev-setup-status.py` 用来更新本地 readiness record（就绪记录）
 - `scripts/check-runtime-preflight.py` 用来在特定测试或验证命令前检查当前 shell session
 
-只有当记录内容已覆盖当前 workspace 需要的工具与验证面时，才把它视为有效的 `Status: ready`。
+只有当记录内容已覆盖当前 workspace 的 CI-parity 工具与验证面时，才把它视为有效的 `Status: ready`。
 
 `Status: ready` 不保证当前 shell session 的 `PATH` 与辅助工具已经满足你接下来要执行的那条验证命令。对于像 `cargo test ... | grep ...` 这类依赖额外 shell 工具的命令，先做一次轻量 runtime preflight：
 
@@ -130,34 +142,37 @@ git config core.hooksPath .githooks
 
 ```bash
 cargo fmt --all --check
-cargo test -p mycel-core
-cargo test -p mycel-cli
-cargo run -p mycel-cli -- info
-cargo run -p mycel-cli -- validate fixtures/object-sets/minimal-valid/fixture.json --json
-./sim/negative-validation/smoke.py --summary-only
+cargo clippy --workspace --all-targets -- -D warnings
+cargo check
+cargo nextest run --workspace
+cargo test --workspace --doc
+./sim/negative-validation/smoke.sh --summary-only
+ast-grep scan --config sgconfig.yml --report-style short --format github
 ```
 
 这些命令分别确认：
 
 - formatting 可用
-- core tests 可运行
-- CLI tests 可运行
-- repo-local CLI wiring 正常
-- fixture validation 正常
+- 所有 workspace targets 都通过 Clippy，并将 warning 视为 error
+- workspace 可以成功编译
+- 所有 workspace tests 都通过与 CI 相同的 `cargo-nextest` runner
+- doctests 成功
 - simulator negative-validation smoke coverage 正常
+- CI-backed ast-grep 结构质量规则成功
 
 ## 5. 什么时候算 Setup 完成
 
 如果下面这些条件都成立，就可以认为 setup 完成：
 
 - `cargo fmt --all --check` 成功
-- `cargo test -p mycel-core` 成功
-- `cargo test -p mycel-cli` 成功
-- `mycel-cli -- info` 能在仓库根目录执行
-- `fixtures/object-sets/minimal-valid/fixture.json` 能成功验证
-- `./sim/negative-validation/smoke.py --summary-only` 成功
+- `cargo clippy --workspace --all-targets -- -D warnings` 成功
+- `cargo check` 成功
+- `cargo nextest run --workspace` 成功
+- `cargo test --workspace --doc` 成功
+- `./sim/negative-validation/smoke.sh --summary-only` 成功
+- `ast-grep scan --config sgconfig.yml --report-style short --format github` 成功
 
-完整 setup 验证也可以直接用 `scripts/check-dev-env.py`。
+完整 setup 验证可以直接用 `scripts/check-dev-env.py --full`。
 
 ## 6. 常见工作规则
 

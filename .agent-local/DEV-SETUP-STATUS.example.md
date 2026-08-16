@@ -20,6 +20,8 @@
 | `rustc` | passed | `rustc --version` |
 | `gh` | passed | `gh --version` |
 | `rg` | passed | `rg --version` |
+| `cargo-nextest` | passed | `cargo-nextest --version` |
+| `ast-grep` | passed | `ast-grep --version` |
 
 ## Rust Components
 
@@ -35,8 +37,9 @@
 | Check | Status | Command |
 |---|---|---|
 | format | passed | `cargo fmt --all --check` |
-| core tests | passed | `cargo test -p <core-package>` |
-| CLI tests | passed | `cargo test -p <cli-package>` |
-| CLI info | passed | `cargo run -p <cli-package> -- info` |
-| fixture validate | passed | `cargo run -p <cli-package> -- validate fixtures/object-sets/minimal-valid/fixture.json --json` |
-| sim smoke | passed | `./sim/negative-validation/smoke.py --summary-only` |
+| clippy | passed | `cargo clippy --workspace --all-targets -- -D warnings` |
+| compile | passed | `cargo check` |
+| workspace tests | passed | `cargo nextest run --workspace` |
+| doctests | passed | `cargo test --workspace --doc` |
+| sim smoke | passed | `./sim/negative-validation/smoke.sh --summary-only` |
+| ast-grep quality | passed | `ast-grep scan --config sgconfig.yml --report-style short --format github` |

@@ -26,6 +26,11 @@ class CheckDevEnvCliTest(unittest.TestCase):
             '[toolchain]\nchannel = "stable"\n',
             encoding="utf-8",
         )
+        smoke_script = self.root / "sim" / "negative-validation" / "smoke.sh"
+        smoke_script.parent.mkdir(parents=True)
+        smoke_script.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        smoke_script.chmod(0o755)
+        (self.root / "sgconfig.yml").write_text("ruleDirs: []\n", encoding="utf-8")
         self.bin_dir = self.root / "bin"
         self.bin_dir.mkdir()
         self.write_fake_tools()
@@ -63,6 +68,17 @@ class CheckDevEnvCliTest(unittest.TestCase):
             "rustc": '#!/usr/bin/env bash\necho "rustc 1.94.0"\n',
             "gh": '#!/usr/bin/env bash\necho "gh 2.83.1"\n',
             "rg": '#!/usr/bin/env bash\necho "ripgrep 14.1.0"\n',
+            "cargo-nextest": '#!/usr/bin/env bash\necho "cargo-nextest 0.9.143"\n',
+            "ast-grep": textwrap.dedent(
+                """\
+                #!/usr/bin/env python3
+                import sys
+                if sys.argv[1:] == ["--version"]:
+                    print("ast-grep 0.45.1")
+                else:
+                    print("ok")
+                """
+            ),
         }
         for name, body in scripts.items():
             path = self.bin_dir / name
@@ -92,6 +108,52 @@ class CheckDevEnvCliTest(unittest.TestCase):
         checks = {(entry["kind"], entry["name"]): entry["status"] for entry in payload["checks"]}
         self.assertEqual("found", checks[("command", "cargo")])
         self.assertEqual("found", checks[("component", "rustfmt")])
+
+    def test_full_json_requires_ci_tools_and_runs_ci_parity_checks(self) -> None:
+        proc = self.run_cli("--full", "--json")
+        payload = json.loads(proc.stdout)
+
+        checks = {(entry["kind"], entry["name"]): entry for entry in payload["checks"]}
+        self.assertEqual("found", checks[("command", "cargo-nextest")]["status"])
+        self.assertEqual("found", checks[("command", "ast-grep")]["status"])
+        for validation in (
+            "fmt",
+            "clippy",
+            "check",
+            "workspace-tests",
+            "doctests",
+            "sim-smoke",
+            "ast-grep-quality",
+        ):
+            self.assertEqual("passed", checks[("validation", validation)]["status"])
+        self.assertEqual(
+            "ast-grep scan --config sgconfig.yml --report-style short --format github",
+            checks[("validation", "ast-grep-quality")]["detail"],
+        )
+
+    def test_full_json_fails_when_cargo_nextest_is_missing(self) -> None:
+        (self.bin_dir / "cargo-nextest").unlink()
+
+        proc = self.run_cli("--full", "--json", check=False)
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertEqual("failed", payload["status"])
+        self.assertEqual("missing required command: cargo-nextest", payload["error"])
+
+    def test_full_json_fails_when_ast_grep_version_check_fails(self) -> None:
+        (self.bin_dir / "ast-grep").write_text(
+            "#!/usr/bin/env bash\nexit 2\n", encoding="utf-8"
+        )
+
+        proc = self.run_cli("--full", "--json", check=False)
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual(1, proc.returncode)
+        self.assertEqual("failed", payload["status"])
+        self.assertEqual(
+            "required command failed its version check: ast-grep", payload["error"]
+        )
 
 
 if __name__ == "__main__":

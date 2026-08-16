@@ -86,6 +86,15 @@ def tool_rows(payload: dict[str, Any], kind: str) -> list[dict[str, str]]:
     return rows
 
 
+def merged_tool_rows(
+    quick: dict[str, Any], full: dict[str, Any] | None, kind: str
+) -> list[dict[str, str]]:
+    rows_by_name = {row["name"]: row for row in tool_rows(quick, kind)}
+    if full:
+        rows_by_name.update({row["name"]: row for row in tool_rows(full, kind)})
+    return list(rows_by_name.values())
+
+
 def overall_status(quick: dict[str, Any], full: dict[str, Any] | None) -> str:
     if quick.get("status") == "passed" and full and full.get("status") == "passed":
         return "ready"
@@ -102,8 +111,8 @@ def render_table(headers: list[str], rows: list[list[str]]) -> list[str]:
 def render_markdown(*, actor: str, quick: dict[str, Any], full: dict[str, Any] | None, now: datetime | None = None) -> str:
     status = overall_status(quick, full)
     repo_root = str(quick.get("repo_root", ROOT_DIR))
-    command_rows = tool_rows(quick, "command")
-    component_rows = tool_rows(quick, "component")
+    command_rows = merged_tool_rows(quick, full, "command")
+    component_rows = merged_tool_rows(quick, full, "component")
     validation_rows = tool_rows(full, "validation") if full else []
     full_run_status = "passed" if full and full.get("status") == "passed" else "failed" if full else "skipped"
 
