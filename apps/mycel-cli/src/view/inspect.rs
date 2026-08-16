@@ -6,6 +6,7 @@ use mycel_core::store::{
     GovernanceCurrentSummarySource,
 };
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::{emit_error_line, CliError};
 
@@ -19,6 +20,7 @@ struct ViewInspectSummary {
     view_id: String,
     maintainer: Option<String>,
     profile_id: Option<String>,
+    governance_policy: Option<Value>,
     timestamp: Option<u64>,
     accepted_editor_keys: Vec<String>,
     maintainer_is_admitted_editor: bool,
@@ -48,6 +50,7 @@ impl ViewInspectSummary {
             view_id: view_id.to_string(),
             maintainer: None,
             profile_id: None,
+            governance_policy: None,
             timestamp: None,
             accepted_editor_keys: Vec::new(),
             maintainer_is_admitted_editor: false,
@@ -91,6 +94,9 @@ fn print_view_inspect_text(summary: &ViewInspectSummary) -> i32 {
     }
     if let Some(timestamp) = summary.timestamp {
         println!("timestamp: {timestamp}");
+    }
+    if let Some(policy) = &summary.governance_policy {
+        println!("governance policy: {policy}");
     }
     println!(
         "accepted editor key count: {}",
@@ -250,6 +256,7 @@ pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
             summary.admitted_editor_only_keys = inspection.admitted_editor_only_keys;
             summary.maintainer = Some(inspection.maintainer);
             summary.profile_id = Some(inspection.profile_id);
+            summary.governance_policy = inspection.governance_policy;
             summary.timestamp = Some(inspection.timestamp);
             summary.current_profile_view_id = inspection.current_profile_view_id;
             summary.current_profile_document_view_ids =
@@ -312,6 +319,15 @@ pub(super) fn handle(args: ViewInspectCliArgs) -> Result<i32, CliError> {
         "accepted editor keys come from persisted governance view summaries so mixed-role and shared-key assignments stay inspectable without re-reading the stored view body"
             .to_string(),
     );
+    if summary.profile_id.is_some() {
+        summary.notes.push(if summary.governance_policy.is_some() {
+            "governance policy comes from the persisted hash-keyed profile catalog without re-reading the stored view body"
+                .to_string()
+        } else {
+            "governance policy is unavailable because this manifest predates the hash-keyed profile catalog; rebuild the store index to populate it"
+                .to_string()
+        });
+    }
 
     if json {
         print_view_inspect_json(&summary)

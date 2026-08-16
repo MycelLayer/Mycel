@@ -6,6 +6,7 @@ use mycel_core::store::{
     GovernanceCurrentSummarySource,
 };
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::{emit_error_line, CliError};
 
@@ -26,6 +27,7 @@ pub(super) struct ViewCurrentDocumentSummary {
 #[derive(Debug, Clone, Serialize)]
 struct ViewCurrentProfileSummary {
     profile_id: String,
+    governance_policy: Option<Value>,
     source: Option<GovernanceCurrentSummarySource>,
     current_view_id: Option<String>,
     profile_current_view_id: Option<String>,
@@ -45,6 +47,7 @@ impl ViewCurrentProfileSummary {
     fn new(profile_id: &str) -> Self {
         Self {
             profile_id: profile_id.to_string(),
+            governance_policy: None,
             source: None,
             current_view_id: None,
             profile_current_view_id: None,
@@ -64,6 +67,7 @@ impl ViewCurrentProfileSummary {
     fn from_core(current: mycel_core::store::GovernanceCurrentSummary) -> Self {
         Self {
             profile_id: current.profile_id,
+            governance_policy: current.governance_policy,
             source: Some(current.source),
             current_view_id: Some(current.current_view_id),
             profile_current_view_id: Some(current.profile_current_view_id),
@@ -187,6 +191,9 @@ fn print_profile_text(summary: &ViewCurrentProfileSummary) {
     }
     if let Some(current_view_id) = &summary.current_view_id {
         println!("current view id: {current_view_id}");
+    }
+    if let Some(policy) = &summary.governance_policy {
+        println!("governance policy: {policy}");
     }
     if let Some(profile_current_view_id) = &summary.profile_current_view_id {
         println!("profile current view id: {profile_current_view_id}");
@@ -378,6 +385,26 @@ fn push_current_list_source_note(notes: &mut Vec<String>, profiles: &[ViewCurren
     }
 }
 
+fn push_policy_catalog_note(notes: &mut Vec<String>, profiles: &[ViewCurrentProfileSummary]) {
+    if profiles.is_empty() {
+        return;
+    }
+    if profiles
+        .iter()
+        .all(|profile| profile.governance_policy.is_some())
+    {
+        notes.push(
+            "governance policies come from the persisted hash-keyed profile catalog without re-reading stored view bodies"
+                .to_string(),
+        );
+    } else {
+        notes.push(
+            "one or more governance policies are unavailable because this manifest predates the hash-keyed profile catalog; rebuild the store index to populate them"
+                .to_string(),
+        );
+    }
+}
+
 pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
     let ViewCurrentCliArgs {
         store_root,
@@ -433,6 +460,7 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
             }
         }
         push_current_list_source_note(&mut summary.notes, &summary.profiles);
+        push_policy_catalog_note(&mut summary.notes, &summary.profiles);
         summary.notes.push(
             "profiles are emitted in deterministic profile-id order so tooling can diff repeated runs"
                 .to_string(),
@@ -468,6 +496,7 @@ pub(super) fn handle(args: ViewCurrentCliArgs) -> Result<i32, CliError> {
     }
     if let Some(source) = summary.profile.source {
         push_current_source_note(&mut summary.notes, source);
+        push_policy_catalog_note(&mut summary.notes, std::slice::from_ref(&summary.profile));
     }
     summary.notes.push(
         "profile head IDs come from persisted governance head indexes for the selected profile"

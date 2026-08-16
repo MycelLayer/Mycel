@@ -95,6 +95,7 @@ pub struct GovernanceCurrentDocumentSummary {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GovernanceCurrentSummary {
     pub profile_id: String,
+    pub governance_policy: Option<Value>,
     pub source: GovernanceCurrentSummarySource,
     pub current_view_id: String,
     pub profile_current_view_id: String,
@@ -181,6 +182,7 @@ pub struct GovernanceInspectSummary {
     pub view_id: String,
     pub maintainer: String,
     pub profile_id: String,
+    pub governance_policy: Option<Value>,
     pub timestamp: u64,
     pub accepted_editor_keys: Vec<String>,
     pub maintainer_is_admitted_editor: bool,
@@ -222,6 +224,8 @@ pub struct StoreIndexManifest {
     pub revision_parents: BTreeMap<String, Vec<String>>,
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
+    #[serde(default)]
+    pub governance_profiles: BTreeMap<String, Value>,
     #[serde(default)]
     pub maintainer_views: BTreeMap<String, Vec<String>>,
     #[serde(default)]
@@ -274,6 +278,7 @@ pub struct StoreRebuildSummary {
     pub revision_parents: BTreeMap<String, Vec<String>>,
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
+    pub governance_profiles: BTreeMap<String, Value>,
     pub maintainer_views: BTreeMap<String, Vec<String>>,
     pub profile_views: BTreeMap<String, Vec<String>>,
     pub document_views: BTreeMap<String, Vec<String>>,
@@ -355,6 +360,7 @@ impl StoreRebuildSummary {
             revision_parents: BTreeMap::new(),
             author_patches: BTreeMap::new(),
             view_governance: Vec::new(),
+            governance_profiles: BTreeMap::new(),
             maintainer_views: BTreeMap::new(),
             profile_views: BTreeMap::new(),
             document_views: BTreeMap::new(),
@@ -636,6 +642,7 @@ pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, Stor
         revision_parents: BTreeMap::new(),
         author_patches: BTreeMap::new(),
         view_governance: Vec::new(),
+        governance_profiles: BTreeMap::new(),
         maintainer_views: BTreeMap::new(),
         profile_views: BTreeMap::new(),
         document_views: BTreeMap::new(),
@@ -1233,6 +1240,10 @@ fn index_loaded_object(
             let (accepted_editor_keys, maintainer_is_admitted_editor, admitted_editor_only_keys) =
                 summarize_view_editor_roles(&view.policy, &view.maintainer);
             summary
+                .governance_profiles
+                .entry(profile_id.clone())
+                .or_insert(view.policy);
+            summary
                 .maintainer_views
                 .entry(view.maintainer.clone())
                 .or_default()
@@ -1546,6 +1557,7 @@ impl StoreIndexManifest {
             revision_parents: summary.revision_parents.clone(),
             author_patches: summary.author_patches.clone(),
             view_governance: summary.view_governance.clone(),
+            governance_profiles: summary.governance_profiles.clone(),
             maintainer_views: summary.maintainer_views.clone(),
             profile_views: summary.profile_views.clone(),
             document_views: summary.document_views.clone(),
@@ -1609,6 +1621,10 @@ pub fn inspect_governance_view(
         view_id: record.view_id.clone(),
         maintainer: record.maintainer.clone(),
         profile_id: record.profile_id.clone(),
+        governance_policy: manifest
+            .governance_profiles
+            .get(&record.profile_id)
+            .cloned(),
         timestamp: record.timestamp,
         accepted_editor_keys: record.accepted_editor_keys.clone(),
         maintainer_is_admitted_editor: record.maintainer_is_admitted_editor,
@@ -1711,6 +1727,7 @@ pub fn inspect_current_governance(
 
     Ok(GovernanceCurrentSummary {
         profile_id: profile_id.to_string(),
+        governance_policy: manifest.governance_profiles.get(profile_id).cloned(),
         source,
         current_view_id,
         profile_current_view_id: current_profile.current_view_id.clone(),
@@ -2404,6 +2421,11 @@ mod tests {
         assert_eq!(summary.profile_heads.len(), 1);
 
         let profile_id = summary.view_governance[0].profile_id.clone();
+        assert_eq!(summary.governance_profiles.len(), 1);
+        assert_eq!(
+            summary.governance_profiles.get(&profile_id),
+            Some(&view["policy"])
+        );
         let current = inspect_current_governance(
             &StoreIndexManifest::from_rebuild_summary(&summary),
             &profile_id,
@@ -2411,6 +2433,7 @@ mod tests {
         )
         .expect("current governance should inspect");
         assert_eq!(current.source, GovernanceCurrentSummarySource::Persisted);
+        assert_eq!(current.governance_policy, Some(view["policy"].clone()));
         assert_eq!(
             current.current_document_revision_id.as_deref(),
             Some(revision["revision_id"].as_str().unwrap())
@@ -2458,6 +2481,7 @@ mod tests {
         )
         .expect("view governance should inspect");
         assert_eq!(inspection.documents.get("doc:test"), Some(&revision_id));
+        assert_eq!(inspection.governance_policy, Some(view["policy"].clone()));
         assert_eq!(
             inspection.accepted_editor_keys,
             vec![signer_id(&signing_key())]

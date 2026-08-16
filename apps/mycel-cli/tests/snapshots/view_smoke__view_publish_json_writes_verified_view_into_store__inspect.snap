@@ -23,6 +23,15 @@ expression: inspect_json
     "doc:view-publish": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "errors": [],
+  "governance_policy": {
+    "accept_keys": [
+      "pk:ed25519:+kg0FH9uaQw2k+/2EzYEZAPNiuKhTzGzxAc1hWkjlWU="
+    ],
+    "merge_rule": "manual-reviewed",
+    "preferred_branches": [
+      "main"
+    ]
+  },
   "is_current_document_view_ids": {
     "doc:view-publish": true
   },
@@ -37,7 +46,8 @@ expression: inspect_json
     "governance inspection is separate from reader-facing accepted-head workflows",
     "related maintainer/profile/document view IDs come from persisted governance indexes",
     "current profile governance state comes from persisted governance summaries and latest-view indexes",
-    "accepted editor keys come from persisted governance view summaries so mixed-role and shared-key assignments stay inspectable without re-reading the stored view body"
+    "accepted editor keys come from persisted governance view summaries so mixed-role and shared-key assignments stay inspectable without re-reading the stored view body",
+    "governance policy comes from the persisted hash-keyed profile catalog without re-reading the stored view body"
   ],
   "profile_heads": {
     "doc:view-publish": [

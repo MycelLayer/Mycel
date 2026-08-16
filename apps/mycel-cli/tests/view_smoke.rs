@@ -100,6 +100,12 @@ fn rewrite_store_manifest(store_root: &str, update: impl FnOnce(&mut Value)) {
     .expect("manifest should write");
 }
 
+fn read_store_manifest(store_root: &str) -> Value {
+    let manifest_path = Path::new(store_root).join("indexes").join("manifest.json");
+    serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+        .expect("manifest should parse")
+}
+
 #[test]
 fn view_publish_json_writes_verified_view_into_store() {
     let store_dir = create_temp_dir("view-publish-store");
@@ -999,7 +1005,22 @@ fn view_current_json_reports_profile_current_governance_state() {
     assert_success(&current);
     let current_json = parse_json_stdout(&current);
 
+    let manifest = read_store_manifest(&store_root);
+    let governance_profiles = manifest["governance_profiles"]
+        .as_object()
+        .expect("governance profiles should be an object");
+    assert_eq!(governance_profiles.len(), 1);
+    assert_eq!(
+        governance_profiles.get(
+            publish_a2["profile_id"]
+                .as_str()
+                .expect("profile id should exist")
+        ),
+        Some(&policy)
+    );
+
     assert_eq!(current_json["status"], "ok");
+    assert_eq!(current_json["governance_policy"], policy);
     assert_eq!(current_json["source"], json!("persisted"));
     assert_eq!(current_json["current_view_id"], publish_a2["view_id"]);
     assert_eq!(
@@ -2297,6 +2318,7 @@ fn view_inspect_json_reports_related_governance_indexes() {
         ])
     );
     assert_eq!(inspect_json["timestamp"], json!(10));
+    assert_eq!(inspect_json["governance_policy"], policy_a);
     assert_eq!(
         inspect_json["accepted_editor_keys"],
         json!([signer_id(&maintainer_a)])
@@ -2325,4 +2347,74 @@ fn view_inspect_json_reports_related_governance_indexes() {
         inspect_json["current_profile_document_view_ids"]["doc:beta"],
         publish_a1["view_id"]
     );
+}
+
+#[test]
+fn view_policy_catalog_is_optional_for_legacy_manifests() {
+    let store_dir = create_temp_dir("view-policy-catalog-legacy-store");
+    let store_root = path_arg(store_dir.path());
+    let init = run_mycel(&["store", "init", &store_root, "--json"]);
+    assert_success(&init);
+
+    let maintainer = signing_key(63);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let view = signed_view(
+        &maintainer,
+        &policy,
+        json!({
+            "doc:legacy": "rev:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }),
+        10,
+    );
+    let (_source_dir, source_path) =
+        write_json_file("view-policy-catalog-legacy-source", "view.json", &view);
+    let published = publish_view(&source_path, &store_root);
+
+    rewrite_store_manifest(&store_root, |manifest| {
+        manifest
+            .as_object_mut()
+            .expect("manifest should be an object")
+            .remove("governance_profiles");
+    });
+
+    let inspect = run_mycel(&[
+        "view",
+        "inspect",
+        view["view_id"].as_str().expect("view id should exist"),
+        "--store-root",
+        &store_root,
+        "--json",
+    ]);
+    assert_success(&inspect);
+    let inspect_json = parse_json_stdout(&inspect);
+    assert_eq!(inspect_json["governance_policy"], Value::Null);
+    assert!(inspect_json["notes"]
+        .as_array()
+        .is_some_and(|notes| notes.iter().any(|note| {
+            note == "governance policy is unavailable because this manifest predates the hash-keyed profile catalog; rebuild the store index to populate it"
+        })));
+
+    let current = run_mycel(&[
+        "view",
+        "current",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        published["profile_id"]
+            .as_str()
+            .expect("profile id should exist"),
+        "--json",
+    ]);
+    assert_success(&current);
+    let current_json = parse_json_stdout(&current);
+    assert_eq!(current_json["governance_policy"], Value::Null);
+    assert!(current_json["notes"]
+        .as_array()
+        .is_some_and(|notes| notes.iter().any(|note| {
+            note == "one or more governance policies are unavailable because this manifest predates the hash-keyed profile catalog; rebuild the store index to populate them"
+        })));
 }
