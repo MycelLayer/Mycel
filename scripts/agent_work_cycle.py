@@ -1765,6 +1765,7 @@ def main() -> int:
             and str(start_token_snapshot.get("rollout_path")).strip()
             else None
         )
+        context_compaction = detect_compaction_event(start_token_snapshot)
         if start_rollout_path is not None:
             end_compaction = detect_compaction_event_in_rollout_path(
                 start_rollout_path,
@@ -1775,6 +1776,7 @@ def main() -> int:
                 end_token_snapshot,
                 after_timestamp=after_timestamp,
             )
+        cycle_compaction = end_compaction or context_compaction
         if phase_timings is not None:
             phase_timings["token_snapshot_diagnostics"] = round(perf_counter() - started_at, 6)
         mailbox_path = resolve_agent_mailbox_path(agent_uid)
@@ -1788,7 +1790,7 @@ def main() -> int:
             agent_uid=agent_uid,
             batch_num=latest_batch,
             agent_role=agent_role,
-            compaction_detected=end_compaction is not None,
+            compaction_detected=cycle_compaction is not None,
             scope=args.scope or resolve_agent_scope(agent_uid),
             same_role_handoff=same_role_handoff,
             locale=resolve_preferred_response_locale(),
@@ -1806,13 +1808,13 @@ def main() -> int:
                     end_token_snapshot,
                     bootstrap_batch=bootstrap_batch,
                 ),
-                status_note="compaction detected" if end_compaction is not None else None,
+                status_note="compaction detected" if cycle_compaction is not None else None,
             )
         )
-        if end_compaction is not None:
+        if cycle_compaction is not None:
             print("compact_context_detected_before_after_work: true")
-            print(f"compaction_timestamp: {end_compaction['timestamp']}")
-            print(f"compaction_rollout_path: {end_compaction['rollout_path']}")
+            print(f"compaction_timestamp: {cycle_compaction['timestamp']}")
+            print(f"compaction_rollout_path: {cycle_compaction['rollout_path']}")
             print(
                 "warning: compact context detected before after-work closeout; continuing with normal next-work guidance."
             )

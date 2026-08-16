@@ -307,6 +307,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
         totals: list[tuple[str, int, int]],
         model_context_window: int = 258400,
         compaction_event_type: str | None = None,
+        compaction_timestamp: str = "2026-03-25T06:26:03.000Z",
     ) -> None:
         rollout_dir = self.root / ".codex" / "sessions" / "2026" / "03" / "25"
         rollout_dir.mkdir(parents=True, exist_ok=True)
@@ -359,7 +360,7 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             lines.append(
                 json.dumps(
                     {
-                        "timestamp": "2026-03-25T06:26:03.000Z",
+                        "timestamp": compaction_timestamp,
                         "type": compaction_event_type,
                         "encrypted_content": "test-compaction-payload",
                     }
@@ -1423,6 +1424,52 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             f"After work | doc-1 ({agent_uid}/gpt-5.4/medium) | timestamp-wrapper | usage 45K/258K",
             proc.stdout,
         )
+
+    def test_end_includes_compaction_status_when_detected_before_begin_snapshot(self) -> None:
+        self.write_agents_md()
+        self.write_fake_codex_thread_metadata()
+        self.write_codex_rollout(
+            "019d23a1-c85f-7d53-a4bb-075ea6504302",
+            totals=[("2026-03-25T06:30:03.000Z", 60135, 887020)],
+            compaction_event_type="compaction",
+            compaction_timestamp="2026-03-25T06:26:03.000Z",
+        )
+        claim = self.run_registry("claim", "doc", "--scope", "timestamp-wrapper", "--model-id", "gpt-5.4")
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+
+        begin = self.run_cli(
+            "begin",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+        self.assertIn("compact_context_detected: true", begin.stdout)
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+
+        proc = self.run_cli(
+            "end",
+            agent_uid,
+            "--scope",
+            "timestamp-wrapper",
+            extra_env={"CODEX_THREAD_ID": "019d23a1-c85f-7d53-a4bb-075ea6504302"},
+        )
+
+        after_line = next(
+            line for line in proc.stdout.splitlines() if "After work |" in line
+        )
+        self.assertTrue(after_line.endswith("| compaction detected"), after_line)
+        self.assertIn("compact_context_detected_before_after_work: true", proc.stdout)
+        self.assertEqual(
+            {"compaction_detected": True, "role": "doc"},
+            self.load_next_work_items_spec(agent_uid, 1),
+        )
+        self.assertNotIn("new chat", self.load_next_work_items_markdown(agent_uid, 1))
 
     def test_end_alerts_when_compaction_detected_after_begin(self) -> None:
         self.write_agents_md()
