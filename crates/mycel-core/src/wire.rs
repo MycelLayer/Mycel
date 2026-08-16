@@ -510,7 +510,11 @@ fn advance_wire_inbound_sequence(
             let replace = required_wire_bool(envelope.payload(), "replace", "wire payload")?;
             if replace {
                 peer_session.reset_sync_root_state();
-                peer_session.advertised_document_heads = documents;
+                for (doc_id, revisions) in documents {
+                    peer_session
+                        .advertised_document_heads
+                        .insert(doc_id, revisions);
+                }
             } else {
                 for (doc_id, revisions) in documents {
                     peer_session

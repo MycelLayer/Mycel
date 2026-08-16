@@ -21,7 +21,7 @@ fn wire_session_rejects_stale_root_object_after_heads_replace() {
         &signing_key,
         "node:alpha",
         json!({
-            "doc:replacement": ["rev:replacement"]
+            "doc:test": ["rev:replacement"]
         }),
         true,
     );
@@ -71,7 +71,7 @@ fn wire_session_rejects_stale_dependency_object_after_heads_replace() {
         &signing_key,
         "node:alpha",
         json!({
-            "doc:replacement": ["rev:replacement"]
+            "doc:test": ["rev:replacement"]
         }),
         true,
     );

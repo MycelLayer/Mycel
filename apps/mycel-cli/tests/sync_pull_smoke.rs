@@ -113,6 +113,33 @@ fn signed_manifest_message_with_capabilities(
     revision_id: &str,
     capabilities: Value,
 ) -> Value {
+    signed_manifest_message_with_heads_and_capabilities(
+        signing_key,
+        sender,
+        json!({"doc:test": [revision_id]}),
+        capabilities,
+    )
+}
+
+fn signed_manifest_message_with_heads(
+    signing_key: &SigningKey,
+    sender: &str,
+    heads: Value,
+) -> Value {
+    signed_manifest_message_with_heads_and_capabilities(
+        signing_key,
+        sender,
+        heads,
+        json!(["patch-sync"]),
+    )
+}
+
+fn signed_manifest_message_with_heads_and_capabilities(
+    signing_key: &SigningKey,
+    sender: &str,
+    heads: Value,
+    capabilities: Value,
+) -> Value {
     let mut value = json!({
         "type": "MANIFEST",
         "version": "mycel-wire/0.1",
@@ -122,9 +149,7 @@ fn signed_manifest_message_with_capabilities(
         "payload": {
             "node_id": sender,
             "capabilities": capabilities,
-            "heads": {
-                "doc:test": [revision_id]
-            }
+            "heads": heads
         },
         "sig": "sig:placeholder"
     });
@@ -198,6 +223,20 @@ fn signed_heads_message(
     revision_id: &str,
     replace: bool,
 ) -> Value {
+    signed_heads_message_with_documents(
+        signing_key,
+        sender,
+        json!({"doc:test": [revision_id]}),
+        replace,
+    )
+}
+
+fn signed_heads_message_with_documents(
+    signing_key: &SigningKey,
+    sender: &str,
+    documents: Value,
+    replace: bool,
+) -> Value {
     let mut value = json!({
         "type": "HEADS",
         "version": "mycel-wire/0.1",
@@ -205,9 +244,7 @@ fn signed_heads_message(
         "timestamp": "2026-03-08T20:00:20+08:00",
         "from": sender,
         "payload": {
-            "documents": {
-                "doc:test": [revision_id]
-            },
+            "documents": documents,
             "replace": replace
         },
         "sig": "sig:placeholder"

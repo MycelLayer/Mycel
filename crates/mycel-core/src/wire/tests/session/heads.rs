@@ -116,7 +116,7 @@ fn wire_session_merges_incremental_heads_updates() {
 }
 
 #[test]
-fn wire_session_replaces_heads_when_replace_is_true() {
+fn wire_session_replaces_only_listed_heads_when_replace_is_true() {
     let signing_key = signing_key();
     let sender_key = sender_public_key(&signing_key);
     let mut session = WireSession::default();
@@ -124,14 +124,27 @@ fn wire_session_replaces_heads_when_replace_is_true() {
         .register_known_peer("node:alpha", &sender_key)
         .expect("known peer should register");
     let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
-    let manifest = signed_manifest_message(&signing_key, "node:alpha", "node:alpha");
+    let manifest = signed_manifest_message_with_heads(
+        &signing_key,
+        "node:alpha",
+        "node:alpha",
+        json!({
+            "doc:test": ["rev:test"],
+            "doc:preserved": ["rev:preserved"]
+        }),
+    );
     let heads = signed_heads_message(
         &signing_key,
         "node:alpha",
         json!({
-            "doc:replacement": ["rev:replacement"]
+            "doc:test": ["rev:replacement"]
         }),
         true,
+    );
+    let want = signed_want_message(
+        &signing_key,
+        "node:alpha",
+        &["rev:replacement", "rev:preserved"],
     );
 
     session
@@ -143,15 +156,27 @@ fn wire_session_replaces_heads_when_replace_is_true() {
     session
         .verify_incoming(&heads)
         .expect("HEADS should verify");
+    session
+        .verify_incoming(&want)
+        .expect("replacement and preserved roots should remain eligible for WANT");
 
     let state = session
         .peer_session("node:alpha")
         .expect("peer session should exist");
-    assert!(!state.advertised_document_heads.contains_key("doc:test"));
     assert!(state
         .advertised_document_heads
-        .get("doc:replacement")
+        .get("doc:test")
         .is_some_and(|revisions| revisions.contains("rev:replacement")));
+    assert!(state
+        .advertised_document_heads
+        .get("doc:test")
+        .is_some_and(|revisions| !revisions.contains("rev:test")));
+    assert!(state
+        .advertised_document_heads
+        .get("doc:preserved")
+        .is_some_and(|revisions| revisions.contains("rev:preserved")));
+    assert!(state.pending_object_ids.contains("rev:replacement"));
+    assert!(state.pending_object_ids.contains("rev:preserved"));
 }
 
 #[test]
@@ -175,7 +200,7 @@ fn wire_session_rejects_stale_dependency_want_after_heads_replace() {
         &signing_key,
         "node:alpha",
         json!({
-            "doc:replacement": ["rev:replacement"]
+            "doc:test": ["rev:replacement"]
         }),
         true,
     );
@@ -231,7 +256,7 @@ fn wire_session_rejects_stale_root_revision_want_after_heads_replace() {
         &signing_key,
         "node:alpha",
         json!({
-            "doc:replacement": ["rev:replacement"]
+            "doc:test": ["rev:replacement"]
         }),
         true,
     );
