@@ -404,6 +404,33 @@ pub fn assert_view_inspect_help(stdout: &str) {
     );
 }
 
+pub fn assert_view_diff_help(stdout: &str) {
+    assert!(
+        stdout.contains("Usage: mycel view diff"),
+        "expected view diff usage, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("Compare two persisted governance View records"),
+        "expected view diff description, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("BASE_VIEW_ID") && stdout.contains("TARGET_VIEW_ID"),
+        "expected View ID arguments in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--store-root <STORE_ROOT>"),
+        "expected store-root flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--fail-on-diff"),
+        "expected fail-on-diff flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--json"),
+        "expected json flag in help, stdout: {stdout}"
+    );
+}
+
 pub fn assert_view_current_help(stdout: &str) {
     assert!(
         stdout.contains("Usage: mycel view current"),

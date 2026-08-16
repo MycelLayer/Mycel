@@ -3,6 +3,7 @@ use clap::{Args, Subcommand, ValueEnum};
 use crate::CliError;
 
 mod current;
+mod diff;
 mod document;
 mod inspect;
 mod list;
@@ -22,6 +23,8 @@ enum ViewSubcommand {
         about = "Inspect the current persisted governance state for one profile or all profiles"
     )]
     Current(ViewCurrentCliArgs),
+    #[command(about = "Compare two persisted governance View records")]
+    Diff(ViewDiffCliArgs),
     #[command(about = "Inspect the current persisted governance state for one document")]
     Document(ViewDocumentCliArgs),
     #[command(about = "Inspect the current persisted governance state for one maintainer")]
@@ -63,6 +66,37 @@ struct ViewCurrentCliArgs {
     )]
     doc_id: Option<String>,
     #[arg(long, help = "Emit machine-readable current-governance output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Args)]
+struct ViewDiffCliArgs {
+    #[arg(
+        value_name = "BASE_VIEW_ID",
+        help = "Baseline View identifier",
+        required = true,
+        allow_hyphen_values = true
+    )]
+    base_view_id: String,
+    #[arg(
+        value_name = "TARGET_VIEW_ID",
+        help = "Target View identifier",
+        required = true,
+        allow_hyphen_values = true
+    )]
+    target_view_id: String,
+    #[arg(
+        long,
+        value_name = "STORE_ROOT",
+        help = "Store root directory to read governance indexes from",
+        required = true
+    )]
+    store_root: String,
+    #[arg(long, help = "Exit with status 1 when governance differences exist")]
+    fail_on_diff: bool,
+    #[arg(long, help = "Emit machine-readable governance diff output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
@@ -283,6 +317,12 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
                 return Err(CliError::usage(message));
             }
             current::handle(args)
+        }
+        Some(ViewSubcommand::Diff(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "view diff") {
+                return Err(CliError::usage(message));
+            }
+            diff::handle(args)
         }
         Some(ViewSubcommand::Document(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "view document") {

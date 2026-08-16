@@ -12,6 +12,13 @@ use crate::protocol::{
 };
 use crate::verify::{verify_object_path, verify_object_value_with_object_index};
 
+mod governance_diff;
+
+pub use governance_diff::{
+    diff_governance_views, GovernanceDocumentChange, GovernanceDocumentChangeKind,
+    GovernanceViewDiffComparison, GovernanceViewDiffSummary,
+};
+
 #[derive(Debug, Clone, Serialize)]
 pub struct StoredObjectRecord {
     pub object_id: String,
