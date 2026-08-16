@@ -2268,6 +2268,19 @@ fn inject_stale_root_want_after_heads_replace_fault(
             "transcript is missing an advertised root revision WANT for stale-root-want-after-heads-replace injection"
                 .to_owned()
         })?;
+    let stale_root_document = transcript_document_advertising_revision(
+        transcript,
+        &stale_root_revision,
+    )
+    .ok_or_else(|| {
+        "transcript is missing the document advertising the root revision for stale-root-want-after-heads-replace injection"
+            .to_owned()
+    })?;
+    let mut replacement_documents = serde_json::Map::new();
+    replacement_documents.insert(
+        stale_root_document,
+        json!(["rev:peer-sync-fault-replacement"]),
+    );
 
     let replacement_heads = signed_sim_wire_message(
         signing_key,
@@ -2275,9 +2288,7 @@ fn inject_stale_root_want_after_heads_replace_fault(
         "HEADS",
         "msg:peer-sync-fault-heads-replace-root-0001",
         json!({
-            "documents": {
-                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
-            },
+            "documents": replacement_documents,
             "replace": true
         }),
     )?;
@@ -2294,6 +2305,34 @@ fn inject_stale_root_want_after_heads_replace_fault(
     transcript.messages.insert(bye_index, replacement_heads);
     transcript.messages.insert(bye_index + 1, want);
     Ok(())
+}
+
+fn transcript_document_advertising_revision(
+    transcript: &mycel_core::sync::SyncPullTranscript,
+    revision_id: &str,
+) -> Option<String> {
+    transcript.messages.iter().find_map(|message| {
+        let heads_key = match message.get("type").and_then(Value::as_str) {
+            Some("MANIFEST") => "heads",
+            Some("HEADS") => "documents",
+            _ => return None,
+        };
+        message
+            .get("payload")
+            .and_then(Value::as_object)
+            .and_then(|payload| payload.get(heads_key))
+            .and_then(Value::as_object)
+            .and_then(|documents| {
+                documents.iter().find_map(|(document_id, revisions)| {
+                    revisions
+                        .as_array()
+                        .is_some_and(|revisions| {
+                            revisions.iter().any(|revision| revision == revision_id)
+                        })
+                        .then(|| document_id.clone())
+                })
+            })
+    })
 }
 
 fn inject_stale_root_object_after_heads_replace_fault(
