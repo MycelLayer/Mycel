@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -13,6 +12,10 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from agent_bootstrap_ci import (
+    lookup_latest_completed_ci as probe_latest_completed_ci,
+    next_ci_action,
+)
 from item_id_checklist_mark import ItemIdChecklistMarkError, update_checklist_items
 
 
@@ -62,18 +65,6 @@ COMPACTION_ABORT_MARKERS = (
     "Compact context detected in the current chat thread before work started",
     "Compaction event detected at ",
 )
-LATEST_CI_GH_FIELDS = [
-    "databaseId",
-    "status",
-    "conclusion",
-    "workflowName",
-    "displayTitle",
-    "headSha",
-    "updatedAt",
-]
-LATEST_CI_WORKFLOW_NAME = "CI"
-
-
 class Section:
     def __init__(self, heading: str, body: str, order: int) -> None:
         self.heading = heading
@@ -165,17 +156,6 @@ def run_json_command(command: list[str]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise BootstrapError(f"expected JSON object output from {' '.join(command)}")
     return payload
-
-
-def run_json_array_command(command: list[str]) -> list[dict[str, Any]]:
-    stdout = run_command(command)
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        raise BootstrapError(f"expected JSON output from {' '.join(command)}") from exc
-    if not isinstance(payload, list):
-        raise BootstrapError(f"expected JSON array output from {' '.join(command)}")
-    return [item for item in payload if isinstance(item, dict)]
 
 
 def run_registry_json(*args: str) -> dict[str, Any]:
@@ -633,252 +613,8 @@ def deferred_reads_for_role(role: str) -> list[str]:
     return DEFERRED_READS_COMMON + DEFERRED_READS_BY_ROLE.get(role, [])
 
 
-def git_ref_sha(ref: str) -> str | None:
-    proc = subprocess.run(
-        ["git", "rev-parse", "--verify", ref],
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        return None
-    sha = proc.stdout.strip()
-    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
-
-
-def resolve_previous_push_head() -> str | None:
-    origin = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if origin.returncode == 0 and origin.stdout.strip():
-        fetch = subprocess.run(
-            [
-                "git",
-                "fetch",
-                "--quiet",
-                "--no-tags",
-                "origin",
-                "+refs/heads/main:refs/remotes/origin/main",
-            ],
-            cwd=ROOT_DIR,
-            text=True,
-            capture_output=True,
-            check=False,
-            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
-        )
-        if fetch.returncode != 0:
-            message = fetch.stderr.strip() or fetch.stdout.strip() or "git fetch failed"
-            raise BootstrapError(f"unable to refresh origin/main before CI lookup: {message}")
-        sha = git_ref_sha("origin/main")
-        if sha is None:
-            raise BootstrapError("origin/main is unavailable after refreshing it for the CI lookup")
-        return sha
-
-    return git_ref_sha("HEAD")
-
-
-def changed_paths_for_commit(commit_sha: str) -> list[str] | None:
-    proc = subprocess.run(
-        [
-            "git",
-            "diff-tree",
-            "--root",
-            "--no-commit-id",
-            "--name-only",
-            "-r",
-            "-m",
-            commit_sha,
-        ],
-        cwd=ROOT_DIR,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        return None
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-
-
-def ci_push_path_patterns() -> list[str] | None:
-    workflow_path = ROOT_DIR / ".github" / "workflows" / "ci.yml"
-    text = read_text_if_exists(workflow_path)
-    if text is None:
-        return None
-
-    lines = text.splitlines()
-    in_push = False
-    in_paths = False
-    patterns: list[str] = []
-    for line in lines:
-        if line == "  push:":
-            in_push = True
-            in_paths = False
-            continue
-        if in_push and line == "    paths:":
-            in_paths = True
-            continue
-        if not in_paths:
-            if in_push and line and not line.startswith("    "):
-                break
-            continue
-        stripped = line.strip()
-        if not line.startswith("      - "):
-            break
-        value = stripped[2:].strip().strip("'\"")
-        if value:
-            patterns.append(value)
-    return patterns or None
-
-
-def path_matches_ci_trigger(path: str, pattern: str) -> bool | None:
-    if pattern.endswith("/**") and not any(char in pattern[:-3] for char in "*?["):
-        return path.startswith(pattern[:-2])
-    if not any(char in pattern for char in "*?["):
-        return path == pattern
-    return None
-
-
-def commit_triggers_ci(commit_sha: str) -> bool | None:
-    changed_paths = changed_paths_for_commit(commit_sha)
-    patterns = ci_push_path_patterns()
-    if changed_paths is None or patterns is None:
-        return None
-    unsupported_pattern = False
-    for path in changed_paths:
-        for pattern in patterns:
-            matched = path_matches_ci_trigger(path, pattern)
-            if matched is True:
-                return True
-            if matched is None:
-                unsupported_pattern = True
-    return None if unsupported_pattern else False
-
-
-def ci_run_summary(run: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "databaseId": run.get("databaseId"),
-        "workflowName": run.get("workflowName"),
-        "displayTitle": run.get("displayTitle"),
-        "conclusion": run.get("conclusion"),
-        "headSha": run.get("headSha"),
-        "updatedAt": run.get("updatedAt"),
-    }
-
-
-def completed_ci_result(run: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "checked": True,
-        "status": "completed",
-        **ci_run_summary(run),
-    }
-
-
-def not_applicable_ci_result(
-    previous_push_head: str,
-    completed_ci_runs: list[dict[str, Any]],
-) -> dict[str, Any]:
-    baseline = ci_run_summary(completed_ci_runs[0]) if completed_ci_runs else None
-    return {
-        "checked": True,
-        "status": "not-applicable",
-        "headSha": previous_push_head,
-        "message": (
-            f"previous push {previous_push_head} does not change a path that triggers "
-            f"the {LATEST_CI_WORKFLOW_NAME} workflow"
-        ),
-        "baseline": baseline,
-    }
-
-
 def lookup_latest_completed_ci(role: str) -> dict[str, Any] | None:
-    if role not in {"coding", "delivery"}:
-        return None
-    try:
-        previous_push_head = resolve_previous_push_head()
-    except BootstrapError as exc:
-        return {
-            "checked": False,
-            "status": "unavailable",
-            "message": str(exc),
-        }
-    fields = ",".join(LATEST_CI_GH_FIELDS)
-    command = [
-        "gh",
-        "run",
-        "list",
-        "--branch",
-        "main",
-        "--workflow",
-        LATEST_CI_WORKFLOW_NAME,
-        "--status",
-        "completed",
-        "--limit",
-        "20",
-        "--json",
-        fields,
-    ]
-    try:
-        runs = run_json_array_command(command)
-    except BootstrapError as exc:
-        return {
-            "checked": False,
-            "status": "unavailable",
-            "message": str(exc),
-        }
-
-    completed_ci_runs = [
-        run
-        for run in runs
-        if run.get("status") == "completed" and run.get("workflowName") == LATEST_CI_WORKFLOW_NAME
-    ]
-    if previous_push_head is not None:
-        for run in completed_ci_runs:
-            if run.get("headSha") == previous_push_head:
-                return completed_ci_result(run)
-
-        triggers_ci = commit_triggers_ci(previous_push_head)
-        if triggers_ci is False:
-            return not_applicable_ci_result(previous_push_head, completed_ci_runs)
-
-        if completed_ci_runs:
-            latest_ci = completed_ci_runs[0]
-            latest_head = latest_ci.get("headSha")
-            suffix = (
-                f"; latest completed {LATEST_CI_WORKFLOW_NAME} run was for {latest_head}"
-                if isinstance(latest_head, str) and latest_head.strip()
-                else ""
-            )
-            return {
-                "checked": True,
-                "status": "missing",
-                "message": (
-                    f"no completed {LATEST_CI_WORKFLOW_NAME} workflow run found for previous push "
-                    f"{previous_push_head}{suffix}"
-                ),
-            }
-
-        return {
-            "checked": True,
-            "status": "missing",
-            "message": (
-                f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main "
-                f"for previous push {previous_push_head}"
-            ),
-        }
-
-    for run in completed_ci_runs:
-        return completed_ci_result(run)
-
-    return {
-        "checked": True,
-        "status": "missing",
-        "message": f"no completed {LATEST_CI_WORKFLOW_NAME} workflow runs found on main",
-    }
+    return probe_latest_completed_ci(ROOT_DIR, role)
 
 
 def next_actions_for_role(
@@ -887,108 +623,28 @@ def next_actions_for_role(
     *,
     locale: str | None = None,
 ) -> list[str]:
-    latest_ci_status = latest_ci.get("status") if isinstance(latest_ci, dict) else None
-    latest_ci_conclusion = latest_ci.get("conclusion") if isinstance(latest_ci, dict) else None
-    baseline = latest_ci.get("baseline") if isinstance(latest_ci, dict) else None
-    baseline_conclusion = baseline.get("conclusion") if isinstance(baseline, dict) else None
     if role == "coding":
+        ci_action = next_ci_action(role, latest_ci, locale=locale)
+        if ci_action is None:
+            return []
         if locale == "zh-TW":
-            if latest_ci_status in {"unavailable", "missing"}:
-                ci_action = "因為 bootstrap 還沒有成功確認最新 completed CI，先重新查一次，再決定下一個 implementation slice"
-            elif latest_ci_status == "not-applicable":
-                if baseline_conclusion == "success":
-                    ci_action = "上一個 push 未觸發 CI；以最近一次適用且成功的 completed CI 作為基線，再決定下一個 implementation slice"
-                elif isinstance(baseline, dict):
-                    ci_action = "上一個 push 未觸發 CI，但最近一次適用的 completed CI 並未成功；先分流處理該結果，再開始新的 implementation slice"
-                else:
-                    ci_action = "上一個 push 未觸發 CI，且目前沒有可用的 completed CI 基線；先完成適當的本機驗證，再決定下一個 implementation slice"
-            elif latest_ci_conclusion != "success":
-                ci_action = "上一個 completed CI 並未成功；先分流處理該結果，再開始新的 implementation slice"
-            else:
-                ci_action = "以上一個已完成的 CI 結果作為基線，再決定下一個 implementation slice"
             return [
                 ci_action,
                 "除最新同角色 handoff 外，先延後較廣泛的 mailbox 掃描，等第一個具體工作項目確定後再展開",
             ]
-        if latest_ci_status in {"unavailable", "missing"}:
-            ci_action = (
-                "re-run the latest completed CI lookup before choosing the next implementation slice "
-                "because bootstrap could not confirm it"
-            )
-        elif latest_ci_status == "not-applicable":
-            if baseline_conclusion == "success":
-                ci_action = (
-                    "the previous push did not trigger CI; use the latest applicable successful "
-                    "completed CI as the baseline before choosing the next implementation slice"
-                )
-            elif isinstance(baseline, dict):
-                ci_action = (
-                    "the previous push did not trigger CI, but the latest applicable completed CI "
-                    "was not successful; triage that result before starting a new implementation slice"
-                )
-            else:
-                ci_action = (
-                    "the previous push did not trigger CI and no completed CI baseline is available; "
-                    "complete appropriate local validation before choosing the next implementation slice"
-                )
-        elif latest_ci_conclusion != "success":
-            ci_action = (
-                "the previous completed CI was not successful; triage that result before starting "
-                "a new implementation slice"
-            )
-        else:
-            ci_action = (
-                "use the latest completed CI result above as the baseline before choosing the next "
-                "implementation slice"
-            )
         return [
             ci_action,
             "defer broader mailbox scans beyond the latest same-role handoff until the first concrete work item is chosen",
         ]
     if role == "delivery":
+        ci_action = next_ci_action(role, latest_ci, locale=locale)
+        if ci_action is None:
+            return []
         if locale == "zh-TW":
-            if latest_ci_status in {"unavailable", "missing"}:
-                ci_action = "因為 bootstrap 還沒有成功確認最新 completed CI，先重新查一次，再決定下一個 delivery 後續工作"
-            elif latest_ci_status == "not-applicable":
-                if baseline_conclusion == "success":
-                    ci_action = "上一個 push 未觸發 CI；以最近一次適用且成功的 completed CI 作為 delivery 基線"
-                elif isinstance(baseline, dict):
-                    ci_action = "上一個 push 未觸發 CI，但最近一次適用的 completed CI 並未成功；先分流處理該結果"
-                else:
-                    ci_action = "上一個 push 未觸發 CI，且目前沒有可用的 completed CI 基線；先完成適當的本機驗證"
-            elif latest_ci_conclusion != "success":
-                ci_action = "上一個 completed CI 並未成功；先分流處理該結果，再進行 delivery 後續工作"
-            else:
-                ci_action = "以上一個已完成的 CI 結果作為基線，再決定下一個 delivery 後續工作"
             return [
                 ci_action,
                 "除非目前的 delivery scope 需要 doc 後續，否則先延後較廣泛的 roadmap/checklist 閱讀",
             ]
-        if latest_ci_status in {"unavailable", "missing"}:
-            ci_action = (
-                "re-run the latest completed CI lookup before delivery follow-up because bootstrap "
-                "could not confirm it"
-            )
-        elif latest_ci_status == "not-applicable":
-            if baseline_conclusion == "success":
-                ci_action = (
-                    "the previous push did not trigger CI; use the latest applicable successful "
-                    "completed CI as the delivery baseline"
-                )
-            elif isinstance(baseline, dict):
-                ci_action = (
-                    "the previous push did not trigger CI, but the latest applicable completed CI "
-                    "was not successful; triage that result before delivery follow-up"
-                )
-            else:
-                ci_action = (
-                    "the previous push did not trigger CI and no completed CI baseline is available; "
-                    "complete appropriate local validation before delivery follow-up"
-                )
-        elif latest_ci_conclusion != "success":
-            ci_action = "the previous completed CI was not successful; triage that result before delivery follow-up"
-        else:
-            ci_action = "use the latest completed CI result above as the baseline before triaging delivery work"
         return [
             ci_action,
             "defer broad roadmap/checklist reading unless the active delivery scope needs doc follow-up",

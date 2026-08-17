@@ -9,6 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_BOOTSTRAP = REPO_ROOT / "scripts" / "agent_bootstrap.py"
+SOURCE_BOOTSTRAP_CI = REPO_ROOT / "scripts" / "agent_bootstrap_ci.py"
 SOURCE_WORK_CYCLE = REPO_ROOT / "scripts" / "agent_work_cycle.py"
 SOURCE_REGISTRY = REPO_ROOT / "scripts" / "agent_registry.py"
 SOURCE_TIMESTAMP = REPO_ROOT / "scripts" / "agent_timestamp.py"
@@ -32,6 +33,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         (self.root / ".agent-local").mkdir(parents=True, exist_ok=True)
         (self.root / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
         shutil.copy2(SOURCE_BOOTSTRAP, self.root / "scripts" / "agent_bootstrap.py")
+        shutil.copy2(SOURCE_BOOTSTRAP_CI, self.root / "scripts" / "agent_bootstrap_ci.py")
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
         shutil.copy2(SOURCE_TIMESTAMP, self.root / "scripts" / "agent_timestamp.py")
@@ -46,6 +48,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_CI_WORKFLOW, self.root / ".github" / "workflows" / "ci.yml")
         for script_name in [
             "agent_bootstrap.py",
+            "agent_bootstrap_ci.py",
             "agent_work_cycle.py",
             "agent_registry.py",
             "agent_timestamp.py",
