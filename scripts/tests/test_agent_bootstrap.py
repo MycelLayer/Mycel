@@ -20,6 +20,7 @@ SOURCE_AGENT_GUARD = REPO_ROOT / "scripts" / "agent_guard.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 SOURCE_NEXT_WORK_ITEMS = REPO_ROOT / "scripts" / "render_next_work_items.py"
+SOURCE_CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 class AgentBootstrapCliTest(unittest.TestCase):
@@ -29,6 +30,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         (self.root / "scripts").mkdir(parents=True, exist_ok=True)
         (self.root / "bin").mkdir(parents=True, exist_ok=True)
         (self.root / ".agent-local").mkdir(parents=True, exist_ok=True)
+        (self.root / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
         shutil.copy2(SOURCE_BOOTSTRAP, self.root / "scripts" / "agent_bootstrap.py")
         shutil.copy2(SOURCE_WORK_CYCLE, self.root / "scripts" / "agent_work_cycle.py")
         shutil.copy2(SOURCE_REGISTRY, self.root / "scripts" / "agent_registry.py")
@@ -41,6 +43,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         shutil.copy2(SOURCE_CHECKLIST, self.root / "scripts" / "item_id_checklist.py")
         shutil.copy2(SOURCE_MARKER, self.root / "scripts" / "item_id_checklist_mark.py")
         shutil.copy2(SOURCE_NEXT_WORK_ITEMS, self.root / "scripts" / "render_next_work_items.py")
+        shutil.copy2(SOURCE_CI_WORKFLOW, self.root / ".github" / "workflows" / "ci.yml")
         for script_name in [
             "agent_bootstrap.py",
             "agent_work_cycle.py",
@@ -258,7 +261,7 @@ class AgentBootstrapCliTest(unittest.TestCase):
         )
         git_path.chmod(0o755)
 
-    def create_git_commit(self, message: str = "bootstrap test commit") -> str:
+    def create_git_commit_at(self, relative_path: str, message: str = "bootstrap test commit") -> str:
         subprocess.run(
             ["git", "config", "user.name", "Bootstrap Test"],
             cwd=self.root,
@@ -273,10 +276,11 @@ class AgentBootstrapCliTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        marker = self.root / "tracked.txt"
+        marker = self.root / relative_path
+        marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(f"{message}\n", encoding="utf-8")
         subprocess.run(
-            ["git", "add", "tracked.txt"],
+            ["git", "add", relative_path],
             cwd=self.root,
             check=True,
             capture_output=True,
@@ -297,6 +301,36 @@ class AgentBootstrapCliTest(unittest.TestCase):
             text=True,
         )
         return head.stdout.strip()
+
+    def create_git_commit(self, message: str = "bootstrap test commit") -> str:
+        return self.create_git_commit_at("tracked.txt", message)
+
+    def run_git(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd or self.root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def advance_remote_main(self) -> str:
+        remote_path = self.root / "remotes" / "origin.git"
+        remote_path.parent.mkdir(parents=True, exist_ok=True)
+        self.run_git("init", "--bare", str(remote_path))
+        self.run_git("remote", "add", "origin", str(remote_path))
+        self.run_git("push", "-u", "origin", "main")
+
+        peer = self.root / "peer"
+        self.run_git("clone", "--branch", "main", str(remote_path), str(peer))
+        self.run_git("config", "user.name", "Bootstrap Peer", cwd=peer)
+        self.run_git("config", "user.email", "peer@example.com", cwd=peer)
+        remote_marker = peer / "scripts" / "remote.py"
+        remote_marker.write_text("remote change\n", encoding="utf-8")
+        self.run_git("add", "scripts/remote.py", cwd=peer)
+        self.run_git("commit", "-m", "remote current head", cwd=peer)
+        self.run_git("push", "origin", "main", cwd=peer)
+        return self.run_git("rev-parse", "HEAD", cwd=peer).stdout.strip()
 
     def set_checklist_state(self, relative_path: str, item_id: str, state: str, label: str) -> None:
         path = self.root / relative_path
@@ -457,6 +491,8 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertEqual("completed", payload["latest_completed_ci"]["status"])
         self.assertIn("--workflow", gh_args)
         self.assertEqual("CI", gh_args[gh_args.index("--workflow") + 1])
+        self.assertIn("--status", gh_args)
+        self.assertEqual("completed", gh_args[gh_args.index("--status") + 1])
         self.assertIn("--limit", gh_args)
         self.assertEqual("20", gh_args[gh_args.index("--limit") + 1])
 
@@ -537,6 +573,131 @@ class AgentBootstrapCliTest(unittest.TestCase):
         self.assertEqual("completed", payload["latest_completed_ci"]["status"])
         self.assertEqual(current_head, payload["latest_completed_ci"]["headSha"])
         self.assertEqual("current baseline", payload["latest_completed_ci"]["displayTitle"])
+
+    def test_bootstrap_refreshes_origin_main_before_matching_ci(self) -> None:
+        local_head = self.create_git_commit_at("scripts/local.py", "local baseline")
+        remote_head = self.advance_remote_main()
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 15,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "workflowName": "CI",
+                    "displayTitle": "remote current head",
+                    "headSha": remote_head,
+                    "updatedAt": "2026-03-25T11:46:24Z",
+                },
+                {
+                    "databaseId": 14,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "local baseline",
+                    "headSha": local_head,
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                },
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "remote-head", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual(remote_head, payload["latest_completed_ci"]["headSha"])
+        self.assertEqual("failure", payload["latest_completed_ci"]["conclusion"])
+        self.assertNotEqual(local_head, payload["latest_completed_ci"]["headSha"])
+
+    def test_bootstrap_reports_origin_refresh_failure_without_using_stale_ref(self) -> None:
+        self.create_git_commit_at("scripts/local.py", "local baseline")
+        self.run_git("remote", "add", "origin", str(self.root / "missing-origin.git"))
+
+        proc = self.run_cli("--json", "coding", "--scope", "remote-failure", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("unavailable", payload["latest_completed_ci"]["status"])
+        self.assertFalse(payload["latest_completed_ci"]["checked"])
+        self.assertIn("unable to refresh origin/main", payload["latest_completed_ci"]["message"])
+        self.assertIn("re-run the latest completed CI lookup", payload["next_actions"][0])
+
+    def test_bootstrap_classifies_path_filtered_push_as_not_applicable(self) -> None:
+        baseline_head = self.create_git_commit_at("scripts/seed.py", "seed CI baseline")
+        current_head = self.create_git_commit_at("pages/progress.html", "docs-only push")
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 12,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "seed CI baseline",
+                    "headSha": baseline_head,
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                }
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "ci-path-filter", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+        latest_ci = payload["latest_completed_ci"]
+
+        self.assertEqual("not-applicable", latest_ci["status"])
+        self.assertEqual(current_head, latest_ci["headSha"])
+        self.assertEqual(baseline_head, latest_ci["baseline"]["headSha"])
+        self.assertEqual("success", latest_ci["baseline"]["conclusion"])
+        self.assertIn(
+            "the previous push did not trigger CI; use the latest applicable successful completed CI",
+            payload["next_actions"][0],
+        )
+
+    def test_bootstrap_keeps_missing_status_for_ci_triggering_push(self) -> None:
+        baseline_head = self.create_git_commit_at("scripts/seed.py", "seed CI baseline")
+        current_head = self.create_git_commit_at("scripts/current.py", "current CI change")
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 13,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "workflowName": "CI",
+                    "displayTitle": "seed CI baseline",
+                    "headSha": baseline_head,
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                }
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "ci-triggering", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("missing", payload["latest_completed_ci"]["status"])
+        self.assertIn(current_head, payload["latest_completed_ci"]["message"])
+        self.assertIn("re-run the latest completed CI lookup", payload["next_actions"][0])
+
+    def test_bootstrap_prioritizes_non_successful_completed_ci(self) -> None:
+        current_head = self.create_git_commit_at("scripts/current.py", "failing CI change")
+        self.write_fake_gh(
+            [
+                {
+                    "databaseId": 14,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "workflowName": "CI",
+                    "displayTitle": "failing CI change",
+                    "headSha": current_head,
+                    "updatedAt": "2026-03-25T11:45:24Z",
+                }
+            ]
+        )
+
+        proc = self.run_cli("--json", "coding", "--scope", "ci-failure", "--model-id", "test-model")
+        payload = json.loads(proc.stdout)
+
+        self.assertEqual("completed", payload["latest_completed_ci"]["status"])
+        self.assertEqual("failure", payload["latest_completed_ci"]["conclusion"])
+        self.assertEqual(
+            "the previous completed CI was not successful; triage that result before starting a new implementation slice",
+            payload["next_actions"][0],
+        )
 
     def test_bootstrap_rolls_back_agent_to_inactive_when_post_claim_step_fails(self) -> None:
         self.write_fake_git(exit_code=1, stderr="git unavailable\n")
