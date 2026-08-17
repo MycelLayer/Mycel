@@ -273,7 +273,7 @@ Goal: add a usable reader-oriented client layer with deterministic accepted-head
 
 ### Current Status
 
-Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery and profile-error feedback, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, bounded viewer score surfaces in head inspection, persisted governance relationship summaries exposed through both `view inspect` and `view list`, per-document current-governance summaries in `view current`, and direct core-level selector regressions that lock shared-key and mixed-role dual-role admission/weight/support behavior on top of the deterministic selector path; `M3` still remains open for broader governance persistence, richer governance tooling beyond the current inspect/list/publish base, reader-facing profile ergonomics beyond this initial polish, and a clearer roadmap expression of the still-draft three-role viewer / editor-maintainer / view-maintainer checks-and-balances direction behind the current bounded viewer lane.
+Early partial progress, now with accepted-head rendering, named fixed-profile selection, clearer available-profile discovery, profile-error feedback, and copyable profile-reuse hints, editor-admission-aware inspect/render behavior, distinct human/debug text output modes for `head inspect` / `head render`, bounded viewer score surfaces in head inspection, persisted governance relationship and current-governance summaries, a deduplicated governance policy catalog, deterministic point-to-point `view diff` tooling, and direct core-level selector regressions that lock shared-key and mixed-role dual-role admission/weight/support behavior on top of the deterministic selector path; `M3` still remains open for broader governance persistence beyond the current catalog and summaries, richer governance tooling beyond the current inspect/list/publish/current/diff base, reader-facing profile ergonomics beyond this initial polish, and a clearer roadmap expression of the still-draft three-role viewer / editor-maintainer / view-maintainer checks-and-balances direction behind the current bounded viewer lane.
 
 Already in progress or partially implemented:
 
@@ -287,15 +287,17 @@ Already in progress or partially implemented:
 8. Persisted governance reverse indexes for maintainer, profile, and document view lookups
 9. Persisted governance relationship summaries surfaced through both `view inspect` and `view list`
 10. Per-document current-governance summaries surfaced through `view current`
-11. Early simulator workflows around peer and topology validation
-12. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+11. A deduplicated persisted governance policy catalog exposed through `view inspect` and `view current` without re-reading stored View bodies
+12. Deterministic point-to-point governance comparison through `view diff`, including JSON output and automation-friendly fail-on-diff behavior
+13. Early simulator workflows around peer and topology validation
+14. Bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Still missing or incomplete:
 
-1. Broader governance-state persistence beyond selector, reverse view indexes, and replay inputs
-2. Reader-facing profile ergonomics beyond the minimal named fixed-profile surface
-3. Richer governance retrieval and publication surfaces beyond the initial filtered/sorted/projected `view` inspection/listing/publication surface
-4. Stronger dedicated governance-state tooling once wire and sync work begin to land
+1. Broader governance-state persistence beyond selector, reverse view indexes, relationship/current summaries, and the deduplicated policy catalog
+2. Reader-facing profile ergonomics beyond the named fixed-profile surface and current copyable reuse hints
+3. Richer governance retrieval and publication surfaces beyond the filtered/sorted/projected `view` inspection/listing/publication/current/diff surface
+4. Stronger history/range and policy-aware governance-state tooling beyond the current point-to-point diff
 5. Clearer roadmap-level framing for the still-draft three-role viewer / editor-maintainer / view-maintainer checks-and-balances direction, including bounded viewer participation and explicit separation between proposal, ratification, and public objection without yet committing to every draft escalation or anti-Sybil mechanic
 
 ### Milestones in This Phase
@@ -318,7 +320,7 @@ Completion gate:
 
 Current read:
 
-Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, clearer available-profile discovery and profile-error feedback, editor-admission-aware named-profile and store-backed flows, bounded viewer score surfaces in head inspection, persisted governance relationship summaries exposed through `view inspect` and `view list`, per-document current-governance summaries exposed through `view current`, and direct core-level selector regressions for shared-key and mixed-role dual-role admission/weight/support behavior; broader governance persistence, richer governance tooling beyond the current inspect/list/publish base, reader-facing profile ergonomics beyond this initial polish, and clearer roadmap framing for the still-draft three-role checks-and-balances direction remain.
+Early partial progress, now with accepted-head render support from persisted stores and explicit replay bundles, clearer available-profile discovery, profile-error feedback, and copyable profile-reuse hints, editor-admission-aware named-profile and store-backed flows, bounded viewer score surfaces in head inspection, persisted governance relationship and current-governance summaries, a deduplicated governance policy catalog, deterministic point-to-point `view diff` tooling, and direct core-level selector regressions for shared-key and mixed-role dual-role admission/weight/support behavior; broader governance persistence beyond the current catalog and summaries, richer governance tooling beyond the current inspect/list/publish/current/diff base, reader-facing profile ergonomics beyond this initial polish, and clearer roadmap framing for the still-draft three-role checks-and-balances direction remain.
 
 Already visible in the repo:
 
@@ -333,15 +335,17 @@ Already visible in the repo:
 9. persisted governance reverse indexes for maintainer, profile, and document-oriented view lookups
 10. persisted governance relationship summaries surfaced through `view inspect` and `view list`
 11. per-document current-governance summaries surfaced through `view current`
-12. simulator and validation workflows around peer, topology, test, and report scopes
-13. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
+12. a deduplicated persisted governance policy catalog surfaced through `view inspect` and `view current`
+13. deterministic point-to-point governance comparison through `view diff`, including JSON output and fail-on-diff behavior
+14. simulator and validation workflows around peer, topology, test, and report scopes
+15. bounded viewer score channels in head inspection, including typed signal summaries, anti-Sybil gating, challenge review/freeze pressure, and fixture-backed coverage
 
 Main remaining gaps:
 
-1. broader governance-state persistence beyond the current reverse governance indexes, plus dedicated inspection surfaces
-2. stronger dedicated governance inspection and publication surfaces beyond the initial `view` workflow
-3. reader-facing profile ergonomics beyond the minimal named fixed-profile surface
-4. governance-state tooling that can later align with wire/sync transport
+1. broader governance-state persistence beyond the current reverse indexes, relationship/current summaries, and deduplicated policy catalog
+2. stronger dedicated governance inspection and publication surfaces beyond the current inspect/list/publish/current/diff workflow
+3. reader-facing profile ergonomics beyond the named fixed-profile surface and current copyable reuse hints
+4. richer history/range and policy-aware governance tooling that can later align with wire/sync transport
 5. clearer roadmap-level framing for the still-draft three-role viewer / editor-maintainer / view-maintainer checks-and-balances direction, including bounded viewer participation under profile rules, while keeping exact selector formulas, escalation thresholds, and anti-Sybil policy details in design-note status until they harden
 
 Implementation anchors:
@@ -385,7 +389,7 @@ Goal: extend from local verification and governed reading into interoperable rep
 
 ### Current Status
 
-Early partial.
+Partially implemented, with `M4` substantially underway and selective app-layer expansion still deferred.
 
 Already in progress or partially implemented:
 
@@ -393,14 +397,13 @@ Already in progress or partially implemented:
 2. CLI workflows for report inspection, listing, stats, and diffing
 3. A conservative local merge-authoring workflow that emits replayable patch operations for narrow resolved-state merges
 4. `mycel-core` wire-envelope parsing, payload validation, RFC 3339 timestamp checks, signature verification, sender identity checks, and inbound session sequencing for the minimal message set
+5. Verified object ingestion, peer-store-driven first-time and incremental sync, capability-gated snapshot/view flows, the three tracked production-replication proofs, and localhost multi-process transport coverage
 
 Still missing or incomplete:
 
-1. Wiring `OBJECT` body-derived hash and object-ID recomputation into the main incoming verification path
-2. Object fetch and sync state machine
-3. Snapshot-assisted catch-up and capability-gated optional message handling
-4. Broader session, capability, and error-path interop proof beyond the current positive-path and optional-message set
-5. App-layer runtime support
+1. Broader session, capability, and error-path interop proof beyond the current sequencing, sender-validation, reachability, advertisement-binding, and optional-message baseline
+2. Additional advertised-root/root-set and unaffected-document in-flight provenance proof beyond document-scoped `HEADS replace=true` advertisement handling
+3. App-layer runtime support
 
 ### Milestones in This Phase
 
@@ -433,7 +436,7 @@ Substantially underway. All M4 completion-gate items are now satisfied at the si
 7. Per-peer accepted-head comparison surfaced in report (`matching-accepted-heads` outcome)
 8. Localhost multi-process transport proof via `mycel sync stream | mycel sync pull --transcript -` (`localhost-multi-process`)
 
-What is still missing is broader session/capability/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. Depth-N incremental catchup is now proved: a reader at revision depth 2 catches up to a depth-3 seed in a single HEADS/WANT pass, fetching only the delta. Partial-doc selective sync is now also proved: a reader can request only a subset of the seed's documents, maintain a stable partial store, and compute accepted heads only for the requested subset, matching PROTOCOL §8 partial replication support. The landed negative/warning proof set is also materially broader now: it covers missing-capability rejection for `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE`, pre-`HELLO` rejection for `MANIFEST`, `HEADS`, `WANT`, `OBJECT`, `BYE`, `SNAPSHOT_OFFER`, and `VIEW_ANNOUNCE`, `ERROR`-before-`HELLO` acceptance when the rest of the transcript is valid, duplicate-`HELLO`, unknown-sender rejection, HELLO sender-identity mismatch rejection, explicit `ERROR`-only transcript failure, pre-root and pre-`MANIFEST` `WANT` rejection for generic, snapshot, and announced-view fetches, stale root/dependency plus stale snapshot and stale object `WANT` rejection after `HEADS replace=true`, unadvertised `WANT` revision/object rejection outside accepted sync roots, unrequested root/dependency `OBJECT` rejection after session establishment, unreachable `WANT` revision/object rejection outside accepted sync roots, immediate `OBJECT` rejection before accepted sync roots exist, permanent messages-after-`BYE` rejection, and missing-BYE warning-only partial completion. The remaining M4 gap is therefore the next broader set of session/capability/error-path interop faults such as advertised-root/root-set violations and other post-`HELLO` protocol-state errors rather than the already-landed sequencing, sender-validation, reachability, and optional-message cases. The localhost proof also confirms the current wire flow works across real process boundaries instead of only inside transcript fixtures or in-process simulator hooks.
+What is still missing is broader session/capability/error-path interop closure. Re-sync idempotency is now proved: running sync twice when already current produces zero new writes. Depth-N incremental catchup is now proved: a reader at revision depth 2 catches up to a depth-3 seed in a single HEADS/WANT pass, fetching only the delta. Partial-doc selective sync is now also proved: a reader can request only a subset of the seed's documents, maintain a stable partial store, and compute accepted heads only for the requested subset, matching PROTOCOL §8 partial replication support. The landed negative/warning proof set is also materially broader now: it covers missing-capability rejection for `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE`, pre-`HELLO` rejection for `MANIFEST`, `HEADS`, `WANT`, `OBJECT`, `BYE`, `SNAPSHOT_OFFER`, and `VIEW_ANNOUNCE`, `ERROR`-before-`HELLO` acceptance when the rest of the transcript is valid, duplicate-`HELLO`, unknown-sender rejection, HELLO sender-identity mismatch rejection, explicit `ERROR`-only transcript failure, pre-root and pre-`MANIFEST` `WANT` rejection for generic, snapshot, and announced-view fetches, stale root/dependency plus stale snapshot and stale object `WANT` rejection after `HEADS replace=true`, unadvertised `WANT` revision/object rejection outside accepted sync roots, unrequested root/dependency `OBJECT` rejection after session establishment, unreachable `WANT` revision/object rejection outside accepted sync roots, immediate `OBJECT` rejection before accepted sync roots exist, permanent messages-after-`BYE` rejection, and missing-BYE warning-only partial completion. Accepted `SNAPSHOT_OFFER` root hashes and `VIEW_ANNOUNCE` maintainer/document maps are now also bound to the fetched objects before session state advances or storage occurs, and `HEADS replace=true` now replaces only listed documents while preserving unlisted document advertisements for later `WANT`. The remaining M4 gap is therefore the next broader set of session/capability/error-path interop faults, such as other advertised-root/root-set violations, unaffected-document in-flight dependency provenance beyond the landed advertisement behavior, and other post-`HELLO` protocol-state errors rather than the already-landed sequencing, sender-validation, reachability, advertisement-binding, and optional-message cases. The localhost proof also confirms the current wire flow works across real process boundaries instead of only inside transcript fixtures or in-process simulator hooks.
 
 Implementation anchors:
 
@@ -498,8 +501,8 @@ These priorities apply across all phases:
 
 The highest-value near-term work is:
 
-1. keep expanding `M3` with narrow governance-persistence, governance-tooling, profile-ergonomics, and draft three-role checks-and-balances follow-up slices without reopening the closed minimal-client gate now that the final independent dual-role closure is landed
-2. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs now that the currently tracked production replication sub-items are landed
+1. keep expanding `M3` with narrow governance-persistence, governance-tooling, profile-ergonomics, and draft three-role checks-and-balances follow-up slices beyond the landed policy catalog, point-to-point View diff, and copyable profile-reuse hints without reopening the closed minimal-client gate
+2. keep strengthening `M4` with additional deterministic session, capability, and error-path interop proofs beyond the landed advertisement-to-object binding and document-scoped `HEADS replace=true` behavior
 3. continue strengthening interop fixtures and negative tests as each remaining rule or follow-up slice lands
 4. preserve the now-closed `M2` proof surface while future follow-up work lands around it
 

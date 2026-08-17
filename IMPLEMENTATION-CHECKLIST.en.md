@@ -1,6 +1,6 @@
 # Mycel v0.1 Implementation Checklist
 
-Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M3` / `M4` work while preserving the now-closed current narrow-scope `M2` follow-up section as a completed record, `M3` now explicitly treated as broader governance persistence and reader/governance follow-up beyond the current reverse-index, relationship summaries, current-governance summaries, store-index governance source/context summaries, and inspect/list/publish baseline, and `M4` now focused on the broader session/capability/error-path interop coverage that remains after the currently tracked production replication sub-items, broader pre-`HELLO` / pre-root / pre-`MANIFEST` gating, `HEADS`-before-`MANIFEST` sync-root setup, stale root/dependency plus stale snapshot and stale object `WANT` rejection after `HEADS replace=true`, unadvertised `WANT`, unrequested `OBJECT`, sender-validation faults, `ERROR`-before-`HELLO` acceptance, explicit `ERROR`-only failure proof, unreachable `WANT` fault proofs, and missing-BYE warning handling landed; the current open issue queue still maps cleanly to those remaining checklist gaps
+Status: `M1` minimal-client gate closed and retained below as a completed checklist; a post-`M1` follow-up checklist now tracks the still-open `M3` / `M4` work while preserving the now-closed current narrow-scope `M2` follow-up section as a completed record, `M3` now explicitly treated as broader governance persistence and reader/governance follow-up beyond the current reverse-index, relationship summaries, current-governance summaries, store-index governance source/context summaries, deduplicated policy catalog, point-to-point View diff, and inspect/list/publish/current baseline, and `M4` now focused on the broader session/capability/error-path interop coverage that remains after the currently tracked production replication sub-items, broader pre-`HELLO` / pre-root / pre-`MANIFEST` gating, `HEADS`-before-`MANIFEST` sync-root setup, document-scoped `HEADS replace=true`, advertised Snapshot/View metadata binding, stale root/dependency plus stale snapshot and stale object `WANT` rejection, unadvertised `WANT`, unrequested `OBJECT`, sender-validation faults, `ERROR`-before-`HELLO` acceptance, explicit `ERROR`-only failure proof, unreachable `WANT` fault proofs, and missing-BYE warning handling landed; the current open issue queue still maps cleanly to those remaining checklist gaps
 
 This checklist translates the v0.1 spec into an implementation-oriented build plan for a minimal interoperable client.
 
@@ -215,9 +215,9 @@ Use this section as the active implementation checklist for the still-open post-
 ## 15. `M3` Reader and Governance Follow-Up
 
 - [x] Close the remaining independent dual-role role-assignment follow-up that still remains after separate admission validation landed.
-- [ ] Add broader governance persistence beyond the current initial reverse-index, relationship summaries, current-governance summaries, and inspect/list/publish surfaces.
-- [ ] Extend governance tooling past the current initial `view inspect` / `view list` / `view publish` workflows.
-- [ ] Keep improving reader profile ergonomics beyond the current available-profile summaries and profile-error feedback.
+- [ ] Add broader governance persistence beyond the current reverse-index, relationship summaries, current-governance summaries, deduplicated policy catalog, and inspect/list/publish/current surfaces.
+- [ ] Extend governance tooling past the current `view inspect` / `view list` / `view publish` / `view current` / point-to-point `view diff` workflows.
+- [ ] Keep improving reader profile ergonomics beyond the current available-profile summaries, profile-error feedback, and copyable profile-reuse hints.
 
 ## 16. `M4` Wire Sync and Peer Interop Follow-Up
 
@@ -227,7 +227,7 @@ Use this section as the active implementation checklist for the still-open post-
   - [x] Re-sync idempotency: running sync twice when the reader is already current produces zero new stored objects, no errors, and stable accepted heads.
   - [x] Depth-N incremental catchup: a reader at revision depth 1 catches up to a seed at depth ≥ 3 in a single HEADS/WANT pass, verifying that only the delta is fetched.
   - [x] Partial-doc selective sync: a reader requests only a subset of the seed's documents, ends with a stable partial store, and accepted heads are correct for the requested subset only (PROTOCOL §8 states partial replication is supported).
-- [ ] Expand session, capability, and error-path interop coverage past the current positive-path, optional-message, broader pre-`HELLO` / pre-root / pre-`MANIFEST` gating, `HEADS`-before-`MANIFEST`, stale-root/dependency plus stale snapshot and stale object `WANT` rejection after `HEADS replace=true`, unadvertised `WANT`, unrequested `OBJECT`, sender-validation, `ERROR`-before-`HELLO` acceptance, explicit `ERROR`-only, reachability, and messages-after-BYE / missing-BYE proof set.
+- [ ] Expand session, capability, and error-path interop coverage past the current positive-path, optional-message, broader pre-`HELLO` / pre-root / pre-`MANIFEST` gating, `HEADS`-before-`MANIFEST`, document-scoped `HEADS replace=true`, advertised Snapshot/View metadata binding, stale-root/dependency plus stale snapshot and stale object `WANT` rejection, unadvertised `WANT`, unrequested `OBJECT`, sender-validation, `ERROR`-before-`HELLO` acceptance, explicit `ERROR`-only, reachability, and messages-after-BYE / missing-BYE proof set.
 
 ## 17. Cross-Surface Closure Rules
 

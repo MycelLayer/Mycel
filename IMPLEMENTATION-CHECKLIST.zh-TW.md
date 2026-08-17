@@ -1,6 +1,6 @@
 # Mycel v0.1 實作檢查清單
 
-狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M3` / `M4` 工作，同時把目前窄版範圍已收口的 `M2` follow-up 區段保留為已完成記錄；`M3` 現在明確指向超出目前 reverse-index、relationship summaries、current-governance summaries、store index governance source/context 摘要，以及 inspect/list/publish baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項、更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating、`HEADS` 先於 `MANIFEST` 的 sync-root setup、`HEADS replace=true` 後 stale root/dependency、stale snapshot 與 stale object `WANT` rejection、unadvertised `WANT`、unrequested `OBJECT`、sender-validation faults、`ERROR`-before-`HELLO` acceptance、explicit `ERROR`-only failure proof、unreachable `WANT` fault proofs，以及 missing-BYE warning handling 落地後仍未補齊的 broader session/capability/error-path interop coverage；目前 open issue queue 也仍和這些剩餘 checklist 缺口對齊
+狀態：`M1` minimal-client gate 已關閉，並在下方保留為已完成清單；新的 post-`M1` follow-up checklist 現在用來追蹤仍未完成的 `M3` / `M4` 工作，同時把目前窄版範圍已收口的 `M2` follow-up 區段保留為已完成記錄；`M3` 現在明確指向超出目前 reverse-index、relationship summaries、current-governance summaries、store index governance source/context 摘要、去重 policy catalog、point-to-point View diff，以及 inspect/list/publish/current baseline 的 broader governance persistence 與 reader/governance 後續工作，而 `M4` 則轉向目前 production replication 子項、更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating、`HEADS` 先於 `MANIFEST` 的 sync-root setup、document-scoped `HEADS replace=true`、advertised Snapshot/View metadata binding、stale root/dependency、stale snapshot 與 stale object `WANT` rejection、unadvertised `WANT`、unrequested `OBJECT`、sender-validation faults、`ERROR`-before-`HELLO` acceptance、explicit `ERROR`-only failure proof、unreachable `WANT` fault proofs，以及 missing-BYE warning handling 落地後仍未補齊的 broader session/capability/error-path interop coverage；目前 open issue queue 也仍和這些剩餘 checklist 缺口對齊
 
 這份清單把 v0.1 規格轉成偏實作導向的建置計畫，目標是一個最小但可互通的客戶端。
 
@@ -215,9 +215,9 @@
 ## 15. `M3` Reader 與 Governance Follow-Up
 
 - [x] 收掉 separate admission validation 已落地後，仍然存在的 independent dual-role role-assignment follow-up。
-- [ ] 補上超出目前 initial reverse-index、relationship summaries、current-governance summaries 與 inspect/list/publish surfaces 的 broader governance persistence。
-- [ ] 把 governance tooling 擴展到目前初始 `view inspect` / `view list` / `view publish` workflows 之外。
-- [ ] 持續改善 reader profile ergonomics，超出目前 available-profile summaries 與 profile-error feedback。
+- [ ] 補上超出目前 reverse-index、relationship summaries、current-governance summaries、去重 policy catalog 與 inspect/list/publish/current surfaces 的 broader governance persistence。
+- [ ] 把 governance tooling 擴展到目前 `view inspect` / `view list` / `view publish` / `view current` / point-to-point `view diff` workflows 之外。
+- [ ] 持續改善 reader profile ergonomics，超出目前 available-profile summaries、profile-error feedback 與可複用 profile 提示。
 
 ## 16. `M4` Wire Sync 與 Peer Interop Follow-Up
 
@@ -227,7 +227,7 @@
   - [x] Re-sync 冪等性：reader 已是最新狀態時，再次執行 sync 應產生零次新寫入、無錯誤、accepted heads 不變。
   - [x] Depth-N 增量追趕：位於 revision depth 1 的 reader 透過一次 HEADS/WANT 追上 depth ≥ 3 的 seed，且只抓取差異部分。
   - [x] 部分文件選擇性 sync：reader 只請求 seed 部分文件，最終 store 穩定在所請求的子集，且 accepted heads 僅針對請求文件正確計算（PROTOCOL §8 明訂支援 partial replication）。
-- [ ] 擴大 session、capability 與 error-path interop coverage，超出目前 positive-path、optional-message、更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating、`HEADS` 先於 `MANIFEST`、`HEADS replace=true` 後 stale root/dependency、stale snapshot 與 stale object `WANT` rejection、unadvertised `WANT`、unrequested `OBJECT`、sender-validation、`ERROR`-before-`HELLO` acceptance、explicit `ERROR`-only、reachability，以及 messages-after-BYE / missing-BYE proof set。
+- [ ] 擴大 session、capability 與 error-path interop coverage，超出目前 positive-path、optional-message、更廣的 pre-`HELLO` / pre-root / pre-`MANIFEST` gating、`HEADS` 先於 `MANIFEST`、document-scoped `HEADS replace=true`、advertised Snapshot/View metadata binding、stale root/dependency、stale snapshot 與 stale object `WANT` rejection、unadvertised `WANT`、unrequested `OBJECT`、sender-validation、`ERROR`-before-`HELLO` acceptance、explicit `ERROR`-only、reachability，以及 messages-after-BYE / missing-BYE proof set。
 
 ## 17. Cross-Surface Closure Rules
 

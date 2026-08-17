@@ -273,7 +273,7 @@ Implementation anchors：
 
 ### Current Status
 
-屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索與 profile 錯誤回饋、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式、head inspection 裡的 bounded viewer score surfaces、透過 `view inspect` 與 `view list` 曝露的 persisted governance relationship summaries、透過 `view current` 提供的 per-document current-governance summaries，以及直接把 shared-key / mixed-role dual-role admission、weight 與 support 關係鎖進 `mycel-core` 的 selector regressions；`M3` 仍未完成，主要剩下更廣泛的 governance persistence、超出目前 inspect/list/publish base 的 governance tooling、超出這一輪初步打磨的 reader-facing profile ergonomics，以及把仍屬 design draft 的 viewer / editor-maintainer / view-maintainer 三角色 checks-and-balances 方向更清楚地反映到 roadmap 上。
+屬早期 partial progress，現在已在 deterministic selector path 之上具備 accepted-head rendering、具名 fixed-profile selection、更清楚的可用 profile 探索、profile 錯誤回饋與可複用的 profile 選擇提示、具備 editor-admission 感知的 inspect/render behavior、`head inspect` / `head render` 的 `human` / `debug` 文字輸出模式、head inspection 裡的 bounded viewer score surfaces、persisted governance relationship 與 current-governance summaries、去重後持久化的 governance policy catalog、deterministic point-to-point `view diff` tooling，以及直接把 shared-key / mixed-role dual-role admission、weight 與 support 關係鎖進 `mycel-core` 的 selector regressions；`M3` 仍未完成，主要剩下超出目前 catalog 與 summaries 的更廣泛 governance persistence、超出目前 inspect/list/publish/current/diff base 的 governance tooling、超出這一輪初步打磨的 reader-facing profile ergonomics，以及把仍屬 design draft 的 viewer / editor-maintainer / view-maintainer 三角色 checks-and-balances 方向更清楚地反映到 roadmap 上。
 
 已在進行中或部分完成：
 
@@ -288,15 +288,17 @@ Implementation anchors：
 9. persisted governance reverse indexes，支援依 maintainer、profile 與 document 反查 view
 10. 透過 `view inspect` 與 `view list` 呈現的 persisted governance relationship summaries
 11. 透過 `view current` 呈現的 per-document current-governance summaries
-12. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
-13. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
+12. 透過 `view inspect` 與 `view current` 呈現、且不需重新讀取 stored View bodies 的去重 persisted governance policy catalog
+13. 具備 JSON output 與 automation-friendly fail-on-diff behavior 的 deterministic point-to-point `view diff`
+14. simulator 與 validation workflows，涵蓋 peer、topology、test 與 report 範圍
+15. head inspection 中的 bounded viewer score channels，包括 typed signal summaries、anti-Sybil gating、challenge review/freeze pressure，以及 fixture-backed coverage
 
 主要剩餘缺口：
 
-1. 超出 selector、reverse view indexes 與 replay inputs 的更廣泛 governance-state persistence
-2. 超出目前初始 filtered / sorted / projected `view` inspection / listing / publication workflow 的專用 governance surfaces
-3. 超出這一輪初步打磨的最小具名 fixed-profile surface 的 reader-facing profile ergonomics
-4. 後續可與 wire / sync 對齊的 governance-state tooling
+1. 超出 selector、reverse view indexes、relationship/current summaries 與去重 policy catalog 的更廣泛 governance-state persistence
+2. 超出目前 filtered / sorted / projected `view` inspection / listing / publication / current / diff workflow 的專用 governance surfaces
+3. 超出具名 fixed-profile surface 與目前可複用提示的 reader-facing profile ergonomics
+4. 超出目前 point-to-point diff、後續可與 wire / sync 對齊的 richer history/range 與 policy-aware governance-state tooling
 5. 在 roadmap 層級更清楚表達仍屬 design draft 的 viewer / editor-maintainer / view-maintainer 三角色 checks-and-balances 方向，包括 bounded viewer participation 與 proposal / ratification / public objection 的明確分離，但暫不把所有 draft 中的 escalation 或 anti-Sybil 細節直接升格成 roadmap 承諾
 
 Implementation anchors：
@@ -340,7 +342,7 @@ Implementation anchors：
 
 ### Current Status
 
-早期部分完成。
+已部分完成，其中 `M4` 已大幅推進，而 selective app-layer expansion 仍刻意延後。
 
 已在進行中或部分完成：
 
@@ -348,14 +350,13 @@ Implementation anchors：
 2. 用於 report inspection、listing、stats 與 diffing 的 CLI workflows
 3. 可為窄版 resolved-state merges 產出可 replay patch operations 的保守型 local merge-authoring workflow
 4. `mycel-core` 的 wire-envelope parsing、payload validation、RFC 3339 timestamp checks、signature verification、sender identity checks，以及 minimal message set 的 inbound session sequencing
+5. Verified object ingestion、peer-store-driven first-time 與 incremental sync、capability-gated snapshot/view flows、三個已追蹤的 production-replication proofs，以及 localhost multi-process transport coverage
 
 仍缺少或未完成：
 
-1. 將 `OBJECT` body 衍生的 hash 與 object-ID 重算真正接進主要 incoming verification path
-2. Object fetch 與 sync state machine
-3. Snapshot-assisted catch-up 與 capability-gated optional message handling
-4. Production replication behavior
-5. App-layer runtime support
+1. 超出目前 sequencing、sender-validation、reachability、advertisement-binding 與 optional-message baseline 的 broader session、capability 與 error-path interop proof
+2. 超出 document-scoped `HEADS replace=true` advertisement handling 的其他 advertised-root/root-set 與 unaffected-document in-flight provenance proof
+3. App-layer runtime support
 
 ### 本 phase 的 milestones
 
@@ -377,7 +378,7 @@ Implementation anchors：
 
 目前判讀：
 
-`mycel-core` 已有 early groundwork：canonical envelope parsing、payload shape validation、RFC 3339 timestamp enforcement、通用 wire signature verification、sender checks、對 `HELLO`、`MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`ERROR` 的 inbound sequencing/head-tracking、reachability gating、store-backed session bootstrap，以及 `OBJECT` body 衍生的 hash / `object_id` 驗證。現在也已有 `mycel-core` 內的 peer-store sync path、CLI entry points，以及 9 個 simulator scenarios 的 positive-path coverage，可在不把手寫 transcript 當成唯一整合表面的前提下，證明 first-time 與 incremental 的 verify/store flow；同時 capability-gated 的 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling 也已透過 peer-store generation、fetch/store behavior 與 simulator proof 落地。`localhost-multi-process` 也已透過 `mycel sync stream | mycel sync pull --transcript -` 的 stdin/stdout pipe proof，確認目前 wire flow 可以跨真實 process boundary 運作。Re-sync 冪等性也已經補上 proof：reader 已是最新狀態時，再跑一次 sync 會得到零次新寫入。Depth-N incremental catchup 也已經補上 proof：位於 revision depth 2 的 reader 透過一次 HEADS/WANT pass 追上 depth-3 的 seed，且只抓取差異部分。Partial-doc selective sync 也已補上 proof：reader 只請求 seed 的部分文件時，仍可維持穩定 partial store，並只對所請求子集計算 accepted heads，與 PROTOCOL §8 的 partial replication 支援一致。現在已落地的負向／warning proof set 也明顯更廣：已涵蓋缺少 capability 時對 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` 的拒收、在 `HELLO` 前對 `MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`SNAPSHOT_OFFER`、`VIEW_ANNOUNCE` 的拒收、在其餘 transcript 有效時允許 `ERROR` 先於 `HELLO`、duplicate-`HELLO`、unknown-sender rejection、HELLO sender-identity mismatch rejection、explicit `ERROR`-only transcript failure、在 accepted sync roots 建立前對一般 `WANT`、snapshot `WANT`、announced-view `WANT` 的拒收、`HEADS replace=true` 後對 stale root/dependency、stale snapshot 與 stale object `WANT` 的拒收、對 accepted sync roots 外的 unadvertised `WANT` revision/object 拒收、session 建立後對 unrequested root/dependency `OBJECT` 的拒收、對 accepted sync roots 外的 unreachable `WANT` revision/object 拒收、在 accepted sync roots 建立前立刻送出 `OBJECT` 的拒收、常設的 messages-after-`BYE` rejection，以及 missing-BYE 的 warning-only partial completion。剩餘缺口因此不再是「任何 session negative case 都沒補」，而是下一批更廣的 session/capability/error-path interop faults，例如 advertised-root / root-set 違規，或其他 post-`HELLO` protocol-state errors。剩下的則是 peer interop 的 session/capability/error-path coverage。
+`mycel-core` 已有 early groundwork：canonical envelope parsing、payload shape validation、RFC 3339 timestamp enforcement、通用 wire signature verification、sender checks、對 `HELLO`、`MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`ERROR` 的 inbound sequencing/head-tracking、reachability gating、store-backed session bootstrap，以及 `OBJECT` body 衍生的 hash / `object_id` 驗證。現在也已有 `mycel-core` 內的 peer-store sync path、CLI entry points，以及 9 個 simulator scenarios 的 positive-path coverage，可在不把手寫 transcript 當成唯一整合表面的前提下，證明 first-time 與 incremental 的 verify/store flow；同時 capability-gated 的 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` handling 也已透過 peer-store generation、fetch/store behavior 與 simulator proof 落地。`localhost-multi-process` 也已透過 `mycel sync stream | mycel sync pull --transcript -` 的 stdin/stdout pipe proof，確認目前 wire flow 可以跨真實 process boundary 運作。Re-sync 冪等性也已經補上 proof：reader 已是最新狀態時，再跑一次 sync 會得到零次新寫入。Depth-N incremental catchup 也已經補上 proof：位於 revision depth 2 的 reader 透過一次 HEADS/WANT pass 追上 depth-3 的 seed，且只抓取差異部分。Partial-doc selective sync 也已補上 proof：reader 只請求 seed 的部分文件時，仍可維持穩定 partial store，並只對所請求子集計算 accepted heads，與 PROTOCOL §8 的 partial replication 支援一致。現在已落地的負向／warning proof set 也明顯更廣：已涵蓋缺少 capability 時對 `SNAPSHOT_OFFER` / `VIEW_ANNOUNCE` 的拒收、在 `HELLO` 前對 `MANIFEST`、`HEADS`、`WANT`、`OBJECT`、`BYE`、`SNAPSHOT_OFFER`、`VIEW_ANNOUNCE` 的拒收、在其餘 transcript 有效時允許 `ERROR` 先於 `HELLO`、duplicate-`HELLO`、unknown-sender rejection、HELLO sender-identity mismatch rejection、explicit `ERROR`-only transcript failure、在 accepted sync roots 建立前對一般 `WANT`、snapshot `WANT`、announced-view `WANT` 的拒收、`HEADS replace=true` 後對 stale root/dependency、stale snapshot 與 stale object `WANT` 的拒收、對 accepted sync roots 外的 unadvertised `WANT` revision/object 拒收、session 建立後對 unrequested root/dependency `OBJECT` 的拒收、對 accepted sync roots 外的 unreachable `WANT` revision/object 拒收、在 accepted sync roots 建立前立刻送出 `OBJECT` 的拒收、常設的 messages-after-`BYE` rejection，以及 missing-BYE 的 warning-only partial completion。已接受的 `SNAPSHOT_OFFER` root hash 與 `VIEW_ANNOUNCE` maintainer/document map 現在也會在 session state 前進或 storage 前綁定到 fetched objects；`HEADS replace=true` 現在只替換訊息中列出的 documents，同時保留未列出 document advertisements 供後續 `WANT` 使用。剩餘缺口因此不再是「任何 session negative case 都沒補」，而是下一批更廣的 session/capability/error-path interop faults，例如其他 advertised-root/root-set 違規、超出已落地 advertisement behavior 的 unaffected-document in-flight dependency provenance，或其他 post-`HELLO` protocol-state errors。
 
 Implementation anchors：
 
@@ -442,8 +443,8 @@ Implementation anchors：
 
 近期最高價值的工作是：
 
-1. 在最終獨立 dual-role 收尾已落地之後，以窄版切片持續擴張 `M3` 的 governance persistence、governance tooling、reader-facing profile ergonomics，以及仍屬 design draft 的三角色 checks-and-balances 後續規劃，同時不要重新打開已關閉的 minimal-client gate
-2. 在目前追蹤的 production replication 子項已落地後，持續為 `M4` 補上更多 deterministic 的 session、capability 與 error-path interop proofs
+1. 在 policy catalog、point-to-point View diff 與可複用 profile 提示已落地後，以窄版切片持續擴張 `M3` 的 governance persistence、governance tooling、reader-facing profile ergonomics，以及仍屬 design draft 的三角色 checks-and-balances 後續規劃，同時不要重新打開已關閉的 minimal-client gate
+2. 在 advertisement-to-object binding 與 document-scoped `HEADS replace=true` behavior 已落地後，持續為 `M4` 補上更多 deterministic 的 session、capability 與 error-path interop proofs
 3. 每當剩餘的規則或 follow-up slice 落地，就持續補強 interop fixtures 與 negative tests
 4. 在後續工作持續落地時，維持目前已關閉的 `M2` proof surface 不被回歸破壞
 
