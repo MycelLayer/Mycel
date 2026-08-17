@@ -78,18 +78,30 @@ pub fn diff_governance_views(
 ) -> Result<GovernanceViewDiffSummary, StoreRebuildError> {
     let base = find_view_record(manifest, base_view_id)?;
     let target = find_view_record(manifest, target_view_id)?;
+    Ok(diff_governance_records(manifest, base, target, None))
+}
+
+pub(super) fn diff_governance_records(
+    manifest: &StoreIndexManifest,
+    base: &ViewGovernanceRecord,
+    target: &ViewGovernanceRecord,
+    doc_id: Option<&str>,
+) -> GovernanceViewDiffSummary {
     let maintainer_changed = base.maintainer != target.maintainer;
     let policy_changed = base.profile_id != target.profile_id;
     let timestamp_changed = base.timestamp != target.timestamp;
     let mut unchanged_document_count = 0;
     let mut document_changes = Vec::new();
 
-    let doc_ids = base
-        .documents
-        .keys()
-        .chain(target.documents.keys())
-        .cloned()
-        .collect::<BTreeSet<_>>();
+    let doc_ids = match doc_id {
+        Some(doc_id) => BTreeSet::from([doc_id.to_string()]),
+        None => base
+            .documents
+            .keys()
+            .chain(target.documents.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+    };
     for doc_id in doc_ids {
         let base_revision_id = base.documents.get(&doc_id);
         let target_revision_id = target.documents.get(&doc_id);
@@ -123,7 +135,7 @@ pub fn diff_governance_views(
         GovernanceViewDiffComparison::Different
     };
 
-    Ok(GovernanceViewDiffSummary {
+    GovernanceViewDiffSummary {
         comparison,
         difference_count,
         base_view_id: base.view_id.clone(),
@@ -144,5 +156,5 @@ pub fn diff_governance_views(
         timestamp_changed,
         unchanged_document_count,
         document_changes,
-    })
+    }
 }

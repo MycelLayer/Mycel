@@ -5,6 +5,7 @@ use crate::CliError;
 mod current;
 mod diff;
 mod document;
+mod history;
 mod inspect;
 mod list;
 mod maintainer;
@@ -27,6 +28,8 @@ enum ViewSubcommand {
     Diff(ViewDiffCliArgs),
     #[command(about = "Inspect the current persisted governance state for one document")]
     Document(ViewDocumentCliArgs),
+    #[command(about = "Inspect deterministic governance View history and adjacent transitions")]
+    History(ViewHistoryCliArgs),
     #[command(about = "Inspect the current persisted governance state for one maintainer")]
     Maintainer(ViewMaintainerCliArgs),
     #[command(about = "Inspect one persisted governance View object")]
@@ -119,6 +122,45 @@ struct ViewInspectCliArgs {
     )]
     store_root: String,
     #[arg(long, help = "Emit machine-readable view inspection output")]
+    json: bool,
+    #[arg(hide = true, allow_hyphen_values = true)]
+    extra: Vec<String>,
+}
+
+#[derive(Args)]
+struct ViewHistoryCliArgs {
+    #[arg(
+        long,
+        value_name = "STORE_ROOT",
+        help = "Store root containing persisted governance history indexes",
+        required = true
+    )]
+    store_root: String,
+    #[arg(
+        long,
+        help = "Only return history for one governance profile ID",
+        required_unless_present = "doc_id"
+    )]
+    profile_id: Option<String>,
+    #[arg(
+        long,
+        help = "Only return history for Views that govern one document ID",
+        required_unless_present = "profile_id"
+    )]
+    doc_id: Option<String>,
+    #[arg(
+        long,
+        value_name = "TIMESTAMP",
+        help = "Only return Views at or after one timestamp"
+    )]
+    timestamp_min: Option<u64>,
+    #[arg(
+        long,
+        value_name = "TIMESTAMP",
+        help = "Only return Views at or before one timestamp"
+    )]
+    timestamp_max: Option<u64>,
+    #[arg(long, help = "Emit machine-readable governance history output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
     extra: Vec<String>,
@@ -329,6 +371,12 @@ pub(crate) fn handle_view_command(command: ViewCliArgs) -> Result<i32, CliError>
                 return Err(CliError::usage(message));
             }
             document::handle(args)
+        }
+        Some(ViewSubcommand::History(args)) => {
+            if let Some(message) = unexpected_extra(&args.extra, "view history") {
+                return Err(CliError::usage(message));
+            }
+            history::handle(args)
         }
         Some(ViewSubcommand::Maintainer(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "view maintainer") {

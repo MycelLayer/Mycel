@@ -13,10 +13,14 @@ use crate::protocol::{
 use crate::verify::{verify_object_path, verify_object_value_with_object_index};
 
 mod governance_diff;
+mod governance_history;
 
 pub use governance_diff::{
     diff_governance_views, GovernanceDocumentChange, GovernanceDocumentChangeKind,
     GovernanceViewDiffComparison, GovernanceViewDiffSummary,
+};
+pub use governance_history::{
+    governance_view_history, GovernanceViewHistoryRecord, GovernanceViewHistorySummary,
 };
 
 #[derive(Debug, Clone, Serialize)]

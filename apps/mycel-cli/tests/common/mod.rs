@@ -431,6 +431,34 @@ pub fn assert_view_diff_help(stdout: &str) {
     );
 }
 
+pub fn assert_view_history_help(stdout: &str) {
+    assert!(
+        stdout.contains("Usage: mycel view history"),
+        "expected view history usage, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("Inspect deterministic governance View history and adjacent transitions"),
+        "expected view history description, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--store-root <STORE_ROOT>"),
+        "expected store-root flag in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--profile-id <PROFILE_ID>") && stdout.contains("--doc-id <DOC_ID>"),
+        "expected history scope flags in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--timestamp-min <TIMESTAMP>")
+            && stdout.contains("--timestamp-max <TIMESTAMP>"),
+        "expected timestamp range flags in help, stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("--json"),
+        "expected json flag in help, stdout: {stdout}"
+    );
+}
+
 pub fn assert_view_current_help(stdout: &str) {
     assert!(
         stdout.contains("Usage: mycel view current"),
