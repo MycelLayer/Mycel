@@ -46,29 +46,20 @@
         <div class="eyebrow">Visual progress summary</div>
         <h1>Roadmap order and implementation status in one view.</h1>
         <p class="lead">
-          Mycel is still on the narrow first-client path. <code>M2</code> replay/storage/rebuild is
-          now closed at the current narrow scope after the richer mixed content/metadata
-          competing-branch classification, the multi-document rebuild-after-index-loss proof, and
-          the richer metadata multi-variant rebuild/reporting proof all landed, so the active lane
-          now centers on <code>M3</code> / <code>M4</code>. <code>M3</code> has now moved past
-          the landed final independent dual-role closure into broader governance persistence,
-          richer governance tooling, and reader-facing profile ergonomics beyond the current
-          inspect/list/publish plus per-document current-governance-summary and store-index
-          governance source/context summary baseline, plus
-          the remaining <code>M4</code> session/capability/error-path interop proof now that
-          broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating,
-          <code>HEADS</code>-before-<code>MANIFEST</code> sync-root setup, stale
-          root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after
-          <code>HEADS replace=true</code>, unadvertised <code>WANT</code>, unrequested
-          <code>OBJECT</code>, unknown-sender and HELLO sender-identity mismatch rejection,
-          <code>ERROR</code>-before-<code>HELLO</code> acceptance, explicit <code>ERROR</code>-only
-          and unreachable <code>WANT</code> proof, and permanent messages-after-<code>BYE</code>
-          plus missing-<code>BYE</code> warning handling are also covered.
+          Mycel is still on the narrow first-client path. <code>M2</code> replay/storage/rebuild
+          remains closed at the current narrow scope, so the active lane centers on
+          <code>M3</code> / <code>M4</code>. <code>M3</code> now builds beyond persisted
+          relationship/current-governance summaries, store-index governance context, a
+          deduplicated policy catalog, point-to-point View diff, and copyable profile-reuse hints.
+          <code>M4</code> now also binds accepted Snapshot/View metadata to fetched objects and
+          applies document-scoped <code>HEADS replace=true</code> behavior on top of its existing
+          production-replication, sequencing, reachability, sender-validation, and negative/warning
+          proof set. Broader governance work and broader session/capability/error-path interop remain open.
         </p>
         <ol class="lane-list">
           <li>Keep <code>M2</code> closed at the current narrow replay/storage/rebuild scope now that the richer mixed content/metadata competing-branch rebuild/reporting proof is landed.</li>
-          <li>Expand <code>M3</code> reader-plus-governance workflows carefully on top of accepted-head inspection, render, clearer available-profile and profile-error feedback, editor-admission-aware profile base, bounded viewer score surfaces, initial governance inspect/list/publish/current surfaces, persisted governance relationship summaries, per-document current-governance summaries, and store-index governance source/context summaries, now that the final independent dual-role closure is landed, while keeping broader governance persistence, richer governance tooling, and profile ergonomics beyond this initial polish explicit.</li>
-          <li>Keep <code>M4</code> narrow while peer-store sync proof grows toward the remaining session/capability/error-path interop closure now that broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating, <code>HEADS</code>-before-<code>MANIFEST</code> setup, stale root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code>, unadvertised <code>WANT</code>, unrequested <code>OBJECT</code>, unknown-sender and HELLO sender-identity mismatch rejection, <code>ERROR</code>-before-<code>HELLO</code> acceptance, explicit <code>ERROR</code>-only, unreachable <code>WANT</code>, and messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage are also covered.</li>
+          <li>Expand <code>M3</code> carefully beyond the current accepted-head reader base, profile discovery/error feedback and reuse hints, governance inspect/list/publish/current workflows, persisted relationship/current-governance summaries, store-index governance context, deduplicated policy catalog, and point-to-point View diff.</li>
+          <li>Keep <code>M4</code> narrow while peer-store sync proof grows beyond the current production-replication, sequencing/root gating, advertised Snapshot/View metadata binding, document-scoped <code>HEADS replace=true</code>, reachability, sender-validation, and warning/error baseline.</li>
         </ol>
       </header>
 
@@ -109,15 +100,17 @@
             <ul>
               <li>Accepted-head reader workflows</li>
               <li>Bundle and store rendering with ancestry context</li>
-              <li>Named fixed-profile reading with clearer available-profile and profile-error feedback</li>
+              <li>Named fixed-profile reading with clearer discovery/error feedback and copyable reuse hints</li>
               <li>Editor-admission-aware inspect/render flows</li>
               <li>Bounded viewer score surfaces in head inspection</li>
-              <li>Filtered governance inspect/list/publish workflows</li>
+              <li>Filtered governance inspect/list/publish/current workflows</li>
               <li>Persisted governance reverse indexes</li>
               <li>Persisted governance relationship summaries in <code>view inspect</code> / <code>view list</code></li>
               <li>Per-document current-governance summaries in <code>view current</code></li>
               <li>Store-index governance source labels and current-view context summaries in <code>store index</code></li>
-              <li>Remaining work: broader governance persistence, richer governance tooling, and profile ergonomics beyond this initial polish</li>
+              <li>Deduplicated governance policy catalog in <code>view inspect</code> / <code>view current</code></li>
+              <li>Point-to-point governance comparison through <code>view diff</code></li>
+              <li>Remaining work: broader persistence beyond the catalog/summaries, richer history/range and policy-aware tooling, and further profile ergonomics</li>
             </ul>
           </article>
           <article class="card">
@@ -131,12 +124,14 @@
               <li>Capability-gated <code>SNAPSHOT_OFFER</code> / <code>VIEW_ANNOUNCE</code></li>
               <li>Localhost multi-process, re-sync idempotency, depth-N catchup, and partial-doc selective sync proofs</li>
               <li>Broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating</li>
-              <li><code>HEADS</code>-before-<code>MANIFEST</code> sync-root setup plus stale root/dependency, stale snapshot, and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code></li>
+              <li><code>HEADS</code>-before-<code>MANIFEST</code> setup and document-scoped <code>HEADS replace=true</code></li>
+              <li>Accepted Snapshot/View metadata bound to fetched objects before storage</li>
+              <li>Stale root/dependency, stale snapshot, and stale object <code>WANT</code> rejection</li>
               <li>Unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection</li>
               <li>Unknown-sender and HELLO sender-identity mismatch rejection</li>
               <li><code>ERROR</code>-before-<code>HELLO</code> acceptance plus explicit <code>ERROR</code>-only and unreachable <code>WANT</code> rejection proof</li>
               <li>Messages-after-<code>BYE</code> rejection plus missing-<code>BYE</code> warning proof</li>
-              <li>Remaining work is broader session/capability/error-path interop proof</li>
+              <li>Remaining work: other root-set violations, unaffected-document in-flight provenance, and broader session/capability/error-path proof</li>
             </ul>
           </article>
           <article class="card">
@@ -208,19 +203,19 @@
               <td data-label="Area">7. Wire Protocol</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Canonical wire-envelope parsing, field validation, RFC 3339 checks, minimal-message payload validation, sender checks, session sequencing/head tracking, reachability gating, store-backed bootstrap, <code>OBJECT</code> body verification, capability-gated optional-message handling, broader pre-<code>HELLO</code>, pre-root, and pre-<code>MANIFEST</code> gating, <code>HEADS</code>-before-<code>MANIFEST</code> sync-root setup, stale root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code>, unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, unknown-sender and HELLO sender-identity mismatch rejection, <code>ERROR</code>-before-<code>HELLO</code> acceptance, explicit <code>ERROR</code>-only and unreachable <code>WANT</code> rejection proof, messages-after-<code>BYE</code> plus missing-<code>BYE</code> warning proof, and a minimal peer-store sync driver now exist in <code>mycel-core</code>; the main remaining interop work is broader session/capability/error-path proof.</td>
+              <td data-label="Current read">Canonical wire-envelope parsing, field validation, sender checks, sequencing/head tracking, reachability gating, store-backed bootstrap, <code>OBJECT</code> verification, capability-gated optional messages, broader root gating, advertised Snapshot/View metadata binding, document-scoped <code>HEADS replace=true</code>, stale/unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, sender-validation faults, explicit <code>ERROR</code> handling, messages-after-<code>BYE</code> rejection, missing-<code>BYE</code> warning proof, and a minimal peer-store sync driver now exist; broader session/capability/error-path proof remains open.</td>
             </tr>
             <tr>
               <td data-label="Area">8. Sync Workflow</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Peer-store-driven first-time and incremental sync now prove shared verify/store flows through <code>mycel-core</code>, the CLI, and simulator positive-path coverage, including snapshot-assisted catch-up, announced-view fetching, localhost multi-process proof, re-sync idempotency, depth-N incremental catchup, partial-doc selective sync, broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating, <code>HEADS</code>-before-<code>MANIFEST</code> sync-root setup, stale root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code>, unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, unknown-sender and HELLO sender-identity mismatch rejection, <code>ERROR</code>-before-<code>HELLO</code> acceptance, explicit <code>ERROR</code>-only and unreachable <code>WANT</code> rejection, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> warning handling; remaining work is broader session/capability/error-path proof.</td>
+              <td data-label="Current read">Peer-store-driven first-time and incremental sync prove shared verify/store flows through <code>mycel-core</code>, the CLI, and simulator coverage, including Snapshot/View fetching, localhost and production-replication proofs, sequencing/root gating, advertised metadata binding before storage, document-scoped <code>HEADS replace=true</code>, stale/unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, sender-validation and reachability faults, explicit <code>ERROR</code> handling, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> handling; broader session/capability/error-path proof remains open.</td>
             </tr>
             <tr>
               <td data-label="Area">9. Views and Head Selection</td>
               <td data-label="Status">Mostly done</td>
               <td data-label="Milestone">M3</td>
-              <td data-label="Current read">Deterministic selector core, named fixed-profile selection with clearer available-profile summaries and profile-error feedback, separate editor/view admission-aware inspect/render flows, bounded viewer score channels in head inspection, persisted governance relationship summaries in <code>view inspect</code> / <code>view list</code>, per-document current-governance summaries in <code>view current</code>, store-index governance source/context summaries, and direct core-level selector regressions for shared-key and mixed-role dual-role admission/weight/support behavior all exist; broader governance persistence, richer governance tooling, and profile ergonomics beyond this initial polish are now the remaining <code>M3</code> gaps.</td>
+              <td data-label="Current read">Deterministic selector core, named fixed-profile selection with clearer discovery/error feedback and reuse hints, separate editor/view admission-aware flows, bounded viewer score channels, persisted relationship/current-governance summaries, store-index governance context, a deduplicated policy catalog, point-to-point View diff, and direct selector regressions all exist; broader persistence beyond the catalog/summaries, richer history/range and policy-aware tooling, and further profile ergonomics remain open.</td>
             </tr>
             <tr>
               <td data-label="Area">10. Merge Generation</td>
@@ -232,13 +227,13 @@
               <td data-label="Area">11. CLI or API Surface</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M2 / M3 / M4</td>
-              <td data-label="Current read">Verification, authoring, conservative merge authoring, editor-admission-aware reader inspection/render, governance inspect/list/publish/current, persisted governance index query surfaces, persisted governance relationship summaries in <code>view inspect</code> / <code>view list</code>, store-index governance source/context summaries, transcript-backed <code>sync pull</code>, and internal <code>sync peer-store</code> all exist, including optional snapshot/view flows, localhost multi-process proof, re-sync idempotency, depth-N catchup, partial-doc selective sync, broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating, <code>HEADS</code>-before-<code>MANIFEST</code> sync-root setup, stale root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code>, unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, unknown-sender and HELLO sender-identity mismatch rejection, <code>ERROR</code>-before-<code>HELLO</code> acceptance, explicit <code>ERROR</code>-only and unreachable <code>WANT</code> rejection, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> warning handling; the remaining <code>M4</code> gap is broader session/capability/error-path interop proof.</td>
+              <td data-label="Current read">Verification and authoring, editor-admission-aware reader inspection/render, governance inspect/list/publish/current/diff with persisted policy and relationship summaries, transcript-backed <code>sync pull</code>, and internal <code>sync peer-store</code> all exist, including optional Snapshot/View flows, localhost and production-replication proofs, sequencing/root gating, advertised metadata binding, document-scoped <code>HEADS replace=true</code>, stale/unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> rejection, sender-validation and reachability faults, explicit <code>ERROR</code> handling, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> handling.</td>
             </tr>
             <tr>
               <td data-label="Area">12. Interop Test Minimum</td>
               <td data-label="Status">Partial</td>
               <td data-label="Milestone">M1 / M2 / M4</td>
-              <td data-label="Current read">Fixture isolation, reproducibility, stricter parser/replay smoke coverage, direct wire-envelope/signature/session tests, peer-store first-time / incremental sync proofs, optional-message coverage, localhost multi-process proof, re-sync idempotency coverage, depth-N incremental catchup coverage, partial-doc selective sync coverage, broader pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating coverage, <code>HEADS</code>-before-<code>MANIFEST</code> setup coverage, stale root/dependency plus stale snapshot and stale object <code>WANT</code> rejection after <code>HEADS replace=true</code> coverage, unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> coverage, unknown-sender and HELLO sender-identity mismatch coverage, <code>ERROR</code>-before-<code>HELLO</code> acceptance coverage, explicit <code>ERROR</code>-only and unreachable <code>WANT</code> coverage, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> warning coverage exist, but broader session/capability/error-path cases are still open.</td>
+              <td data-label="Current read">Fixture isolation, reproducibility, parser/replay smoke coverage, direct wire-envelope/signature/session tests, peer-store and production-replication proofs, optional-message and localhost coverage, sequencing/root gating, advertised Snapshot/View metadata binding, document-scoped <code>HEADS replace=true</code>, stale/unadvertised <code>WANT</code> and unrequested <code>OBJECT</code> coverage, sender-validation and reachability faults, explicit <code>ERROR</code> handling, and messages-after-<code>BYE</code> plus missing-<code>BYE</code> coverage exist; broader session/capability/error-path cases remain open.</td>
             </tr>
             <tr>
               <td data-label="Area">13. Ready-to-Build Gate</td>

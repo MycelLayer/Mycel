@@ -46,27 +46,20 @@
         <div class="eyebrow">公開進度摘要</div>
         <h1>用一頁快速看懂 Roadmap 順序與實作進度。</h1>
         <p class="lead">
-          Mycel 目前仍在窄版 first-client 主線上。`M2` 在目前窄版 replay/storage/rebuild 範圍內已完成收口，
-          因為 richer mixed content/metadata competing-branch classification、多文件 index-loss 後
-          rebuild proof，以及 richer metadata multi-variant rebuild/reporting proof 都已落地；因此現在的
-          active lane 已明確轉為 <code>M3</code> / <code>M4</code>。`M3` 也已越過已落地的最終獨立
-          dual-role 收尾，接下來直接面對建立在目前 inspect/list/publish、per-document current-governance
-          summaries 與 store index governance source/context 摘要基線之上的更廣 governance persistence、更完整的 governance tooling，以及
-          reader-facing profile ergonomics；再加上剩餘的
-          <code>M4</code> session/capability/error-path interop proof，而更廣的
-          pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、
-          <code>HEADS</code> 先於 <code>MANIFEST</code> 建立 sync roots、
-          <code>HEADS replace=true</code> 後 stale root/dependency、stale snapshot 與 stale object
-          <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested
-          <code>OBJECT</code>、unknown-sender 與 HELLO sender-identity mismatch rejection、
-          <code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 與
-          unreachable <code>WANT</code> proof，以及常設 messages-after-<code>BYE</code> rejection 與
-          missing-<code>BYE</code> warning handling 也都已補上。
+          Mycel 目前仍在窄版 first-client 主線上。<code>M2</code> 在目前窄版
+          replay/storage/rebuild 範圍內維持關閉，因此 active lane 集中在
+          <code>M3</code> / <code>M4</code>。<code>M3</code> 現在以 persisted relationship/current-governance
+          summaries、store-index governance context、去重 policy catalog、point-to-point View diff
+          與可複用 profile 提示為基線繼續前進。<code>M4</code> 也已在既有 production-replication、
+          sequencing、reachability、sender-validation 與 negative/warning proof set 之上，補上 accepted
+          Snapshot/View metadata 與 fetched objects 的綁定，以及 document-scoped
+          <code>HEADS replace=true</code> behavior。更廣的 governance 工作與
+          session/capability/error-path interop 仍保持 open。
         </p>
         <ol class="lane-list">
           <li>維持 <code>M2</code> 在目前窄版 replay/storage/rebuild 範圍內的已關閉狀態，並以 richer mixed content/metadata competing-branch rebuild/reporting proof 作為基線。</li>
-          <li>在 accepted-head inspect/render、更清楚的 available-profile 與 profile-error feedback、editor-admission-aware profile base、bounded viewer score surfaces、初始 governance inspect/list/publish/current surfaces、persisted governance relationship summaries、per-document current-governance summaries，以及 store index governance source/context 摘要之上，謹慎擴張 <code>M3</code> 的 reader-plus-governance 工作流程；既然最終獨立 dual-role 收尾已落地，接下來就把更廣的 governance persistence、更完整的 governance tooling，以及超出目前初步打磨的 profile ergonomics 明確保留下來。</li>
-          <li>讓 <code>M4</code> 維持窄版範圍；現在更廣的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先於 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 後的 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code>、unrequested <code>OBJECT</code>、unknown-sender 與 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only、unreachable <code>WANT</code>，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage 都已有 proof，接下來把 peer-store sync proof 往剩餘的 session/capability/error-path interop closure 收斂。</li>
+          <li>以目前 accepted-head reader base、profile discovery/error feedback 與 reuse hints、governance inspect/list/publish/current workflows、persisted relationship/current-governance summaries、store-index governance context、去重 policy catalog 與 point-to-point View diff 為基線，謹慎擴張 <code>M3</code>。</li>
+          <li>讓 <code>M4</code> 維持窄版範圍，從目前 production-replication、sequencing/root gating、advertised Snapshot/View metadata binding、document-scoped <code>HEADS replace=true</code>、reachability、sender-validation 與 warning/error baseline 繼續收斂 peer-store sync proof。</li>
         </ol>
       </header>
 
@@ -106,15 +99,17 @@
             <ul>
               <li>Accepted-head reader 工作流程</li>
               <li>Bundle 與 store rendering，並保留 ancestry context</li>
-              <li>具名 fixed-profile reading，並具備更清楚的 available-profile 與 profile-error feedback</li>
+              <li>具名 fixed-profile reading，並具備更清楚的 discovery/error feedback 與可複用提示</li>
               <li>具備 editor-admission 感知的 inspect/render flows</li>
               <li>head inspection 中的 bounded viewer score surfaces</li>
-              <li>Filtered governance inspect/list/publish 工作流程</li>
+              <li>Filtered governance inspect/list/publish/current 工作流程</li>
               <li>Persisted governance reverse indexes</li>
               <li>在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries</li>
               <li>在 <code>view current</code> 裡提供的 per-document current-governance summaries</li>
               <li>在 <code>store index</code> 輸出裡可見的 governance source labels 與 current-view context 摘要</li>
-              <li>剩餘工作：更廣的 governance persistence、更完整的 governance tooling，以及超出目前初步打磨的 profile ergonomics</li>
+              <li>在 <code>view inspect</code> / <code>view current</code> 裡可見的去重 governance policy catalog</li>
+              <li>透過 <code>view diff</code> 提供的 point-to-point governance comparison</li>
+              <li>剩餘工作：超出 catalog/summaries 的更廣 persistence、richer history/range 與 policy-aware tooling，以及進一步的 profile ergonomics</li>
             </ul>
           </article>
           <article class="card">
@@ -128,12 +123,14 @@
               <li>Capability-gated 的 <code>SNAPSHOT_OFFER</code> / <code>VIEW_ANNOUNCE</code></li>
               <li>localhost multi-process、re-sync idempotency、depth-N catchup 與 partial-doc selective sync proofs</li>
               <li>更廣的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating</li>
-              <li><code>HEADS</code> 先於 <code>MANIFEST</code> 的 sync-root setup，以及 <code>HEADS replace=true</code> 後的 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection</li>
+              <li><code>HEADS</code> 先於 <code>MANIFEST</code> 的 setup，以及 document-scoped <code>HEADS replace=true</code></li>
+              <li>Accepted Snapshot/View metadata 在 storage 前綁定到 fetched objects</li>
+              <li>Stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection</li>
               <li>unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection</li>
               <li>unknown-sender 與 HELLO sender-identity mismatch rejection</li>
               <li><code>ERROR</code>-before-<code>HELLO</code> acceptance，以及 explicit <code>ERROR</code>-only 與 unreachable <code>WANT</code> rejection proof</li>
               <li>messages-after-<code>BYE</code> rejection 與 missing-<code>BYE</code> warning proof</li>
-              <li>剩餘工作是更廣的 session/capability/error-path interop proof</li>
+              <li>剩餘工作：其他 root-set violations、unaffected-document in-flight provenance，以及更廣的 session/capability/error-path proof</li>
             </ul>
           </article>
           <article class="card">
@@ -150,104 +147,104 @@
       </section>
 
       <section class="panel section-panel">
-        <h2>Implementation Matrix</h2>
+        <h2>實作矩陣</h2>
         <p>
           這張表把 checklist 壓成 section-level 狀態，讓我們快速看到哪些區塊已大致完成、哪些仍屬 partial、哪些仍在後續階段。
         </p>
         <table>
           <thead>
             <tr>
-              <th>Area</th>
-              <th>Status</th>
-              <th>Milestone</th>
-              <th>Current read</th>
+              <th>領域</th>
+              <th>狀態</th>
+              <th>里程碑</th>
+              <th>目前判讀</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td data-label="Area">1. Repo and Build Setup</td>
-              <td data-label="Status">Done</td>
-              <td data-label="Milestone">M1</td>
-              <td data-label="Current read">這一區現在屬於已關閉的 minimal-client gate；這裡已沒有活的 follow-up。</td>
+              <td data-label="領域">1. Repo and Build Setup</td>
+              <td data-label="狀態">完成</td>
+              <td data-label="里程碑">M1</td>
+              <td data-label="目前判讀">這一區現在屬於已關閉的 minimal-client gate；這裡已沒有活的 follow-up。</td>
             </tr>
             <tr>
-              <td data-label="Area">2. Object Types and IDs</td>
-              <td data-label="Status">Done</td>
-              <td data-label="Milestone">M1</td>
-              <td data-label="Current read">必要的 v0.1 families 與 minimal-client role modeling 現在都保留為已關閉 gate 的 proof，不再是活的 checklist debt。</td>
+              <td data-label="領域">2. Object Types and IDs</td>
+              <td data-label="狀態">完成</td>
+              <td data-label="里程碑">M1</td>
+              <td data-label="目前判讀">必要的 v0.1 families 與 minimal-client role modeling 現在都保留為已關閉 gate 的 proof，不再是活的 checklist debt。</td>
             </tr>
             <tr>
-              <td data-label="Area">3. Canonical Serialization and Hashing</td>
-              <td data-label="Status">Done</td>
-              <td data-label="Milestone">M1</td>
-              <td data-label="Current read">minimal gate 需要的 canonical rules 與 shared helper reuse 已關閉；post-<code>M1</code> 的 wire follow-up 現在屬於更廣的 <code>M4</code> lane。</td>
+              <td data-label="領域">3. Canonical Serialization and Hashing</td>
+              <td data-label="狀態">完成</td>
+              <td data-label="里程碑">M1</td>
+              <td data-label="目前判讀">minimal gate 需要的 canonical rules 與 shared helper reuse 已關閉；post-<code>M1</code> 的 wire follow-up 現在屬於更廣的 <code>M4</code> lane。</td>
             </tr>
             <tr>
-              <td data-label="Area">4. Signature Verification</td>
-              <td data-label="Status">Done</td>
-              <td data-label="Milestone">M1 / M4</td>
-              <td data-label="Current read">minimal gate 所需的 object 與 wire signature verification 已關閉；更廣的 interop/error-path follow-up 仍在 <code>M4</code>。</td>
+              <td data-label="領域">4. Signature Verification</td>
+              <td data-label="狀態">完成</td>
+              <td data-label="里程碑">M1 / M4</td>
+              <td data-label="目前判讀">minimal gate 所需的 object 與 wire signature verification 已關閉；更廣的 interop/error-path follow-up 仍在 <code>M4</code>。</td>
             </tr>
             <tr>
-              <td data-label="Area">5. Patch and Revision Engine</td>
-              <td data-label="Status">Mostly done</td>
-              <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay 與 <code>state_hash</code> 已到位；dependency verification、wrong-type 與 multi-hop ancestry proofs、sibling declared-ID determinism，以及 render-path ancestry context 都更完整。</td>
+              <td data-label="領域">5. Patch and Revision Engine</td>
+              <td data-label="狀態">大致完成</td>
+              <td data-label="里程碑">M2</td>
+              <td data-label="目前判讀">Replay 與 <code>state_hash</code> 已到位；dependency verification、wrong-type 與 multi-hop ancestry proofs、sibling declared-ID determinism，以及 render-path ancestry context 都更完整。</td>
             </tr>
             <tr>
-              <td data-label="Area">6. Local State and Storage</td>
-              <td data-label="Status">Mostly done</td>
-              <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Store ingest、rebuild、indexes，以及可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI proof 都已存在；local transport/safety policy 現在也會保存在獨立的 local policy file，而 rebuild smoke 會同時保留 replicated indexes 與 local policy state。</td>
+              <td data-label="領域">6. Local State and Storage</td>
+              <td data-label="狀態">大致完成</td>
+              <td data-label="里程碑">M2</td>
+              <td data-label="目前判讀">Store ingest、rebuild、indexes，以及可直接證明多文件 indexes 能在 index loss 後只靠 stored canonical objects 重建的 CLI proof 都已存在；local transport/safety policy 現在也會保存在獨立的 local policy file，而 rebuild smoke 會同時保留 replicated indexes 與 local policy state。</td>
             </tr>
             <tr>
-              <td data-label="Area">7. Wire Protocol</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Canonical wire-envelope parsing、field validation、RFC 3339 checks、minimal-message payload validation、sender checks、session sequencing/head tracking、reachability gating、store-backed bootstrap、<code>OBJECT</code> body verification、capability-gated optional-message handling、更廣的 pre-<code>HELLO</code>、pre-root 與 pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先於 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 後的 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、unknown-sender 與 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 與 unreachable <code>WANT</code> rejection proof、messages-after-<code>BYE</code> 與 missing-<code>BYE</code> warning proof，以及最小 peer-store sync driver 都已存在於 <code>mycel-core</code>；主要剩餘 interop 工作是更廣的 session/capability/error-path proof。</td>
+              <td data-label="領域">7. Wire Protocol</td>
+              <td data-label="狀態">部分完成</td>
+              <td data-label="里程碑">M4</td>
+              <td data-label="目前判讀">Canonical wire-envelope parsing、field validation、sender checks、sequencing/head tracking、reachability gating、store-backed bootstrap、<code>OBJECT</code> verification、capability-gated optional messages、更廣的 root gating、advertised Snapshot/View metadata binding、document-scoped <code>HEADS replace=true</code>、stale/unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、sender-validation faults、explicit <code>ERROR</code> handling、messages-after-<code>BYE</code> rejection、missing-<code>BYE</code> warning proof，以及最小 peer-store sync driver 都已存在；更廣的 session/capability/error-path proof 仍保持 open。</td>
             </tr>
             <tr>
-              <td data-label="Area">8. Sync Workflow</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">M4</td>
-              <td data-label="Current read">Peer-store 驅動的 first-time 與 incremental sync 現在已透過 <code>mycel-core</code>、CLI 與 simulator positive-path coverage 證明 shared verify/store flow，並涵蓋 snapshot-assisted catch-up、announced-view fetching、localhost multi-process proof、re-sync idempotency、depth-N incremental catchup、partial-doc selective sync、更廣的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先於 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 後的 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、unknown-sender 與 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 與 unreachable <code>WANT</code> rejection，以及 messages-after-<code>BYE</code> 與 missing-<code>BYE</code> warning handling；剩餘工作是更廣的 session/capability/error-path proof。</td>
+              <td data-label="領域">8. Sync Workflow</td>
+              <td data-label="狀態">部分完成</td>
+              <td data-label="里程碑">M4</td>
+              <td data-label="目前判讀">Peer-store 驅動的 first-time 與 incremental sync 已透過 <code>mycel-core</code>、CLI 與 simulator coverage 證明 shared verify/store flow，並涵蓋 Snapshot/View fetching、localhost 與 production-replication proofs、sequencing/root gating、storage 前的 advertised metadata binding、document-scoped <code>HEADS replace=true</code>、stale/unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、sender-validation 與 reachability faults、explicit <code>ERROR</code> handling，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> handling；更廣的 session/capability/error-path proof 仍保持 open。</td>
             </tr>
             <tr>
-              <td data-label="Area">9. Views and Head Selection</td>
-              <td data-label="Status">Mostly done</td>
-              <td data-label="Milestone">M3</td>
-              <td data-label="Current read">Deterministic selector core、具名 fixed-profile selection、較清楚的 available-profile summaries 與 profile-error feedback、分開的 editor/view admission-aware inspect/render flows、bounded viewer score channels、在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries、在 <code>view current</code> 裡提供的 per-document current-governance summaries、store index governance source/context 摘要，以及直接鎖定 shared-key / mixed-role dual-role admission、weight 與 support 關係的 core-level selector regressions 都已存在；現在剩下的 <code>M3</code> 缺口是更廣的 governance persistence、更完整的 governance tooling，以及超出目前初步打磨的 profile ergonomics。</td>
+              <td data-label="領域">9. Views and Head Selection</td>
+              <td data-label="狀態">大致完成</td>
+              <td data-label="里程碑">M3</td>
+              <td data-label="目前判讀">Deterministic selector core、具名 fixed-profile selection 與較清楚的 discovery/error feedback 和 reuse hints、分開的 editor/view admission-aware flows、bounded viewer score channels、persisted relationship/current-governance summaries、store-index governance context、去重 policy catalog、point-to-point View diff，以及 direct selector regressions 都已存在；超出 catalog/summaries 的更廣 persistence、richer history/range 與 policy-aware tooling，以及進一步的 profile ergonomics 仍保持 open。</td>
             </tr>
             <tr>
-              <td data-label="Area">10. Merge Generation</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">M2</td>
-              <td data-label="Current read">Replay verification 與保守型 local merge-authoring profile 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage、更廣的 nested structural matrix、更細的 direct/anchor-based placement reasons、更清楚的 metadata competing-branch 邊界，以及 richer mixed content/metadata competing-branch 細節；目前窄版 <code>M2</code> 的收口已完成，因此後續工作可留在 active <code>M2</code> 債務之外。</td>
+              <td data-label="領域">10. Merge Generation</td>
+              <td data-label="狀態">部分完成</td>
+              <td data-label="里程碑">M2</td>
+              <td data-label="目前判讀">Replay verification 與保守型 local merge-authoring profile 已存在，涵蓋 structural move/reorder、新 parent reparenting、簡單 composed parent-chain coverage、更廣的 nested structural matrix、更細的 direct/anchor-based placement reasons、更清楚的 metadata competing-branch 邊界，以及 richer mixed content/metadata competing-branch 細節；目前窄版 <code>M2</code> 的收口已完成，因此後續工作可留在 active <code>M2</code> 債務之外。</td>
             </tr>
             <tr>
-              <td data-label="Area">11. CLI or API Surface</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">M2 / M3 / M4</td>
-              <td data-label="Current read">Verification、authoring、保守型 merge authoring、editor-admission-aware reader inspection/render、governance inspect/list/publish/current、persisted governance index query surfaces、在 <code>view inspect</code> / <code>view list</code> 裡可見的 persisted governance relationship summaries、store index governance source/context 摘要、transcript-backed <code>sync pull</code>，以及內部 <code>sync peer-store</code> 都已存在，並包含 optional snapshot/view flows、localhost multi-process proof、re-sync idempotency、depth-N catchup、partial-doc selective sync、更廣的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating、<code>HEADS</code> 先於 <code>MANIFEST</code> 的 sync-root setup、<code>HEADS replace=true</code> 後的 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection、unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、unknown-sender 與 HELLO sender-identity mismatch rejection、<code>ERROR</code>-before-<code>HELLO</code> acceptance、explicit <code>ERROR</code>-only 與 unreachable <code>WANT</code> rejection，以及 messages-after-<code>BYE</code> 與 missing-<code>BYE</code> warning handling；剩餘的 <code>M4</code> gap 是更廣的 session/capability/error-path interop proof。</td>
+              <td data-label="領域">11. CLI or API Surface</td>
+              <td data-label="狀態">部分完成</td>
+              <td data-label="里程碑">M2 / M3 / M4</td>
+              <td data-label="目前判讀">Verification 與 authoring、editor-admission-aware reader inspection/render、具 persisted policy 與 relationship summaries 的 governance inspect/list/publish/current/diff、transcript-backed <code>sync pull</code>，以及內部 <code>sync peer-store</code> 都已存在，並涵蓋 optional Snapshot/View flows、localhost 與 production-replication proofs、sequencing/root gating、advertised metadata binding、document-scoped <code>HEADS replace=true</code>、stale/unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> rejection、sender-validation 與 reachability faults、explicit <code>ERROR</code> handling，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> handling。</td>
             </tr>
             <tr>
-              <td data-label="Area">12. Interop Test Minimum</td>
-              <td data-label="Status">Partial</td>
-              <td data-label="Milestone">M1 / M2 / M4</td>
-              <td data-label="Current read">Fixture isolation、reproducibility、更嚴格的 parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store first-time / incremental sync proofs、optional-message coverage、localhost multi-process proof、re-sync idempotency coverage、depth-N incremental catchup coverage、partial-doc selective sync coverage、更廣的 pre-<code>HELLO</code> / pre-root / pre-<code>MANIFEST</code> gating coverage、<code>HEADS</code> 先於 <code>MANIFEST</code> 的 setup coverage、<code>HEADS replace=true</code> 後 stale root/dependency、stale snapshot 與 stale object <code>WANT</code> rejection 的 coverage、unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> coverage、unknown-sender 與 HELLO sender-identity mismatch coverage、<code>ERROR</code>-before-<code>HELLO</code> acceptance coverage、explicit <code>ERROR</code>-only 與 unreachable <code>WANT</code> coverage，以及 messages-after-<code>BYE</code> 與 missing-<code>BYE</code> warning coverage 都已存在，但更廣的 session/capability/error-path cases 仍未完成。</td>
+              <td data-label="領域">12. Interop Test Minimum</td>
+              <td data-label="狀態">部分完成</td>
+              <td data-label="里程碑">M1 / M2 / M4</td>
+              <td data-label="目前判讀">Fixture isolation、reproducibility、parser/replay smoke coverage、直接的 wire-envelope/signature/session tests、peer-store 與 production-replication proofs、optional-message 與 localhost coverage、sequencing/root gating、advertised Snapshot/View metadata binding、document-scoped <code>HEADS replace=true</code>、stale/unadvertised <code>WANT</code> 與 unrequested <code>OBJECT</code> coverage、sender-validation 與 reachability faults、explicit <code>ERROR</code> handling，以及 messages-after-<code>BYE</code> / missing-<code>BYE</code> coverage 都已存在；更廣的 session/capability/error-path cases 仍保持 open。</td>
             </tr>
             <tr>
-              <td data-label="Area">13. Ready-to-Build Gate</td>
-              <td data-label="Status">Done</td>
-              <td data-label="Milestone">M1</td>
-              <td data-label="Current read">minimal-client gate 已關閉；剩餘工作現在都改由 post-<code>M1</code> follow-up checklist 追蹤，而不是留在這個 gate。</td>
+              <td data-label="領域">13. Ready-to-Build Gate</td>
+              <td data-label="狀態">完成</td>
+              <td data-label="里程碑">M1</td>
+              <td data-label="目前判讀">minimal-client gate 已關閉；剩餘工作現在都改由 post-<code>M1</code> follow-up checklist 追蹤，而不是留在這個 gate。</td>
             </tr>
           </tbody>
         </table>
       </section>
 
       <section class="panel section-panel">
-        <h2>Source Files</h2>
+        <h2>來源檔案</h2>
         <p>
           這頁刻意只做摘要。真正的權威 wording 仍然在 repo 層級的 planning files 中。
         </p>
