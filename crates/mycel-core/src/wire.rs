@@ -225,17 +225,74 @@ pub struct WirePeerSessionState {
     view_announcements: BTreeMap<String, ViewAnnounceMetadata>,
     accepted_sync_roots: BTreeSet<String>,
     reachable_object_ids: BTreeSet<String>,
+    reachable_object_roots: BTreeMap<String, BTreeSet<String>>,
+    reachable_object_dependencies: BTreeMap<String, BTreeSet<String>>,
     pending_object_ids: BTreeSet<String>,
     closed: bool,
 }
 
 impl WirePeerSessionState {
-    fn reset_sync_root_state(&mut self) {
-        self.snapshot_offers.clear();
-        self.view_announcements.clear();
-        self.accepted_sync_roots.clear();
-        self.reachable_object_ids.clear();
-        self.pending_object_ids.clear();
+    fn retain_advertised_sync_root_state(&mut self) {
+        let advertised_revisions = self
+            .advertised_document_heads
+            .values()
+            .flatten()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        self.accepted_sync_roots
+            .retain(|root_id| advertised_revisions.contains(root_id));
+
+        let retained_roots = &self.accepted_sync_roots;
+        self.reachable_object_roots.retain(|_, roots| {
+            roots.retain(|root_id| retained_roots.contains(root_id));
+            !roots.is_empty()
+        });
+
+        let reachable_object_roots = &self.reachable_object_roots;
+        let retains_object = |object_id: &String| {
+            retained_roots.contains(object_id) || reachable_object_roots.contains_key(object_id)
+        };
+        self.reachable_object_ids.retain(&retains_object);
+        self.pending_object_ids.retain(&retains_object);
+        self.snapshot_offers.retain(|object_id, _| {
+            retained_roots.contains(object_id) || reachable_object_roots.contains_key(object_id)
+        });
+        self.view_announcements.retain(|object_id, _| {
+            retained_roots.contains(object_id) || reachable_object_roots.contains_key(object_id)
+        });
+    }
+
+    fn extend_object_root_provenance(
+        &mut self,
+        object_id: String,
+        provenance_roots: &BTreeSet<String>,
+    ) {
+        let mut frontier = vec![(object_id, provenance_roots.clone())];
+        while let Some((reachable_id, candidate_roots)) = frontier.pop() {
+            let known_roots = self
+                .reachable_object_roots
+                .entry(reachable_id.clone())
+                .or_default();
+            let new_roots = candidate_roots
+                .difference(known_roots)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            if new_roots.is_empty() {
+                continue;
+            }
+            known_roots.extend(new_roots.iter().cloned());
+
+            if let Some(dependencies) = self
+                .reachable_object_dependencies
+                .get(&reachable_id)
+                .cloned()
+            {
+                for dependency_id in dependencies {
+                    self.reachable_object_ids.insert(dependency_id.clone());
+                    frontier.push((dependency_id, new_roots.clone()));
+                }
+            }
+        }
     }
 
     fn advertises_revision(&self, revision_id: &str) -> bool {
@@ -509,12 +566,12 @@ fn advance_wire_inbound_sequence(
                 wire_head_map_to_sets(validate_wire_head_map(envelope.payload(), "documents")?);
             let replace = required_wire_bool(envelope.payload(), "replace", "wire payload")?;
             if replace {
-                peer_session.reset_sync_root_state();
                 for (doc_id, revisions) in documents {
                     peer_session
                         .advertised_document_heads
                         .insert(doc_id, revisions);
                 }
+                peer_session.retain_advertised_sync_root_state();
             } else {
                 for (doc_id, revisions) in documents {
                     peer_session
@@ -1030,9 +1087,26 @@ fn extend_reachable_object_ids_from_object(
     let body = payload
         .get("body")
         .ok_or_else(|| "missing object field 'body'".to_string())?;
+    let mut provenance_roots = peer_session
+        .reachable_object_roots
+        .get(&object_id)
+        .cloned()
+        .unwrap_or_default();
+    if peer_session.accepted_sync_roots.contains(&object_id) {
+        provenance_roots.insert(object_id.clone());
+    }
+    let discovered_ids = discover_reachable_object_ids_from_value(body)?;
     peer_session
-        .reachable_object_ids
-        .extend(discover_reachable_object_ids_from_value(body)?);
+        .reachable_object_dependencies
+        .entry(object_id)
+        .or_default()
+        .extend(discovered_ids.iter().cloned());
+    for discovered_id in discovered_ids {
+        peer_session
+            .reachable_object_ids
+            .insert(discovered_id.clone());
+        peer_session.extend_object_root_provenance(discovered_id, &provenance_roots);
+    }
 
     Ok(())
 }
@@ -1061,6 +1135,27 @@ fn expand_reachable_object_ids_from_known_index(
                 .reachable_object_ids
                 .insert(discovered_id.clone())
             {
+                frontier.push(discovered_id);
+            }
+        }
+    }
+
+    for root_id in peer_session.accepted_sync_roots.clone() {
+        let mut frontier = vec![root_id.clone()];
+        let mut visited = BTreeSet::new();
+        while let Some(object_id) = frontier.pop() {
+            if !visited.insert(object_id.clone()) {
+                continue;
+            }
+            let Some(value) = object_index.get(&object_id) else {
+                continue;
+            };
+            for discovered_id in discover_reachable_object_ids_from_value(value)? {
+                peer_session
+                    .reachable_object_roots
+                    .entry(discovered_id.clone())
+                    .or_default()
+                    .insert(root_id.clone());
                 frontier.push(discovered_id);
             }
         }

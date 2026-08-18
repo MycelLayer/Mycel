@@ -180,6 +180,174 @@ fn wire_session_replaces_only_listed_heads_when_replace_is_true() {
 }
 
 #[test]
+fn wire_session_preserves_pending_root_for_unlisted_document_after_heads_replace() {
+    let signing_key = signing_key();
+    let mut session = registered_session(&signing_key, "node:alpha");
+    let replaced_graph = patch_revision_graph(&signing_key, "node:alpha", "rev:replaced-base");
+    let preserved_graph = patch_revision_graph(&signing_key, "node:alpha", "rev:preserved-base");
+    let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+    let initial_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:replaced": [replaced_graph.revision_id.clone()],
+            "doc:preserved": [preserved_graph.revision_id.clone()]
+        }),
+        true,
+    );
+    let request_roots = signed_want_message(
+        &signing_key,
+        "node:alpha",
+        &[
+            replaced_graph.revision_id.as_str(),
+            preserved_graph.revision_id.as_str(),
+        ],
+    );
+    let replacement_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:replaced": ["rev:replacement"]
+        }),
+        true,
+    );
+
+    session
+        .verify_incoming(&hello)
+        .expect("HELLO should verify");
+    session
+        .verify_incoming(&initial_heads)
+        .expect("initial HEADS should verify");
+    session
+        .verify_incoming(&request_roots)
+        .expect("root WANT should verify");
+    session
+        .verify_incoming(&replacement_heads)
+        .expect("replacement HEADS should verify");
+
+    let state = session
+        .peer_session("node:alpha")
+        .expect("peer session should exist");
+    assert!(!state
+        .pending_object_ids
+        .contains(&replaced_graph.revision_id));
+    assert!(state
+        .pending_object_ids
+        .contains(&preserved_graph.revision_id));
+
+    session
+        .verify_incoming(&preserved_graph.revision_object)
+        .expect("unlisted document's pending root OBJECT should remain valid");
+    let error = session
+        .verify_incoming(&replaced_graph.revision_object)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        format!(
+            "wire OBJECT '{}' was not requested from 'node:alpha'",
+            replaced_graph.revision_id
+        )
+    );
+}
+
+#[test]
+fn wire_session_preserves_shared_dependency_provenance_after_partial_heads_replace() {
+    let signing_key = signing_key();
+    let mut session = registered_session(&signing_key, "node:alpha");
+    let shared_patch = signed_patch_object_message(&signing_key, "node:alpha", "rev:genesis-null");
+    let shared_patch_id = shared_patch["payload"]["object_id"]
+        .as_str()
+        .expect("shared patch object ID should exist")
+        .to_owned();
+    let shared_revision = signed_revision_object_message(
+        &signing_key,
+        "node:alpha",
+        &[],
+        &[shared_patch_id.as_str()],
+    );
+    let shared_revision_id = shared_revision["payload"]["object_id"]
+        .as_str()
+        .expect("shared revision object ID should exist")
+        .to_owned();
+    let replaced_revision = signed_revision_object_message(
+        &signing_key,
+        "node:alpha",
+        &[shared_revision_id.as_str()],
+        &[],
+    );
+    let replaced_revision_id = replaced_revision["payload"]["object_id"]
+        .as_str()
+        .expect("replaced revision object ID should exist")
+        .to_owned();
+    let preserved_side_patch =
+        signed_patch_object_message(&signing_key, "node:alpha", "rev:preserved-side-base");
+    let preserved_side_patch_id = preserved_side_patch["payload"]["object_id"]
+        .as_str()
+        .expect("preserved side patch object ID should exist")
+        .to_owned();
+    let preserved_revision = signed_revision_object_message(
+        &signing_key,
+        "node:alpha",
+        &[shared_revision_id.as_str()],
+        &[preserved_side_patch_id.as_str()],
+    );
+    let preserved_revision_id = preserved_revision["payload"]["object_id"]
+        .as_str()
+        .expect("preserved revision object ID should exist")
+        .to_owned();
+    let hello = signed_hello_message(&signing_key, "node:alpha", "node:alpha");
+    let initial_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:replaced": [replaced_revision_id.clone()],
+            "doc:preserved": [preserved_revision_id.clone()]
+        }),
+        true,
+    );
+    let request_roots = signed_want_message(
+        &signing_key,
+        "node:alpha",
+        &[
+            replaced_revision_id.as_str(),
+            preserved_revision_id.as_str(),
+        ],
+    );
+    let request_shared_revision =
+        signed_want_message(&signing_key, "node:alpha", &[shared_revision_id.as_str()]);
+    let request_patch =
+        signed_want_message(&signing_key, "node:alpha", &[shared_patch_id.as_str()]);
+    let replacement_heads = signed_heads_message(
+        &signing_key,
+        "node:alpha",
+        json!({
+            "doc:replaced": ["rev:replacement"]
+        }),
+        true,
+    );
+
+    for message in [
+        &hello,
+        &initial_heads,
+        &request_roots,
+        &replaced_revision,
+        &request_shared_revision,
+        &shared_revision,
+        &preserved_revision,
+        &request_patch,
+        &replacement_heads,
+    ] {
+        session
+            .verify_incoming(message)
+            .expect("shared-dependency setup message should verify");
+    }
+
+    session
+        .verify_incoming(&shared_patch)
+        .expect("dependency shared with an unlisted document should remain valid");
+}
+
+#[test]
 fn wire_session_rejects_stale_dependency_want_after_heads_replace() {
     let signing_key = signing_key();
     let mut session = registered_session(&signing_key, "node:alpha");

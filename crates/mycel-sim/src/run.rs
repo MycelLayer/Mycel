@@ -2189,7 +2189,7 @@ fn inject_stale_object_want_after_heads_replace_fault(
             "transcript is missing BYE for stale-object-want-after-heads-replace injection"
                 .to_owned()
         })?;
-    let stale_object_id: String = transcript
+    let (stale_object_id, stale_document) = transcript
         .messages
         .iter()
         .filter(|message| message.get("type").and_then(Value::as_str) == Some("OBJECT"))
@@ -2199,14 +2199,18 @@ fn inject_stale_object_want_after_heads_replace_fault(
                 .and_then(Value::as_object)
                 .and_then(|payload| payload.get("body"))?;
             let reachable = sim_reachable_object_ids_from_body(body);
-            reachable
+            let stale_object_id = reachable
                 .into_iter()
-                .find(|object_id| object_id != "rev:genesis-null")
+                .find(|object_id| object_id != "rev:genesis-null")?;
+            let document_id = body.get("doc_id").and_then(Value::as_str)?.to_owned();
+            Some((stale_object_id, document_id))
         })
         .ok_or_else(|| {
             "transcript is missing a reachable dependency OBJECT for stale-object-want-after-heads-replace injection"
                 .to_owned()
         })?;
+    let mut replacement_documents = serde_json::Map::new();
+    replacement_documents.insert(stale_document, json!(["rev:peer-sync-fault-replacement"]));
 
     let replacement_heads = signed_sim_wire_message(
         signing_key,
@@ -2214,9 +2218,7 @@ fn inject_stale_object_want_after_heads_replace_fault(
         "HEADS",
         "msg:peer-sync-fault-heads-replace-0001",
         json!({
-            "documents": {
-                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
-            },
+            "documents": replacement_documents,
             "replace": true
         }),
     )?;
@@ -2412,6 +2414,22 @@ fn inject_stale_dependency_object_after_heads_replace_fault(
                 .to_owned()
         })?;
     let dependency_object = transcript.messages.remove(dependency_object_index);
+    let stale_document = dependency_object
+        .get("payload")
+        .and_then(Value::as_object)
+        .and_then(|payload| payload.get("body"))
+        .and_then(Value::as_object)
+        .and_then(|body| body.get("doc_id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            "dependency patch OBJECT is missing doc_id for stale-dependency-object-after-heads-replace injection"
+                .to_owned()
+        })?;
+    let mut replacement_documents = serde_json::Map::new();
+    replacement_documents.insert(
+        stale_document.to_owned(),
+        json!(["rev:peer-sync-fault-replacement"]),
+    );
 
     let replacement_heads = signed_sim_wire_message(
         signing_key,
@@ -2419,9 +2437,7 @@ fn inject_stale_dependency_object_after_heads_replace_fault(
         "HEADS",
         "msg:peer-sync-fault-heads-replace-dependency-object-0001",
         json!({
-            "documents": {
-                "doc:peer-sync-fault-replacement": ["rev:peer-sync-fault-replacement"]
-            },
+            "documents": replacement_documents,
             "replace": true
         }),
     )?;

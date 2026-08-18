@@ -302,6 +302,90 @@ fn sync_pull_json_preserves_unlisted_document_heads_after_partial_replacement() 
 }
 
 #[test]
+fn sync_pull_json_preserves_unlisted_document_in_flight_dependency_after_partial_replacement() {
+    let signing_key = signing_key();
+    let sender = "node:alpha";
+    let preserved_doc_id = "doc:preserved";
+    let preserved_patch = signed_patch_object_message_for_doc(
+        &signing_key,
+        sender,
+        preserved_doc_id,
+        "rev:genesis-null",
+    );
+    let preserved_patch_id = preserved_patch["payload"]["object_id"]
+        .as_str()
+        .expect("preserved patch object ID should exist")
+        .to_owned();
+    let preserved_revision = signed_revision_object_message_for_doc(
+        &signing_key,
+        sender,
+        preserved_doc_id,
+        &[],
+        &[preserved_patch_id.as_str()],
+    );
+    let preserved_revision_id = preserved_revision["payload"]["object_id"]
+        .as_str()
+        .expect("preserved revision object ID should exist")
+        .to_owned();
+    let manifest = signed_manifest_message_with_heads(
+        &signing_key,
+        sender,
+        json!({
+            "doc:replaced": ["rev:stale-replaced"],
+            preserved_doc_id: [preserved_revision_id.clone()]
+        }),
+    );
+    let partial_replacement = signed_heads_message_with_documents(
+        &signing_key,
+        sender,
+        json!({
+            "doc:replaced": ["rev:replacement"]
+        }),
+        true,
+    );
+    let transcript_dir = create_temp_dir("sync-pull-in-flight-partial-replace-source");
+    let transcript_path = transcript_dir
+        .path()
+        .join("pull-in-flight-partial-replace-transcript.json");
+    let store_root = create_temp_dir("sync-pull-in-flight-partial-replace-store");
+
+    write_transcript(
+        &transcript_path,
+        &json!({
+            "peer": {
+                "node_id": sender,
+                "public_key": sender_public_key(&signing_key)
+            },
+            "messages": [
+                signed_hello_message(&signing_key, sender),
+                manifest,
+                signed_want_message(&signing_key, sender, &[&preserved_revision_id]),
+                preserved_revision,
+                signed_want_message(&signing_key, sender, &[&preserved_patch_id]),
+                partial_replacement,
+                preserved_patch,
+                signed_bye_message(&signing_key, sender)
+            ]
+        }),
+    );
+
+    let output = run_sync_pull_json(&transcript_path, store_root.path());
+
+    assert_success(&output);
+    let json = assert_json_status(&output, "ok");
+    assert_eq!(json["verified_message_count"], 8);
+    assert_eq!(json["object_message_count"], 2);
+    assert_eq!(json["written_object_count"], 2);
+    let manifest = load_manifest(store_root.path());
+    assert_eq!(manifest["stored_object_count"], 2);
+    assert_eq!(
+        manifest["doc_revisions"][preserved_doc_id][0],
+        preserved_revision_id
+    );
+    assert!(manifest["doc_revisions"].get("doc:replaced").is_none());
+}
+
+#[test]
 fn sync_pull_json_accepts_error_before_hello_and_completes_sync() {
     let signing_key = signing_key();
     let sender = "node:alpha";
