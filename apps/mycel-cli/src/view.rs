@@ -160,6 +160,11 @@ struct ViewHistoryCliArgs {
         help = "Only return Views at or before one timestamp"
     )]
     timestamp_max: Option<u64>,
+    #[arg(
+        long,
+        help = "Exit with status 1 when filtered history contains a semantic governance change"
+    )]
+    fail_on_change: bool,
     #[arg(long, help = "Emit machine-readable governance history output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]

@@ -15,17 +15,21 @@ struct ViewHistoryCliSummary {
     store_root: PathBuf,
     manifest_path: PathBuf,
     status: String,
+    fail_on_change: bool,
+    semantic_change_detected: bool,
     result: Option<GovernanceViewHistorySummary>,
     notes: Vec<String>,
     errors: Vec<String>,
 }
 
 impl ViewHistoryCliSummary {
-    fn new(store_root: &Path) -> Self {
+    fn new(store_root: &Path, fail_on_change: bool) -> Self {
         Self {
             store_root: store_root.to_path_buf(),
             manifest_path: store_root.join("indexes").join("manifest.json"),
             status: "ok".to_string(),
+            fail_on_change,
+            semantic_change_detected: false,
             result: None,
             notes: Vec::new(),
             errors: Vec::new(),
@@ -38,7 +42,7 @@ impl ViewHistoryCliSummary {
     }
 
     fn exit_code(&self) -> i32 {
-        i32::from(!self.errors.is_empty())
+        i32::from(!self.errors.is_empty() || (self.fail_on_change && self.semantic_change_detected))
     }
 }
 
@@ -72,6 +76,11 @@ fn print_transition(transition: &GovernanceViewDiffSummary) {
 fn print_text(summary: &ViewHistoryCliSummary) -> i32 {
     println!("store root: {}", summary.store_root.display());
     println!("manifest path: {}", summary.manifest_path.display());
+    println!("fail on change: {}", summary.fail_on_change);
+    println!(
+        "semantic change detected: {}",
+        summary.semantic_change_detected
+    );
     if let Some(result) = &summary.result {
         println!(
             "profile id: {}",
@@ -131,6 +140,7 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
         doc_id,
         timestamp_min,
         timestamp_max,
+        fail_on_change,
         json,
         extra: _,
     } = args;
@@ -144,7 +154,7 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
     }
 
     let store_root = PathBuf::from(store_root);
-    let mut summary = ViewHistoryCliSummary::new(&store_root);
+    let mut summary = ViewHistoryCliSummary::new(&store_root, fail_on_change);
     match load_store_index_manifest(&store_root) {
         Ok(manifest) => match governance_view_history(
             &manifest,
@@ -153,7 +163,10 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
             timestamp_min,
             timestamp_max,
         ) {
-            Ok(result) => summary.result = Some(result),
+            Ok(result) => {
+                summary.semantic_change_detected = result.has_semantic_changes();
+                summary.result = Some(result);
+            }
             Err(error) => summary.push_error(error.to_string()),
         },
         Err(error) => summary.push_error(format!("failed to read store index manifest: {error}")),
@@ -164,6 +177,10 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
     );
     summary.notes.push(
         "governance history is separate from reader-facing accepted-head selection".to_string(),
+    );
+    summary.notes.push(
+        "semantic change detection includes maintainer, policy, and document mapping changes but ignores timestamp-only transitions"
+            .to_string(),
     );
 
     if json {

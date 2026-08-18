@@ -53,6 +53,10 @@ impl GovernanceViewDiffSummary {
     pub fn is_different(&self) -> bool {
         self.comparison == GovernanceViewDiffComparison::Different
     }
+
+    pub fn has_semantic_change(&self) -> bool {
+        self.maintainer_changed || self.policy_changed || !self.document_changes.is_empty()
+    }
 }
 
 fn find_view_record<'a>(

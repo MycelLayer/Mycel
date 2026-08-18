@@ -106,6 +106,28 @@ fn build_history_store() -> (common::TempDir, String, Value, Value, Value) {
     (store_dir, store_root, early, middle, late)
 }
 
+fn build_timestamp_only_history_store() -> (common::TempDir, String) {
+    let store_dir = create_temp_dir("view-history-timestamp-only-store");
+    let store_root = path_arg(store_dir.path());
+    assert_success(&run_mycel(&["store", "init", &store_root, "--json"]));
+
+    let maintainer = SigningKey::from_bytes(&[213; 32]);
+    let policy = json!({
+        "accept_keys": [signer_id(&maintainer)],
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["stable"]
+    });
+    let documents = json!({
+        "doc:alpha": "rev:1111111111111111111111111111111111111111111111111111111111111111"
+    });
+    let early = signed_view(&maintainer, &policy, documents.clone(), 10);
+    let late = signed_view(&maintainer, &policy, documents, 20);
+
+    publish_view(&store_root, "view-history-timestamp-only-early", &early);
+    publish_view(&store_root, "view-history-timestamp-only-late", &late);
+    (store_dir, store_root)
+}
+
 #[test]
 fn view_history_json_reports_chronological_document_transitions() {
     let (_store_dir, store_root, early, middle, late) = build_history_store();
@@ -180,6 +202,80 @@ fn view_history_profile_and_timestamp_range_are_inclusive() {
 }
 
 #[test]
+fn view_history_fail_on_change_reports_semantic_changes_without_failing_the_query() {
+    let (_store_dir, store_root, _early, _middle, _late) = build_history_store();
+    let output = run_mycel(&[
+        "view",
+        "history",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:alpha",
+        "--fail-on-change",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["status"], "ok");
+    assert_eq!(summary["fail_on_change"], true);
+    assert_eq!(summary["semantic_change_detected"], true);
+}
+
+#[test]
+fn view_history_fail_on_change_ignores_timestamp_only_transitions() {
+    let (_store_dir, store_root) = build_timestamp_only_history_store();
+    let output = run_mycel(&[
+        "view",
+        "history",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:alpha",
+        "--fail-on-change",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["status"], "ok");
+    assert_eq!(summary["fail_on_change"], true);
+    assert_eq!(summary["semantic_change_detected"], false);
+    assert_eq!(summary["result"]["transition_count"], 1);
+    assert_eq!(
+        summary["result"]["transitions"][0]["timestamp_changed"],
+        true
+    );
+}
+
+#[test]
+fn view_history_fail_on_change_allows_filtered_zero_or_one_record() {
+    let (_store_dir, store_root, _early, _middle, _late) = build_history_store();
+    for (timestamp_min, expected_record_count) in [(30, 1), (31, 0)] {
+        let timestamp_min = timestamp_min.to_string();
+        let output = run_mycel(&[
+            "view",
+            "history",
+            "--store-root",
+            &store_root,
+            "--doc-id",
+            "doc:alpha",
+            "--timestamp-min",
+            &timestamp_min,
+            "--fail-on-change",
+            "--json",
+        ]);
+
+        assert_success(&output);
+        let summary = parse_json_stdout(&output);
+        assert_eq!(summary["status"], "ok");
+        assert_eq!(summary["semantic_change_detected"], false);
+        assert_eq!(summary["result"]["record_count"], expected_record_count);
+        assert_eq!(summary["result"]["transition_count"], 0);
+    }
+}
+
+#[test]
 fn view_history_text_reports_records_and_rejects_inverted_range() {
     let (_store_dir, store_root, _early, _middle, _late) = build_history_store();
     let output = run_mycel(&[
@@ -195,6 +291,8 @@ fn view_history_text_reports_records_and_rejects_inverted_range() {
     assert_stdout_contains(&output, "history transition count: 2");
     assert_stdout_contains(&output, "history transition: view:");
     assert_stdout_contains(&output, "history document change: doc:alpha");
+    assert_stdout_contains(&output, "fail on change: false");
+    assert_stdout_contains(&output, "semantic change detected: true");
     assert_stdout_contains(&output, "view history: ok");
 
     let inverted = run_mycel(&[

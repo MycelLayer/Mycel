@@ -28,6 +28,14 @@ pub struct GovernanceViewHistorySummary {
     pub transitions: Vec<GovernanceViewDiffSummary>,
 }
 
+impl GovernanceViewHistorySummary {
+    pub fn has_semantic_changes(&self) -> bool {
+        self.transitions
+            .iter()
+            .any(GovernanceViewDiffSummary::has_semantic_change)
+    }
+}
+
 fn matches_scope(
     record: &ViewGovernanceRecord,
     profile_id: Option<&str>,
@@ -233,6 +241,7 @@ mod tests {
             history.transitions[1].document_changes[0].doc_id,
             "doc:alpha"
         );
+        assert!(history.has_semantic_changes());
     }
 
     #[test]
@@ -249,6 +258,37 @@ mod tests {
         assert_eq!(history.record_count, 1);
         assert_eq!(history.transition_count, 0);
         assert_eq!(history.records[0].view_id, "view:z");
+        assert!(!history.has_semantic_changes());
+    }
+
+    #[test]
+    fn timestamp_only_history_is_not_a_semantic_change() {
+        let mut manifest = manifest();
+        manifest.view_governance = vec![
+            record(
+                "view:early",
+                "pk:first",
+                "hash:policy-a",
+                10,
+                &[("doc:alpha", "rev:1")],
+            ),
+            record(
+                "view:late",
+                "pk:first",
+                "hash:policy-a",
+                20,
+                &[("doc:alpha", "rev:1")],
+            ),
+        ];
+
+        let history = governance_view_history(&manifest, None, Some("doc:alpha"), None, None)
+            .expect("timestamp-only history should build");
+
+        assert_eq!(history.transition_count, 1);
+        assert!(history.transitions[0].timestamp_changed);
+        assert!(history.transitions[0].is_different());
+        assert!(!history.transitions[0].has_semantic_change());
+        assert!(!history.has_semantic_changes());
     }
 
     #[test]
