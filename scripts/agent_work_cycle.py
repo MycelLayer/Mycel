@@ -39,6 +39,7 @@ MAILBOX_DIR = (AGENT_LOCAL_DIR / "mailboxes").resolve()
 AGENTS_LOCAL_PATH = ROOT_DIR / "AGENTS-LOCAL.md"
 REGISTRY_SCRIPT = ROOT_DIR / "scripts" / "agent_registry.py"
 CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
+PLAN_REFRESH_SCRIPT = ROOT_DIR / "scripts" / "check-plan-refresh.py"
 AGENTS_PATH = ROOT_DIR / "AGENTS.md"
 SHARED_FALLBACK_MAILBOX_LIMIT_BYTES = 1024
 SHARED_FALLBACK_MAILBOX_PATHS = [
@@ -565,6 +566,7 @@ def build_next_work_items_payload(
     compaction_detected: bool,
     scope: str | None = None,
     same_role_handoff: dict[str, object] | None = None,
+    sync_cadence: dict[str, object] | None = None,
     locale: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
@@ -576,6 +578,7 @@ def build_next_work_items_payload(
     cycle_items = build_cycle_specific_next_work_items(
         scope=scope,
         same_role_handoff=same_role_handoff,
+        sync_cadence=sync_cadence,
         locale=locale or "en",
     )
     if cycle_items:
@@ -663,6 +666,7 @@ def build_cycle_specific_next_work_items(
     *,
     scope: str | None,
     same_role_handoff: dict[str, object] | None,
+    sync_cadence: dict[str, object] | None,
     locale: str,
 ) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
@@ -700,7 +704,102 @@ def build_cycle_specific_next_work_items(
                     locale=locale,
                 )
             )
+    if sync_cadence is not None:
+        items.append(build_sync_cadence_next_work_item(sync_cadence, locale=locale))
     return items
+
+
+def load_sync_cadence() -> dict[str, object] | None:
+    if not PLAN_REFRESH_SCRIPT.is_file():
+        return None
+    proc = subprocess.run(
+        [sys.executable, str(PLAN_REFRESH_SCRIPT), "--json"],
+        cwd=ROOT_DIR,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode not in {0, 1}:
+        return None
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or payload.get("status") not in {"ok", "due"}:
+        return None
+    surfaces = payload.get("surfaces")
+    if not isinstance(surfaces, list) or not surfaces:
+        return None
+    return payload
+
+
+def build_sync_cadence_next_work_item(
+    cadence: dict[str, object],
+    *,
+    locale: str,
+) -> dict[str, str]:
+    highest_distance = cadence.get("highest_commit_distance")
+    if not isinstance(highest_distance, int) or highest_distance < 0:
+        raise WorkCycleError("sync cadence is missing a valid highest_commit_distance")
+
+    raw_surfaces = cadence.get("surfaces")
+    if not isinstance(raw_surfaces, list):
+        raise WorkCycleError("sync cadence is missing surfaces")
+
+    surface_summaries: list[str] = []
+    due_names: list[str] = []
+    for raw_surface in raw_surfaces:
+        if not isinstance(raw_surface, dict):
+            raise WorkCycleError("sync cadence contains an invalid surface")
+        name = raw_surface.get("name")
+        threshold = raw_surface.get("threshold")
+        status = raw_surface.get("status")
+        remaining = raw_surface.get("remaining_commits")
+        if (
+            not isinstance(name, str)
+            or not isinstance(threshold, int)
+            or status not in {"ok", "due"}
+            or not isinstance(remaining, int)
+        ):
+            raise WorkCycleError("sync cadence contains an incomplete surface")
+        if status == "due":
+            due_names.append(name)
+            if locale == "zh-TW":
+                surface_summaries.append(
+                    f"sync {name} 已到期（{highest_distance}/{threshold} commits）"
+                )
+            else:
+                surface_summaries.append(
+                    f"sync {name} is due ({highest_distance}/{threshold} commits)"
+                )
+        elif locale == "zh-TW":
+            surface_summaries.append(
+                f"sync {name} 尚未到期（{highest_distance}/{threshold} commits，還有 {remaining} commits）"
+            )
+        else:
+            surface_summaries.append(
+                f"sync {name} is not due ({highest_distance}/{threshold} commits, {remaining} remaining)"
+            )
+
+    if locale == "zh-TW":
+        text = f"目前 sync cadence：{'、'.join(surface_summaries)}"
+        if due_names:
+            due_labels = "、".join(f"sync {name}" for name in due_names)
+            tradeoff = (
+                f"應優先處理已到期的 {due_labels}；其餘同步面可延後，但拖延到期項目會增加規劃漂移"
+            )
+        else:
+            tradeoff = "所有同步面皆未到期，可先做較窄的 doc 工作，但仍需在下一個門檻前重新檢查"
+    else:
+        text = f"current sync cadence: {'; '.join(surface_summaries)}"
+        if due_names:
+            due_labels = ", ".join(f"sync {name}" for name in due_names)
+            tradeoff = (
+                f"prioritize the due {due_labels} surfaces; the others can wait, but delaying due sync increases planning drift"
+            )
+        else:
+            tradeoff = "no sync surface is due, so narrower doc work can proceed, but cadence should be checked again before the next threshold"
+    return {"text": text, "tradeoff": tradeoff}
 
 
 def resolve_preferred_response_locale() -> str | None:
@@ -811,6 +910,7 @@ def write_next_work_items_outputs(
     compaction_detected: bool,
     scope: str | None = None,
     same_role_handoff: dict[str, object] | None = None,
+    sync_cadence: dict[str, object] | None = None,
     locale: str | None = None,
 ) -> tuple[Path, Path]:
     spec_path = workcycle_next_work_items_spec_path(agent_uid, batch_num)
@@ -821,6 +921,7 @@ def write_next_work_items_outputs(
         compaction_detected=compaction_detected,
         scope=scope,
         same_role_handoff=same_role_handoff,
+        sync_cadence=sync_cadence,
         locale=locale,
     )
     spec_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1786,6 +1887,11 @@ def main() -> int:
         )
         if same_role_handoff is None and bootstrap_batch:
             same_role_handoff = load_bootstrap_reviewed_handoff(agent_uid)
+        sync_cadence = (
+            load_sync_cadence()
+            if bootstrap_batch and agent_role == "doc"
+            else None
+        )
         next_work_items_spec, next_work_items_markdown = write_next_work_items_outputs(
             agent_uid=agent_uid,
             batch_num=latest_batch,
@@ -1793,6 +1899,7 @@ def main() -> int:
             compaction_detected=cycle_compaction is not None,
             scope=args.scope or resolve_agent_scope(agent_uid),
             same_role_handoff=same_role_handoff,
+            sync_cadence=sync_cadence,
             locale=resolve_preferred_response_locale(),
         )
         print(

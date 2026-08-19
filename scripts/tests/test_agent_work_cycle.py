@@ -21,6 +21,7 @@ SOURCE_AGENT_GUARD = REPO_ROOT / "scripts" / "agent_guard.py"
 SOURCE_CHECKLIST = REPO_ROOT / "scripts" / "item_id_checklist.py"
 SOURCE_MARKER = REPO_ROOT / "scripts" / "item_id_checklist_mark.py"
 SOURCE_NEXT_WORK_ITEMS = REPO_ROOT / "scripts" / "render_next_work_items.py"
+SOURCE_PLAN_REFRESH = REPO_ROOT / "scripts" / "check-plan-refresh.py"
 
 
 class AgentWorkCycleCliTest(unittest.TestCase):
@@ -242,6 +243,20 @@ class AgentWorkCycleCliTest(unittest.TestCase):
     def load_next_work_items_markdown(self, agent_uid: str, batch_num: int) -> str:
         path = self.root / f".agent-local/agents/{agent_uid}/workcycles/next-work-items-{batch_num}.md"
         return path.read_text(encoding="utf-8")
+
+    def install_plan_refresh_checker(self) -> None:
+        destination = self.root / "scripts" / "check-plan-refresh.py"
+        shutil.copy2(SOURCE_PLAN_REFRESH, destination)
+        destination.chmod(0o755)
+
+    def write_plan_refresh_surfaces(self) -> None:
+        for relative_path in (
+            "ROADMAP.md",
+            "ROADMAP.zh-TW.md",
+            "IMPLEMENTATION-CHECKLIST.en.md",
+            "IMPLEMENTATION-CHECKLIST.zh-TW.md",
+        ):
+            (self.root / relative_path).write_text(f"# {relative_path}\n", encoding="utf-8")
 
     def set_checklist_state(self, relative_path: str, item_id: str, state: str, label: str) -> None:
         path = self.root / relative_path
@@ -875,6 +890,87 @@ class AgentWorkCycleCliTest(unittest.TestCase):
             "2. check whether planning-sync or issue-sync follow-up is due before writing the next doc update "
             "Tradeoff: helps avoid drift in planning surfaces, but it may defer narrower writing work briefly\n",
             self.load_next_work_items_markdown(agent_uid, 1),
+        )
+
+    def test_doc_bootstrap_batch_reports_current_sync_cadence_in_next_work_items(self) -> None:
+        self.write_agents_md()
+        self.write_agents_local("zh-TW")
+        self.install_plan_refresh_checker()
+        self.write_plan_refresh_surfaces()
+        self.init_git_repo()
+        for index in range(11):
+            path = self.root / f"progress-{index}.txt"
+            path.write_text(f"progress {index}\n", encoding="utf-8")
+            self.run_git("add", path.name)
+            self.run_git("commit", "-m", f"progress {index}")
+
+        claim = self.run_registry(
+            "claim",
+            "doc",
+            "--scope",
+            "bootstrap-cadence",
+            "--model-id",
+            "gpt-5.4",
+        )
+        agent_uid = claim["agent_uid"]
+        start = self.run_registry("start", agent_uid)
+        self.mark_bootstrap_defaults(start["bootstrap_output"])
+        begin = self.run_cli("begin", agent_uid, "--scope", "bootstrap-cadence")
+        self.assertEqual(0, begin.returncode)
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-1.md",
+            mailbox_state=None,
+        )
+
+        proc = self.run_cli("end", agent_uid, "--scope", "bootstrap-cadence")
+
+        self.assertEqual(0, proc.returncode)
+        spec = self.load_next_work_items_spec(agent_uid, 1)
+        cadence_item = spec["items"][0]
+        self.assertEqual(
+            (
+                "目前 sync cadence：sync doc 已到期（11/10 commits）、"
+                "sync issue 已到期（11/10 commits）、"
+                "sync web 尚未到期（11/20 commits，還有 9 commits）"
+            ),
+            cadence_item["text"],
+        )
+        self.assertIn("應優先處理已到期的 sync doc、sync issue", cadence_item["tradeoff"])
+        self.assertIn(
+            "目前 sync cadence：sync doc 已到期（11/10 commits）",
+            self.load_next_work_items_markdown(agent_uid, 1),
+        )
+
+        second_begin = self.run_cli("begin", agent_uid, "--scope", "post-bootstrap-doc-work")
+        self.assertEqual(0, second_begin.returncode)
+        self.write_mailbox(
+            agent_uid,
+            (
+                f"# Mailbox for {agent_uid}\n\n"
+                "## Doc Continuation Note\n\n"
+                "- Status: open\n"
+                "- Date: 2026-03-25 15:30 UTC+8\n"
+                "- Source agent: doc-1\n"
+                "- Source role: doc\n"
+                "- Scope: post-bootstrap-doc-work\n"
+                "- Current state:\n"
+                "  - Bootstrap cadence was reported.\n"
+                "- Next suggested step:\n"
+                "  - Continue regular doc work.\n"
+            ),
+        )
+        self.mark_workcycle_defaults(
+            f".agent-local/agents/{agent_uid}/checklists/AGENTS-workcycle-checklist-2.md",
+            mailbox_state="X",
+        )
+
+        second_end = self.run_cli("end", agent_uid, "--scope", "post-bootstrap-doc-work")
+
+        self.assertEqual(0, second_end.returncode)
+        second_spec = self.load_next_work_items_spec(agent_uid, 2)
+        self.assertNotIn(
+            "sync cadence",
+            " ".join(item["text"] for item in second_spec["items"]),
         )
 
     def test_end_reuses_frozen_end_token_snapshot_on_repeat_closeout(self) -> None:

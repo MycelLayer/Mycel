@@ -48,6 +48,7 @@ CATEGORY_PATHS: dict[str, tuple[str, ...]] = {
         "scripts/agent_safe_commit.py",
         "scripts/agent_push.py",
         "scripts/check-runtime-preflight.py",
+        "scripts/check-plan-refresh.py",
         "scripts/check-dev-env.py",
         "scripts/update-dev-setup-status.py",
         "scripts/item_id_checklist.py",

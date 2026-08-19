@@ -11,6 +11,7 @@ see [`README.md`](./README.md).
 - Confirm the registry state and active peers before taking documentation or planning scope. <!-- item-id: doc.startup.registry-state -->
 - Review the latest open same-role handoff when one exists and include it in the bootstrap next-work items. <!-- item-id: doc.startup.review-same-role-handoff -->
 - Review open pull requests and distinguish Dependabot dependency-update PRs from human-authored product PRs when choosing bootstrap next-work items. <!-- item-id: doc.startup.review-open-prs -->
+- Report the current sync cadence as one of the batch-1 next-work items. <!-- item-id: doc.startup.report-sync-cadence -->
 
 ## Work Cycle Workflow
 

@@ -49,6 +49,7 @@ class AgentWorkflowBundleCliTest(unittest.TestCase):
         self.write("scripts/agent_safe_commit.py", "print('safe_commit')\n")
         self.write("scripts/agent_push.py", "print('push')\n")
         self.write("scripts/check-runtime-preflight.py", "print('runtime_preflight')\n")
+        self.write("scripts/check-plan-refresh.py", "print('plan_refresh')\n")
         self.write("scripts/check-dev-env.py", "print('check_dev_env')\n")
         self.write("scripts/update-dev-setup-status.py", "print('update_dev_setup_status')\n")
         self.write("scripts/item_id_checklist.py", "print('item_id_checklist')\n")
@@ -104,6 +105,7 @@ class AgentWorkflowBundleCliTest(unittest.TestCase):
         paths = {entry["path"] for entry in manifest["files"]}
         self.assertIn("AGENTS.md", paths)
         self.assertIn("scripts/agent_workflow_bundle.py", paths)
+        self.assertIn("scripts/check-plan-refresh.py", paths)
         self.assertNotIn(".agent-local/agents.json", paths)
         self.assertTrue((output_dir / "files" / "AGENTS.md").is_file())
         self.assertTrue((output_dir / "files" / "scripts" / "agent_workflow_bundle.py").is_file())
