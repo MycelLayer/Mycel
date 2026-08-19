@@ -38,6 +38,11 @@ struct HeadProfileListCliArgs {
         required = true
     )]
     input: String,
+    #[arg(
+        long,
+        help = "Omit per-profile details and emit only profile discovery metadata"
+    )]
+    summary_only: bool,
     #[arg(long, help = "Emit machine-readable profile listing output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]
@@ -257,8 +262,14 @@ fn print_head_profile_inspect_json(summary: &HeadProfileInspectSummary) -> Resul
     }
 }
 
-fn head_profile_list(input_path: PathBuf, json: bool) -> Result<i32, CliError> {
-    let summary = list_head_profiles_from_path(&input_path);
+fn head_profile_list(input_path: PathBuf, summary_only: bool, json: bool) -> Result<i32, CliError> {
+    let mut summary = list_head_profiles_from_path(&input_path);
+    if summary_only && !summary.profiles.is_empty() {
+        summary.profiles.clear();
+        summary.notes.push(
+            "per-profile details were omitted because summary-only was requested".to_string(),
+        );
+    }
     if json {
         print_head_profile_list_json(&summary)
     } else {
@@ -286,7 +297,7 @@ pub(super) fn handle(args: HeadProfileCliArgs) -> Result<i32, CliError> {
                 return Err(CliError::usage(message));
             }
 
-            head_profile_list(PathBuf::from(args.input), args.json)
+            head_profile_list(PathBuf::from(args.input), args.summary_only, args.json)
         }
         Some(HeadProfileSubcommand::Inspect(args)) => {
             if let Some(message) = unexpected_extra(&args.extra, "head profile inspect") {

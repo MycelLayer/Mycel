@@ -95,6 +95,90 @@ fn head_profile_list_human_reports_reuse_hint_for_first_named_profile() {
 }
 
 #[test]
+fn head_profile_list_summary_only_omits_human_profile_details() {
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let input = write_input_file(
+        "head-profile-list-summary-only-human",
+        "input.json",
+        json!({
+            "profiles": named_profiles(&[
+                ("stable", head_profile(hash_json(&policy), 18)),
+                ("preview", head_profile(hash_json(&policy), 30))
+            ]),
+            "revisions": [],
+            "views": [],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "profile",
+        "list",
+        "--input",
+        &path_arg(&input.path),
+        "--summary-only",
+    ]);
+
+    assert_success(&output);
+    let stdout = stdout_text(&output);
+    assert!(stdout.contains("Head profiles: ok"));
+    assert!(stdout.contains("- profile count: 2"));
+    assert!(stdout.contains("- available profiles: preview, stable"));
+    assert!(stdout.contains("- reuse this profile with: --profile-id preview"));
+    assert!(stdout.contains("per-profile details were omitted because summary-only was requested"));
+    assert!(!stdout.contains("\nProfiles\n"));
+    assert!(!stdout.contains("policy hash="));
+}
+
+#[test]
+fn head_profile_list_summary_only_omits_json_profile_details() {
+    let policy = json!({
+        "merge_rule": "manual-reviewed",
+        "preferred_branches": ["main"]
+    });
+    let input = write_input_file(
+        "head-profile-list-summary-only-json",
+        "input.json",
+        json!({
+            "profiles": named_profiles(&[
+                ("stable", head_profile(hash_json(&policy), 18)),
+                ("preview", head_profile(hash_json(&policy), 30))
+            ]),
+            "revisions": [],
+            "views": [],
+            "critical_violations": []
+        }),
+    );
+
+    let output = run_mycel(&[
+        "head",
+        "profile",
+        "list",
+        "--input",
+        &path_arg(&input.path),
+        "--summary-only",
+        "--json",
+    ]);
+
+    assert_success(&output);
+    let json = parse_json_stdout(&output);
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["profile_count"], 2);
+    assert_eq!(json["available_profile_ids"], json!(["preview", "stable"]));
+    assert_eq!(json["profiles"], json!([]));
+    assert!(json["notes"]
+        .as_array()
+        .expect("notes should be an array")
+        .contains(&json!(
+            "per-profile details were omitted because summary-only was requested"
+        )));
+}
+
+#[test]
 fn head_profile_inspect_json_reports_requested_named_profile() {
     let policy = json!({
         "merge_rule": "manual-reviewed",

@@ -353,6 +353,10 @@ pub fn assert_head_profile_list_help(stdout: &str) {
         "expected input flag in help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--summary-only"),
+        "expected summary-only flag in help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("--json"),
         "expected json flag in help, stdout: {stdout}"
     );
