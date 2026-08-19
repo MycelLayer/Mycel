@@ -284,7 +284,7 @@ Minimum handoff quality:
 - continuation handoffs should explicitly include `Status: open`, `Current state`, and `Next suggested step`, because they are written under the assumption that the user may not assign another follow-up before pause or takeover
 - a mailbox should not accumulate multiple open current-state handoffs for the same scope; older ones should be closed as `superseded` before a newer open current-state handoff is added
 - if an agent wants a ready-made starting point for continuation instead of copying the Markdown block manually, use `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`
-- if an agent wants to render the tracked mailbox shapes directly, use `scripts/mailbox_handoff.py`
+- use `scripts/mailbox_handoff.py create` to render tracked mailbox shapes and `scripts/mailbox_handoff.py close` to close an exact absorbed source entry with audit metadata
 
 Mailbox retention and cleanup policy:
 

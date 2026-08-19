@@ -10,7 +10,7 @@ For role-specific checklist sources and per-agent checklist copy locations, read
 
 Live mailbox files are local and not committed. Each agent should use the mailbox path declared in `.agent-local/agents.json`.
 
-Use `scripts/mailbox_handoff.py` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in the same handoff slot as `superseded`.
+Use `scripts/mailbox_handoff.py create` when you want the tool to render a tracked mailbox template for you. For open current-state entries, the tool appends the new entry and automatically marks older `Status: open` entries in the same handoff slot as `superseded`. Use `scripts/mailbox_handoff.py close` after an agent absorbs or otherwise closes an exact source handoff; the command records who closed it and when.
 
 The directory is ignored by git through `.gitignore`, except for tracked template examples such as `.agent-local/mailboxes/EXAMPLE-planning-sync-handoff.md`, `.agent-local/mailboxes/EXAMPLE-planning-sync-resolution.md`, `.agent-local/mailboxes/EXAMPLE-work-continuation-handoff.md`, `.agent-local/mailboxes/EXAMPLE-delivery-continuation-note.md`, and `.agent-local/mailboxes/EXAMPLE-doc-continuation-note.md`.
 
@@ -47,7 +47,7 @@ Shared fallback pattern:
 - `.agent-local/doc-to-coding.md`
   clarification requests, ambiguity reports, missing-source warnings, and doc-triggered follow-up requests
 
-Append new entries to the end of each mailbox file so the mailbox reads in chronological order from top to bottom.
+Append new entries to the end of each mailbox file so the mailbox reads oldest-to-newest from top to bottom.
 
 If the file does not exist yet, create it locally when the first message is needed.
 
@@ -83,7 +83,21 @@ Mailbox retention and cleanup policy:
 11. `doc` reads the newest open planning-sync entry addressed to its scope or mailbox.
 12. `doc` updates only the docs justified by that message.
 13. `doc` still leaves one same-role mailbox handoff entry for that completed work cycle, using a doc continuation note or another doc-owned current-state entry as appropriate.
-14. the agent that absorbs the prior handoff marks the original mailbox entry `resolved`, `blocked`, or `superseded`.
+14. the agent that absorbs the prior handoff uses `scripts/mailbox_handoff.py close` to mark the exact original mailbox entry `resolved`, `blocked`, or `superseded`; the command refuses missing or ambiguous scope matches instead of editing a best guess.
+
+## Closing An Absorbed Handoff
+
+Close the source entry only after its context has actually been absorbed, replaced, or found blocked. Bootstrap review by itself does not close a handoff.
+
+Use the stable source `agent_uid`, exact template kind, exact scope, and the absorbing agent's reference:
+
+```sh
+python3 scripts/mailbox_handoff.py close agt_source1234 work-continuation \
+  --scope 'profile ergonomics' \
+  --actor-ref coding-3
+```
+
+The default terminal status is `resolved`. Use `--status blocked` or `--status superseded` when that more accurately describes the outcome, and `--note` for a short audit explanation. The command updates exactly one matching open entry and adds `Closed at` and `Closed by` fields. It makes no change if the scope is missing or matches more than one open entry.
 
 If the work is issue-first, the same summary can also be mirrored into the issue comment, but the local mailbox remains the default agent-to-agent transport.
 
@@ -135,7 +149,7 @@ Suggested `planning impact` values:
 
 ## Entry Template
 
-Copy this block into the relevant mailbox file and keep the newest entries first.
+Copy this block into the relevant mailbox file and keep entries in oldest-to-newest order.
 
 ```md
 ## 2026-03-11 - coding - <scope>

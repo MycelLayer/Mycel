@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "handoffs:create": "python3 scripts/mailbox_handoff.py create",
+    "handoffs:close": "python3 scripts/mailbox_handoff.py close",
     "handoffs:inactive-coding": "python3 scripts/inactive_coding_handoffs.py",
     "lint:docs": "npm run lint:pages",
     "lint:pages": "npm run lint:pages:html && npm run lint:pages:css",

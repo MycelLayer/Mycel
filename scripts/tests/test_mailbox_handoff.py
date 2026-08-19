@@ -497,6 +497,143 @@ class MailboxHandoffCliTest(unittest.TestCase):
         self.assertEqual(1, mailbox.count("- Status: open"))
         self.assertEqual(1, mailbox.count("- Status: resolved"))
 
+    def test_close_resolves_one_exact_open_handoff_with_audit_fields(self) -> None:
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 2,
+                "agents": [
+                    self.registry_entry(agent_uid="agt_source", role="coding", display_id="coding-7"),
+                    self.registry_entry(agent_uid="agt_actor", role="coding", display_id="coding-8"),
+                ],
+            }
+        )
+        self.write_mailbox(
+            ".agent-local/mailboxes/agt_source.md",
+            """# Mailbox for agt_source
+
+## Work Continuation Handoff
+
+- Status: open
+- Date: 2026-03-13 09:00 UTC+8
+- Source agent: coding-7
+- Scope: absorbed-scope
+- Current state:
+  - landed
+- Next suggested step:
+  - continue
+
+## Planning Sync Handoff
+
+- Status: open
+- Scope: planning-follow-up
+""",
+        )
+
+        payload = json.loads(
+            self.run_cli(
+                "close",
+                "agt_source",
+                "work-continuation",
+                "--scope",
+                "absorbed-scope",
+                "--actor-ref",
+                "coding-8",
+                "--note",
+                "continued in the new coding cycle",
+                "--json",
+            ).stdout
+        )
+
+        mailbox = (self.root / payload["mailbox"]).read_text(encoding="utf-8")
+        self.assertEqual("resolved", payload["status"])
+        self.assertEqual(1, payload["closed_count"])
+        self.assertIn("- Status: resolved", mailbox)
+        self.assertIn("- Closed at: ", mailbox)
+        self.assertIn("- Closed by: coding-8 (agt_actor/gpt-5-codex)", mailbox)
+        self.assertIn("- Closure note: continued in the new coding cycle", mailbox)
+        self.assertEqual(1, mailbox.count("- Status: open"))
+
+    def test_close_rejects_non_matching_scope_without_mutating_mailbox(self) -> None:
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 2,
+                "agents": [
+                    self.registry_entry(agent_uid="agt_source", role="coding", display_id="coding-7"),
+                    self.registry_entry(agent_uid="agt_actor", role="coding", display_id="coding-8"),
+                ],
+            }
+        )
+        mailbox_path = ".agent-local/mailboxes/agt_source.md"
+        original = """# Mailbox for agt_source
+
+## Work Continuation Handoff
+
+- Status: open
+- Scope: actual-scope
+"""
+        self.write_mailbox(mailbox_path, original)
+
+        proc = self.run_cli(
+            "close",
+            "agt_source",
+            "work-continuation",
+            "--scope",
+            "wrong-scope",
+            "--actor-ref",
+            "coding-8",
+            check=False,
+        )
+
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("no open 'Work Continuation Handoff' entry matches", proc.stderr)
+        self.assertEqual(original, (self.root / mailbox_path).read_text(encoding="utf-8"))
+
+    def test_close_rejects_ambiguous_matching_entries_without_mutating_mailbox(self) -> None:
+        self.write_registry(
+            {
+                "version": 2,
+                "updated_at": "2026-03-13T10:00:00+0800",
+                "agent_count": 2,
+                "agents": [
+                    self.registry_entry(agent_uid="agt_source", role="coding", display_id="coding-7"),
+                    self.registry_entry(agent_uid="agt_actor", role="coding", display_id="coding-8"),
+                ],
+            }
+        )
+        mailbox_path = ".agent-local/mailboxes/agt_source.md"
+        original = """# Mailbox for agt_source
+
+## Work Continuation Handoff
+
+- Status: open
+- Scope: duplicate-scope
+
+## Work Continuation Handoff
+
+- Status: open
+- Scope: duplicate-scope
+"""
+        self.write_mailbox(mailbox_path, original)
+
+        proc = self.run_cli(
+            "close",
+            "agt_source",
+            "work-continuation",
+            "--scope",
+            "duplicate-scope",
+            "--actor-ref",
+            "coding-8",
+            check=False,
+        )
+
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("multiple open 'Work Continuation Handoff' entries match", proc.stderr)
+        self.assertEqual(original, (self.root / mailbox_path).read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

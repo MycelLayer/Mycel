@@ -25,6 +25,9 @@ from agent_registry import (
 ROOT_DIR = Path(__file__).resolve().parent.parent
 TAIPEI_TIMEZONE = timezone(timedelta(hours=8))
 CODEX_THREAD_METADATA_SCRIPT = ROOT_DIR / "scripts" / "codex_thread_metadata.py"
+OPEN_STATUS_LINE = "- Status: open"
+CURRENT_STATE_LABEL = "Current state"
+NEXT_STEP_LABEL = "Next suggested step"
 
 
 class MailboxHandoffError(Exception):
@@ -156,7 +159,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = MailboxArgumentParser(
         prog="scripts/mailbox_handoff.py",
-        description="Create mailbox handoff entries from tracked templates.",
+        description="Create and close mailbox handoff entries from tracked templates.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -188,6 +191,31 @@ def parse_args() -> argparse.Namespace:
     create.add_argument("--docs-impacted", action="append", default=[], help="docs impacted bullet")
     create.add_argument("--remaining-follow-up", action="append", default=[], help="remaining follow-up bullet")
     create.add_argument("--json", action="store_true", help="emit JSON instead of plain text")
+
+    close = subparsers.add_parser(
+        "close",
+        help="close one exact open mailbox entry after it is absorbed or replaced",
+    )
+    close.add_argument("agent_ref", help="agent_uid or current display_id that owns the mailbox")
+    close.add_argument(
+        "template",
+        choices=sorted(key for key, spec in TEMPLATES.items() if spec.status == "open"),
+        help="open template kind to close",
+    )
+    close.add_argument("--scope", required=True, help="exact scope of the open mailbox entry")
+    close.add_argument(
+        "--status",
+        choices=("resolved", "blocked", "superseded"),
+        default="resolved",
+        help="terminal status to apply; defaults to resolved",
+    )
+    close.add_argument(
+        "--actor-ref",
+        required=True,
+        help="agent_uid or current display_id performing the close",
+    )
+    close.add_argument("--note", help="optional one-line closure note")
+    close.add_argument("--json", action="store_true", help="emit JSON instead of plain text")
     return parser.parse_args(argv)
 
 
@@ -225,7 +253,7 @@ def render_work_continuation(*, date_text: str, source_agent: str, source_role: 
     lines = [
         "## Work Continuation Handoff",
         "",
-        "- Status: open",
+        OPEN_STATUS_LINE,
         f"- Date: {date_text}",
         f"- Source agent: {source_agent}",
         f"- Source role: {source_role}",
@@ -234,9 +262,9 @@ def render_work_continuation(*, date_text: str, source_agent: str, source_role: 
         *list_block("Behavior change", behavior, default=None),
         *list_block("Verification", args.verification),
         *list_block("Last landed commit", args.last_landed_commit),
-        *list_block("Current state", current_state, default=None),
+        *list_block(CURRENT_STATE_LABEL, current_state, default=None),
         *([] if not current_state_zh_tw else list_block("Current state (zh-TW)", current_state_zh_tw, default=None)),
-        *list_block("Next suggested step", next_step, default=None),
+        *list_block(NEXT_STEP_LABEL, next_step, default=None),
         *([] if not next_step_zh_tw else list_block("Next suggested step (zh-TW)", next_step_zh_tw, default=None)),
         *list_block("Blockers", args.blockers),
     ]
@@ -250,7 +278,7 @@ def render_planning_sync(*, date_text: str, source_agent: str, source_role: str,
     lines = [
         "## Planning Sync Handoff",
         "",
-        "- Status: open",
+        OPEN_STATUS_LINE,
         f"- Date: {date_text}",
         f"- Source agent: {source_agent}",
         f"- Source role: {source_role}",
@@ -276,14 +304,14 @@ def render_doc_continuation(*, date_text: str, source_agent: str, source_role: s
     lines = [
         "## Doc Continuation Note",
         "",
-        "- Status: open",
+        OPEN_STATUS_LINE,
         f"- Date: {date_text}",
         f"- Source agent: {source_agent}",
         f"- Source role: {source_role}",
         f"- Scope: {args.scope}",
-        *list_block("Current state", current_state, default=None),
+        *list_block(CURRENT_STATE_LABEL, current_state, default=None),
         *list_block("Evidence", args.evidence),
-        *list_block("Next suggested step", next_step, default=None),
+        *list_block(NEXT_STEP_LABEL, next_step, default=None),
     ]
     notes = normalize_items(args.notes, default=None)
     if notes:
@@ -302,14 +330,14 @@ def render_delivery_continuation(*, date_text: str, source_agent: str, source_ro
     lines = [
         "## Delivery Continuation Note",
         "",
-        "- Status: open",
+        OPEN_STATUS_LINE,
         f"- Date: {date_text}",
         f"- Source agent: {source_agent}",
         f"- Source role: {source_role}",
         f"- Scope: {args.scope}",
-        *list_block("Current state", current_state, default=None),
+        *list_block(CURRENT_STATE_LABEL, current_state, default=None),
         *list_block("Evidence", args.evidence),
-        *list_block("Next suggested step", next_step, default=None),
+        *list_block(NEXT_STEP_LABEL, next_step, default=None),
         *list_block("Blockers", args.blockers),
     ]
     notes = normalize_items(args.notes, default=None)
@@ -366,7 +394,7 @@ def supersede_open_entries(content: str, *, open_slot: str) -> tuple[str, int]:
         if line.startswith("## "):
             current_heading = line[3:].strip()
             continue
-        if line.strip() != "- Status: open":
+        if line.strip() != OPEN_STATUS_LINE:
             continue
         if OPEN_HANDOFF_HEADING_SLOTS.get(current_heading) != open_slot:
             continue
@@ -413,15 +441,90 @@ def build_updated_mailbox(
     return "\n\n".join(parts).rstrip() + "\n", superseded_count
 
 
-def resolve_mailbox(agent_ref: str) -> tuple[str, str, Path]:
+def close_exact_open_entry(
+    content: str,
+    *,
+    heading: str,
+    scope: str,
+    status: str,
+    closed_at: str,
+    closed_by: str,
+    note: str | None,
+) -> str:
+    lines = content.splitlines()
+    sections: list[tuple[int, int]] = []
+    section_start: int | None = None
+    for index, line in enumerate(lines):
+        if not line.startswith("## "):
+            continue
+        if section_start is not None:
+            sections.append((section_start, index))
+        section_start = index
+    if section_start is not None:
+        sections.append((section_start, len(lines)))
+
+    matches: list[tuple[int, int]] = []
+    for start, end in sections:
+        if lines[start][3:].strip() != heading:
+            continue
+        status_line: int | None = None
+        entry_scope: str | None = None
+        for index in range(start + 1, end):
+            stripped = lines[index].strip()
+            if stripped == OPEN_STATUS_LINE:
+                status_line = index
+            elif stripped.startswith("- Scope: "):
+                entry_scope = stripped[len("- Scope: ") :].strip()
+        if status_line is not None and entry_scope == scope:
+            matches.append((status_line, end))
+
+    if not matches:
+        raise MailboxHandoffError(
+            f"no open {heading!r} entry matches scope {scope!r}"
+        )
+    if len(matches) > 1:
+        raise MailboxHandoffError(
+            f"multiple open {heading!r} entries match scope {scope!r}; "
+            "repair the mailbox before closing one"
+        )
+
+    status_line, _section_end = matches[0]
+    prefix = lines[status_line][: len(lines[status_line]) - len(lines[status_line].lstrip())]
+    lines[status_line] = f"{prefix}- Status: {status}"
+    audit_lines = [
+        f"{prefix}- Closed at: {closed_at}",
+        f"{prefix}- Closed by: {closed_by}",
+    ]
+    if note and note.strip():
+        audit_lines.append(f"{prefix}- Closure note: {note.strip()}")
+    lines[status_line + 1 : status_line + 1] = audit_lines
+
+    updated = "\n".join(lines)
+    if content.endswith("\n"):
+        updated += "\n"
+    return updated
+
+
+def resolve_mailbox(agent_ref: str, *, ensure: bool = True) -> tuple[str, str, Path]:
     registry = load_registry(allow_missing=False)
     entry = resolve_agent_entry(registry, agent_ref)
     agent_uid = require_non_empty_str(entry, "agent_uid", agent_ref)
     display_id = current_display_id(entry) or agent_uid
     mailbox_value = require_non_empty_str(entry, "mailbox", agent_uid)
     mailbox_path = resolve_mailbox_path(mailbox_value)
-    ensure_mailbox(mailbox_path, title=agent_uid)
+    if ensure:
+        ensure_mailbox(mailbox_path, title=agent_uid)
     return agent_uid, display_id, mailbox_path
+
+
+def resolve_agent_label(agent_ref: str) -> str:
+    registry = load_registry(allow_missing=False)
+    entry = resolve_agent_entry(registry, agent_ref)
+    agent_uid = require_non_empty_str(entry, "agent_uid", agent_ref)
+    display_id = current_display_id(entry) or agent_uid
+    model_value = entry.get("model_id")
+    model_id = model_value.strip() if isinstance(model_value, str) and model_value.strip() else None
+    return format_agent_label(display_id, agent_uid, model_id=model_id)
 
 
 def create_entry(args: argparse.Namespace) -> dict[str, object]:
@@ -487,6 +590,46 @@ def create_entry(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def close_entry(args: argparse.Namespace) -> dict[str, object]:
+    try:
+        agent_uid, display_id, mailbox_path = resolve_mailbox(args.agent_ref, ensure=False)
+        closed_by = resolve_agent_label(args.actor_ref)
+    except RegistryError as exc:
+        raise MailboxHandoffError(str(exc)) from exc
+
+    if not mailbox_path.exists():
+        raise MailboxHandoffError(
+            f"missing mailbox file: {relative_to_root(mailbox_path)}"
+        )
+
+    template = TEMPLATES[args.template]
+    closed_at = human_timestamp()
+    existing_content = mailbox_path.read_text(encoding="utf-8")
+    updated_content = close_exact_open_entry(
+        existing_content,
+        heading=template.heading,
+        scope=args.scope,
+        status=args.status,
+        closed_at=closed_at,
+        closed_by=closed_by,
+        note=args.note,
+    )
+    mailbox_path.write_text(updated_content, encoding="utf-8")
+
+    return {
+        "agent_uid": agent_uid,
+        "display_id": display_id,
+        "mailbox": relative_to_root(mailbox_path),
+        "template": template.kind,
+        "entry_heading": template.heading,
+        "scope": args.scope,
+        "status": args.status,
+        "date": closed_at,
+        "closed_by": closed_by,
+        "closed_count": 1,
+    }
+
+
 def emit_result(result: dict[str, object], *, as_json: bool) -> None:
     if as_json:
         print(json.dumps(result, indent=2))
@@ -503,15 +646,21 @@ def emit_result(result: dict[str, object], *, as_json: bool) -> None:
         "source_agent",
         "source_role",
         "superseded_count",
+        "closed_by",
+        "closed_count",
     ]:
-        print(f"{key}: {result[key]}")
+        if key in result:
+            print(f"{key}: {result[key]}")
 
 
 def main() -> int:
     args = parse_args()
-    if args.command != "create":
+    if args.command == "create":
+        result = create_entry(args)
+    elif args.command == "close":
+        result = close_entry(args)
+    else:
         raise MailboxHandoffError(f"unsupported command: {args.command}")
-    result = create_entry(args)
     emit_result(result, as_json=args.json)
     return 0
 
