@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use mycel_core::store::{
     governance_view_history, load_store_index_manifest, GovernanceViewDiffSummary,
-    GovernanceViewHistorySummary,
+    GovernanceViewHistorySource, GovernanceViewHistorySummary,
 };
 use serde::Serialize;
 
@@ -97,6 +97,13 @@ fn print_text(summary: &ViewHistoryCliSummary) -> i32 {
         );
         println!("history record count: {}", result.record_count);
         println!("history transition count: {}", result.transition_count);
+        println!(
+            "history source: {}",
+            match result.source {
+                GovernanceViewHistorySource::Persisted => "persisted",
+                GovernanceViewHistorySource::Synthesized => "synthesized",
+            }
+        );
         for record in &result.records {
             println!(
                 "history record: timestamp={} view={} maintainer={} profile={} documents={}",
@@ -165,6 +172,15 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
         ) {
             Ok(result) => {
                 summary.semantic_change_detected = result.has_semantic_changes();
+                summary.notes.push(match result.source {
+                    GovernanceViewHistorySource::Persisted => {
+                        "history traversal used the persisted governance history index".to_string()
+                    }
+                    GovernanceViewHistorySource::Synthesized => {
+                        "history traversal synthesized an index from legacy manifest records; rebuild the store to persist it"
+                            .to_string()
+                    }
+                });
                 summary.result = Some(result);
             }
             Err(error) => summary.push_error(error.to_string()),

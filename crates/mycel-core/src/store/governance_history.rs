@@ -1,10 +1,26 @@
-use serde::Serialize;
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::governance_diff::diff_governance_records;
 use super::{
     GovernanceViewDiffSummary, StoreIndexManifest, StoreRebuildError, ViewGovernanceRecord,
 };
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceHistoryIndex {
+    pub profile_view_ids: BTreeMap<String, Vec<String>>,
+    pub document_view_ids: BTreeMap<String, Vec<String>>,
+    pub profile_document_view_ids: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernanceViewHistorySource {
+    Persisted,
+    Synthesized,
+}
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GovernanceViewHistoryRecord {
@@ -18,6 +34,7 @@ pub struct GovernanceViewHistoryRecord {
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct GovernanceViewHistorySummary {
+    pub source: GovernanceViewHistorySource,
     pub profile_id: Option<String>,
     pub doc_id: Option<String>,
     pub timestamp_min: Option<u64>,
@@ -26,6 +43,41 @@ pub struct GovernanceViewHistorySummary {
     pub transition_count: usize,
     pub records: Vec<GovernanceViewHistoryRecord>,
     pub transitions: Vec<GovernanceViewDiffSummary>,
+}
+
+pub(super) fn build_governance_history_index(
+    records: &[ViewGovernanceRecord],
+) -> GovernanceHistoryIndex {
+    let mut ordered_records = records.iter().collect::<Vec<_>>();
+    ordered_records.sort_by(|left, right| {
+        left.timestamp
+            .cmp(&right.timestamp)
+            .then_with(|| left.view_id.cmp(&right.view_id))
+    });
+
+    let mut index = GovernanceHistoryIndex::default();
+    for record in ordered_records {
+        index
+            .profile_view_ids
+            .entry(record.profile_id.clone())
+            .or_default()
+            .push(record.view_id.clone());
+        for doc_id in record.documents.keys() {
+            index
+                .document_view_ids
+                .entry(doc_id.clone())
+                .or_default()
+                .push(record.view_id.clone());
+            index
+                .profile_document_view_ids
+                .entry(record.profile_id.clone())
+                .or_default()
+                .entry(doc_id.clone())
+                .or_default()
+                .push(record.view_id.clone());
+        }
+    }
+    index
 }
 
 impl GovernanceViewHistorySummary {
@@ -83,16 +135,49 @@ pub fn governance_view_history(
         ));
     }
 
-    let mut matching_records = manifest
+    let synthesized_index;
+    let (history_index, source) = match &manifest.governance_history {
+        Some(index) => (index, GovernanceViewHistorySource::Persisted),
+        None => {
+            synthesized_index = build_governance_history_index(&manifest.view_governance);
+            (&synthesized_index, GovernanceViewHistorySource::Synthesized)
+        }
+    };
+    let indexed_view_ids = match (profile_id, doc_id) {
+        (Some(profile_id), Some(doc_id)) => history_index
+            .profile_document_view_ids
+            .get(profile_id)
+            .and_then(|documents| documents.get(doc_id)),
+        (Some(profile_id), None) => history_index.profile_view_ids.get(profile_id),
+        (None, Some(doc_id)) => history_index.document_view_ids.get(doc_id),
+        (None, None) => unreachable!("unscoped governance history is rejected above"),
+    };
+    let records_by_id = manifest
         .view_governance
         .iter()
-        .filter(|record| matches_scope(record, profile_id, doc_id, timestamp_min, timestamp_max))
-        .collect::<Vec<_>>();
-    matching_records.sort_by(|left, right| {
-        left.timestamp
-            .cmp(&right.timestamp)
-            .then_with(|| left.view_id.cmp(&right.view_id))
-    });
+        .map(|record| (record.view_id.as_str(), record))
+        .collect::<BTreeMap<_, _>>();
+    let mut matching_records = Vec::new();
+    for view_id in indexed_view_ids.into_iter().flatten() {
+        let record = records_by_id
+            .get(view_id.as_str())
+            .copied()
+            .ok_or_else(|| {
+                StoreRebuildError::new(format!(
+                    "governance history index references missing view '{}'",
+                    view_id
+                ))
+            })?;
+        if !matches_scope(record, profile_id, doc_id, None, None) {
+            return Err(StoreRebuildError::new(format!(
+                "governance history index references out-of-scope view '{}'",
+                view_id
+            )));
+        }
+        if matches_scope(record, profile_id, doc_id, timestamp_min, timestamp_max) {
+            matching_records.push(record);
+        }
+    }
 
     let transitions = matching_records
         .windows(2)
@@ -114,6 +199,7 @@ pub fn governance_view_history(
         .collect::<Vec<_>>();
 
     Ok(GovernanceViewHistorySummary {
+        source,
         profile_id: profile_id.map(str::to_string),
         doc_id: doc_id.map(str::to_string),
         timestamp_min,
@@ -158,7 +244,7 @@ mod tests {
     }
 
     fn manifest() -> StoreIndexManifest {
-        StoreIndexManifest {
+        let mut manifest = StoreIndexManifest {
             version: "mycel-store-index/0.1".to_string(),
             stored_object_count: 0,
             object_ids_by_type: BTreeMap::new(),
@@ -188,6 +274,7 @@ mod tests {
                     &[("doc:alpha", "rev:2"), ("doc:gamma", "rev:g1")],
                 ),
             ],
+            governance_history: None,
             governance_profiles: BTreeMap::from([
                 ("hash:policy-a".to_string(), json!({"mode": "stable"})),
                 ("hash:policy-b".to_string(), json!({"mode": "review"})),
@@ -202,7 +289,10 @@ mod tests {
             current_maintainer_governance: BTreeMap::new(),
             profile_heads: BTreeMap::new(),
             doc_heads: BTreeMap::new(),
-        }
+        };
+        manifest.governance_history =
+            Some(build_governance_history_index(&manifest.view_governance));
+        manifest
     }
 
     #[test]
@@ -217,6 +307,7 @@ mod tests {
         .expect("document history should build");
 
         assert_eq!(history.record_count, 3);
+        assert_eq!(history.source, GovernanceViewHistorySource::Persisted);
         assert_eq!(history.transition_count, 2);
         assert_eq!(
             history
@@ -262,6 +353,33 @@ mod tests {
     }
 
     #[test]
+    fn persisted_history_index_keeps_profile_document_traversal_chronological() {
+        let manifest = manifest();
+        let index = manifest
+            .governance_history
+            .as_ref()
+            .expect("history index should exist");
+        assert_eq!(
+            index.profile_document_view_ids["hash:policy-a"]["doc:alpha"],
+            vec!["view:a", "view:z"]
+        );
+
+        let history = governance_view_history(
+            &manifest,
+            Some("hash:policy-a"),
+            Some("doc:alpha"),
+            None,
+            None,
+        )
+        .expect("profile-document history should build");
+
+        assert_eq!(history.source, GovernanceViewHistorySource::Persisted);
+        assert_eq!(history.record_count, 2);
+        assert_eq!(history.records[0].view_id, "view:a");
+        assert_eq!(history.records[1].view_id, "view:z");
+    }
+
+    #[test]
     fn timestamp_only_history_is_not_a_semantic_change() {
         let mut manifest = manifest();
         manifest.view_governance = vec![
@@ -280,6 +398,8 @@ mod tests {
                 &[("doc:alpha", "rev:1")],
             ),
         ];
+        manifest.governance_history =
+            Some(build_governance_history_index(&manifest.view_governance));
 
         let history = governance_view_history(&manifest, None, Some("doc:alpha"), None, None)
             .expect("timestamp-only history should build");
@@ -289,6 +409,38 @@ mod tests {
         assert!(history.transitions[0].is_different());
         assert!(!history.transitions[0].has_semantic_change());
         assert!(!history.has_semantic_changes());
+    }
+
+    #[test]
+    fn legacy_history_synthesizes_the_missing_persisted_index() {
+        let mut manifest = manifest();
+        manifest.governance_history = None;
+
+        let history = governance_view_history(&manifest, None, Some("doc:alpha"), None, None)
+            .expect("legacy history should synthesize its traversal index");
+
+        assert_eq!(history.source, GovernanceViewHistorySource::Synthesized);
+        assert_eq!(history.record_count, 3);
+        assert_eq!(history.records[0].view_id, "view:a");
+        assert_eq!(history.records[2].view_id, "view:z");
+    }
+
+    #[test]
+    fn persisted_history_rejects_missing_view_references() {
+        let mut manifest = manifest();
+        manifest
+            .governance_history
+            .as_mut()
+            .expect("history index should exist")
+            .document_view_ids
+            .get_mut("doc:alpha")
+            .expect("document history should exist")
+            .push("view:missing".to_string());
+
+        let error = governance_view_history(&manifest, None, Some("doc:alpha"), None, None)
+            .expect_err("missing persisted history reference should fail");
+
+        assert!(error.to_string().contains("references missing view"));
     }
 
     #[test]

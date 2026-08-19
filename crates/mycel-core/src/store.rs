@@ -19,8 +19,10 @@ pub use governance_diff::{
     diff_governance_views, GovernanceDocumentChange, GovernanceDocumentChangeKind,
     GovernanceViewDiffComparison, GovernanceViewDiffSummary,
 };
+use governance_history::build_governance_history_index;
 pub use governance_history::{
-    governance_view_history, GovernanceViewHistoryRecord, GovernanceViewHistorySummary,
+    governance_view_history, GovernanceHistoryIndex, GovernanceViewHistoryRecord,
+    GovernanceViewHistorySource, GovernanceViewHistorySummary,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -236,6 +238,8 @@ pub struct StoreIndexManifest {
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
     #[serde(default)]
+    pub governance_history: Option<GovernanceHistoryIndex>,
+    #[serde(default)]
     pub governance_profiles: BTreeMap<String, Value>,
     #[serde(default)]
     pub maintainer_views: BTreeMap<String, Vec<String>>,
@@ -289,6 +293,7 @@ pub struct StoreRebuildSummary {
     pub revision_parents: BTreeMap<String, Vec<String>>,
     pub author_patches: BTreeMap<String, Vec<String>>,
     pub view_governance: Vec<ViewGovernanceRecord>,
+    pub governance_history: GovernanceHistoryIndex,
     pub governance_profiles: BTreeMap<String, Value>,
     pub maintainer_views: BTreeMap<String, Vec<String>>,
     pub profile_views: BTreeMap<String, Vec<String>>,
@@ -371,6 +376,7 @@ impl StoreRebuildSummary {
             revision_parents: BTreeMap::new(),
             author_patches: BTreeMap::new(),
             view_governance: Vec::new(),
+            governance_history: GovernanceHistoryIndex::default(),
             governance_profiles: BTreeMap::new(),
             maintainer_views: BTreeMap::new(),
             profile_views: BTreeMap::new(),
@@ -502,6 +508,7 @@ pub fn rebuild_store_from_path(target: &Path) -> Result<StoreRebuildSummary, Sto
     sort_string_map_values(&mut summary.profile_views);
     sort_string_map_values(&mut summary.document_views);
     sort_profile_heads(&mut summary.profile_heads);
+    summary.governance_history = build_governance_history_index(&summary.view_governance);
     let (latest_profile_views, latest_document_profile_views) =
         build_latest_governance_state(&summary.view_governance);
     summary.latest_profile_views = latest_profile_views;
@@ -653,6 +660,7 @@ pub fn initialize_store_root(store_root: &Path) -> Result<StoreInitSummary, Stor
         revision_parents: BTreeMap::new(),
         author_patches: BTreeMap::new(),
         view_governance: Vec::new(),
+        governance_history: Some(GovernanceHistoryIndex::default()),
         governance_profiles: BTreeMap::new(),
         maintainer_views: BTreeMap::new(),
         profile_views: BTreeMap::new(),
@@ -1568,6 +1576,7 @@ impl StoreIndexManifest {
             revision_parents: summary.revision_parents.clone(),
             author_patches: summary.author_patches.clone(),
             view_governance: summary.view_governance.clone(),
+            governance_history: Some(summary.governance_history.clone()),
             governance_profiles: summary.governance_profiles.clone(),
             maintainer_views: summary.maintainer_views.clone(),
             profile_views: summary.profile_views.clone(),

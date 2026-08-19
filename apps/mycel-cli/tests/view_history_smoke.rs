@@ -145,6 +145,7 @@ fn view_history_json_reports_chronological_document_transitions() {
     let result = &summary["result"];
 
     assert_eq!(summary["status"], "ok");
+    assert_eq!(result["source"], "persisted");
     assert_eq!(result["doc_id"], "doc:alpha");
     assert_eq!(result["record_count"], 3);
     assert_eq!(result["transition_count"], 2);
@@ -169,6 +170,44 @@ fn view_history_json_reports_chronological_document_transitions() {
         assert_eq!(transition["document_changes"].as_array().unwrap().len(), 1);
         assert_eq!(transition["document_changes"][0]["doc_id"], "doc:alpha");
     }
+}
+
+#[test]
+fn view_history_legacy_manifest_synthesizes_history_index_with_rebuild_hint() {
+    let (_store_dir, store_root, _early, _middle, _late) = build_history_store();
+    let manifest_path = Path::new(&store_root).join("indexes").join("manifest.json");
+    let mut manifest: Value =
+        serde_json::from_str(&fs::read_to_string(&manifest_path).expect("manifest should read"))
+            .expect("manifest should parse");
+    manifest
+        .as_object_mut()
+        .expect("manifest should be an object")
+        .remove("governance_history");
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).expect("legacy manifest should serialize"),
+    )
+    .expect("legacy manifest should write");
+
+    let output = run_mycel(&[
+        "view",
+        "history",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:alpha",
+        "--json",
+    ]);
+    assert_success(&output);
+    let summary = parse_json_stdout(&output);
+
+    assert_eq!(summary["result"]["source"], "synthesized");
+    assert_eq!(summary["result"]["record_count"], 3);
+    assert!(summary["notes"]
+        .as_array()
+        .expect("notes should be an array")
+        .iter()
+        .any(|note| note.as_str().is_some_and(|note| note.contains("rebuild"))));
 }
 
 #[test]
@@ -289,6 +328,7 @@ fn view_history_text_reports_records_and_rejects_inverted_range() {
     assert_success(&output);
     assert_stdout_contains(&output, "history record count: 3");
     assert_stdout_contains(&output, "history transition count: 2");
+    assert_stdout_contains(&output, "history source: persisted");
     assert_stdout_contains(&output, "history transition: view:");
     assert_stdout_contains(&output, "history document change: doc:alpha");
     assert_stdout_contains(&output, "fail on change: false");
