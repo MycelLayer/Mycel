@@ -262,6 +262,48 @@ fn view_history_fail_on_change_reports_semantic_changes_without_failing_the_quer
 }
 
 #[test]
+fn view_history_fail_on_policy_change_distinguishes_policy_from_document_changes() {
+    let (_store_dir, store_root, early, _middle, _late) = build_history_store();
+    let output = run_mycel(&[
+        "view",
+        "history",
+        "--store-root",
+        &store_root,
+        "--doc-id",
+        "doc:alpha",
+        "--fail-on-policy-change",
+        "--json",
+    ]);
+
+    assert_exit_code(&output, 1);
+    let summary = parse_json_stdout(&output);
+    assert_eq!(summary["status"], "ok");
+    assert_eq!(summary["fail_on_change"], false);
+    assert_eq!(summary["fail_on_policy_change"], true);
+    assert_eq!(summary["semantic_change_detected"], true);
+    assert_eq!(summary["policy_change_detected"], true);
+
+    let profile_id = mycel_core::protocol::prefixed_canonical_hash(&early["policy"], "hash")
+        .expect("profile ID should compute");
+    let same_policy_output = run_mycel(&[
+        "view",
+        "history",
+        "--store-root",
+        &store_root,
+        "--profile-id",
+        &profile_id,
+        "--fail-on-policy-change",
+        "--json",
+    ]);
+
+    assert_success(&same_policy_output);
+    let same_policy_summary = parse_json_stdout(&same_policy_output);
+    assert_eq!(same_policy_summary["semantic_change_detected"], true);
+    assert_eq!(same_policy_summary["policy_change_detected"], false);
+    assert_eq!(same_policy_summary["result"]["transition_count"], 1);
+}
+
+#[test]
 fn view_history_fail_on_change_ignores_timestamp_only_transitions() {
     let (_store_dir, store_root) = build_timestamp_only_history_store();
     let output = run_mycel(&[
@@ -332,7 +374,9 @@ fn view_history_text_reports_records_and_rejects_inverted_range() {
     assert_stdout_contains(&output, "history transition: view:");
     assert_stdout_contains(&output, "history document change: doc:alpha");
     assert_stdout_contains(&output, "fail on change: false");
+    assert_stdout_contains(&output, "fail on policy change: false");
     assert_stdout_contains(&output, "semantic change detected: true");
+    assert_stdout_contains(&output, "policy change detected: true");
     assert_stdout_contains(&output, "view history: ok");
 
     let inverted = run_mycel(&[

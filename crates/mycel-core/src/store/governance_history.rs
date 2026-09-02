@@ -86,6 +86,12 @@ impl GovernanceViewHistorySummary {
             .iter()
             .any(GovernanceViewDiffSummary::has_semantic_change)
     }
+
+    pub fn has_policy_changes(&self) -> bool {
+        self.transitions
+            .iter()
+            .any(|transition| transition.policy_changed)
+    }
 }
 
 fn matches_scope(
@@ -333,6 +339,7 @@ mod tests {
             "doc:alpha"
         );
         assert!(history.has_semantic_changes());
+        assert!(history.has_policy_changes());
     }
 
     #[test]
@@ -350,6 +357,7 @@ mod tests {
         assert_eq!(history.transition_count, 0);
         assert_eq!(history.records[0].view_id, "view:z");
         assert!(!history.has_semantic_changes());
+        assert!(!history.has_policy_changes());
     }
 
     #[test]
@@ -409,6 +417,7 @@ mod tests {
         assert!(history.transitions[0].is_different());
         assert!(!history.transitions[0].has_semantic_change());
         assert!(!history.has_semantic_changes());
+        assert!(!history.has_policy_changes());
     }
 
     #[test]

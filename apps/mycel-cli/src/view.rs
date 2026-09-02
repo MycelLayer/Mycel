@@ -165,6 +165,11 @@ struct ViewHistoryCliArgs {
         help = "Exit with status 1 when filtered history contains a semantic governance change"
     )]
     fail_on_change: bool,
+    #[arg(
+        long,
+        help = "Exit with status 1 when filtered history contains a governance policy change"
+    )]
+    fail_on_policy_change: bool,
     #[arg(long, help = "Emit machine-readable governance history output")]
     json: bool,
     #[arg(hide = true, allow_hyphen_values = true)]

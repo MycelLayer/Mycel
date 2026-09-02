@@ -16,20 +16,24 @@ struct ViewHistoryCliSummary {
     manifest_path: PathBuf,
     status: String,
     fail_on_change: bool,
+    fail_on_policy_change: bool,
     semantic_change_detected: bool,
+    policy_change_detected: bool,
     result: Option<GovernanceViewHistorySummary>,
     notes: Vec<String>,
     errors: Vec<String>,
 }
 
 impl ViewHistoryCliSummary {
-    fn new(store_root: &Path, fail_on_change: bool) -> Self {
+    fn new(store_root: &Path, fail_on_change: bool, fail_on_policy_change: bool) -> Self {
         Self {
             store_root: store_root.to_path_buf(),
             manifest_path: store_root.join("indexes").join("manifest.json"),
             status: "ok".to_string(),
             fail_on_change,
+            fail_on_policy_change,
             semantic_change_detected: false,
+            policy_change_detected: false,
             result: None,
             notes: Vec::new(),
             errors: Vec::new(),
@@ -42,7 +46,11 @@ impl ViewHistoryCliSummary {
     }
 
     fn exit_code(&self) -> i32 {
-        i32::from(!self.errors.is_empty() || (self.fail_on_change && self.semantic_change_detected))
+        i32::from(
+            !self.errors.is_empty()
+                || (self.fail_on_change && self.semantic_change_detected)
+                || (self.fail_on_policy_change && self.policy_change_detected),
+        )
     }
 }
 
@@ -77,10 +85,12 @@ fn print_text(summary: &ViewHistoryCliSummary) -> i32 {
     println!("store root: {}", summary.store_root.display());
     println!("manifest path: {}", summary.manifest_path.display());
     println!("fail on change: {}", summary.fail_on_change);
+    println!("fail on policy change: {}", summary.fail_on_policy_change);
     println!(
         "semantic change detected: {}",
         summary.semantic_change_detected
     );
+    println!("policy change detected: {}", summary.policy_change_detected);
     if let Some(result) = &summary.result {
         println!(
             "profile id: {}",
@@ -148,6 +158,7 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
         timestamp_min,
         timestamp_max,
         fail_on_change,
+        fail_on_policy_change,
         json,
         extra: _,
     } = args;
@@ -161,7 +172,8 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
     }
 
     let store_root = PathBuf::from(store_root);
-    let mut summary = ViewHistoryCliSummary::new(&store_root, fail_on_change);
+    let mut summary =
+        ViewHistoryCliSummary::new(&store_root, fail_on_change, fail_on_policy_change);
     match load_store_index_manifest(&store_root) {
         Ok(manifest) => match governance_view_history(
             &manifest,
@@ -172,6 +184,7 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
         ) {
             Ok(result) => {
                 summary.semantic_change_detected = result.has_semantic_changes();
+                summary.policy_change_detected = result.has_policy_changes();
                 summary.notes.push(match result.source {
                     GovernanceViewHistorySource::Persisted => {
                         "history traversal used the persisted governance history index".to_string()
@@ -196,6 +209,10 @@ pub(super) fn handle(args: ViewHistoryCliArgs) -> Result<i32, CliError> {
     );
     summary.notes.push(
         "semantic change detection includes maintainer, policy, and document mapping changes but ignores timestamp-only transitions"
+            .to_string(),
+    );
+    summary.notes.push(
+        "policy change detection only includes transitions whose canonical governance profile ID changed"
             .to_string(),
     );
 

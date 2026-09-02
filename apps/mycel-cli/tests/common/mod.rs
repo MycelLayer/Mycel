@@ -462,6 +462,10 @@ pub fn assert_view_history_help(stdout: &str) {
         "expected fail-on-change flag in help, stdout: {stdout}"
     );
     assert!(
+        stdout.contains("--fail-on-policy-change"),
+        "expected fail-on-policy-change flag in help, stdout: {stdout}"
+    );
+    assert!(
         stdout.contains("--json"),
         "expected json flag in help, stdout: {stdout}"
     );
